@@ -660,36 +660,44 @@ def couple_document(content, link, describes):
         record, never a fabricated one (#1261)
     """
     mappers = MDMetadataXmlMapper.from_xml(content)
-    data = mappers[0].xml_to_django()
-    parsed_instance = data[0]
-    handler = PersistenceHandler(
-        mapper=mappers[0],
-        defaults={
-            "dataset": {
-                "origin": MetadataOriginEnum.CAPABILITIES.value,
-                "origin_url": link
+    try:
+        data = mappers[0].xml_to_django()
+        parsed_instance = data[0]
+        handler = PersistenceHandler(
+            mapper=mappers[0],
+            defaults={
+                "dataset": {
+                    "origin": MetadataOriginEnum.CAPABILITIES.value,
+                    "origin_url": link
+                }
             }
-        }
-    )
-    created_instances = handler.persist_all()
-    # search by unique file_identifier to get the created record.
-    created_instance = next(
-        (
-            v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
-            if parsed_instance.file_identifier in k
-        ),
-        None
-    )
+        )
+        created_instances = handler.persist_all()
+        # search by unique file_identifier to get the created record.
+        created_instance = next(
+            (
+                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+                if parsed_instance.file_identifier in k
+            ),
+            None
+        )
 
-    if not created_instance:
-        logging.warning(
-            f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
-        return None
+        if not created_instance:
+            logging.warning(
+                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+            return None
 
-    drop_superseded_relations_for_link(link, describes, created_instance)
-    created_instance.add_metadata_relation(
-        related_object=describes)
-    return created_instance
+        drop_superseded_relations_for_link(link, describes, created_instance)
+        created_instance.add_metadata_relation(
+            related_object=describes)
+        return created_instance
+    finally:
+        # one coupling reads the mapping of its own document and nobody reads
+        # it again: a registration which couples a hundred references to one
+        # document would otherwise leave a parsed copy of it in the
+        # process-global cache until the TTL (#1415)
+        for mapper in mappers:
+            mapper.release_cache()
 
 
 def drop_superseded_relations_for_link(link, describes, created_instance):

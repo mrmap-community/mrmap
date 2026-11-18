@@ -1,6 +1,6 @@
 import type { Offering, OfferingDimension } from './types';
 
-import moment from 'moment';
+import { formatInstant, isInstant, isPositiveDuration, parseDuration, parseInstant, stepInstant } from '../iso8601';
 
 /**
  * WMS asks the request for an advertised dimension through a well known parameter:
@@ -18,31 +18,29 @@ export type AdvertisedValues =
     | { kind: 'range'; start: number; stop: number; step?: number }
     | { kind: 'time-range'; start: string; stop: string; step?: string };
 
-/** an amount of an ISO 8601 duration: digits with an optional fraction */
-const durationAmount = String.raw`\d+(?:\.\d+)?`
-/** one amount bound to its unit, absent as a whole */
-const optionalUnit = (unit: string) => `(?:${durationAmount}${unit})?`
-
-/**
- * The WMS duration shape: P, at least one further character, the date units in
- * their fixed order, optionally T with the time units in their fixed order.
- */
-const ISO_8601_DURATION_PATTERN = new RegExp(
-    `^P(?=.+)${optionalUnit('Y')}${optionalUnit('M')}${optionalUnit('W')}${optionalUnit('D')}` +
-    `(?:T(?=.+)${optionalUnit('H')}${optionalUnit('M')}${optionalUnit('S')})?$`)
-
 /** the shape of a numeric interval: two or three plain numbers, start, stop and at most a step */
 const isNumericRangeParts = (parts: string[]): boolean =>
     parts.length >= 2 && parts.length <= 3
     && parts.every(part => part.trim() !== '' && Number.isFinite(Number(part)));
 
-/** the shape of a temporal interval: two valid ISO 8601 instants in order and at most one positive duration step */
-const isTimeRangeParts = (parts: string[]): boolean =>
-    (parts.length === 2 || parts.length === 3) &&
-    moment.utc(parts[0], moment.ISO_8601, true).isValid() &&
-    moment.utc(parts[1], moment.ISO_8601, true).isValid() &&
-    moment.utc(parts[0]).valueOf() <= moment.utc(parts[1]).valueOf() &&
-    (parts[2] === undefined || (ISO_8601_DURATION_PATTERN.test(parts[2]) && moment.duration(parts[2]).asMilliseconds() > 0));
+/** whether the text steps an observation of a time range on */
+const isStep = (value: string): boolean => {
+    const step = parseDuration(value);
+    return step !== undefined && isPositiveDuration(step);
+};
+
+/**
+ * The shape of a temporal interval: two valid ISO 8601 instants in order and at most one step which
+ * moves an observation on. A step the grammar cannot walk, a fractional month among them, is not an
+ * interval but text a viewer has to show as it is.
+ */
+const isTimeRangeParts = (parts: string[]): boolean => {
+    if (parts.length !== 2 && parts.length !== 3) return false;
+    const start = parseInstant(parts[0]);
+    const stop = parseInstant(parts[1]);
+    if (start === undefined || stop === undefined || start > stop) return false;
+    return parts.length === 2 || isStep(parts[2]);
+};
 
 /**
  * Read advertised numeric and ISO 8601 temporal intervals without expanding large ranges.
@@ -64,9 +62,9 @@ export const parseAdvertisedValues = (values: string): AdvertisedValues => {
 /** whether the instant is one of the observations a stepped time range advertises:
  *  the index of the step is unknown, so it is probed by growing a bound
  *  exponentially and searching it binary */
-const isAdvertisedInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' }>, instant: moment.Moment): boolean => {
-    const at = (index: number) => timeRangeInstant(range, index);
-    const target = instant.valueOf();
+const isAdvertisedInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' }>, target: number): boolean => {
+    const at = timeRangeInstantAt(range);
+    if (at === undefined) return false;
     let low = 0, high = 1;
     while (at(high) < target && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
     while (low <= high) {
@@ -95,10 +93,11 @@ export const isAllowedDimensionValue = (dimension: OfferingDimension, value: str
         return advertised.values.includes(value) || value === dimension.default;
     if (advertised.kind === 'time-range') {
         if (value === dimension.default || value === dimension.values) return true;
-        const instant = moment.utc(value, moment.ISO_8601, true);
-        const start = moment.utc(advertised.start);
-        const stop = moment.utc(advertised.stop);
-        if (!instant.isValid() || instant.isBefore(start) || instant.isAfter(stop)) return false;
+        const instant = parseInstant(value);
+        const start = parseInstant(advertised.start);
+        const stop = parseInstant(advertised.stop);
+        if (instant === undefined || start === undefined || stop === undefined) return false;
+        if (instant < start || instant > stop) return false;
         if (!advertised.step) return true;
         return isAdvertisedInstant(advertised, instant);
     }
@@ -232,20 +231,22 @@ export const getWmsDimensionOverrides = (offering?: Offering) =>
     (offering?.dimensions ?? []).flatMap(dimension => {
         const value = getWmsDimensionSelection(offering!, dimension);
         if (value === '' || value === dimension.default) return [];
-        const a = moment.utc(value, moment.ISO_8601, true);
-        const b = moment.utc(dimension.default ?? '', moment.ISO_8601, true);
-        if (a.isValid() && b.isValid() && a.isSame(b)) return [];
+        const selection = parseInstant(value);
+        const advertisedDefault = parseInstant(dimension.default ?? '');
+        if (selection !== undefined && advertisedDefault !== undefined && selection === advertisedDefault) return [];
         return [{ name: dimension.name, value }];
     });
 
-// Anchor calendar steps at the advertised start, without enumerating large time ranges.
-const timeRangeInstant = (range: Extract<AdvertisedValues, { kind: 'time-range' }>, index: number) => {
-    const duration = moment.duration(range.step);
-    const milliseconds = duration.days() * 86400000 + duration.hours() * 3600000 +
-        duration.minutes() * 60000 + duration.seconds() * 1000 + duration.milliseconds();
-    return moment.utc(range.start)
-        .add((duration.years() * 12 + duration.months()) * index, 'months')
-        .add(milliseconds * index, 'milliseconds').valueOf();
+/**
+ * Anchor calendar steps at the advertised start, without enumerating large time ranges. The start and
+ * the step are parsed once: a range of a million observations is walked by its positions, so reading
+ * its text again for every position is the cost that must not be paid.
+ */
+const timeRangeInstantAt = (range: Extract<AdvertisedValues, { kind: 'time-range' }>): ((index: number) => number) | undefined => {
+    const start = parseInstant(range.start);
+    const step = range.step === undefined ? undefined : parseDuration(range.step);
+    if (start === undefined || step === undefined) return undefined;
+    return (index: number) => stepInstant(start, step, index);
 };
 
 /** The discrete observations a time dimension advertises, as positions a viewer can step through. */
@@ -280,10 +281,12 @@ export const getUpcomingTimeAxisPositions = (axis: TimeDimensionAxis, index: num
 
 /** the axis of a stepped temporal interval: its observations up to the advertised end */
 const steppedTimeRangeAxis = (advertised: Extract<AdvertisedValues, { kind: 'time-range' }>) => {
-    const instantAt = (index: number) => timeRangeInstant(advertised, index);
+    const instantAt = timeRangeInstantAt(advertised);
+    if (instantAt === undefined) return undefined;
     const increasing = instantAt(1) > instantAt(0);
     if (!increasing) return undefined;
-    const stop = moment.utc(advertised.stop).valueOf();
+    const stop = parseInstant(advertised.stop);
+    if (stop === undefined) return undefined;
     let low = 0, high = 1;
     while (instantAt(high) <= stop && high < Number.MAX_SAFE_INTEGER / 2) high *= 2;
     while (low + 1 < high) {
@@ -294,17 +297,20 @@ const steppedTimeRangeAxis = (advertised: Extract<AdvertisedValues, { kind: 'tim
     return {
         count: low + 1,
         instantAt,
-        valueAt: (index: number) => moment.utc(instantAt(index)).toISOString(),
+        valueAt: (index: number) => formatInstant(instantAt(index)),
     };
 };
 
 /** the axis of a listed series of instants: the distinct values in temporal order */
 const listedTimeAxis = (advertised: Extract<AdvertisedValues, { kind: 'list' }>) => {
-    const values = [...new Set(advertised.values)].sort((a, b) => moment.utc(a).valueOf() - moment.utc(b).valueOf());
+    const observations = [...new Set(advertised.values)].flatMap(value => {
+        const instant = parseInstant(value);
+        return instant === undefined ? [] : [{ instant, value }];
+    }).sort((a, b) => a.instant - b.instant);
     return {
-        count: values.length,
-        instantAt: (index: number) => moment.utc(values[index]).valueOf(),
-        valueAt: (index: number) => values[index],
+        count: observations.length,
+        instantAt: (index: number) => observations[index].instant,
+        valueAt: (index: number) => observations[index].value,
     };
 };
 
@@ -315,14 +321,14 @@ export const getTimeDimensionAxis = (dimension: OfferingDimension) => {
     let axis: ReturnType<typeof steppedTimeRangeAxis>;
     if (advertised.kind === 'time-range' && advertised.step) {
         axis = steppedTimeRangeAxis(advertised);
-    } else if (advertised.kind === 'list' && advertised.values.length > 0 && advertised.values.every(value => moment.utc(value, moment.ISO_8601, true).isValid())) {
+    } else if (advertised.kind === 'list' && advertised.values.length > 0 && advertised.values.every(isInstant)) {
         axis = listedTimeAxis(advertised);
     } else return undefined; // Continuous ranges retain their exact date input.
     if (axis === undefined) return undefined;
     const { count, instantAt, valueAt } = axis;
     const indexOf = (value: string) => {
-        const target = moment.utc(value, moment.ISO_8601, true).valueOf();
-        if (!Number.isFinite(target)) return -1;
+        const target = parseInstant(value);
+        if (target === undefined) return -1;
         let low = 0, high = count - 1;
         while (low <= high) {
             const middle = Math.floor((low + high) / 2), instant = instantAt(middle);

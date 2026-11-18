@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models import Q
 from django.db.models.deletion import Collector
@@ -18,6 +19,10 @@ from registry.managers.service import configured_relation_fields
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.models.metadata import (FeatureTypeRemoteMetadata,
+                                      LayerRemoteMetadata,
+                                      WebFeatureServiceRemoteMetadata,
+                                      WebMapServiceRemoteMetadata)
 from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -579,6 +584,94 @@ class ServiceUpdateJob(models.Model):
             [instance], default_change_reason=self.default_change_reason,
         )
 
+    def adopt_stored_document(self):
+        """Store the capabilities document this update published as the
+        stored document of the service (#1413).
+
+        ``document_equals`` hashes this file against the next answer, #1044
+        reads it network-free and #1150 checks its integrity: all three
+        answer for the service as the update left it only if adoption
+        writes the adopted document. Leaving the backup at the document of
+        the registration made every later cycle of a service which had
+        changed once prove *changed* again - the full candidate was staged,
+        parsed, mapped and thrown away every run, because nothing remembered
+        that the service had settled with the adoption.
+
+        What gets stored is the raw answer this run compared against
+        (``_adopted_capabilities``): ``document_equals`` hashes raw bytes,
+        while the candidate's own backup carries the mapper's serialized
+        edition of them - hashing those against the next raw answer would
+        never prove equal. A resumed review run has no fetched answer in
+        hand and falls back to the candidate's backup; that document is
+        what the adoption published, and one converging cycle later the
+        comparison answers unchanged.
+
+        The file keeps the name it had: the storage renames a colliding
+        write, and a differently named document per cycle would spread
+        copies through the directory and leave the row pointing at a name
+        the operator of #1150 cannot follow. The write therefore goes to the
+        storage directly; the row is only saved when the name really
+        changed, so an adoption which changed nothing else writes no history
+        row either.
+        """
+        document = getattr(self, "_adopted_capabilities", None) \
+            or self.new_service.xml_backup
+        if not document:
+            # nothing was published to adopt; the stored read keeps
+            # answering what it answered before (#1044)
+            return
+        backup = self.service.xml_backup_file
+        name = backup.name
+        base = name.rsplit("/", 1)[-1] if name else "backup.xml"
+        if name:
+            # away first, so the new bytes land under the same name: a
+            # colliding write would be stored under a fresh name
+            backup.delete(save=False)
+        backup.save(base, ContentFile(document), save=False)
+        if self.service.xml_backup_file.name != name:
+            self.service._change_reason = self.default_change_reason
+            self.service.save()
+
+    @staticmethod
+    def _republish_references(service_model, element_model, service,
+                              candidate, re_describe, taken_back=()):
+        """Move the advertised metadata references of an adopted candidate
+        onto the published service (#1413).
+
+        The metadata step of the update (#1274) collects the references
+        which describe the published service and its elements, while the
+        rows a candidate left behind describe the candidate and die with it.
+        Moving them is what makes "this service now advertises these links"
+        durable: after an update the advertised list is exactly what the
+        adopted document advertises - new links come to describe the
+        published elements, links the document dropped are taken back, and
+        an element the adoption newly brings in keeps the rows which already
+        describe it. Records found through a dropped link stay registered;
+        #1261's supersede bookkeeping answers their relations, as it does
+        for every link which resolves elsewhere.
+
+        ``re_describe`` maps each candidate element to the published element
+        which adopts it - mapped pairs only, an adopted new element already
+        describes the live row. ``taken_back`` names the published elements
+        the new document does not carry anymore; their rows go in the same
+        statement as the stale rows of the mapped pairs, before the elements
+        themselves are deleted, so the element deletion's own cascade finds
+        nothing left to take and the whole move costs a constant number of
+        statements - #1393's pair-independent apply phase keeps its shape.
+        """
+        service_model.objects.filter(describes=service).delete()
+        service_model.objects.filter(describes_id=candidate.pk).update(
+            describes=service)
+        element_model.objects.filter(
+            describes__in=[*re_describe.values(), *taken_back]).delete()
+        references = list(
+            element_model.objects.filter(describes__in=list(re_describe)))
+        if references:
+            for reference in references:
+                reference.describes_id = re_describe[reference.describes_id]
+            element_model.objects.bulk_update(
+                references, ["describes_id"], batch_size=500)
+
     def delete_with_reason(self, queryset, model):
         collector = Collector(using=queryset.db, origin=queryset)
         collector.collect(queryset)
@@ -798,6 +891,19 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             batch_size=500,
         )
 
+    def _republish_advertised_references(self, mappings, taken_back):
+        """The adopted document's references, told for a WMS: the service
+        and its layers, answered by
+        :meth:`ServiceUpdateJob._republish_references` (#1413).
+        """
+        self._republish_references(
+            WebMapServiceRemoteMetadata, LayerRemoteMetadata,
+            self.service, self.new_service,
+            {mapping.new_layer_id: mapping.old_layer_id
+             for mapping in mappings
+             if mapping.old_layer_id is not None},
+            taken_back)
+
     @atomic
     def update_layers(self):
         if not self.are_all_layers_updateable():
@@ -849,8 +955,18 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         self.bulk_update_changed(
             updateable_layers, Layer, fields, ("mptt_parent",))
         self._bulk_adopt_layers(adopted_layers)
+        # first the references: the adopted document's rows come onto the
+        # published layers and every stale row of the old state - mapped
+        # pairs as well as layers the new document drops - goes in one
+        # statement, so the deletion below cascades over an empty table and
+        # the apply phase keeps its constant shape (#1413, #1393)
+        self._republish_advertised_references(mappings, deleteable_layers)
         self.delete_with_reason(Layer.objects.filter(
             id__in=deleteable_layers), Layer)
+        # the published service stores what this update published as its own
+        # document (#1413) - while the candidate is still there to hand its
+        # bytes over
+        self.adopt_stored_document()
         # Monitoring settings are user configuration of the service, not of the
         # temporary candidate. They must survive the candidate deletion and
         # continue to point at the published service, but stay disabled until
@@ -888,6 +1004,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
                 self.finish_after_metadata_step()
                 return
 
+            self._adopted_capabilities = remote_capabilities
             self.create_new_service(remote_capabilities)
             self.create_initial_layer_mappings()
 
@@ -1074,14 +1191,41 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             if changed:
                 updateable_featuretypes.append(target)
         self.bulk_update_changed(updateable_featuretypes, FeatureType, fields)
+        # first the references: the adopted document's rows come onto the
+        # published feature types and every stale row of the old state -
+        # mapped pairs as well as feature types the new document drops -
+        # goes in one statement, so the deletion below cascades over an
+        # empty table and the apply phase keeps its constant shape (#1413,
+        # #1393)
+        self._republish_advertised_references(
+            self.mappings.filter(
+                is_confirmed=True, new_featuretype__isnull=False),
+            deleteable_featuretypes)
         self.delete_with_reason(
             FeatureType.objects.filter(
                 id__in=deleteable_featuretypes), FeatureType,
         )
+        # the published service stores what this update published as its own
+        # document (#1413) - while the candidate is still there to hand its
+        # bytes over
+        self.adopt_stored_document()
         WebFeatureService.objects.filter(
             update_candidate_of=self.service).delete()
         self.mappings.all().delete()
         return UpdateJobStatusEnum.UPDATED
+
+    def _republish_advertised_references(self, mappings, taken_back):
+        """The adopted document's references, told for a WFS: the service
+        and its feature types, answered by
+        :meth:`ServiceUpdateJob._republish_references` (#1413).
+        """
+        self._republish_references(
+            WebFeatureServiceRemoteMetadata, FeatureTypeRemoteMetadata,
+            self.service, self.new_service,
+            {mapping.new_featuretype_id: mapping.old_featuretype_id
+             for mapping in mappings
+             if mapping.old_featuretype_id is not None},
+            taken_back)
 
     def update_service(self):
         return self.update_metadata(WebFeatureService)
@@ -1108,6 +1252,7 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
                 self.finish_after_metadata_step()
                 return
 
+            self._adopted_capabilities = remote_capabilities
             self.create_new_service(remote_capabilities)
             self.create_initial_featuretype_mappings()
 

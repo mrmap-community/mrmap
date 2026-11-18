@@ -1,13 +1,18 @@
 from accounts.models.users import User
 from accounts.serializers.auth import PermissionSerializer
 from accounts.serializers.users import UserSerializer
+from accounts.throttling import (LoginAttemptThrottle,
+                                 ThrottleLoginAttemptsMixin)
 from django.conf import settings
 from django.contrib.auth import login, logout
 from django.contrib.auth.models import Permission
 from django.middleware.csrf import get_token, rotate_token
+from knox.auth import TokenAuthentication as KnoxTokenAuthentication
 from knox.views import LoginView as KnoxLoginView
 from knox.views import LogoutView as KnoxLogoutView
 from rest_framework import generics, status
+from rest_framework.authentication import (BasicAuthentication,
+                                           SessionAuthentication)
 from rest_framework.exceptions import NotAuthenticated
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import JSONRenderer
@@ -17,7 +22,10 @@ from rest_framework_json_api.renderers import JSONRenderer as JSONApiRenderer
 from rest_framework_json_api.views import ReadOnlyModelViewSet
 
 
-class LoginView(KnoxLoginView):
+class LoginView(
+    ThrottleLoginAttemptsMixin,
+    KnoxLoginView
+):
     """Login endpoint of the *machine* clients (#835).
 
     knox answers HTTP Basic credentials with a token the caller keeps itself.
@@ -27,8 +35,20 @@ class LoginView(KnoxLoginView):
     a credential JavaScript can read is a credential an injected script can
     copy. The documented policy of these tokens (lifetime, revocation, what is
     still open) is in ``docs/source/administration/authentication.md``.
+
+    ``authentication_classes`` names the stack explicitly - it is the list the
+    global settings held until #1450 dropped Basic from them. Basic lives on
+    this view and on ``SessionView`` alone, the two endpoints
+    ``docs/source/administration/authentication.md`` documents it for; the
+    order is kept exactly as it was, because it is what decides that a wrong
+    credential answers 403 (the coerced shape of DRF's refusal) rather than a
+    401 challenge. Every attempt to open a token here pays into the
+    per-address login budget of #1450.
     """
     renderer_classes = [JSONRenderer]
+    authentication_classes = [SessionAuthentication, BasicAuthentication,
+                              KnoxTokenAuthentication]
+    throttle_classes = [LoginAttemptThrottle]
 
 
 class LogoutView(KnoxLogoutView):
@@ -41,7 +61,10 @@ class LogoutView(KnoxLogoutView):
     renderer_classes = [JSONRenderer]
 
 
-class SessionView(APIView):
+class SessionView(
+    ThrottleLoginAttemptsMixin,
+    APIView
+):
     """The browser session of the SPA (accepted decision Q8=B, #835).
 
     One endpoint, three verbs, no credential in any answer:
@@ -65,8 +88,8 @@ class SessionView(APIView):
       way.
 
     CSRF: the state-changing verbs (``POST``, ``DELETE``) of a caller the session
-    authenticates are checked by DRF's ``SessionAuthentication``, which is first
-    in ``DEFAULT_AUTHENTICATION_CLASSES`` and demands the ``X-CSRFToken`` header
+    authenticates are checked by DRF's ``SessionAuthentication``, first in this
+    view's ``authentication_classes``, which demands the ``X-CSRFToken`` header
     beside the cookie. That is why every verb of this view makes sure the CSRF
     cookie itself is present: a plain JSON ``GET`` would not set it (Django sets
     it where a template or ``get_token`` asks for it), and the SPA can only send
@@ -74,11 +97,22 @@ class SessionView(APIView):
     first login of a browser without session - is not a session-authenticated
     request, so no token is asked of it; a re-login while a session is alive
     does need one, which is the login-CSRF guard Django's own login view gives.
+
+    The credentials this view speaks are declared on the view, not inherited:
+    Basic lives here (and on ``LoginView``) alone, #1450 dropped it from the
+    global stack - this POST and the machine login are what
+    ``docs/source/administration/authentication.md`` documents it for, and
+    every password-carrying POST here pays into the per-address login budget
+    which refuses the flood with 429 before a credential is read (#1450). The
+    verbs without a password - the probe, the logout - cost nothing.
     """
     renderer_classes = [JSONRenderer]
     # the verbs' own policies are in the methods: this view answers anonymous
     # callers on GET and DELETE by design, so no global permission class
     permission_classes = [AllowAny]
+    authentication_classes = [SessionAuthentication, BasicAuthentication,
+                              KnoxTokenAuthentication]
+    throttle_classes = [LoginAttemptThrottle]
     http_method_names = ['get', 'head', 'options', 'post', 'delete']
 
     def get(self, request):

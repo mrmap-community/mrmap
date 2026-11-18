@@ -413,8 +413,18 @@ class SharedDocumentAcquisitionTests(TransactionTestCase):
             claim_token=uuid4(),
             lease_expires_at=timezone.now() + timedelta(minutes=10))
 
-        waiting = self._finish()
-        self.assertEqual(waiting.state, 'RETRY')
+        # the body's answer under a live fetch is one published wait
+        # round - the shape a RETRY takes on a real worker is exactly
+        # this delayed re-publish - and no completion: the run stays
+        # open and the leased acquisition stays for the takeover.
+        with patch.object(finish_metadata_collection, 'apply_async',
+                          autospec=True) as apply_async:
+            self._finish()
+        self.assertEqual(apply_async.call_count, 1,
+                         msg='the completion waited exactly one round for '
+                             'the fetcher')
+        self.assertTrue(apply_async.call_args.kwargs.get('countdown'),
+                        msg='the wait round is delayed, not hot-looped')
         self.process.refresh_from_db()
         self.assertNotEqual(self.process.status, ProcessStatusEnum.COMPLETED)
 

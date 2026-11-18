@@ -33,7 +33,8 @@ from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
-from registry.enums.metadata import (MetadataOriginEnum,
+from registry.enums.metadata import (DocumentAcquisitionStateEnum,
+                                     MetadataOriginEnum,
                                      ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
@@ -304,6 +305,12 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
 APPLICATION_JSON = "application/json"
 
+# The lazy reference of the process which owns the work rows of harvesting
+# and registration. Named once because three aggregates spell it
+# identically; a ForeignKey ``to`` deconstructs to the same resolved string
+# either way, so the migration state is untouched (#1410).
+BACKGROUND_PROCESS_REF = "notify.BackgroundProcess"
+
 
 class HarvestingJob(ProcessingData):
     """ helper model to visualize harvesting job workflow """
@@ -369,7 +376,7 @@ class HarvestingJob(ProcessingData):
         blank=True
     )
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -1453,7 +1460,9 @@ REGISTRATION_FILE_SUBDIR = "registration"
 
 def response_file_path(instance, filename):
     # registration work rows live below a distinct per-process prefix; they
-    # have no job and must never share the harvesting layout (#1263)
+    # have no job and must never share the harvesting layout (#1263). The
+    # shared document acquisitions of #1410 store below the very same
+    # prefix - the registration sweep owns that tree for both kinds of row.
     if instance.background_process_id is not None:
         return (f'{TEMPORARY_MD_METADATA_FILE_SUBDIR}/'
                 f'{REGISTRATION_FILE_SUBDIR}/{instance.background_process_id}/{filename}')
@@ -1506,13 +1515,30 @@ class TemporaryMdMetadataFile(models.Model):
     # the process (explicitly or through the retention of #1208) takes the
     # row and its file, while the permanent records and their relations stay.
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.CASCADE,
         verbose_name=_("background process"),
         null=True,
         editable=False,
         related_name="registration_work_items",
         related_query_name="registration_work_item")
+    # the shared document acquisition this reference draws its document
+    # from (#1410).
+    # Rows planned before #1410 - and a retried reference whose acquisition
+    # drained in between - answer None: such a reference fetches and stores
+    # its own document exactly the way #1263 always did. The reference row
+    # stays the unit of the outcome whatever shares the fetch: SET_NULL
+    # keeps it readable after its acquisition drained with the last open
+    # reference pointing at it.
+    acquisition = models.ForeignKey(
+        to="registry.RegistrationDocumentAcquisition",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("document acquisition"),
+        related_name="references",
+        related_query_name="reference")
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
@@ -2200,6 +2226,266 @@ class TemporaryMdMetadataFile(models.Model):
             collecting_state,
             self.download_duration,
             duration)
+
+
+class RegistrationDocumentAcquisition(models.Model):
+    """One shared document acquisition of one collecting run (#1410).
+
+    The capabilities of a service advertise the same ISO document from many
+    references - the service-level reference and every Layer or FeatureType
+    pointing at one url. #1263 made each of those references its own work
+    row, which is what the outcome, the retry and the API need; what must
+    not multiply with them is the HTTP request. A row of this table is that
+    shared half: keyed by the process and the identity of the *request*
+    (the exact advertised url under one auth scope), it carries the fetch
+    lease, the stored bytes and the one decode the referring references
+    import from. The reference row stays the permit of its own outcome;
+    this row is the permit of the fetch only.
+
+    It is a disposable work row like the reference rows above: created with
+    the sealed plan, deleted when the last reference it serves has decided
+    (the drain of #1410) or when its process is purged. It is never a
+    ledger and never exposed by the API - the acquisition key and the claim
+    token authorize work like the reference row's own permits.
+    """
+    background_process = models.ForeignKey(
+        to=BACKGROUND_PROCESS_REF,
+        on_delete=models.CASCADE,
+        verbose_name=_("background process"),
+        editable=False,
+        related_name="document_acquisitions",
+        related_query_name="document_acquisition")
+    # the fixed-size identity of one request within one collecting run: the
+    # SHA-256 digest of the exact advertised url and the auth scope which
+    # answers it (see ``build_acquisition_key``). Unique per owning process
+    # (see Meta); the full url never enters a B-tree key twice.
+    acquisition_key = models.CharField(
+        max_length=64,
+        editable=False,
+        verbose_name=_("acquisition key"),
+        help_text=_(
+            "sha-256 digest of the advertised url and the auth scope of "
+            "this acquisition; set only on shared document work rows"))
+    requested_url = models.URLField(
+        max_length=4096,
+        null=True,
+        verbose_name=_("download link"),
+        help_text=_(
+            "the url where the metadata could be downloaded from."))
+    # when this acquisition was planned - the age a sweep may one day
+    # measure a never-claimed row by, mirroring the reference rows.
+    request_id = models.DateTimeField(null=True)
+    # the work state of the fetch (see DocumentAcquisitionStateEnum); a
+    # fetch which decided its failure does not land here - its failure is
+    # decided on every referring reference and the row drains away.
+    state = models.PositiveSmallIntegerField(
+        choices=DocumentAcquisitionStateEnum.choices,
+        default=DocumentAcquisitionStateEnum.PENDING.value,
+        editable=False,
+        verbose_name=_("work state"),
+        help_text=_(
+            "pending, leased or stored state of a shared document "
+            "acquisition; draining takes a decided row away"))
+    # the single-use permit of the fetching delivery: only a delivery
+    # holding the token stored here may store the document of this
+    # acquisition - an outcome reported under another token is discarded,
+    # like the reference rows' claim (#1263 fences, #1410 reuses it).
+    claim_token = models.UUIDField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("claim token"),
+        help_text=_(
+            "token of the delivery which currently leases this row; an "
+            "outcome reported under another token is discarded"))
+    lease_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("lease expires at"),
+        help_text=_(
+            "until when the current claim may work; a row whose lease ran "
+            "out is eligible for a new claim and for recovery"))
+    attempt_count = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("attempt count"),
+        help_text=_(
+            "how many deliveries have claimed this row; retries included"))
+    # the document fetched once for every referring reference. The name
+    # carries the fetcher's claim token, so a lost attempt's bytes are an
+    # orphan the registration sweep reads out of the prefix, never a
+    # rewrite of what a decided acquisition points at.
+    md_metadata_file: FieldFile = models.FileField(
+        verbose_name=_("response"),
+        help_text=_(
+            "the content of the http response, or of the imported file"),
+        upload_to=response_file_path,
+        blank=True)
+
+    class Meta:
+        constraints = [
+            # one shared document per identical request identity within one
+            # collecting run (#1410): the same url advertised for two
+            # resources is ONE acquisition, a url whose query differs is a
+            # different request and never collapses into it.
+            models.UniqueConstraint(
+                fields=["background_process", "acquisition_key"],
+                name="registration_document_per_process"),
+        ]
+
+    @staticmethod
+    def build_acquisition_key(url, auth_scope=""):
+        """The stable identity of one request for one document.
+
+        The SHA-256 digest of the exact advertised url and the auth scope
+        which answers it - computed at planning time and nowhere else. No
+        normalization of the url: like the reference key of #1263 the
+        contract is the exact capabilities-advertised string, so queries
+        which mean different requests (``?a=1`` vs ``?a=1&b=2``, a
+        case-different path, a different version parameter) never collapse
+        into one acquisition.
+
+        The auth scope distinguishes credential contexts: two references
+        whose documents must be fetched with different stored authentications
+        are different requests even on one url. V1 fetches every advertised
+        reference without authentication (see
+        ``registry.models.metadata.fetch_metadata_document``), so the scope
+        is empty everywhere. Whoever re-adds authentication must pass an
+        opaque scope identity - the primary key of the stored authentication
+        row, never its secret - because the key is a digest, not a vault:
+        the acquisition must never carry a credential or a digest an attacker
+        can precompute from one.
+
+        Args:
+            url (str): the exact advertised url
+            auth_scope (str): opaque identity of the credential context
+
+        Returns:
+            str: the 64-character hex digest stored in ``acquisition_key``
+        """
+        payload = f"{auth_scope}|{url}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def claim_for_processing(self, background_process_pk, lease_seconds):
+        """Take the single-use fetch permit of this acquisition row.
+
+        The same posture as the reference row's claim of #1263: lock the
+        background process first, this row second; claim what is claimable
+        and refuse everything else without writing. Only a PENDING row or a
+        LEASE whose holder never reported is claimable - a STORED row needs
+        no fetcher, its bytes answer, and a row whose fetch decided a
+        failure is gone with its decision through the drain. No lock is
+        held across the network: the claim answers a token and the fetch
+        happens behind it, outside any transaction.
+
+        Args:
+            background_process_pk: the process the signature names as owner
+            lease_seconds (int): how long the claim may work
+
+        Returns:
+            tuple|None: ``(claim_token, retried)`` - ``retried`` tells a
+                claim over an expired lease apart from a first attempt -
+                or None when no claim was given
+        """
+        from notify.models import BackgroundProcess  # local import: models cycle
+
+        with transaction.atomic():
+            process = BackgroundProcess.objects.select_for_update().filter(
+                pk=background_process_pk).first()
+            if process is None or process.done_at is not None:
+                # the run decided itself or is gone: a fetch nobody waits
+                # for is a request nobody asked for
+                return None
+            row = RegistrationDocumentAcquisition.objects \
+                .select_for_update(of=("self",)).filter(
+                    pk=self.pk).first()
+            if (row is None
+                    or str(row.background_process_id)
+                    != str(background_process_pk)):
+                return None
+            if row.state == DocumentAcquisitionStateEnum.STORED.value:
+                # the bytes are there: the reader imports from them, nobody
+                # pays for the document a second time
+                return None
+            if row.state == DocumentAcquisitionStateEnum.LEASED.value and (
+                    row.lease_expires_at is None
+                    or row.lease_expires_at > timezone.now()):
+                # an unexpired lease: another delivery is fetching right now
+                return None
+            retried = (
+                row.state
+                == DocumentAcquisitionStateEnum.LEASED.value)
+            token = uuid4()
+            RegistrationDocumentAcquisition.objects.filter(
+                pk=self.pk).update(
+                    state=DocumentAcquisitionStateEnum.LEASED.value,
+                    claim_token=token,
+                    lease_expires_at=timezone.now() + timedelta(
+                        seconds=max(60, int(lease_seconds))),
+                    attempt_count=F("attempt_count") + 1)
+            return token, retried
+
+    def release_claim(self, claim_token):
+        """Hand a still-undetached leased row back for the next attempt.
+
+        A transport failure is not a decision about the document: the fetch
+        lease goes back to the holder of the token only, and a competing
+        delivery may claim the row again - the release of a re-claimed row
+        is refused by the token check, like the reference rows' (#1263).
+        """
+        return RegistrationDocumentAcquisition.objects.filter(
+            pk=self.pk,
+            state=DocumentAcquisitionStateEnum.LEASED.value,
+            claim_token=claim_token).update(
+                state=DocumentAcquisitionStateEnum.PENDING.value,
+                claim_token=None,
+                lease_expires_at=None)
+
+    def store_document(self, claim_token, storage_name):
+        """Attach the fetched bytes while the storing delivery still holds
+        the fetch permit (#1410).
+
+        One conditional UPDATE behind the token: a lease lost while the
+        document was in flight means a recovery already re-drove this row,
+        and this delivery's bytes belong to the sweep, not to the row.
+
+        Returns:
+            bool: whether the row is STORED under this token now
+        """
+        return bool(RegistrationDocumentAcquisition.objects.filter(
+            pk=self.pk,
+            state=DocumentAcquisitionStateEnum.LEASED.value,
+            claim_token=claim_token).update(
+                state=DocumentAcquisitionStateEnum.STORED.value,
+                md_metadata_file=storage_name,
+                claim_token=None,
+                lease_expires_at=None))
+
+    def delete(self, *args, **kwargs):
+        storage = self.md_metadata_file.storage
+        name = self.md_metadata_file.name
+        ret = super().delete(*args, **kwargs)
+        if name:
+            transaction.on_commit(lambda: storage.delete(name))
+        return ret
+
+
+def registration_document_file_names(process_pks):
+    """The stored file names of the shared acquisitions of these processes.
+
+    The same reading rule as ``registration_work_file_names`` (#1263): a
+    cascade takes rows and never bytes, so whoever deletes a collecting
+    process names the acquisitions' files while the rows still exist (#1410).
+    """
+    if not process_pks:
+        return []
+    return list(
+        RegistrationDocumentAcquisition.objects.filter(
+            background_process_id__in=list(process_pks))
+        .exclude(md_metadata_file="")
+        .exclude(md_metadata_file=None)
+        .values_list("md_metadata_file", flat=True))
 
 
 def registration_work_file_names(process_pks):

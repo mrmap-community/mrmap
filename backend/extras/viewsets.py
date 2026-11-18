@@ -127,7 +127,7 @@ class HistoryInformationViewSetMixin:
                 to_snake(include) for include in get_included_resources(
                     self.request, self.get_serializer_class())]
 
-            HistoryModel = apps.get_model(
+            history_model = apps.get_model(
                 self.queryset.model._meta.app_label,
                 f"Historical{self.queryset.model.__name__}"
             )
@@ -144,7 +144,7 @@ class HistoryInformationViewSetMixin:
             if not resource_based_sparse_fields \
                     or any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields)\
                     or "created_by" in include_resources_param:
-                prefetch_qs = HistoryModel.objects.filter(
+                prefetch_qs = history_model.objects.filter(
                     history_type='+').select_related('history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)
@@ -159,7 +159,7 @@ class HistoryInformationViewSetMixin:
                     or any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields)\
                     or "last_modified_by" in include_resources_param:
 
-                prefetch_qs = HistoryModel.objects.all().select_related(
+                prefetch_qs = history_model.objects.all().select_related(
                     'history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)

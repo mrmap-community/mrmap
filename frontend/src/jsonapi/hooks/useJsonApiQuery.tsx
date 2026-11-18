@@ -14,7 +14,10 @@ export interface UseJsonApiQueryProps {
 
 const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
   const { name, options } = useResourceDefinition();
-  const fieldsets: SparseFieldsets[] = options?.list?.sparseFieldsets ?? [];
+  // Own useMemo: the `?? []` fallback of a schema without sparse fieldsets
+  // would otherwise be a fresh array on every render and destabilise the
+  // query memo below (and with it every consumer's request).
+  const fieldsets = useMemo<SparseFieldsets[]>(() => options?.list?.sparseFieldsets ?? [], [options]);
   const operationId = relatedResource ? `list_related_${name}_of_${relatedResource}` : `list_${name}`;
   const { operation, sparseFields } = useSparseFieldsForOperation(operationId);
   const preferenceKey = `preferences.${operationId}.datagrid`;

@@ -156,6 +156,8 @@ const en = lodashMerge(
       selectLayer: "Select a layer in the tree to edit its opacity, style and dimensions.",
       edit: "Edit %{layer}",
       title: "Layer settings",
+      mapSettings: "Map Settings",
+      wmsList: "WMS List",
       opacity: "Opacity",
       opacityValue: "%{percent}%",
       pin: "Pin timeline",

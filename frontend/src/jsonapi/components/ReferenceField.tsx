@@ -18,7 +18,7 @@ const JsonApiReferenceField = <
       const _sparseFieldsParam: Record<string, string> = {}
       _sparseFieldsParam[`fields[${reference}]`] = 'id,string_representation'
       return _sparseFieldsParam
-    },[])
+    },[reference])
 
     if (typeof data === 'object' && !Array.isArray(data) && data !== null && hasIncludedData(data) ) {
       return (

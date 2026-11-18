@@ -628,10 +628,14 @@ def _collect_under_shared_acquisition(
       shorter than the wait budget, so a dead fetcher is always taken over
       by one of the waiting references.
 
-    A fetch which fails decides once for every reference still waiting on
-    this document: the same missing answer that would have failed each of
-    them separately now fails them together, each keeping its own row,
-    counter and retry identity (#1263 semantics, #1410 batching).
+    A fetch which fails keeps #1263's two budgets apart: while the
+    acquisition's attempt budget and this delivery's own retry policy both
+    allow another round, nothing is decided and the permits go back. The
+    last attempt the policy permits to one reference decides that one
+    reference; only when the identity itself is spent - its fetch budget
+    gone or the answer was no document at all - does the decision mirror
+    onto every reference still waiting, each keeping its own row, counter
+    and retry identity (#1263 semantics, #1410 batching).
     """
     from registry.models.harvest import (  # local import: cycle
         RegistrationDocumentAcquisition)
@@ -677,17 +681,25 @@ def _collect_under_shared_acquisition(
             reference=(f"shared registration document of "
                        f"{row.described_display or doc.requested_url}"))
     except (MetadataFetchTimeout, MetadataFetchUnreachable) as e:
-        # a missing answer decides nothing yet: both permits go back and
-        # the attempt budget of the acquisition keeps trying - the lease
-        # makes a doubled fetch by a concurrent sibling impossible, so
-        # waiting siblings wait instead of racing another request. The
+        # a missing answer decides nothing yet: the fetch permit goes back
+        # and the attempt budget of the acquisition keeps trying - the
+        # lease makes a doubled fetch by a concurrent sibling impossible,
+        # so waiting siblings wait instead of racing another request. The
         # budget is the row's own claim count: ten fetches for the whole
         # identity, the legacy transport budget spent once per document.
+        # #1263's other half keeps its force per delivery: the last attempt
+        # the retry policy permits to THIS reference decides it even while
+        # the identity could fetch on - and then it decides itself only,
+        # because every sibling's own policy is still running and its
+        # delivery still answers for it.
         doc.release_claim(token_d)
-        row.release_claim(token)
         attempts = RegistrationDocumentAcquisition.objects.filter(
             pk=doc_pk).values_list("attempt_count", flat=True).first() or 0
-        if attempts < task.max_retries:
+        identity_spent = attempts >= task.max_retries
+        if not identity_spent and task.request.retries < task.max_retries:
+            # nothing is decided: the reference permit goes back too and
+            # the retried delivery claims both rows again (#1260, #1263)
+            row.release_claim(token)
             raise task.retry(
                 countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
                 max_retries=FINISH_WAIT_MAX_RETRIES)
@@ -696,7 +708,8 @@ def _collect_under_shared_acquisition(
                 else ReferenceErrorKind.FETCH_UNREACHABLE)
         return _decide_shared_fetch_failure(
             task, doc, background_process_pk, kind, e,
-            temporary_md_metadata_file_id, token, retried)
+            temporary_md_metadata_file_id, token, retried,
+            mirror=identity_spent)
     except NoContent as e:
         # an answer which is no document is decided by reading it again:
         # recorded at once for every waiting reference, not retried (#1263
@@ -705,7 +718,7 @@ def _collect_under_shared_acquisition(
         return _decide_shared_fetch_failure(
             task, doc, background_process_pk,
             ReferenceErrorKind.NO_CONTENT, e,
-            temporary_md_metadata_file_id, token, retried)
+            temporary_md_metadata_file_id, token, retried, mirror=True)
 
     # the document is stored under the fetch permit: the name carries the
     # fetch claim token, so a lost attempt's bytes are an orphan the
@@ -820,15 +833,24 @@ def _wait_for_shared_document(task, row, token):
 
 def _decide_shared_fetch_failure(
         task, doc, background_process_pk, kind, error,
-        temporary_md_metadata_file_id, token, retried):
-    """Decide a shared fetch's failure once, for every reference still
-    waiting on its document (#1410).
+        temporary_md_metadata_file_id, token, retried, mirror=True):
+    """Decide a shared fetch's failure for this reference - and, when the
+    identity itself is spent, once for every reference still waiting on
+    its document (#1410).
 
     The own reference is decided through its claim token like the own-fetch
-    path decides a final transport failure. Every other reference of this
-    acquisition which is still PENDING is decided with the same kind under
-    its own conditional update - a sibling which already claimed again in
-    the meantime is deliberately not touched: its delivery owns its answer.
+    path decides a final transport failure; the caller hands it a row its
+    delivery still holds. ``mirror`` names which failure this is: an
+    identity whose fetch budget ran out, or an answer which is no document
+    at all, can never answer again in this run - then every other
+    reference of this acquisition which is still PENDING is decided with
+    the same kind under its own conditional update, each telling the
+    polling client about itself with a warning of its own, exactly the way
+    a per-reference failure tells one (#1263's honesty, #1410's batching).
+    A sibling which already claimed again in the meantime is deliberately
+    not touched: its delivery owns its answer. While the identity still
+    has budget and only this delivery's own policy ran out, no sibling is
+    decided here at all - its attempts are still its own to make.
     The acquisition row goes back to PENDING: a reference which the retry
     API of #1265 hands back to work re-fetches through the very same
     identity, once, instead of minting a per-reference request.
@@ -842,13 +864,14 @@ def _decide_shared_fetch_failure(
         settings.ROOT_LOGGER.warning(
             f"The shared registration document {doc.pk} of process "
             f"{background_process_pk} was not answered ({kind.value}): "
-            f"{error}; every open reference of this identity is decided.",
-            stack_info=True)
+            f"{error}.", stack_info=True)
         task.log_process(
             f"Could not fetch the shared reference document of "
-            f"'{doc.requested_url}': {error} Every still open reference "
-            f"of this document is kept and can be fetched again.",
+            f"'{doc.requested_url}': {error} The reference is kept and "
+            f"can be fetched again.",
             LogTypeEnum.WARNING)
+    if not mirror:
+        return {"data": None, "outcome": None, "error_kind": kind.value}
     mirrored = 0
     with transaction.atomic():
         # the process first, the rows second - the lock order every other
@@ -877,11 +900,20 @@ def _decide_shared_fetch_failure(
                 mirrored += 1
                 BackgroundProcess.objects.record_reference_outcome(
                     background_process_pk, failed_delta=1, step_done=True)
+                # one warning per decided reference: the polling client
+                # of #1264 learns of every failed step by itself, no
+                # matter which path decided it
+                task.log_process(
+                    f"Could not fetch the document of reference "
+                    f"'{other.described_display or other.requested_url}': "
+                    f"{error} Its shared document stayed unanswered; the "
+                    f"reference is kept and can be fetched again.",
+                    LogTypeEnum.WARNING)
     if mirrored:
-        task.log_process(
-            f"{mirrored} other reference(s) of the same advertised "
-            f"document were decided as failed with it.",
-            LogTypeEnum.WARNING)
+        settings.ROOT_LOGGER.warning(
+            f"{mirrored} open reference(s) of the shared registration "
+            f"document {doc.pk} were decided as failed with it.",
+            stack_info=True)
     return {"data": None, "outcome": None, "error_kind": kind.value}
 
 

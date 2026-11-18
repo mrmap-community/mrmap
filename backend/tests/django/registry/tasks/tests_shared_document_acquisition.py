@@ -40,6 +40,7 @@ from celery.app.trace import build_tracer
 from django.core.files.base import ContentFile
 from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
+from mptt2.models import Tree
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.enums.metadata import (DocumentAcquisitionStateEnum,
@@ -100,7 +101,20 @@ class SharedDocumentAcquisitionTests(TransactionTestCase):
 
         self.app_setup()
         self.wms = WebMapService.objects.first()
-        self.layers = list(Layer.objects.filter(service=self.wms)[:2])
+        self.assertIsNotNone(self.wms)
+        self.layers = list(Layer.objects.filter(service=self.wms)[:1])
+        self.assertEqual(
+            len(self.layers), 1,
+            'the wms fixture must leave at least one layer behind')
+        # the sibling is created, not fixture-borrowed: which service
+        # ``first()`` answers and how many layers it carries is the
+        # fixture's business, and this spec compares references of one
+        # service in every test (#1410)
+        self.layers.append(Layer.objects.create(
+            service=self.wms, title='shared acquisition sibling',
+            identifier='shared-acquisition-sibling',
+            mptt_tree=Tree.objects.create(), mptt_lft=1, mptt_rgt=2,
+            mptt_depth=0))
         self.wfs = WebFeatureService.objects.first()
         self.feature_type = FeatureType.objects.filter(
             service=self.wfs).first()
@@ -442,9 +456,11 @@ class SharedDocumentAcquisitionTests(TransactionTestCase):
             error_kind=ReferenceErrorKind.IMPORT_FAILED.value,
             error_at=timezone.now(),
             acquisition=keep)
-        orphans = RegistrationDocumentAcquisition.objects.filter(
-            background_process_id=self.process.pk, acquisition_key='o' * 64)
-        orphan = orphans.create(
+        # a stored acquisition whose bytes stayed behind while no
+        # reference ever pointed at it - the shape a crashed fetch leaves
+        orphan = RegistrationDocumentAcquisition.objects.create(
+            background_process_id=self.process.pk,
+            acquisition_key='o' * 64,
             requested_url='http://metadata.example.org/orphan.xml',
             request_id=timezone.now())
         orphan.md_metadata_file.save(

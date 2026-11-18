@@ -39,6 +39,9 @@ class CrontabScheduleViewSet(
     """
     queryset = CrontabSchedule.objects.all()
     serializer_class = CrontabScheduleSerializer
+    # the scheduler's tables decide what the fleet runs and when; like the
+    # status and capacity views beside them this is admin only (#1445)
+    permission_classes = [IsAdminUser]
 
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -79,6 +82,9 @@ class PeriodicTaskViewSet(
     """
     queryset = PeriodicTask.objects.all()
     serializer_class = PeriodicTaskSerializer
+    # writing a PeriodicTask schedules ANY registered Celery task with ANY
+    # arguments - in-deployment job execution, so admin only (#1445)
+    permission_classes = [IsAdminUser]
 
     filterset_fields = {
         'id': ['exact', 'icontains', 'contains', 'in'],
@@ -104,8 +110,15 @@ class PeriodicTaskViewSet(
 
 
 class SystemView(generics.RetrieveAPIView):
+    """Release and platform versions, database name and size (#1445).
+
+    The answer names the deployment's internals; since the scheduler views
+    above became admin only this is the module's own standard - the status
+    and capacity views have always answered admin only.
+    """
 
     serializer_class = SystemSerializer
+    permission_classes = [IsAdminUser]
 
     def get_object(self):
 

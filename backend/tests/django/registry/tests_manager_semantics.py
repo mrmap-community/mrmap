@@ -37,7 +37,11 @@ class CatalogueServiceManagerTests(TestCase):
         contact = MetadataContact.objects.create(name='Manager semantics contact')
         # the aggregation is unfiltered, so only this test's audit rows may
         # exist - the same isolation tests_history_delta_size documents for
-        # the neighbour classes which leave committed rows of their own
+        # the neighbour classes which leave committed rows of their own. The
+        # audit table is cleared through its own model, not by cascade: a
+        # committed audit row whose live row is already gone survives the
+        # delete of the services and would still answer the aggregation.
+        CatalogueService.change_log.model.objects.all().delete()
         CatalogueService.objects.all().delete()
         cls.service = CatalogueService.objects.create(
             title='Catalogue of the manager test', version=202, origin=1,
@@ -75,7 +79,10 @@ class HistoryAccessorNameTests(TestCase):
     def setUpTestData(cls):
         contact = MetadataContact.objects.create(name='Accessor test contact')
         # unfiltered counts, so the isolation of the previous class applies
-        # here too - see tests_history_delta_size
+        # here too - see tests_history_delta_size, and clear the audit table
+        # through its own model: committed audit rows whose live row is
+        # already gone are not reached by the cascade of a services delete
+        WebMapService.change_log.model.objects.all().delete()
         WebMapService.objects.all().delete()
         cls.service = WebMapService.objects.create(
             title='Live and counted', version=130, origin=1,
@@ -129,7 +136,12 @@ class SaveSignatureTests(TestCase):
     def setUpTestData(cls):
         contact = MetadataContact.objects.create(name='Save signature contact')
         # the audit counts below are table-wide, so the isolation rule of
-        # tests_history_delta_size applies: only this test's rows may exist
+        # tests_history_delta_size applies: only this test's rows may exist.
+        # The audit table goes first, through its own model: the cascade of
+        # the services delete only reaches audit rows whose live row is
+        # still there, and the full-suite order leaves committed orphaned
+        # audit rows behind (the CI run of #1481's branch answered 6 != 1)
+        WebMapService.change_log.model.objects.all().delete()
         WebMapService.objects.all().delete()
         cls.service = WebMapService.objects.create(
             title='Forced once', version=130, origin=1,

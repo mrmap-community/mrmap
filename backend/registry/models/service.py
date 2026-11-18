@@ -6,10 +6,8 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.contrib.postgres.indexes import GistIndex
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -221,9 +219,12 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     class Meta:
         abstract = True
 
-        indexes = [
-            models.Index(fields=["update_candidate_of",]),
-        ]
+        # kept as the empty list the concrete services concatenate: a plain
+        # index over ``update_candidate_of`` stood here, but the OneToOneField
+        # already carries a UNIQUE btree index over exactly this column, and
+        # no query asks the non-unique twin - it only doubled the write cost
+        # of every candidate the update creates (#1481)
+        indexes = []
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
@@ -731,13 +732,15 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
 
     class Meta:
         abstract = True
-        indexes = [
-            GistIndex(
-                fields=["bbox_lat_lon"],
-                condition=Q(bbox_lat_lon__isnull=False),
-                name="%(class)s_bbox_not_null",
-            ),
-        ]
+        # kept as the empty list Layer and FeatureType concatenate: a partial
+        # GiST index over ``bbox_lat_lon`` (WHERE bbox_lat_lon IS NOT NULL)
+        # stood here beside the implicit full GiST index Django's
+        # spatial_index=True maintains for the column. A GiST index never
+        # stores a NULL key in the first place, so the partial twin held
+        # exactly the entries of the full one - and both were maintained by
+        # every harvest write. ``bbox && x`` is served by the full index,
+        # which the schema state owns and a migration can find again (#1481)
+        indexes = []
 
     def __str__(self):
         try:

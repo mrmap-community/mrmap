@@ -105,6 +105,15 @@ class OgcServiceProxyView(APIView):
     start_time = None
     test_context = None
     service_type = None
+    # Nothing here is decided by a DRF permission: the answer comes from the
+    # security model of the proxied service (registry/managers/security.py and the
+    # AllowedWebMapServiceOperation rows) and a refusal travels as an OGC exception
+    # report, not as a JSON:API error. No DRF class can say that: the XML POST
+    # binding of WMS and WFS carries a GetMap or GetFeature -- both reads -- over
+    # HTTP POST, so the read-only floor of DEFAULT_PERMISSION_CLASSES (#1444) would
+    # refuse exactly the anonymous map client those bindings are specified for.
+    # Writes are refused by the proxy itself, see handle_secured_transaction.
+    permission_classes = []
 
     @property
     def is_get_request(self) -> bool:

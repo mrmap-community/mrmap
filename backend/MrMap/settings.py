@@ -1047,6 +1047,15 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF's own default is an empty list, which asks nothing of anybody: a view
+    # class naming no permission of its own answered writes to anonymous clients.
+    # This is the floor such a view falls back to -- reading stays open, a write
+    # needs an identity (#1444). Endpoints deciding access per object still name
+    # their own classes, and the security proxy names none on purpose: OGC's XML
+    # POST binding carries a GetFeature, which is a read, over HTTP POST.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",

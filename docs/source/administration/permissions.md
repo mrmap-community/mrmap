@@ -43,14 +43,29 @@ name one service instead of all services of that type.
   `GUARDIAN_RENDER_403`. No MrMap view uses those helpers today — the API's 403 answers come
   from the DRF classes below — so this setting currently changes nothing on a MrMap request.
   It is kept as the deployment's stated preference for 403 handling.
+- `DEFAULT_PERMISSION_CLASSES` — `rest_framework.permissions.IsAuthenticatedOrReadOnly`,
+  the **floor** of the API since #1444. It is what a view falls back to when it names no
+  permission class of its own: reading stays open, a write needs an identity. Nothing about
+  it reaches a viewset which already names a class, and it asks an *identity*, not a grant —
+  the guardian classes below are still what decides who may write. Before it, DRF's empty
+  default answered every permission question with "allowed", so the endpoints naming none —
+  the metadata lookups, the historical endpoints, the groups and organizations, the periodic
+  schedules and the authentication records of a service — were writable by an anonymous
+  client. When adding an endpoint, name the class you need: the floor is a fallback, not a
+  decision.
 
-There is no `DEFAULT_PERMISSION_CLASSES` in the `REST_FRAMEWORK` dict. DRF's default is
-`AllowAny`, so **every endpoint that is protected names its permission classes itself**; an
-endpoint which does not is open. When adding an endpoint, this is the first thing to check.
+One view names no permission class on purpose: the security proxy
+(`OgcServiceProxyView` in `backend/registry/proxy/mixins.py`, and with it both concrete
+proxies and the single-resource capabilities endpoints). The XML POST binding of WMS and WFS
+carries a `GetMap` or a `GetFeature` — both reads — over HTTP POST, so a rule keyed on the
+HTTP verb would refuse the anonymous map client those bindings are specified for. What the
+proxy answers is decided on the [proxy axis](#the-proxy-axis), and a refusal there travels as
+an OGC exception report rather than as a JSON:API error.
 
 ### What a request is asked
 
-Three classes carry the registry axis; all of them are used per viewset.
+Three classes carry the registry axis; all of them are used per viewset, and the floor above
+is what a viewset naming none of them falls back to.
 
 - `rest_framework.permissions.DjangoObjectPermissions` — DRF's own class. Used where even
   reading needs an identity: the four proxy-configuration endpoints of
@@ -357,7 +372,9 @@ Secured services are read through the proxy URLs of `backend/MrMap/urls.py`:
   for the capabilities of a single layer or feature type.
 
 The client's identity is the MrMap user of that HTTP request, authenticated exactly like an
-API request (session, basic auth or a knox token — `DEFAULT_AUTHENTICATION_CLASSES`).
+API request (session, basic auth or a knox token — `DEFAULT_AUTHENTICATION_CLASSES`). The
+floor of `DEFAULT_PERMISSION_CLASSES` asks nothing of it: the proxy names no permission class,
+so a request is refused or answered by the rules below and never by the verb it used.
 `AllowedOgcServiceOperationQuerySet.filter_by_request`
 (`backend/registry/managers/security.py`) matches the rule against the **groups of that
 user**; for an anonymous request it uses the groups of `AnonymousUser`. A client which must
@@ -458,6 +475,7 @@ Every name above, with the file it comes from.
 | name | file |
 | --- | --- |
 | `ObjectPermissionBackend`, `GUARDIAN_RAISE_403` | `backend/MrMap/settings.py` |
+| `DEFAULT_PERMISSION_CLASSES` (the floor a view without a declared class falls back to) | `backend/MrMap/settings.py` |
 | `DjangoObjectPermissionsOrAnonReadOnly` | `backend/extras/permissions.py` |
 | `ObjectPermissionCheckerViewSetMixin` | `backend/extras/viewsets.py` |
 | `ObjectPermissionCheckerSerializer` (`allowedActions`) | `backend/extras/serializers.py` |

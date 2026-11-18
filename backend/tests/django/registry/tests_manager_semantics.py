@@ -35,6 +35,10 @@ class CatalogueServiceManagerTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         contact = MetadataContact.objects.create(name='Manager semantics contact')
+        # the aggregation is unfiltered, so only this test's audit rows may
+        # exist - the same isolation tests_history_delta_size documents for
+        # the neighbour classes which leave committed rows of their own
+        CatalogueService.objects.all().delete()
         cls.service = CatalogueService.objects.create(
             title='Catalogue of the manager test', version=202, origin=1,
             service_url='https://example.com/csw',
@@ -70,6 +74,9 @@ class HistoryAccessorNameTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         contact = MetadataContact.objects.create(name='Accessor test contact')
+        # unfiltered counts, so the isolation of the previous class applies
+        # here too - see tests_history_delta_size
+        WebMapService.objects.all().delete()
         cls.service = WebMapService.objects.create(
             title='Live and counted', version=130, origin=1,
             service_url='https://example.com/wms',
@@ -121,6 +128,9 @@ class SaveSignatureTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         contact = MetadataContact.objects.create(name='Save signature contact')
+        # the audit counts below are table-wide, so the isolation rule of
+        # tests_history_delta_size applies: only this test's rows may exist
+        WebMapService.objects.all().delete()
         cls.service = WebMapService.objects.create(
             title='Forced once', version=130, origin=1,
             service_url='https://example.com/wms/forced',

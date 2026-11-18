@@ -1669,7 +1669,7 @@ class DatasetMetadataRecord(MetadataRecord):
     )
 
     objects = DatasetMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
@@ -1732,7 +1732,7 @@ class ServiceMetadataRecord(MetadataRecord):
         excluded_fields=("keywords_list", "search_vector",),
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         indexes = [
@@ -1789,7 +1789,7 @@ class ApplicationMetadataRecord(MetadataRecord):
     )
 
     objects = ApplicationMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("application metadata")

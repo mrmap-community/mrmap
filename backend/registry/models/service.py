@@ -365,7 +365,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     objects = WebMapServiceQuerySet.as_manager()
     security = WebMapServiceSecurityManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web map service")
@@ -482,7 +482,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
     objects = WebFeatureServiceQuerySet.as_manager()
     security = WebFeatureServiceSecurityManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web feature service")
@@ -529,7 +529,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = CatalogueServiceManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("catalogue service")
@@ -863,7 +863,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     )
 
     objects = LayerManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("layer")
@@ -1097,7 +1097,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = DefaultHistoryManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("feature type")

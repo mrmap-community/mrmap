@@ -107,7 +107,7 @@ export const HttpClientBase = ({ children }: import("react").PropsWithChildren):
       setStatus(HttpClientStatus.Error)
     
       console.error(
-        "errror during download of the openapi schema", 
+        "error during download of the openapi schema", 
         error
       )
     })
@@ -158,7 +158,7 @@ export const HttpClientBase = ({ children }: import("react").PropsWithChildren):
       setError(error);
       setStatus(HttpClientStatus.Error)
       console.error(
-        "errror during initialize axios openapi client", 
+        "error during initialize axios openapi client", 
         error
       )
     })

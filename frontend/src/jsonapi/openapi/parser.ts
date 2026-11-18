@@ -38,6 +38,19 @@ export const buildChoices = (property: OpenAPIV3.SchemaObject): { id: number; na
   }).filter(item => item !== undefined) ?? []
 }
 
+/** The JSON:API type of the records a nested list operation answers with: the enum
+ *  of the `type` of its items. A nested route needs exactly this to register the
+ *  related resource, so the nesting is read here and not in the screen that asks. */
+export const getRelatedResourceType = (operation: AxiosOperation): string | undefined => {
+  const resourceSchema = getResourceSchema(operation)
+
+  const properties = resourceSchema?.properties?.data as OpenAPIV3.ArraySchemaObject
+  const items = properties?.items as OpenAPIV3.SchemaObject
+  const jsonApiTypeProperty = items?.properties?.type as OpenAPIV3.NonArraySchemaObject
+  const jsonApiTypeReferences = jsonApiTypeProperty?.allOf as OpenAPIV3.SchemaObject[]
+  return jsonApiTypeReferences?.[0]?.enum?.[0] as string | undefined
+}
+
 /** Index nested operations by their exact parent resource, in schema order. */
 export const indexRelatedOperations = (operations: AxiosOperation[]): Map<string, AxiosOperation[]> => {
   const related = new Map<string, AxiosOperation[]>();

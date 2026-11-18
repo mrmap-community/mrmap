@@ -252,25 +252,21 @@ export class OWSContext implements IOWSContext {
   private isAlreadyInPlace(source: OWSResource, target: OWSResource, position: Position): boolean {
     if (source.isSiblingOf(target)){
       if (position === Position.left && source.getFolderIndex() === target.getFolderIndex() -1){
-        //console.log('no move needed. source is left sibling of target')
         return true
       }
       if (position === Position.right && source.getFolderIndex() - 1 === target.getFolderIndex()){
-        //console.log('no move needed. source is right sibling of target.')
         return true
       }
     }
 
     if (position === Position.firstChild && source.isChildOf(target)) {
       if (source.getFolderIndex() === 0){
-        //console.log('no move needed. source is the first child of target')
         return true
       } 
     }
 
     if (position === Position.lastChild && source.isChildOf(target)) {
       if (source.getFolderIndex() === this.getLastChildFoderIndex(target)){
-        //console.log('no move needed. source is the last child of target')
         return true
       } 
     }

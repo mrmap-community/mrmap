@@ -23,7 +23,19 @@ def log_exception(exception):
 @receiver(post_delete, sender=BackgroundProcess, dispatch_uid='update_BackgroundProcess_listeners_on_post_delete')
 def update_background_process_listeners_on_background_process_delete(**kwargs):
     """
-    Send the information to the channel group when a BackgroundProcess is created/modified
+    Send the information to the channel group when a BackgroundProcess is deleted
+
+    post_delete fires after the row is gone: a reload through process_info()
+    answered ObjectDoesNotExist for every deletion, the exception was
+    swallowed and the "deleted" message never reached the listeners (#1456).
+    The payload is built from the instance the signal hands over instead -
+    the deletion collector passes the fetched row, so every stored field is
+    on it, and a bulk delete (the retention sweep of #1208) delivers the
+    same signal per collected instance. The annotations of process_info()
+    are the exception and the serializer answers them from the stored
+    fields (state) or leaves them out (progress): a client which learns of
+    a deletion refetches its list, it never replaces a record of a row
+    which does not exist anymore.
     """
     if hasattr(HistoricalRecords.context, "request"):
         request = HistoricalRecords.context.request
@@ -32,8 +44,7 @@ def update_background_process_listeners_on_background_process_delete(**kwargs):
     try:
         reducer_action = build_action_payload(
             request=request,
-            instance=BackgroundProcess.objects.process_info().get(
-                pk=kwargs['instance'].pk),
+            instance=kwargs['instance'],
             resource_type="BackgroundProcess",
             serializer_cls=BackgroundProcessSerializer,
             action="delete"

@@ -4,7 +4,8 @@
  * #736, not a filtered `list_User`), names its columns explicitly with the
  * roles column as the chip cell, offers "add member" instead of a plain
  * "create user" - and only to someone who administrates the selection. The
- * rows carry the assign control.
+ * rows carry the assign control, and the toolbar offers the audit trail of the
+ * memberships (#741).
  */
 import type { ReactElement, ReactNode } from 'react';
 import { WrapperField } from 'react-admin';
@@ -27,6 +28,11 @@ vi.mock('../Generic/Administration/OrganizationScopeContext', () => ({
 
 vi.mock('../Generic/Administration/OrganizationScopeSelect', () => ({
   default: () => <span>scope-select</span>,
+}));
+
+// its own spec pins the target of the link; this screen pins that it offers it
+vi.mock('../Generic/History/HistoryChangelogLink', () => ({
+  default: () => <span>membership-audit-link</span>,
 }));
 
 vi.mock('../../../jsonapi/components/ListGuesser', () => ({
@@ -113,6 +119,7 @@ describe('the toolbar', () => {
     expect(screen.getByText('no-create-button')).toBeInTheDocument();
     // the member dialog renders inside, the plain create_User does not exist here
     expect(screen.getByText('add-member')).toBeInTheDocument();
+    expect(screen.getByText('membership-audit-link')).toBeInTheDocument();
     unmount();
   });
 

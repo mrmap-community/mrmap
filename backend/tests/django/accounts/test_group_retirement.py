@@ -21,9 +21,12 @@ permission set of the ``organization_admin`` definition (so a grant of it is
 *covered* by the role), ``can_publish_for_organization`` is in no set the
 retired ``resource_editor`` role holds (so a grant of it must be *preserved*).
 """
+from io import StringIO
+
 from django.apps import apps as global_apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.test import TestCase
 from guardian.shortcuts import assign_perm
 
@@ -287,3 +290,75 @@ class LegacyGroupRetirementTest(TestCase):
 
         self.assertEqual(
             [entry["user"] for entry in plan["members"]], ["retiree"])
+
+    # -- the operator's entry point ------------------------------------------
+
+    def test_the_command_reports_before_it_retires(self):
+        """AC3's backup, on the CLI: the same reconciliation, asked first.
+
+        The migration and the command run the same code, so what is pinned here
+        is the command's own contract: ``--dry-run`` says what it would do and
+        writes nothing, the run without it says what it did, and the second ask
+        of an instance which is already upgraded says so instead of repeating
+        itself.
+        """
+        out, err = StringIO(), StringIO()
+        call_command("retire_legacy_role_groups", "--dry-run",
+                     stdout=out, stderr=err)
+        asked = out.getvalue()
+
+        self.assertIn("Would retire", asked)
+        self.assertIn(self.covered_group.name, asked)
+        self.assertIn(self.preserved_group.name, asked)
+        self.assertEqual(err.getvalue(), "")
+        self.assertEqual(LegacyGroupRetirement.objects.count(), 0)
+        self.assertTrue(Group.objects.filter(pk=self.covered_group.pk).exists(),
+                        "--dry-run deleted a group")
+
+        out, err = StringIO(), StringIO()
+        call_command("retire_legacy_role_groups", stdout=out, stderr=err)
+
+        self.assertIn("Retired", out.getvalue())
+        self.assertEqual(LegacyGroupRetirement.objects.count(), 2)
+        self.assertFalse(
+            Group.objects.filter(pk=self.covered_group.pk).exists())
+
+        out, err = StringIO(), StringIO()
+        call_command("retire_legacy_role_groups", "--dry-run",
+                     stdout=out, stderr=err)
+
+        self.assertIn("Nothing to retire", out.getvalue())
+
+    def test_a_group_without_a_successor_is_declined_and_said(self):
+        """Nobody is moved into a role which does not exist.
+
+        The successor is what a legacy group's members and grants land in. With
+        no active role of the definition left in the organization, adopting the
+        members would create a membership out of thin air and deleting the group
+        would take its grants with it, so the group stays standing - and the
+        operator hears the reason, which is the difference between a skipped
+        group and a lost one. The role which was just retired over the api (#736)
+        is on the same list and must be named apart: it is kept because a person
+        may still undo it, not because the upgrade could not place it.
+        """
+        retired_by_admin = Role.objects.for_org(
+            self.organization).with_definition(EDITOR_SLUG).get()
+        retired_by_admin.is_active = False
+        retired_by_admin.save()
+
+        out, err = StringIO(), StringIO()
+        call_command("retire_legacy_role_groups", "--dry-run",
+                     stdout=out, stderr=err)
+
+        self.assertIn(self.preserved_group.name, err.getvalue())
+        self.assertIn("no active role", err.getvalue())
+        self.assertNotIn("Would retire %s" % self.preserved_group.name,
+                         out.getvalue())
+        self.assertIn(retired_by_admin.group.name, out.getvalue())
+        self.assertTrue(
+            Group.objects.filter(pk=self.preserved_group.pk).exists(),
+            "a group without a successor was deleted")
+        self.assertTrue(
+            OrganizationGroupObjectPermission.objects.filter(
+                group=self.preserved_group).exists(),
+            "the grants of a kept group were dropped")

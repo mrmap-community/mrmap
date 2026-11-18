@@ -154,7 +154,7 @@ const ListGuesserContent = ({
         }
       )
     })
-  ,[fieldDefinitions])
+  ,[fieldDefinitions, updateFieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo<ReactElement[]>(() => [
@@ -257,6 +257,15 @@ const ListGuesserContent = ({
       ),[id, jsonApiQuery, onError, props.queryOptions, refetchInterval, relatedResource])
 
 
+  /** The filter the resource definition declares for its list screens
+   *  (`options.list.filter`) with this screen's own filter on top of it.
+   *  React-admin applies the `filter` prop to every query of the list as a
+   *  permanent filter, so a screen narrows or replaces one term here; it does not
+   *  have to repeat what every screen of the resource already asks for. */
+  const filter = listOptions?.filter === undefined
+    ? props.filter
+    : { ...listOptions.filter, ...props.filter }
+
   useEffect(()=>{
     if(!columns && defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
@@ -285,9 +294,7 @@ const ListGuesserContent = ({
       aside={aside}
       {...props}
       queryOptions={queryOptions}
-      filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
-        ? { is_update_candidate: false, ...props.filter }
-        : props.filter}
+      filter={filter}
     >
       {listContent ?? <DatagridConfigurable
         

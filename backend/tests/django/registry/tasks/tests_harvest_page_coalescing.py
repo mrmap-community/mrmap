@@ -161,11 +161,16 @@ class HarvestPageCoalescingTest(TransactionTestCase):
     # -- the coalescing itself -------------------------------------------------
 
     @patch.object(OgcClient, "send_request")
-    def test_two_deliveries_of_one_page_ask_the_catalogue_once(self, send_request):
-        """the second delivery of a page joins the first instead of asking again:
-        one request for two deliveries, and both count the records the page
-        brought - which is the before/after of this issue, since both deliveries
-        used to download the whole page (#688's remaining window)"""
+    def test_two_deliveries_of_one_page_cost_one_request_and_answer_alike(
+            self, send_request):
+        """one request for two deliveries, and both answer the same records.
+
+        The claim is what coalesces a page which is *still downloading* - pinned
+        by ``test_a_delivery_joins_the_page_a_running_delivery_fetches`` - while a
+        delivery which arrives after the page was stored is answered by the
+        saved-page check of #688. Both must answer the same number, and the claim
+        must not disturb the second one: that is what a snapshot depends on.
+        """
         send_request.side_effect = catalogue(CATALOGUE_RECORDS)
 
         first = call_fetch_records.run(harvesting_job_id=1, start_position=1)
@@ -174,7 +179,8 @@ class HarvestPageCoalescingTest(TransactionTestCase):
         self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
         self.assertEqual(first, PAGE_SIZE)
         self.assertEqual(second, PAGE_SIZE,
-                         "the joined page is worth what it brought the other")
+                         "the delivery which did not ask answers what the one "
+                         "which did brought")
         self.assertEqual(self.stored_pages(1), PAGE_SIZE,
                          "and it is stored exactly once")
         self.assertFalse(self.traces().exists(),

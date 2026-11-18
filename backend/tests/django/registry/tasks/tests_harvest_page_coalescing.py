@@ -1,14 +1,15 @@
 """Concurrent deliveries of one GetRecords page ask the catalogue once (#1411).
 
-A scheduled fan-out which fires again while its previous run still works, or a
-broker which redelivers one page task, hands the same page to two workers. The
-stored-page check of #688 keeps the second one from downloading a page whose
-records are already in the backlog, but a page which is *still downloading* is not
-stored yet - and the row count under the lock of the job only settles the two
-after both have asked the catalogue. These tests pin the claim which closes that
-window: the delivery which holds a page's claim asks the catalogue, the other
-joins what it finds out, and everything the answers of #690 and #694 decide about
-a page is decided from the same answer either way.
+A scheduled fan-out which fires again while its previous run still works hands the
+same page to two workers. The saved-page check of #688 covers a redelivery, a
+retry and a recovery - and only a page whose records are already in the backlog,
+which a page *still downloading* is not. A plain second delivery does not ask that
+check at all (``check_existing`` in ``call_fetch_records``), and the row count
+under the lock of the job only settles the two after both have asked the
+catalogue. These tests pin the claim which closes that window: the delivery which
+holds a page's claim asks the catalogue, the other joins what it finds out, and
+everything the answers of #690 and #694 decide about a page is decided from the
+same answer either way.
 
 The concurrent delivery is played by a claim planted in the cache rather than by a
 second worker, because the two differ in nothing the model can tell: what a
@@ -161,15 +162,15 @@ class HarvestPageCoalescingTest(TransactionTestCase):
     # -- the coalescing itself -------------------------------------------------
 
     @patch.object(OgcClient, "send_request")
-    def test_two_deliveries_of_one_page_cost_one_request_and_answer_alike(
-            self, send_request):
-        """one request for two deliveries, and both answer the same records.
+    def test_two_deliveries_of_one_page_ask_the_catalogue_once(self, send_request):
+        """the second delivery of a page joins the first instead of asking again:
+        one request for two deliveries, and both answer the records the page
+        brought.
 
-        The claim is what coalesces a page which is *still downloading* - pinned
-        by ``test_a_delivery_joins_the_page_a_running_delivery_fetches`` - while a
-        delivery which arrives after the page was stored is answered by the
-        saved-page check of #688. Both must answer the same number, and the claim
-        must not disturb the second one: that is what a snapshot depends on.
+        Nothing here falls back to #688: the saved-page check only runs for a
+        recovery, a retry or a redelivery (``check_existing`` in
+        ``call_fetch_records``), so a plain second delivery of the page asks the
+        whole range again and is answered by the outcome the first one left behind.
         """
         send_request.side_effect = catalogue(CATALOGUE_RECORDS)
 
@@ -179,8 +180,7 @@ class HarvestPageCoalescingTest(TransactionTestCase):
         self.assertEqual(self.requested_pages(send_request), [FIRST_PAGE])
         self.assertEqual(first, PAGE_SIZE)
         self.assertEqual(second, PAGE_SIZE,
-                         "the delivery which did not ask answers what the one "
-                         "which did brought")
+                         "the joined page is worth what it brought the other")
         self.assertEqual(self.stored_pages(1), PAGE_SIZE,
                          "and it is stored exactly once")
         self.assertFalse(self.traces().exists(),

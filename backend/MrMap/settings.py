@@ -1094,11 +1094,33 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
     "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    # The stack every view authenticates with unless it names its own. Basic
+    # is deliberately NOT in it (#1450): Basic carries the account password,
+    # and with this stack global, every endpoint of the API silently accepted
+    # the password in place of the credential it documents - the machine token
+    # of #835 exists exactly so that a caller does not hand out the password to
+    # each request. The two endpoints the password is documented for,
+    # ``api/auth/session`` and ``api/auth/login``, declare Basic on the view
+    # now (``accounts/views/auth.py``), and they are the only ones.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF 3.15 ships this empty, which throttles nothing: a scope only exists
+    # once a rate is named here. The one scope is the login attempt budget of
+    # #1450 - the POSTs of ``api/auth/session`` and ``api/auth/login``, the
+    # two endpoints which read a password, counted per client address before
+    # the credential is looked at (``accounts/throttling.py``).
+    # ``30/min`` is sized from what the application itself does on one address:
+    # the whole unit suite logs in about 25 times and the acceptance features
+    # about 8, spread over minutes, and a browser or a script with a 10-hour
+    # token re-logs in when a person types a password - nobody reaches 30 in a
+    # minute by hand. A credential guessing tool loses over 99% of its rate.
+    # A deployment whose machine clients all share one NAT address and log in
+    # more often than this raises the number there.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "30/min",
+    },
     # DRF's own default is an empty list, which asks nothing of anybody: a view
     # class naming no permission of its own answered writes to anonymous clients.
     # This is the floor such a view falls back to -- reading stays open, a write

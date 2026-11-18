@@ -323,6 +323,10 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
         Sanctioned: each configured relation is prefetched once per side
         (old and new read the same tables and share a fingerprint), so two
         repeats per relation table are the plan, a third is a regression.
+        The remote-metadata delete is sanctioned at two: the update's own
+        take-back of the stale advertised references (#1413) and the
+        candidate deletion's cascade over the same table are one statement
+        each, constant over the pairs, and share the fingerprint.
         """
         self._seed(100)
         self.assertNoNPlusOne(
@@ -331,7 +335,8 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
             sanctioned={
                 'from "registry_keyword"': 2,
                 'from "registry_referencesystem"': 2,
-                'left outer join "registry_layer" t3': 2},
+                'left outer join "registry_layer" t3': 2,
+                'delete from "registry_layerremotemetadata"': 2},
             label='the WMS layer apply phase at 100 pairs')
 
 
@@ -421,5 +426,10 @@ class WfsFeatureTypeApplyPhaseTest(SqlGuardMixin, TestCase):
                 'from "registry_referencesystem"': 2,
                 # the element rows are read once per side (old, candidate,
                 # and the mapped side the relations ride) - one fingerprint
-                'from "registry_featuretype"': 3},
+                'from "registry_featuretype"': 3,
+                # the update's own take-back of the stale advertised
+                # references (#1413) and the candidate deletion's cascade
+                # over the same table: one statement each, constant over
+                # the pairs, one shared fingerprint
+                'delete from "registry_featuretyperemotemetadata"': 2},
             label='the WFS feature-type apply phase at 100 pairs')

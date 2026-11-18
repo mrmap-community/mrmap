@@ -640,14 +640,10 @@ def resume_stale_import_run(job, registered_ids, origin):
 @worker_ready.connect
 def recover_harvests_after_restart(sender, **kwargs):
     # Database state also covers a crash between commit and publishing a chord.
-    # Addressed by name, the call is a remote call: the queue is part of it,
-    # the task's own declaration is not what routes it (#1455).
-    sender.app.send_task(
-        "registry.tasks.harvest.recover_harvesting_jobs",
-        queue=celery_queues.DEFAULT)
+    sender.app.send_task("registry.tasks.harvest.recover_harvesting_jobs")
 
 
-@shared_task(queue=celery_queues.DEFAULT, base=HarvestingTask)
+@shared_task(queue="default", base=HarvestingTask)
 def recover_harvesting_jobs():
     """Resume the harvests which did not end while no worker was running.
 
@@ -1539,11 +1535,9 @@ def sweep_ended_harvest_temp_files(*args, **kwargs):
         # whose chord died between commit and publish waits for nothing
         # else but this pass and the worker start (#1263). The singleton
         # deduplicates it against that hook; its refusal here is only a
-        # deferred pass, never a lost recovery. Addressed by name, the queue
-        # is part of the call - the same queue the task declares (#1455).
+        # deferred pass, never a lost recovery.
         app.send_task(
-            "registry.tasks.service.recover_registration_reference_work",
-            queue=celery_queues.DB_ROUTINES)
+            "registry.tasks.service.recover_registration_reference_work")
     except Exception:
         logger.warning(
             f"could not schedule the registration reference recovery; the "

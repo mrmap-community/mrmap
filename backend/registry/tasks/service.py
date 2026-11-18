@@ -1346,12 +1346,9 @@ def _close_finished_run(task):
 def recover_registration_references_after_restart(sender, **kwargs):
     # a crash between committing a sealed plan and publishing its chord
     # leaves exactly the database shape this recovery reads; like the
-    # harvest recovery, the worker start is what notices without a schedule.
-    # addressed by name, the call is a remote call: the queue is part of it
-    # and the task's own declaration is not what routes it (#1455)
+    # harvest recovery, the worker start is what notices without a schedule
     sender.app.send_task(
-        "registry.tasks.service.recover_registration_reference_work",
-        queue=celery_queues.DB_ROUTINES)
+        "registry.tasks.service.recover_registration_reference_work")
 
 
 def _drain_finished_acquisitions(processes):

@@ -10,12 +10,17 @@ Nothing tested this endpoint before, which is how it survived.
 The fix hashes before the single save; these are the two acceptance
 assertions the issue names, plus the parts of the old payload shape
 (``groups``) and the refusal of a passwordless document that the fix must
-not regress.
+not regress. The write itself is pinned from the side of the database: the
+raw value may never appear in a statement and the user table may be written
+exactly once, and a password which breaks the configured
+``AUTH_PASSWORD_VALIDATORS`` is refused on its field before any write.
 """
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import identify_hasher
 from django.contrib.auth.models import Group
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from rest_framework.test import APIClient
 
@@ -89,3 +94,48 @@ class UserCreateAPITest(TestCase):
         self.assertEqual(response.status_code, 400, response.content)
         self.assertFalse(
             get_user_model().objects.filter(username="nameless").exists())
+
+    def test_a_password_broken_by_the_policy_is_refused_on_its_field(self):
+        """A policy-violating password answers 400, not a server error.
+
+        ``set_password`` remembers the raw value and ``AbstractBaseUser.save``
+        runs the configured AUTH_PASSWORD_VALIDATORS over it - *after* the
+        INSERT, without ATOMIC_REQUESTS behind an already-written row. The
+        serializer validates the same policy first, so this is the 400 of a
+        rejected field and nothing is written (#1451).
+        """
+        response = self._create(user_document("weakling", "short"))
+        self.assertEqual(response.status_code, 400, response.content)
+        # the refusal names the password - not, say, the required groups
+        # relation, whose absence answers the same status for any body
+        self.assertIn(
+            "/data/attributes/password",
+            [error["source"]["pointer"] for error in response.data])
+        self.assertFalse(
+            get_user_model().objects.filter(username="weakling").exists())
+
+    def test_the_answer_never_repeats_the_password(self):
+        response = self._create(user_document("newcomer", RAW_PASSWORD))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertNotIn(RAW_PASSWORD, response.content.decode())
+
+    def test_the_raw_password_reaches_no_query_and_the_row_is_written_once(
+            self):
+        """The write plan of the creation, read from the statements.
+
+        Capturing what the request executed is what makes "hashed before
+        the single save" assertable: the raw value appears in no statement
+        and exactly one INSERT reaches the user table.
+        """
+        with CaptureQueriesContext(connection) as queries:
+            response = self._create(user_document("newcomer", RAW_PASSWORD))
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertFalse(
+            [query for query in queries.captured_queries
+             if RAW_PASSWORD in query["sql"]],
+            "the raw password was carried by a query: "
+            f"{[q['sql'] for q in queries.captured_queries]}")
+        inserts = [query["sql"] for query in queries.captured_queries
+                   if query["sql"].lstrip().upper().startswith("INSERT")
+                   and '"accounts_user"' in query["sql"]]
+        self.assertEqual(len(inserts), 1, inserts)

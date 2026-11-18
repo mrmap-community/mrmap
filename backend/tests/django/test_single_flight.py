@@ -108,6 +108,23 @@ class SingleFlightTest(SimpleTestCase):
                         "a caller which arrives after the answer still gets a "
                         "flight of its own")
 
+    def test_taking_the_lease_clears_the_outcome_of_the_flight_before(self):
+        """An outcome belongs to the deliveries which overlapped with the work it
+        answers. A caller which arrives after that flight is over starts a flight of
+        its own and must not be answered from what the old holder left behind - the
+        leftover of a finished flight is not an answer for the next attempt."""
+        first = self.flight()
+        first.acquire()
+        first.finish(("stored", 12))
+        self.assertEqual(self.flight().answered(), ("stored", 12),
+                         "while nobody took the lease again, the outcome is readable")
+
+        second = self.flight()
+
+        self.assertTrue(second.acquire())
+        self.assertIsNone(second.answered(),
+                          "the new flight knows nothing of the finished one")
+
     def test_the_outcome_is_kept_below_a_key_of_its_own(self):
         """The lease and the outcome of one key must not overwrite each other: a
         holder which is still working says so, while the answer of the one before

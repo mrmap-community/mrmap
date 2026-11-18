@@ -33,6 +33,7 @@ HTTP layer is the patched ``requests.Session.send``.
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -54,7 +55,10 @@ from registry.models.metadata import (DatasetMetadataRecord,
                                       LayerRemoteMetadata, MetadataRelation)
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
-from registry.tasks.service import (collect_reference,
+from registry.tasks.service import (FINISH_WAIT_MAX_RETRIES,
+                                    _decide_shared_fetch_failure,
+                                    _wait_for_shared_document,
+                                    collect_reference,
                                     finish_metadata_collection,
                                     plan_registration_references,
                                     recover_registration_reference_work)
@@ -524,3 +528,94 @@ class SharedDocumentAcquisitionTests(TransactionTestCase):
             RegistrationDocumentAcquisition.objects.filter(
                 background_process_id=self.process.pk).exists(),
             msg='the legacy path creates no acquisition')
+
+    # -- acceptance: a refused sweep or waiter answers for the next pass ------
+
+    def test_a_refused_drain_keeps_rows_and_bytes_for_the_next_pass(self):
+        """A drain which cannot delete loses nothing (#1410).
+
+        When the bulk delete of the residue refuses, neither the rows nor
+        their bytes are touched: the pass reports nothing drained and the
+        next pass reads the very same shape again.
+        """
+        self._plan(self._advertised(self.layers[0]))
+        orphan = RegistrationDocumentAcquisition.objects.create(
+            background_process_id=self.process.pk,
+            acquisition_key='d' * 64,
+            requested_url='http://metadata.example.org/drain-refused.xml',
+            request_id=timezone.now())
+        orphan.md_metadata_file.save(
+            'drain-refused.xml', ContentFile(b'<residue/>'), save=True)
+        orphan_name = orphan.md_metadata_file.name
+
+        with patch.object(collect_reference, 'apply_async', autospec=True), \
+                patch.object(finish_metadata_collection, 'apply_async',
+                             autospec=True), \
+                patch('django.db.models.query.QuerySet.delete',
+                      side_effect=RuntimeError('the database refused')):
+            summary = recover_registration_reference_work.run()
+
+        self.assertEqual(summary['drained'], 0)
+        self.assertTrue(
+            RegistrationDocumentAcquisition.objects.filter(
+                pk=orphan.pk).exists(),
+            msg='a refused drain leaves its row for the next pass')
+        self.assertTrue(self._storage().exists(orphan_name),
+                        msg='the bytes of an undrained row stay')
+
+    def test_a_waiter_out_of_rounds_leaves_its_row_for_the_recovery(self):
+        """The waiter which gave up is nobody's work anymore (#1410).
+
+        With the wait rounds spent the waiter publishes nothing further:
+        its row stands PENDING and unheld, the shape the recovery re-
+        drives like every other lost claim.
+        """
+        sealed = self._plan(self._advertised(self.layers[0]))
+        row = TemporaryMdMetadataFile.objects.get(pk=sealed[0])
+        claimed = row.claim_for_processing(str(self.process.pk), 600)
+        self.assertIsNotNone(claimed,
+                             msg='the waiter holds a real claim')
+        waiter = SimpleNamespace(
+            request=SimpleNamespace(retries=FINISH_WAIT_MAX_RETRIES),
+            retry=Mock(side_effect=AssertionError(
+                'waited again past the rounds')))
+
+        result = _wait_for_shared_document(waiter, row, claimed[0])
+
+        self.assertIsNone(result)
+        waiter.retry.assert_not_called()
+        row.refresh_from_db()
+        self.assertEqual(row.state, ReferenceWorkStateEnum.PENDING.value,
+                         msg='the reference is nobody\'s work again')
+
+    def test_a_closed_run_is_never_mirrored_onto_its_open_siblings(self):
+        """A decision which lands after the completion sees the door shut.
+
+        The delivery answers while the run is already closed: its own row
+        answers as the late report it is, but the mirror of the identity
+        does not decide the siblings of a completed run - the completion
+        has counted them its own way, and a second decision would double
+        the answer (#1410).
+        """
+        sealed = self._plan(
+            self._advertised(self.layers[0]),
+            self._advertised(self.layers[1]))
+        doc = RegistrationDocumentAcquisition.objects.get(
+            background_process_id=self.process.pk)
+        row = TemporaryMdMetadataFile.objects.get(pk=sealed[0])
+        claimed = row.claim_for_processing(str(self.process.pk), 600)
+        self.assertIsNotNone(claimed)
+        BackgroundProcess.objects.filter(pk=self.process.pk).update(
+            status=ProcessStatusEnum.COMPLETED, done_at=timezone.now())
+
+        result = _decide_shared_fetch_failure(
+            Mock(), doc, self.process.pk, ReferenceErrorKind.FETCH_UNREACHABLE,
+            ConnectionError('refused'), sealed[0], claimed[0], False)
+
+        self.assertEqual(
+            result, {"data": None, "outcome": None,
+                     "error_kind": ReferenceErrorKind.FETCH_UNREACHABLE.value})
+        sibling = TemporaryMdMetadataFile.objects.get(pk=sealed[1])
+        self.assertEqual(
+            sibling.state, ReferenceWorkStateEnum.PENDING.value,
+            msg='the mirror of a closed run decides nothing')

@@ -338,6 +338,57 @@ def advertised_references(service):
     return []
 
 
+# The concrete work-row field which names the described element of a
+# planned reference: the same four targets, in the same order, as the
+# isinstance chain of #1263's planning.
+_DESCRIBED_FOREIGN_KEYS = (
+    (WebMapService, "described_wms"),
+    (WebFeatureService, "described_wfs"),
+    (Layer, "described_layer"),
+    (FeatureType, "described_featuretype"),
+)
+
+
+def _described_foreign_key_field(described):
+    """The work-row field which names this described element, or None
+    when the planning cannot name it with one of the four concrete
+    foreign keys (#1263)."""
+    for model, field in _DESCRIBED_FOREIGN_KEYS:
+        if isinstance(described, model):
+            return field
+    return None
+
+
+def _plan_shared_acquisitions(rows, background_process_pk):
+    """One shared document acquisition per distinct advertised url of a
+    sealed plan (#1410).
+
+    References which advertise the same document point at one acquisition
+    row, and that row is what pays the one HTTP request the references
+    import their copies from. The rows are built unsaved and returned as
+    the plan's second bulk write; every reference row already points at
+    its acquisition in memory.
+    """
+    from registry.models.harvest import (  # local import: cycle
+        RegistrationDocumentAcquisition)
+
+    acquisitions = {}
+    for row in rows:
+        key = RegistrationDocumentAcquisition.build_acquisition_key(
+            row.requested_url)
+        acquisition = acquisitions.get(key)
+        if acquisition is None:
+            acquisition = RegistrationDocumentAcquisition(
+                background_process_id=background_process_pk,
+                acquisition_key=key,
+                requested_url=row.requested_url,
+                request_id=timezone.now(),
+            )
+            acquisitions[key] = acquisition
+        row.acquisition = acquisition
+    return acquisitions
+
+
 def plan_registration_references(
         task, background_process_pk, remote_metadata_list, db_service):
     """Seal the per-reference work list of one registration, once.
@@ -367,7 +418,6 @@ def plan_registration_references(
             or decided, for which there is nothing left to plan either).
     """
     from registry.models.harvest import TemporaryMdMetadataFile  # local import: cycle
-
     from registry.models.harvest import (  # local import: cycle
         RegistrationDocumentAcquisition)
 
@@ -384,24 +434,8 @@ def plan_registration_references(
             # one logical reference is one work row (#1263)
             continue
         seen.add(key)
-        row = TemporaryMdMetadataFile(
-            background_process_id=background_process_pk,
-            reference_key=key,
-            requested_url=url,
-            described_display=(getattr(described, "title", "") or "")[:512],
-            # when the request for this document was planned: the age the
-            # recovery measures a stuck PENDING row by
-            request_id=timezone.now(),
-        )
-        if isinstance(described, WebMapService):
-            row.described_wms = described
-        elif isinstance(described, WebFeatureService):
-            row.described_wfs = described
-        elif isinstance(described, Layer):
-            row.described_layer = described
-        elif isinstance(described, FeatureType):
-            row.described_featuretype = described
-        else:
+        field = _described_foreign_key_field(described)
+        if field is None:
             # a described element this planning cannot name with one of the
             # four concrete foreign keys is not plannable - it would violate
             # the row's completeness constraint; naming it beats dropping it
@@ -412,26 +446,18 @@ def plan_registration_references(
                 f"does not know; the reference is not collected.",
                 stack_info=True)
             continue
-        rows.append(row)
+        rows.append(TemporaryMdMetadataFile(
+            background_process_id=background_process_pk,
+            reference_key=key,
+            requested_url=url,
+            described_display=(getattr(described, "title", "") or "")[:512],
+            # when the request for this document was planned: the age the
+            # recovery measures a stuck PENDING row by
+            request_id=timezone.now(),
+            **{field: described},
+        ))
 
-    # one shared document acquisition per distinct advertised url of this
-    # plan (#1410): references which advertise the same document point at
-    # one acquisition row, and that row is what pays the one HTTP request
-    # the references import their copies from.
-    acquisitions = {}
-    for row in rows:
-        key = RegistrationDocumentAcquisition.build_acquisition_key(
-            row.requested_url)
-        acquisition = acquisitions.get(key)
-        if acquisition is None:
-            acquisition = RegistrationDocumentAcquisition(
-                background_process_id=background_process_pk,
-                acquisition_key=key,
-                requested_url=row.requested_url,
-                request_id=timezone.now(),
-            )
-            acquisitions[key] = acquisition
-        row.acquisition = acquisition
+    acquisitions = _plan_shared_acquisitions(rows, background_process_pk)
 
     with transaction.atomic():
         process = BackgroundProcess.objects.select_for_update().filter(
@@ -608,6 +634,45 @@ def _collect_reference_own_fetch(
         token, retried, storage_name)
 
 
+def _answer_refused_shared_fetch(
+        task, doc, row, background_process_pk, error,
+        temporary_md_metadata_file_id, token, retried, doc_token):
+    """Answer a shared fetch the network refused (#1410).
+
+    A missing answer decides nothing yet: the fetch permit goes back and
+    the attempt budget of the acquisition keeps trying - the lease makes a
+    doubled fetch by a concurrent sibling impossible, so waiting siblings
+    wait instead of racing another request. The budget is the row's own
+    claim count: ten fetches for the whole identity, the legacy transport
+    budget spent once per document. #1263's other half keeps its force per
+    delivery: the last attempt the retry policy permits to THIS reference
+    decides it even while the identity could fetch on - and then it decides
+    itself only, because every sibling's own policy is still running and
+    its delivery still answers for it.
+    """
+    from registry.models.harvest import (  # local import: cycle
+        RegistrationDocumentAcquisition)
+
+    doc.release_claim(doc_token)
+    attempts = RegistrationDocumentAcquisition.objects.filter(
+        pk=doc.pk).values_list("attempt_count", flat=True).first() or 0
+    identity_spent = attempts >= task.max_retries
+    if not identity_spent and task.request.retries < task.max_retries:
+        # nothing is decided: the reference permit goes back too and the
+        # retried delivery claims both rows again (#1260, #1263)
+        row.release_claim(token)
+        raise task.retry(
+            countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
+            max_retries=FINISH_WAIT_MAX_RETRIES)
+    kind = (ReferenceErrorKind.FETCH_TIMEOUT
+            if isinstance(error, MetadataFetchTimeout)
+            else ReferenceErrorKind.FETCH_UNREACHABLE)
+    return _decide_shared_fetch_failure(
+        task, doc, background_process_pk, kind, error,
+        temporary_md_metadata_file_id, token, retried,
+        mirror=identity_spent)
+
+
 def _collect_under_shared_acquisition(
         task, row, background_process_pk, temporary_md_metadata_file_id,
         token, retried):
@@ -681,35 +746,11 @@ def _collect_under_shared_acquisition(
             reference=(f"shared registration document of "
                        f"{row.described_display or doc.requested_url}"))
     except (MetadataFetchTimeout, MetadataFetchUnreachable) as e:
-        # a missing answer decides nothing yet: the fetch permit goes back
-        # and the attempt budget of the acquisition keeps trying - the
-        # lease makes a doubled fetch by a concurrent sibling impossible,
-        # so waiting siblings wait instead of racing another request. The
-        # budget is the row's own claim count: ten fetches for the whole
-        # identity, the legacy transport budget spent once per document.
-        # #1263's other half keeps its force per delivery: the last attempt
-        # the retry policy permits to THIS reference decides it even while
-        # the identity could fetch on - and then it decides itself only,
-        # because every sibling's own policy is still running and its
-        # delivery still answers for it.
-        doc.release_claim(token_d)
-        attempts = RegistrationDocumentAcquisition.objects.filter(
-            pk=doc_pk).values_list("attempt_count", flat=True).first() or 0
-        identity_spent = attempts >= task.max_retries
-        if not identity_spent and task.request.retries < task.max_retries:
-            # nothing is decided: the reference permit goes back too and
-            # the retried delivery claims both rows again (#1260, #1263)
-            row.release_claim(token)
-            raise task.retry(
-                countdown=FINISH_WAIT_COUNTDOWN_SECONDS,
-                max_retries=FINISH_WAIT_MAX_RETRIES)
-        kind = (ReferenceErrorKind.FETCH_TIMEOUT
-                if isinstance(e, MetadataFetchTimeout)
-                else ReferenceErrorKind.FETCH_UNREACHABLE)
-        return _decide_shared_fetch_failure(
-            task, doc, background_process_pk, kind, e,
-            temporary_md_metadata_file_id, token, retried,
-            mirror=identity_spent)
+        # the two budgets - the acquisition's fetch count and this
+        # delivery's retry policy - answer apart, see the helper
+        return _answer_refused_shared_fetch(
+            task, doc, row, background_process_pk, e,
+            temporary_md_metadata_file_id, token, retried, token_d)
     except NoContent as e:
         # an answer which is no document is decided by reading it again:
         # recorded at once for every waiting reference, not retried (#1263
@@ -1310,6 +1351,60 @@ def recover_registration_references_after_restart(sender, **kwargs):
         "registry.tasks.service.recover_registration_reference_work")
 
 
+def _drain_finished_acquisitions(processes):
+    """Take away the crash residue of #1410's shared acquisitions.
+
+    An acquisition whose references all decided while its own row (or its
+    stored copy) stayed behind is a crash residue - no reference reads it
+    anymore and the pass takes it, and with it its bytes, away. A FAILED
+    reference keeps its row and keeps pointing at the acquisition, so a
+    retryable failure never drains it.
+
+    Read whole: one selection over every swept process, one bulk delete,
+    then the bytes (#1395's shape for task code; the reference's FK is
+    SET_NULL, so the delete can never take a work row - at most it orphans
+    the acquisition a race just created a reference for, and the reference
+    still answers from its own row). Returns the amount of drained rows.
+    """
+    from registry.models.harvest import (  # local import: cycle
+        RegistrationDocumentAcquisition, TemporaryMdMetadataFile)
+
+    residue = []
+    acquisitions = list(
+        RegistrationDocumentAcquisition.objects.filter(
+            background_process__in=processes).only(
+                "id", "md_metadata_file"))
+    if acquisitions:
+        referenced = set(
+            TemporaryMdMetadataFile.objects.filter(
+                acquisition__in=[a.pk for a in acquisitions]).values_list(
+                    "acquisition_id", flat=True))
+        residue = [a for a in acquisitions if a.pk not in referenced]
+    if not residue:
+        return 0
+    names = [a.md_metadata_file.name for a in residue
+             if a.md_metadata_file]
+    storage = RegistrationDocumentAcquisition._meta.get_field(
+        "md_metadata_file").storage
+    try:
+        RegistrationDocumentAcquisition.objects.filter(
+            pk__in=[a.pk for a in residue]).delete()
+    except Exception:
+        # nothing is deleted, nothing is lost: the rows and their bytes
+        # stay and the next pass reads them again
+        settings.ROOT_LOGGER.warning(
+            f"Could not drain {len(residue)} shared document "
+            f"acquisition(s) of the swept registration processes - the "
+            f"next sweep will.", stack_info=True)
+        return 0
+    for name in names:
+        # the bulk delete walks past the row's own file sweep, so the
+        # pass takes the bytes itself - the same helper the orphan
+        # sweep uses, which keeps a failure for the next pass
+        _delete_registration_orphan(storage, name)
+    return len(residue)
+
+
 @shared_task(queue=celery_queues.DB_ROUTINES, base=SingletonTask)
 def recover_registration_reference_work(*args, **kwargs):
     """Re-drive the registration reference work no live chord will decide.
@@ -1336,8 +1431,7 @@ def recover_registration_reference_work(*args, **kwargs):
         dict: what one pass redrove, completed and deleted; empty counts
             are the normal answer of an idle deployment.
     """
-    from registry.models.harvest import (  # local import: cycle
-        RegistrationDocumentAcquisition, TemporaryMdMetadataFile)
+    from registry.models.harvest import TemporaryMdMetadataFile  # local
 
     summary = {"redriven": 0, "completed": [], "orphan_files": 0,
                "drained": 0}
@@ -1381,50 +1475,8 @@ def recover_registration_reference_work(*args, **kwargs):
                     f"of process {process.pk} - the next sweep will.",
                     stack_info=True)
 
-    # the drain pass of #1410: an acquisition whose references all decided
-    # while its own row (or its stored copy) stayed behind is a crash
-    # residue - no reference reads it anymore and the pass takes it, and
-    # with it its bytes, away. A FAILED reference keeps its row and keeps
-    # pointing at the acquisition, so a retryable failure never drains it.
-    # Read whole: one selection over every swept process, one bulk delete,
-    # then the bytes (#1395's shape for task code; the reference's FK is
-    # SET_NULL, so the delete can never take a work row - at most it
-    # orphans the acquisition a race just created a reference for, and the
-    # reference still answers from its own row).
-    residue = []
-    acquisitions = list(
-        RegistrationDocumentAcquisition.objects.filter(
-            background_process__in=processes).only(
-                "id", "md_metadata_file"))
-    if acquisitions:
-        referenced = set(
-            TemporaryMdMetadataFile.objects.filter(
-                acquisition__in=[a.pk for a in acquisitions]).values_list(
-                    "acquisition_id", flat=True))
-        residue = [a for a in acquisitions if a.pk not in referenced]
-    if residue:
-        names = [a.md_metadata_file.name for a in residue
-                 if a.md_metadata_file]
-        storage = RegistrationDocumentAcquisition._meta.get_field(
-            "md_metadata_file").storage
-        try:
-            RegistrationDocumentAcquisition.objects.filter(
-                pk__in=[a.pk for a in residue]).delete()
-            summary["drained"] += len(residue)
-        except Exception:
-            # nothing is deleted, nothing is lost: the rows and their
-            # bytes stay and the next pass reads them again
-            settings.ROOT_LOGGER.warning(
-                f"Could not drain "
-                f"{len(residue)} shared document acquisition(s) of the "
-                f"swept registration processes - the next sweep will.",
-                stack_info=True)
-            names = []
-        for name in names:
-            # the bulk delete walks past the row's own file sweep, so the
-            # pass takes the bytes itself - the same helper the orphan
-            # sweep uses, which keeps a failure for the next pass
-            _delete_registration_orphan(storage, name)
+    # the drain pass of #1410: crash residue goes, retryable failures stay
+    summary["drained"] += _drain_finished_acquisitions(processes)
 
     for process in processes:
         outstanding = TemporaryMdMetadataFile.objects.filter(

@@ -278,6 +278,12 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
 
 APPLICATION_JSON = "application/json"
 
+# The lazy reference of the process which owns the work rows of harvesting
+# and registration. Named once because three aggregates spell it
+# identically; a ForeignKey ``to`` deconstructs to the same resolved string
+# either way, so the migration state is untouched (#1410).
+BACKGROUND_PROCESS_REF = "notify.BackgroundProcess"
+
 
 class HarvestingJob(ProcessingData):
     """ helper model to visualize harvesting job workflow """
@@ -343,7 +349,7 @@ class HarvestingJob(ProcessingData):
         blank=True
     )
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -1327,7 +1333,7 @@ class TemporaryMdMetadataFile(models.Model):
     # the process (explicitly or through the retention of #1208) takes the
     # row and its file, while the permanent records and their relations stay.
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.CASCADE,
         verbose_name=_("background process"),
         null=True,
@@ -2061,7 +2067,7 @@ class RegistrationDocumentAcquisition(models.Model):
     token authorize work like the reference row's own permits.
     """
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.CASCADE,
         verbose_name=_("background process"),
         editable=False,

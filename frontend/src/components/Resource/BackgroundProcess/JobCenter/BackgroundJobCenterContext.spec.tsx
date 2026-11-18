@@ -57,6 +57,7 @@ vi.mock("react-admin", () => {
     },
   };
   return {
+    useAuthState: () => ({ authenticated: true }),
     useDataProvider: () => provider,
     useGetList: (_resource: string, params: { filter: { status: string } }) =>
       params.filter.status === "pending,running"
@@ -314,5 +315,30 @@ describe("BackgroundJobCenterProvider", () => {
     );
     expect(state.active.refetch).toHaveBeenCalledTimes(1);
     expect(state.terminal.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("polls both windows while the bus stays down", () => {
+    // the reconnect above is the recovery, this is its floor: without a bus
+    // nothing pushes, so the pages are read per interval (#1466)
+    vi.useFakeTimers();
+    state.ready = 0;
+    render(
+      <BackgroundJobCenterProvider>
+        <Probe />
+      </BackgroundJobCenterProvider>,
+    );
+    expect(state.active.refetch).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(state.active.refetch).toHaveBeenCalledTimes(1);
+    expect(state.terminal.refetch).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(state.active.refetch).toHaveBeenCalledTimes(2);
+    expect(state.terminal.refetch).toHaveBeenCalledTimes(2);
   });
 });

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  useAuthState,
   useDataProvider,
   useGetList,
   useNotify,
@@ -105,6 +106,11 @@ export const BackgroundJobCenterProvider = ({
   const notify = useNotify();
   const translate = useTranslate();
   const { realtimeIsReady } = useHttpClientContext();
+  // #833: the job center is an operator screen - its processes stay behind
+  // the session. An anonymous visitor must never fire these reads, because a
+  // 401 from any mounted query runs the authProvider's checkError and would
+  // log out a visitor who never logged in.
+  const { authenticated } = useAuthState();
 
   const [state, setState] = useState<JobStoreState>(initialJobStoreState);
   const [open, setOpen] = useState(false);
@@ -122,12 +128,16 @@ export const BackgroundJobCenterProvider = ({
     filter: { status: "pending,running" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   const recentTerminal = useGetList<BackgroundJobRecord>("BackgroundProcess", {
     filter: { status: "failed,aborted,completed" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
+  // react-query rebuilds its result wrapper every render, so the effects
+  // below name the refetch functions instead of calling through the wrapper
+  const { refetch: refetchActiveProcesses } = activeProcesses;
+  const { refetch: refetchRecentTerminal } = recentTerminal;
 
   // the store is mirrored in a ref so that the announcements of a batch are
   // made next to the state write and never inside a state updater, which
@@ -198,14 +208,14 @@ export const BackgroundJobCenterProvider = ({
   useEffect(() => {
     const isUp = realtimeIsReady === ReadyState.OPEN;
     if (isUp && !wasOpen.current) {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }
     wasOpen.current = isUp;
   }, [
     realtimeIsReady,
-    activeProcesses.refetch,
-    recentTerminal.refetch,
+    refetchActiveProcesses,
+    refetchRecentTerminal,
   ]);
 
   // fallback: while the bus is not up, the pages are read periodically
@@ -214,11 +224,11 @@ export const BackgroundJobCenterProvider = ({
       return;
     }
     const interval = setInterval(() => {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }, FALLBACK_POLL_MILLISECONDS);
     return () => clearInterval(interval);
-  }, [realtimeIsReady, activeProcesses.refetch, recentTerminal.refetch]);
+  }, [realtimeIsReady, refetchActiveProcesses, refetchRecentTerminal]);
 
   // the resource-wide topic: creates arrive with their record, deletes ask
   // for the row to disappear from the view

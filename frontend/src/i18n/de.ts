@@ -153,6 +153,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     selectLayer: "Wählen Sie einen Layer im Baum, um Deckkraft, Stil und Dimensionen zu bearbeiten.",
     edit: "%{layer} bearbeiten",
     title: "Layer-Einstellungen",
+    mapSettings: "Karteneinstellungen",
+    wmsList: "WMS-Liste",
     opacity: "Deckkraft",
     opacityValue: "%{percent}%",
     pin: "Zeitleiste anheften",

@@ -29,6 +29,10 @@ class WebMapServiceAuthenticationViewSetMixin:
     queryset = WebMapServiceAuthentication.objects.all()
     serializer_class = WebMapServiceAuthenticationSerializer
     search_fields = ('username', 'service__title', 'service__id')
+    # The credentials of a remote service are not an anonymous answer: every
+    # sibling security viewset declares this, only the two authentication
+    # viewsets did not (#1446).
+    permission_classes = [DjangoObjectPermissions]
 
 
 class WebMapServiceAuthenticationViewSet(
@@ -68,6 +72,7 @@ class WebFeatureServiceAuthenticationViewSetMixin:
     queryset = WebFeatureServiceAuthentication.objects.all()
     serializer_class = WebFeatureServiceAuthenticationSerializer
     search_fields = ('username', 'service__title', 'service__id')
+    permission_classes = [DjangoObjectPermissions]
 
 
 class WebFeatureServiceAuthenticationViewSet(

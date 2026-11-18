@@ -172,18 +172,6 @@ export const getIncludeOptions = (operation: Operation): string[] => {
   return []
 }
 
-// deprecated
-// different ResourceTypes are possible; This function does not extract sparse fields for different ResourceTypes!
-export const getSparseFieldOptions = (operation: Operation): string[] => {
-  if (operation !== undefined) {
-    const parameters = operation.parameters as ParameterObject[]
-    const sparseFieldParameterSchema = parameters?.find((parameter) => parameter.name.includes('fields['))?.schema as OpenAPIV3.ArraySchemaObject
-    const sparseFieldParameterArraySchema = sparseFieldParameterSchema.items as OpenAPIV3.SchemaObject
-    return sparseFieldParameterArraySchema.enum ?? []
-  }
-  return []
-}
-
 export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[key: string]: string[]} => {
   const sparseFieldParametersPerType: {[key: string]: string[]} = {}
 

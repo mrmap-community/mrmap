@@ -1,8 +1,9 @@
 /**
- * The login page of #834: when the session ended on its own, the page the
- * redirect lands on names the reason - translated, in the user's language -
- * above react-admin's form; a deliberate logout or a fresh visit shows none,
- * and the reason is consumed so it never repeats.
+ * The login page of #834 on its session form (#835): when the backend stopped
+ * accepting this browser's session, the page the redirect lands on names the
+ * reason - translated, in the user's language - above react-admin's form; a
+ * deliberate logout or a fresh visit shows none, and the reason is consumed so
+ * it never repeats.
  */
 import { AdminContext, TestMemoryRouter } from 'react-admin';
 import type { DataProvider } from 'react-admin';
@@ -10,34 +11,45 @@ import type { DataProvider } from 'react-admin';
 import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import tokenAuthProvider, {
+import sessionAuthProvider, {
   consumeSessionEndReason,
-  setAuthToken,
+  setSession,
 } from '../../providers/authProvider';
 import i18nProvider from '../../providers/i18nProvider';
 import LoginPage from './LoginPage';
 
 vi.mock('../../context/HttpClientContext', () => ({ API_BASE_URL: 'https://mrmap.test' }));
 
+const SESSION_URL = 'https://mrmap.test/api/auth/session';
+
 /**
- * Ends the session the way the application does: a stored token past the
- * expiry the login handed out meets the provider's `checkAuth` - the same
- * call react-admin's route guard makes when it sends the user to /login.
+ * Ends the session the way the application does: the browser still carries
+ * its marker, but the session probe answers that the server stopped accepting
+ * this cookie - the same `checkAuth` call react-admin's route guard makes
+ * when it sends the user to /login (#835: the backend decides, the client no
+ * longer reads an expiry of its own).
  */
 const expireSession = async () => {
-  setAuthToken({
-    token: 'an-expired-knox-token',
-    expiry: new Date(Date.now() - 1_000).toISOString(),
+  setSession({
     id: 1,
     fullName: 'Ada Lovelace',
+    openedAt: new Date().toISOString(),
   });
-  await tokenAuthProvider().checkAuth?.({}).catch(() => undefined);
+  vi.stubGlobal('fetch', vi.fn(async (request: Request) =>
+    request.url === SESSION_URL
+      ? new Response(JSON.stringify({ authenticated: false }), {
+          status: 200, headers: { 'content-type': 'application/json' },
+        })
+      : new Response(null, { status: 204 }),
+  ));
+  await sessionAuthProvider().checkAuth?.({}).catch(() => undefined);
+  vi.unstubAllGlobals();
 };
 
 const renderLoginPage = () => render(
   <TestMemoryRouter initialEntries={['/login']}>
     <AdminContext
-      authProvider={tokenAuthProvider()}
+      authProvider={sessionAuthProvider()}
       dataProvider={{} as DataProvider}
       i18nProvider={i18nProvider}
     >
@@ -53,6 +65,7 @@ beforeEach(() => {
 afterEach(async () => {
   // changeLocale switches a module-level catalog, so leave no locale behind
   await i18nProvider.changeLocale('en');
+  vi.unstubAllGlobals();
   localStorage.clear();
 });
 

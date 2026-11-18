@@ -1,44 +1,86 @@
 # Authentication and session lifetime
 
 MrMap distinguishes **browser sessions** from **machine/API tokens**. This page
-documents the lifetime of each, how a session ends, and the contract by which
+documents each credential, its lifetime, how it ends, and the contract by which
 the API tells a dead credential apart from a refused action. Related:
-[permissions.md](permissions.md) (what an authenticated caller may do), issue
-#835 (planned migration of browser auth to Django sessions + CSRF).
+[permissions.md](permissions.md) (what an authenticated caller may do) and
+issue #835 (accepted decision Q8=B: the browser authenticates with a Django
+session + CSRF, machine clients keep the token endpoint).
+
+## The two credentials
+
+| | Browser session | Machine / API token |
+| --- | --- | --- |
+| Opened by | `POST /api/auth/session` (HTTP Basic credentials in the login request only) | `POST /api/auth/login` (HTTP Basic) answers a knox token |
+| Carried by | the `sessionid` cookie, attached by the browser itself | `Authorization: Token …` header, kept by the caller |
+| Held by the SPA | never — it is an `HttpOnly` cookie JavaScript cannot read | the caller's own storage |
+| Lifetime | `SESSION_COOKIE_AGE` (30 min), sliding — see below | `REST_KNOX["TOKEN_TTL"]` (10 h), hard stop |
+| Ended by | `DELETE /api/auth/session` (flushes the session server-side) | `POST /api/auth/logout` (deletes exactly the presented token row, #832) |
+
+The credential a browser script can read is a credential a script can copy, so
+the SPA holds none (#835). What survives in `localStorage` is an identity
+marker (`mrmap.session`: user id and name only) — losing it costs a reload, not
+a session.
 
 ## Browser session lifetime
 
-The browser authenticates with a token that `POST /api/auth/login` (HTTP Basic
-credentials) issues through django-rest-knox. Its lifetime is an explicit
-deployment decision in `backend/MrMap/settings.py`:
+`POST /api/auth/session` turns the request's Basic credentials into a Django
+session (`login()`); the answer is `{"authenticated": true}` — no token, no
+expiry value, nothing to keep. The relevant settings in
+`backend/MrMap/settings.py`:
+
+| Setting | Value | Meaning |
+| --- | --- | --- |
+| `SESSION_COOKIE_AGE` | `1800` s | The session ages out after 30 minutes of *inactivity*. |
+| `SESSION_SAVE_EVERY_REQUEST` | `True` | Every request slides that window; an actively used session does not expire mid-work, an abandoned one ends on its own. |
+| `SESSION_COOKIE_HTTPONLY` | `True` | The session cookie is unreadable to JavaScript by design. |
+| `SESSION_COOKIE_SAMESITE` | `"Lax"` | nginx serves the SPA and proxies `/api` and `/ws` from the same origin (`docker/nginx/mrmap.conf`), so every request needing the credential is same-site anyway. |
+| `CSRF_COOKIE_HTTPONLY` | `False` | The SPA must read the CSRF cookie to repeat it in the `X-CSRFToken` header (see the CSRF paragraph). |
+| `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` | `DJANGO_COOKIE_SECURE`, defaulting to `MRMAP_PRODUCTION` | TLS-only cookies. On an http-only deployment set `DJANGO_COOKIE_SECURE=False`, or the browser refuses to store the session and no login sticks; a https deployment that is not flagged production can opt in. |
+
+**CSRF.** DRF's `SessionAuthentication` (first in
+`DEFAULT_AUTHENTICATION_CLASSES`) demands the `X-CSRFToken` header beside the
+cookie for every state-changing request the session authenticates. The SPA
+reads the `csrftoken` cookie and repeats it (axios via `xsrfCookieName`/
+`xsrfHeaderName`, the provider's own `fetch` calls explicitly). `GET /api/auth/session`
+ensures the cookie exists — Django only sends it where somebody asks — which is
+why the SPA's boot probe is also its CSRF bootstrap. A `POST` that
+authenticates by Basic *without* a session (the normal first login) is not
+session-authenticated and needs no token; re-logging into a live session does,
+which is the login-CSRF guard Django's own login view provides.
+
+**What the user notices** (frontend behaviour, translated in the UI's language):
+
+* Whether the cookie still authenticates is answered by the backend, not by a
+  client-side clock: the SPA's boot probe is `GET /api/auth/session` ("does
+  this browser have a live session?"), answered `{"authenticated": true|false}`
+  and deliberately answerable anonymously — knowing *whether* a cookie
+  authenticates grants nothing. A refused probe lands the user on the login
+  page with the reason — "Your session has expired" / "Ihre Sitzung ist
+  abgelaufen".
+* A logout (`DELETE`) flushes the session server-side, so a cookie copied out
+  of the browser before the logout answers nothing afterwards. The local
+  session ends even when the backend is unreachable (#832).
+
+The WebSocket carries the same credential: the handshake is same-origin, and
+`channels`' `AuthMiddlewareStack` resolves the user from the session cookie.
+No token travels in the query string any more — there is none to put there.
+(The backend still accepts the legacy `?token=` parameter for old clients; it
+is deprecated in `backend/notify/auth.py` and should disappear with the last
+pre-#835 client.)
+
+## Machine / API token lifetime and revocation
+
+`POST /api/auth/login` (Basic) and `POST /api/auth/logout` remain for scripts
+and CLI clients. The policy is an explicit deployment decision in
+`backend/MrMap/settings.py`:
 
 | Setting | Value | Meaning |
 | --- | --- | --- |
 | `REST_KNOX["TOKEN_TTL"]` | `timedelta(hours=10)` | One working day, enforced **server-side** on every request against the token row's `expiry` — not a client-side notion. |
-| `REST_KNOX["AUTO_REFRESH"]` | `False` | No rolling extension. Activity does not stretch the session; it ends predictably. |
+| `REST_KNOX["AUTO_REFRESH"]` | `False` | No rolling extension. Activity does not stretch the token; it ends predictably. |
 
-The login response hands the client the exact expiry moment (`expiry`), and the
-client trusts no other value. Because server row and client copy are the same
-moment, a session cannot silently outlive its enforcement.
-
-**What the user notices** (frontend behaviour, translated in the UI's language):
-
-* The session ends at the configured time even while work is open. The user
-  lands on the login page and the reason is shown — "Your session has expired"
-  / "Ihre Sitzung ist abgelaufen" — as is "Your login was rejected from another
-  source" when the credential was revoked server-side mid-flight.
-* Re-login always works with the normal credentials; nothing else resets.
-
-Expiry is a hard end, not a soft warning; a refresh/renewal flow is deliberately
-not part of this stack (knox has no refresh-token concept). When #835 lands,
-Django's `SESSION_*` settings take over this section and the `REST_KNOX` block
-retires.
-
-## Machine / API token lifetime and revocation
-
-Every credential knox issues today comes from the same login endpoint, so a
-script authenticating with Basic and keeping the token shares the browser
-session's TTL: **10 hours, no refresh, hard stop**. Revocation paths:
+Revocation paths:
 
 * `POST /api/auth/logout` (with the token in `Authorization: Token …`) deletes
   exactly the presented token row — other devices of the same user keep their
@@ -49,33 +91,37 @@ session's TTL: **10 hours, no refresh, hard stop**. Revocation paths:
 There is **no long-lived API-token facility** and no separate scope model; a
 dedicated machine-token policy (longer or unbounded lifetime, per-purpose
 scopes, admin-issued) is a deliberate open decision tracked with #835 and not
-something to infer from the browser-session TTL.
+something to infer from the browser-session or token TTL.
 
 ## The auth-vs-denied contract
 
 DRF keeps its 401 only when the *first* configured authenticator advertises a
 `WWW-Authenticate` scheme. MrMap's list starts with `SessionAuthentication`,
 which has none, so **the status code alone does not identify authentication
-loss** — an expired, revoked or unknown credential and a permission refusal
-both answer **403**. The deliberate contract is in the JSON:API error `code`
-(pinned by `tests/django/accounts/test_session_lifetime.py`):
+loss** — an expired session, a revoked token and a permission refusal all
+answer **403**. The deliberate contract is in the JSON:API error `code`
+(pinned by `tests/django/accounts/test_session_lifetime.py` and
+`tests/django/accounts/test_browser_session.py`):
 
 | Situation | Status | Error `code` | Client consequence |
 | --- | --- | --- | --- |
 | No credential, endpoint requires one | 403 | `not_authenticated` | Not logged in (public pages stay, protected ones lead to login). |
-| Expired / revoked / unknown token presented | 403 | `authentication_failed` | Session is dead: clear the credential, land on `/login` with the reason. |
+| Expired session cookie / revoked token presented | 403 | `authentication_failed` | Credential is dead: end the session, land on `/login` with the reason. |
 | Valid credential, action refused | 403 | `permission_denied` | **Session stays.** Notify, revalidate the caller's roles/identity; open screens drop the lost rights on the next revalidation. |
-| Credential rejected with a `401` (possible in other stacks, e.g. after #835 or with Basic against `WWW-Authenticate`) | 401 | `authentication_failed` / `not_authenticated` | Same as the expired-token row. |
+| CSRF check failed on a session-authenticated write | 403 | `permission_denied` | The session is alive but the request repeated no CSRF cookie. The SPA always sends it; a client without one must read the cookie first (`GET /api/auth/session`). |
+| Credential rejected with a `401` (possible in other stacks, e.g. Basic against `WWW-Authenticate`) | 401 | `authentication_failed` / `not_authenticated` | Same as the dead-credential row. |
 
-The frontend (`frontend/src/providers/authProvider.ts`) implements exactly this:
-401 always clears credentials; a 403 clears them **only** when the error code
-says the credential itself is (no longer) accepted — a `permission_denied` never
-logs a valid session out.
+The frontend (`frontend/src/providers/authProvider.ts`) implements exactly
+this: 401 always ends the session; a 403 ends it **only** when the error code
+says the credential itself is (no longer) accepted — a `permission_denied`
+never logs a live session out. Because a session cookie carries no
+client-readable expiry, a 403 without a readable code never guesses the session
+dead; the next backend answer decides.
 
 ## Revocation while working
 
-* **Logout** revokes server-side and clears local state even when the backend
-  is unreachable (#832).
+* **Logout** closes the session server-side and clears local state even when
+  the backend is unreachable (#832).
 * **Self-revocation** of one's own administration role on the Members screen
   immediately revalidates the permission snapshot and the cached access answers
   (#727/#737): menus and buttons follow without a manual reload.
@@ -85,6 +131,20 @@ logs a valid session out.
   reflect the loss within one refetch. The backend is authoritative either
   way — a stale client cache can never grant access the server refuses.
 * The identity endpoint `GET /api/accounts/who-am-i/` stays readable without a
-  credential (anonymous read-only baseline, #833); presenting a dead token to
-  it is refused with `authentication_failed`, which is what lets the client
-  tell "not logged in" apart from "my token died".
+  credential (anonymous read-only baseline, #833); presenting a dead session
+  or token to it is refused with `authentication_failed`, which is what lets
+  the client tell "not logged in" apart from "my session died".
+
+## Rolling out and back (#835)
+
+* Deploying the new frontend logs every browser in once: a page load finds the
+  knox token the previous frontend left in `localStorage`, revokes exactly that
+  token at `POST /api/auth/logout` (#832) and drops it. Machine clients are
+  untouched — their tokens never lived in browser storage.
+* Rollback to a pre-#835 frontend stays possible: the knox endpoints are still
+  mounted and browser users simply log in again (which issues a fresh token).
+  Browsers that already ran the new frontend had their old token revoked;
+  scripts are unaffected.
+* A session opened by the new frontend is closed by `DELETE /api/auth/session`;
+  rolling back does not flush sessions, but they age out with
+  `SESSION_COOKIE_AGE` and harm nothing — a pre-#835 frontend ignores them.

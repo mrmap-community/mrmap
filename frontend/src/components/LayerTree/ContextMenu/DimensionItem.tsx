@@ -89,7 +89,8 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   const [locale] = useLocaleState();
   const formatTime = timeFormatter(locale);
   const { displayedTimes = {}, mapLoading, animation, setAnimation } = useMapViewerBase();
-  const axis = useMemo(() => getTimeDimensionAxis(dimension), [dimension.name, dimension.units, dimension.values]);
+  const { name: dimensionName, units: dimensionUnits, values: dimensionValues } = dimension;
+  const axis = useMemo(() => getTimeDimensionAxis({ name: dimensionName, units: dimensionUnits, values: dimensionValues }), [dimensionName, dimensionUnits, dimensionValues]);
   const [draft, setDraft] = useState<number>();
   const [invalid, setInvalid] = useState(false);
   useEffect(() => { setDraft(undefined); setInvalid(false); }, [selection]);

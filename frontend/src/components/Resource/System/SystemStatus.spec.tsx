@@ -12,6 +12,9 @@ vi.mock('react-admin', async () => ({
     ...await vi.importActual('react-admin'),
     useGetOne: vi.fn(),
     useRedirect: vi.fn(),
+    // the provider only fetches with a session (#833); the specs measure the
+    // fetch answers, so they run as an authenticated user
+    useAuthState: () => ({ authenticated: true }),
     useCreatePath: () => () => '/SystemInfo',
     useTranslate: () => (key: string) => key,
 }));

@@ -36,7 +36,13 @@ class WebMapServiceAuthenticationSerializer(SystemInfoSerializerMixin, ModelSeri
 
     class Meta:
         model = WebMapServiceAuthentication
-        fields = '__all__'
+        # `key_file` points at the stored Fernet key which decrypts the
+        # credentials, and a write answers the stored ciphertext of `password`
+        # — neither is an answer to give, both belong to the write side only
+        # (#1446). `exclude` instead of `fields = '__all__'`: DRF refuses the
+        # two together.
+        exclude = ('key_file',)
+        extra_kwargs = {'password': {'write_only': True}}
 
 
 class WebMapServiceOperationSerializer(
@@ -60,7 +66,10 @@ class WebFeatureServiceAuthenticationSerializer(SystemInfoSerializerMixin, Model
 
     class Meta:
         model = WebFeatureServiceAuthentication
-        fields = '__all__'
+        # see WebMapServiceAuthenticationSerializer on why `password` is
+        # write-only and `key_file` is not serialized (#1446)
+        exclude = ('key_file',)
+        extra_kwargs = {'password': {'write_only': True}}
 
 
 class WebFeatureServiceOperationSerializer(

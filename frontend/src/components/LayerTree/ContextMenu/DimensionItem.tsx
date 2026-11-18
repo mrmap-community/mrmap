@@ -1,12 +1,12 @@
 import type { OfferingDimension } from '../../../ows-lib/OwsContext/types';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslate } from 'react-admin';
+import { useLocaleState, useTranslate } from 'react-admin';
 
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined';
 import { Box, Button, IconButton, Slider, Stack, TextField, Typography } from '@mui/material';
-import moment from 'moment';
 
+import { formatInstant, parseInstant } from '../../../ows-lib/iso8601';
 import { OWSContext, type OWSResource } from '../../../ows-lib/OwsContext/core';
 import { getTimeDimensionAxis, getWmsDimensionSelection, isAllowedDimensionValue, parseAdvertisedValues, setWmsDimension, type TimeDimensionAxis } from '../../../ows-lib/OwsContext/dimensions';
 import { useOwsContextBase } from '../../../react-ows-lib/ContextProvider/OwsContextBase';
@@ -14,10 +14,28 @@ import { useMapViewerBase } from '../../MapViewer/MapViewerBase';
 import { useContextMenuBase } from './ContextMenuBase';
 import ContextMenuItem from './ContextMenuItem';
 
-/** one advertised time told to the viewer, or the raw value when it isn't one */
-const formatTime = (value: string, short = false) => {
-  if (!moment.utc(value, moment.ISO_8601, true).isValid()) return value;
-  return moment.utc(value).format(short ? 'DD MMM YYYY HH:mm' : 'DD MMM YYYY · HH:mm [UTC]');
+/**
+ * The formatter of the times a dimension tells the viewer, in the language of the screen: the moment
+ * is read as the UTC the service advertises it in and named in UTC as well, because the zone of the
+ * viewer asks nothing about an observation of a service. A value which names no moment is told as it
+ * is advertised, which is the honest answer for a service whose text the grammar does not read.
+ */
+const timeFormatter = (locale: string) => (value: string, short = false) => {
+  const instant = parseInstant(value);
+  if (instant === undefined) return value;
+  const shown = new Intl.DateTimeFormat(locale, {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    hourCycle: 'h23', timeZone: 'UTC',
+  }).format(instant);
+  return short ? shown : `${shown} · UTC`;
+};
+
+/** the selected moment in the shape a `datetime-local` input shows: the canonical UTC text without
+ *  its `Z`, since a text with one is an instant the browser moves into the zone of the viewer, while
+ *  the input answers the wall clock of the service; nothing is shown for a selection which is none */
+const inputTime = (selection: string) => {
+  const instant = parseInstant(selection);
+  return instant === undefined ? '' : formatInstant(instant).slice(0, -1);
 };
 
 /** the state a playback tick judges by, read from refs so that no stale render
@@ -68,8 +86,11 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
   dimension: OfferingDimension; selection: string; apply: (value: string) => void; folder?: string; compact?: boolean; horizontal?: boolean;
 }) => {
   const translate = useTranslate();
+  const [locale] = useLocaleState();
+  const formatTime = timeFormatter(locale);
   const { displayedTimes = {}, mapLoading, animation, setAnimation } = useMapViewerBase();
-  const axis = useMemo(() => getTimeDimensionAxis(dimension), [dimension.name, dimension.units, dimension.values]);
+  const { name: dimensionName, units: dimensionUnits, values: dimensionValues } = dimension;
+  const axis = useMemo(() => getTimeDimensionAxis({ name: dimensionName, units: dimensionUnits, values: dimensionValues }), [dimensionName, dimensionUnits, dimensionValues]);
   const [draft, setDraft] = useState<number>();
   const [invalid, setInvalid] = useState(false);
   useEffect(() => { setDraft(undefined); setInvalid(false); }, [selection]);
@@ -155,12 +176,12 @@ export const WmsTimeControl = ({ dimension, selection, apply, folder, compact = 
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
     {!compact && <TextField key={selection} fullWidth type="datetime-local" label={label}
       sx={theme => ({ '& input': { colorScheme: theme.palette.mode } })}
-      defaultValue={moment.utc(selection, moment.ISO_8601, true).isValid() ? moment.utc(selection).format('YYYY-MM-DDTHH:mm:ss.SSS') : ''}
+      defaultValue={inputTime(selection)}
       slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: 'any' } }}
       error={invalid} helperText={invalid ? translate('viewerDimensions.invalid') : translate('viewerDimensions.sliderHint')}
       onBlur={event => {
-        const parsed = moment.utc(event.target.value, moment.ISO_8601, true);
-        const normalized = parsed.isValid() ? parsed.toISOString() : event.target.value;
+        const parsed = parseInstant(event.target.value);
+        const normalized = parsed === undefined ? event.target.value : formatInstant(parsed);
         const position = axis?.indexOf(normalized) ?? -1;
         let value: string;
         if (event.target.value === '') value = '';

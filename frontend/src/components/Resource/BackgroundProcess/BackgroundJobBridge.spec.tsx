@@ -1,79 +1,57 @@
-import type { CrudEvent } from '../../../providers/dataProvider';
-
-import type { RaRecord } from 'react-admin';
+import type { BackgroundJobRecord } from './JobCenter/jobStore';
 
 import { act, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import BackgroundJobBridge, {
-  RESOURCE_TOPIC,
-  processTopic,
-} from './BackgroundJobBridge';
-import { createBackgroundJobStore } from './jobsStore';
+import BackgroundJobBridge from './BackgroundJobBridge';
 
-// a fake realtime bus: callbacks registered per topic, an emit() to push events
-const bus = vi.hoisted(() => ({
-  subs: new Map<string, Set<(event: CrudEvent) => void>>(),
-  subscribe: vi.fn(),
-  unsubscribe: vi.fn(),
-}));
-
-const state = vi.hoisted(() => ({
-  listData: [] as RaRecord[],
-  refetch: vi.fn(),
-  notify: vi.fn(),
-  ready: 1, // ReadyState.OPEN
-}));
-
-// ReadyState is an enum: CONNECTING 0, OPEN 1, CLOSING 2, CLOSED 3
-vi.mock('react-use-websocket', () => ({
-  ReadyState: { UNINSTANTIATED: -1, CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 },
-}));
-
-vi.mock('../../../context/HttpClientContext', () => ({
-  useHttpClientContext: () => ({ realtimeIsReady: state.ready }),
-}));
+// the center's failure seam (#1461): the spec drives it directly - what the
+// store reports as a live failure is exactly the bridge's input. The
+// subscribe function keeps one identity across renders, as the real
+// provider's does - the bridge's effect is keyed on it
+const state = vi.hoisted(() => {
+  const listeners = new Set<(records: BackgroundJobRecord[]) => void>();
+  return {
+    listeners,
+    subscribeFailed: vi.fn((listener: (records: BackgroundJobRecord[]) => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    }),
+    translate: (key: string) => key,
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    notify: vi.fn(),
+  };
+});
 
 vi.mock('react-admin', () => ({
-  useDataProvider: () => ({
-    subscribe: (topic: string, callback: (event: CrudEvent) => void) => {
-      bus.subscribe(topic, callback);
-      const set = bus.subs.get(topic) ?? new Set();
-      set.add(callback);
-      bus.subs.set(topic, set);
-      return Promise.resolve({ data: null });
-    },
-    unsubscribe: (topic: string, callback: (event: CrudEvent) => void) => {
-      bus.unsubscribe(topic, callback);
-      bus.subs.get(topic)?.delete(callback);
-      return Promise.resolve({ data: null });
-    },
-  }),
-  useGetList: () => ({ data: state.listData, refetch: state.refetch }),
   useNotify: () => state.notify,
-  useTranslate: () => (key: string) => key,
+  useTranslate: () => state.translate,
+  // the bus belongs to the center: a bridge which still reached for the
+  // dataProvider would trip the spy below
+  useDataProvider: () => ({ subscribe: state.subscribe, unsubscribe: state.unsubscribe }),
 }));
 
-const emit = (topic: string, event: CrudEvent) =>
-  act(() => {
-    bus.subs.get(topic)?.forEach((callback) => callback(event));
-  });
+vi.mock('./JobCenter/BackgroundJobCenterContext', () => ({
+  useBackgroundJobCenter: () => ({ subscribeFailed: state.subscribeFailed }),
+}));
 
-const flush = (store: ReturnType<typeof createBackgroundJobStore>) =>
-  act(() => {
-    store.flushNow();
-  });
+const failed = (...ids: number[]): BackgroundJobRecord[] =>
+  ids.map((id) => ({ id, status: 'failed' }) as BackgroundJobRecord);
 
-const topicSize = (topic: string) => bus.subs.get(topic)?.size ?? 0;
+const tellFailures = (records: BackgroundJobRecord[]) =>
+  act(() => {
+    state.listeners.forEach((listener) => listener(records));
+  });
 
 beforeEach(() => {
-  bus.subs.clear();
-  bus.subscribe.mockClear();
-  bus.unsubscribe.mockClear();
-  state.listData = [];
-  state.refetch.mockClear();
+  state.listeners.clear();
+  state.subscribeFailed.mockClear();
+  state.subscribe.mockClear();
+  state.unsubscribe.mockClear();
   state.notify.mockClear();
-  state.ready = 1;
   vi.useFakeTimers();
 });
 afterEach(() => {
@@ -82,86 +60,9 @@ afterEach(() => {
 });
 
 describe('BackgroundJobBridge', () => {
-  it('watches the resource topic and seeds the running processes from the recovery fetch', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    state.listData = [
-      { id: 100, status: 'running', progress: 40 },
-      { id: 101, status: 'running', progress: 10 },
-    ];
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    // the resource wide topic is subscribed once
-    expect(topicSize(RESOURCE_TOPIC)).toBe(1);
-    // both running processes recovered from the fetch are watched and stored
-    expect(topicSize(processTopic(100))).toBe(1);
-    expect(topicSize(processTopic(101))).toBe(1);
-    expect(store.getSummary().running).toBe(2);
-  });
-
-  it('subscribes a newly running process and drops its topic when it finishes', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    expect(topicSize(processTopic(7))).toBe(0);
-
-    emit(RESOURCE_TOPIC, {
-      type: 'created',
-      payload: { ids: [7], records: [{ id: 7, status: 'running', progress: 0 } as RaRecord] },
-    });
-    flush(store);
-    expect(topicSize(processTopic(7))).toBe(1);
-
-    emit(processTopic(7), {
-      type: 'updated',
-      payload: { ids: [7], records: [{ id: 7, status: 'completed', progress: 100 } as RaRecord] },
-    });
-    flush(store);
-    expect(store.getSummary().completed).toBe(1);
-    // the finished process is no longer watched
-    expect(topicSize(processTopic(7))).toBe(0);
-  });
-
-  it('applies a progress update and ignores a duplicate', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    state.listData = [{ id: 5, status: 'running', progress: 20 }];
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    emit(processTopic(5), {
-      type: 'updated',
-      payload: { ids: [5], records: [{ id: 5, status: 'running', progress: 60 } as RaRecord] },
-    });
-    flush(store);
-    expect(store.getJobs().find((j) => j.id === 5)?.progress).toBe(60);
-    // a stale lower update is dropped
-    emit(processTopic(5), {
-      type: 'updated',
-      payload: { ids: [5], records: [{ id: 5, status: 'running', progress: 33 } as RaRecord] },
-    });
-    flush(store);
-    expect(store.getJobs().find((j) => j.id === 5)?.progress).toBe(60);
-  });
-
-  it('removes a job when the bus reports it deleted', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    state.listData = [{ id: 9, status: 'running', progress: 5 }];
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    expect(store.getSummary().total).toBe(1);
-    emit(RESOURCE_TOPIC, { type: 'delete', payload: { ids: [9] } });
-    flush(store);
-    expect(store.getSummary().total).toBe(0);
-  });
-
   it('raises one aggregated error notification for a burst of failures', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 1000 });
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    const failed = [11, 12, 13].map((id) => ({ id, status: 'failed' } as RaRecord));
-    emit(RESOURCE_TOPIC, {
-      type: 'created',
-      payload: { ids: [11, 12, 13], records: failed },
-    });
-    // completions and running jobs never notify; a batch of failures does, once
+    render(<BackgroundJobBridge />);
+    tellFailures(failed(11, 12, 13));
     act(() => {
       vi.advanceTimersByTime(1000);
     });
@@ -171,46 +72,71 @@ describe('BackgroundJobBridge', () => {
     });
   });
 
-  it('does not notify for completions', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 1000 });
-    render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    emit(RESOURCE_TOPIC, {
-      type: 'created',
-      payload: { ids: [21], records: [{ id: 21, status: 'completed', progress: 100 } as RaRecord] },
-    });
+  it('names a single failure with the one-failure wording', () => {
+    render(<BackgroundJobBridge />);
+    tellFailures(failed(21));
     act(() => {
       vi.advanceTimersByTime(1000);
+    });
+    expect(state.notify).toHaveBeenCalledTimes(1);
+    expect(state.notify).toHaveBeenCalledWith('backgroundJobs.notification.failedOne', {
+      type: 'error',
+    });
+  });
+
+  it('sums bursts which arrive within one aggregation window into one message', () => {
+    render(<BackgroundJobBridge />);
+    tellFailures(failed(31));
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+    tellFailures(failed(32, 33));
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(state.notify).toHaveBeenCalledTimes(1);
+    expect(state.notify).toHaveBeenCalledWith('backgroundJobs.notification.failedMany', {
+      type: 'error',
+    });
+  });
+
+  it('opens the window again for a burst which starts after the quiet moment', () => {
+    render(<BackgroundJobBridge />);
+    tellFailures(failed(41));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    tellFailures(failed(42));
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(state.notify).toHaveBeenCalledTimes(2);
+  });
+
+  it('stays quiet while the center reports nothing', () => {
+    render(<BackgroundJobBridge />);
+    act(() => {
+      vi.advanceTimersByTime(2000);
     });
     expect(state.notify).not.toHaveBeenCalled();
   });
 
-  it('refetches only when the realtime bus reconnects after a drop', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    state.ready = 0; // CONNECTING at mount
-    const { rerender } = render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    // first open is answered by the mount fetch, not a refetch
-    state.ready = 1;
-    rerender(<BackgroundJobBridge store={store} />);
-    expect(state.refetch).not.toHaveBeenCalled();
-    // the bus drops ...
-    state.ready = 3; // CLOSED
-    rerender(<BackgroundJobBridge store={store} />);
-    // ... and comes back: the missed transitions are reconciled with a refetch
-    state.ready = 1;
-    rerender(<BackgroundJobBridge store={store} />);
-    expect(state.refetch).toHaveBeenCalledTimes(1);
+  it('subscribes the failure seam once and no realtime topic', () => {
+    render(<BackgroundJobBridge />);
+    expect(state.subscribeFailed).toHaveBeenCalledTimes(1);
+    // the convergence of #1461: the bridge owns no subscription of its own
+    expect(state.subscribe).not.toHaveBeenCalled();
+    expect(state.unsubscribe).not.toHaveBeenCalled();
   });
 
-  it('unwatches every topic when the bridge unmounts', () => {
-    const store = createBackgroundJobStore({ throttleMs: 10, notifyMs: 0 });
-    state.listData = [{ id: 1, status: 'running', progress: 1 }];
-    const { unmount } = render(<BackgroundJobBridge store={store} />);
-    flush(store);
-    expect(topicSize(processTopic(1))).toBe(1);
+  it('unregisters on unmount and drops a burst which had not reached its moment', () => {
+    const { unmount } = render(<BackgroundJobBridge />);
+    tellFailures(failed(51));
     unmount();
-    expect(topicSize(RESOURCE_TOPIC)).toBe(0);
-    expect(topicSize(processTopic(1))).toBe(0);
+    expect(state.listeners.size).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(state.notify).not.toHaveBeenCalled();
   });
 });

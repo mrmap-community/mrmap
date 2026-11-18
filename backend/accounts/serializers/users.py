@@ -2,6 +2,7 @@ from accounts.models.roles import Role
 from accounts.models.users import User
 from accounts.serializers.groups import GroupSerializer
 from accounts.serializers.roles import RoleSerializer
+from django.contrib.auth import password_validation
 from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
@@ -127,8 +128,31 @@ class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
         model = User
         fields = ("username", "password", "url", "groups")
 
-    def save(self, **kwargs):
-        user = super().save(**kwargs)
-        # set the correct password
-        user.set_password(self.validated_data['password'])
+    def validate_password(self, password):
+        # ``create`` hands this value to ``set_password`` and the save after
+        # it runs Django's AUTH_PASSWORD_VALIDATORS over the stored raw
+        # value; a password which breaks that policy is refused here, with
+        # the 400 of a rejected field, and never reaches the write (#1451)
+        password_validation.validate_password(password)
+        return password
+
+    def create(self, validated_data):
+        """Hashes the password before the row is ever written (#1451).
+
+        The plain ``ModelSerializer.save`` INSERTs the raw password as a
+        normal model value; hashing after that save only ever fixed the
+        in-memory instance, so the database kept the credential in
+        plaintext and ``check_password`` never matched - an API-created
+        user could never log in. Neither may happen: pop the password,
+        build the instance, hash it onto the one save.
+        """
+        password = validated_data.pop('password')
+        # the m2m of this payload has no column to create the row with;
+        # ModelSerializer.create would have applied it after the save too
+        groups = validated_data.pop('groups', [])
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        if groups:
+            user.groups.set(groups)
         return user

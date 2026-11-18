@@ -1,5 +1,4 @@
-import moment from 'moment'
-
+import { parseDuration } from '../iso8601'
 import { AdvertisedDimension, ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getAttribute, getDescendantByPath, getDocument, getChild, getText } from './utils'
 
@@ -56,16 +55,26 @@ const parseScaleDenominator = (value: string | undefined): number | undefined =>
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
+/**
+ * The time dimension the value text of a `Dimension` element names: its first observation, its last
+ * one when the range states one, and the duration between the observations. The two instants are read
+ * as the `Date` of the stated text, as they have always been read here, while a resolution outside
+ * the ISO 8601 grammar of a WMS duration is answered by nothing.
+ */
+const parseTimeDimensionValue = (value: string): TimeDimension => {
+  const [start, stop, resolution] = value.split('/')
+  return {
+    start: new Date(start),
+    stop: stop ? new Date(stop) : undefined,
+    resolution: resolution ? parseDuration(resolution) : undefined
+  }
+}
+
 export const parseTimeDimension = (timeDimension: Element): TimeDimension | undefined => {
   const dimensionValue = timeDimension.textContent?.trim()
   if (!dimensionValue) return undefined
 
-  const [start, stop, resolution] = dimensionValue.split('/')
-  return {
-    start: new Date(start),
-    stop: stop ? new Date(stop) : undefined,
-    resolution: resolution ? moment.duration(resolution) : undefined
-  }
+  return parseTimeDimensionValue(dimensionValue)
 }
 
 export const parseDimension = (dimension: Element): TimeDimension | TempDimension | ElevationDimension | undefined => {
@@ -74,12 +83,7 @@ export const parseDimension = (dimension: Element): TimeDimension | TempDimensio
   const value = dimension.textContent?.trim() ?? ''
 
   if (type === 'time' && units === 'ISO8601') {
-    const [start, stop, resolution] = value.split('/')
-    return {
-      start: new Date(start),
-      stop: stop ? new Date(stop) : undefined,
-      resolution: resolution ? moment.duration(resolution) : undefined
-    }
+    return parseTimeDimensionValue(value)
   }
 
   if (type === 'temperature') {

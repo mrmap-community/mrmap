@@ -22,9 +22,6 @@ vi.mock("../../../../../context/HttpClientContext", () => ({
     },
   }),
 }));
-vi.mock("../../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "secret" }),
-}));
 const wrapper = ({ children }: PropsWithChildren) => (
   <QueryClientProvider
     client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}

@@ -16,7 +16,7 @@ const I18Observer = () => {
       init(locale)
     }
     
-  },[locale])
+  },[locale, init])
 
   return null
 };

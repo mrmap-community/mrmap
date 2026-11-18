@@ -1,5 +1,7 @@
 import type { BackgroundJobRecord } from "./jobStore";
 
+import { useEffect } from "react";
+
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,6 +36,8 @@ const state = vi.hoisted(() => ({
   subscribeCalls: [] as string[],
   unsubscribeCalls: [] as string[],
   notify: vi.fn(),
+  // the batches the failure seam reported to its subscribers (#1461)
+  failures: [] as string[][],
   // stable identities: the provider folds `translate` into `ingest` and the
   // hydrate effects depend on `ingest` - a fresh function per render would
   // (rightfully) rebuild the store over and over
@@ -57,6 +61,7 @@ vi.mock("react-admin", () => {
     },
   };
   return {
+    useAuthState: () => ({ authenticated: true }),
     useDataProvider: () => provider,
     useGetList: (_resource: string, params: { filter: { status: string } }) =>
       params.filter.status === "pending,running"
@@ -100,6 +105,19 @@ const Probe = () => {
   );
 };
 
+/** registers on the failure seam (#1461) and records every batch it is told */
+const FailureProbe = () => {
+  const { subscribeFailed } = useBackgroundJobCenter();
+  useEffect(
+    () =>
+      subscribeFailed((records) => {
+        state.failures.push(records.map((record) => String(record.id)));
+      }),
+    [subscribeFailed],
+  );
+  return null;
+};
+
 const rendered = () => screen.getByTestId("probe").textContent;
 
 beforeEach(() => {
@@ -119,6 +137,7 @@ beforeEach(() => {
   state.subscriptions = new Map();
   state.subscribeCalls = [];
   state.unsubscribeCalls = [];
+  state.failures = [];
   state.notify = vi.fn();
 });
 
@@ -245,6 +264,32 @@ describe("BackgroundJobCenterProvider", () => {
     );
   });
 
+  it("reports live failures to the failure seam and nothing for a hydration replay", () => {
+    // the recovered failure is history: the store shows it, the seam stays
+    // silent - a reload must not re-tell failures the user did not watch
+    state.active.data = [job({ id: 5, status: "failed", state: "failed" })];
+    render(
+      <BackgroundJobCenterProvider>
+        <FailureProbe />
+        <Probe />
+      </BackgroundJobCenterProvider>,
+    );
+    expect(rendered()).toBe("5");
+    expect(state.failures).toEqual([]);
+    // a live failure is told exactly once, however often its message arrives:
+    // the store never lets a decided process move back (#1461)
+    const failing = job({ id: 6, status: "failed", state: "failed" });
+    emit("resource/BackgroundProcess", {
+      type: "created",
+      payload: { records: [failing] },
+    });
+    emit("resource/BackgroundProcess", {
+      type: "created",
+      payload: { records: [failing] },
+    });
+    expect(state.failures).toEqual([["6"]]);
+  });
+
   it("aggregates a burst of completions into one message after the quiet moment", () => {
     vi.useFakeTimers();
     render(
@@ -314,5 +359,30 @@ describe("BackgroundJobCenterProvider", () => {
     );
     expect(state.active.refetch).toHaveBeenCalledTimes(1);
     expect(state.terminal.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("polls both windows while the bus stays down", () => {
+    // the reconnect above is the recovery, this is its floor: without a bus
+    // nothing pushes, so the pages are read per interval (#1466)
+    vi.useFakeTimers();
+    state.ready = 0;
+    render(
+      <BackgroundJobCenterProvider>
+        <Probe />
+      </BackgroundJobCenterProvider>,
+    );
+    expect(state.active.refetch).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(state.active.refetch).toHaveBeenCalledTimes(1);
+    expect(state.terminal.refetch).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(20_000);
+    });
+    expect(state.active.refetch).toHaveBeenCalledTimes(2);
+    expect(state.terminal.refetch).toHaveBeenCalledTimes(2);
   });
 });

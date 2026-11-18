@@ -385,8 +385,9 @@ class BackgroundProcess(models.Model):
         this process's to take and stay untouched.
         """
         from registry.models.harvest import (  # local import: app cycle
-            registration_work_file_names)
-        names = registration_work_file_names([self.pk])
+            registration_document_file_names, registration_work_file_names)
+        names = (registration_work_file_names([self.pk])
+                 + registration_document_file_names([self.pk]))
         result = super().delete(*args, **kwargs)
         transaction.on_commit(lambda: _delete_registration_files(names))
         return result

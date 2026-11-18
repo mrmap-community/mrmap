@@ -38,6 +38,43 @@ Feature: MapContextLayer Add Endpoint
         When I send the request with POST method
         Then I expect the response status is 201
 
+    # the position branch of the create path inserted the node but answered
+    # nothing, so the request ended in a 500 (#1476)
+    Scenario: Can add with position as authenticated user
+        Given I set the request payload to:
+            """
+            {
+                "data": {
+                    "type": "MapContextLayer",
+                    "attributes": {
+                        "title": "mc2_node1.2.1",
+                        "position": 1
+                    },
+                    "relationships": {
+                        "mptt_parent": {
+                            "data": {
+                                "type": "MapContextLayer",
+                                "id": "8"
+                            }
+                        },
+                        "mapContext": {
+                            "data": {
+                                "type": "MapContext",
+                                "id": "2"
+                            }
+                        }
+                    }
+                }
+            }
+            """
+        Given I am logged in as User1 with password User1
+        When I send the request with POST method
+        Then I expect the response status is 201
+        Then I expect that response json has an attribute "data.attributes.mpttLft" with value "7"
+        Then I expect that response json has an attribute "data.attributes.mpttRgt" with value "8"
+        Then I expect that response json has an attribute "data.attributes.mpttDepth" with value "2"
+        Then I expect that response json has an attribute "data.attributes.mpttTreeId" with value "2"
+
     Scenario: Can't add as anonymous user
         Given I am an anonymous user
         When I send the request with POST method

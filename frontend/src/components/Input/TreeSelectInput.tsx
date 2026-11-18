@@ -27,7 +27,7 @@ const TreeSelectInput = ({
 }: TreeSelectInputProps) => {
   const { ...rest } = props;
   const values = useWatch()
-  const wmsIdValue = useMemo(()=> wmsId || dependingFieldName && values[dependingFieldName]?.id, [values, dependingFieldName])
+  const wmsIdValue = useMemo(()=> wmsId || dependingFieldName && values[dependingFieldName]?.id, [values, dependingFieldName, wmsId])
   const {setValue} = useFormContext();
   const { data: record, isPending } = useGetOne(
     'WebMapService',

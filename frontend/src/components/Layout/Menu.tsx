@@ -4,6 +4,7 @@ import {
   MenuItemLink,
   type ResourceDefinition,
   MenuProps,
+  useAuthState,
   useCanAccessResources,
   useResourceDefinitions,
   useSidebarState,
@@ -115,6 +116,11 @@ const AuthorizedSubMenu = ({
 
 const CustomMenu = ({ dense = false }: MenuProps) => {
     const translate = useTranslate();
+    // #833: the resource groups below answer `canAccess` per entry and so
+    // keep the public services of #833 for an anonymous visitor; the three
+    // named screens behind a session - dashboard, explorer and viewer - are
+    // custom routes guarded by <Authenticated> and are not offered without one
+    const { authenticated } = useAuthState();
     const [open] = useSidebarState();
     const resourceDefinitions = useResourceDefinitions();
     const menuResources = Object.values(resourceDefinitions).filter(
@@ -149,8 +155,8 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
             }}
         >
             <MenuList>
-                <DashboardMenuItem />
-                <MenuItemLink to="/service-explorer" primaryText={translate("serviceExplorer.title")} leftIcon={<PublicIcon />} dense={dense} />
+                {!!authenticated && <DashboardMenuItem />}
+                {!!authenticated && <MenuItemLink to="/service-explorer" primaryText={translate("serviceExplorer.title")} leftIcon={<PublicIcon />} dense={dense} />}
                 {groupNames.map(group => (
                     <AuthorizedSubMenu
                         key={group}
@@ -166,13 +172,13 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
                         dense={dense}
                     />
                 ))}
-                <MenuItemLink
+                {!!authenticated && <MenuItemLink
                     to="/viewer"
                     state={{ _scrollToTop: true }}
                     primaryText="MapViewer"
                     leftIcon={<PublicIcon />}
                     dense={dense}
-                />
+                />}
             </MenuList>
         </Box>
     );

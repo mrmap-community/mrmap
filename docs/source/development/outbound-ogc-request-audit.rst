@@ -372,11 +372,21 @@ counts requests or parser invocations, not broker messages or rows.
        references: 2 / 3 / 11 requests per cycle; at a daily beat 60 / 90 / 330
        per month per service — forever, for a service nobody changed
      - confirmed → #1413 (refresh policy for an
-       unchanged service), sharing the download seam with #1410
-     - up to ``k`` of ``k+1`` requests per run once a defined freshness rule
-       exists. Risk: #1261/#1263 identity and the failed-reference
-       inspectability must survive; a stale-but-present record must never be
-       reported as collected without a rule saying so. Fixture:
+       unchanged service), sharing the download seam with #1410. The policy
+       landed with #1413 in :ref:`update-refresh-policy`
+     - not ``k`` of ``k+1``: the rule of #1413 (:ref:`update-refresh-policy`)
+       decides that every run revalidates the advertised references, because
+       capabilities equality proves nothing about the ISO documents behind
+       them - a stale-but-present record may never be reported as collected.
+       What the landed change saves instead is the work the hash *does*
+       decide: an unchanged run stages no candidate - no parse, no mapped
+       persistence, no candidate deletion - and the run which adopted a
+       document stops proving "changed" on every later cycle. Risk:
+       #1261/#1263 identity and the failed-reference
+       inspectability must survive. Fixture:
+       ``tests/django/registry/models/tests_update_refresh_policy.py``
+       (requests by ``Session.send`` side_effect exhaustion, parses by
+       patched ``OGCServiceXmlMapper.from_xml``) +
        ``tests/django/registry/tasks/tests_metadata_collection.py`` +
        ``tests/django/test_data/iso_metadata/dataset.xml``, count
        ``collect_reference`` messages and ``fetch_metadata_document`` calls
@@ -652,11 +662,13 @@ several consumers?
        bookkeeping are what make the coupling per element, so sharing the fetch
        must leave the rows, the counters and the failure kinds alone
    * - Update run of an unchanged service (R1)
-     - **conditionally** — needs a freshness rule
-     - #1408 forbids treating a stale document as current without a defined
-       refresh policy. The sha256 comparison of ``document_equals``
-       (``models/document.py:66-71``) proves *capabilities* equality, not record
-       equality
+     - **the references, always** — decided by #1413
+     - :ref:`update-refresh-policy`: the sha256 comparison of
+       ``document_equals`` (``models/document.py:66-71``) proves
+       *capabilities* equality, not record equality, so the advertised
+       documents are revalidated every run; what an unchanged run skips is
+       the candidate, and an adoption now refreshes the stored document the
+       comparison reads
    * - Monitoring probes (R18)
      - **never**
      - Independent probes measure the service independently; coalescing would

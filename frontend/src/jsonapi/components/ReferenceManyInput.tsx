@@ -13,7 +13,6 @@ import {
   type UpdateResult,
   useInfiniteGetList,
   useLocation,
-  useNavigate,
   useRecordContext, useRegisterMutationMiddleware,
   useResourceContext,
   useUpdate
@@ -59,14 +58,14 @@ export const RemoveButton = () => {
     } else {
       remove();
     }
-  },[remove, resource, getValues])
+  },[remove, resource, getValues, deleteOne, index, source])
 
   useEffect(()=>{
     if (isSuccess) {
       // delete on serverside is done successfully
       remove()
     }
-  }, [isSuccess])
+  }, [isSuccess, remove])
 
   return (
     <RemoveItemButton 
@@ -163,7 +162,6 @@ export const ReferenceManyInput = (
   const {setError, setValue, clearErrors} = formMethods;
   const values = useWatch({control: formMethods.control, name: source});
   const valuesRef = useRef(values)
-  const navigate = useNavigate();
   const location = useLocation();
   
   const [ create ] = useCreate();
@@ -290,7 +288,7 @@ export const ReferenceManyInput = (
 
       // Always return the result
       return result
-    }, [navigate, location, create,  reference, target, update, values, record]);
+    }, [create, reference, target, update, values, addErrors, setError, source]);
   
   useRegisterMutationMiddleware(memoizedMiddleWare);
 

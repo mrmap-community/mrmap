@@ -1,4 +1,4 @@
-import { Duration } from 'moment';
+import type { IsoDuration } from '../iso8601';
 
 
 export interface Metadata {
@@ -36,7 +36,8 @@ export interface TimeDimension {
     start: Date
     stop?: Date
     default?: Date
-    resolution?: Duration
+    /** the step between the advertised observations, as far as the ISO 8601 grammar of a WMS duration reads it */
+    resolution?: IsoDuration
 }
 
 

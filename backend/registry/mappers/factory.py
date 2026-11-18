@@ -58,6 +58,11 @@ class OGCServiceXmlMapper(XmlMapper):
 
 
 class MDMetadataXmlMapper(XmlMapper):
+    # The record type a document names for itself in its hierarchyLevel,
+    # answered on the detection path of from_xml and read by the bucket check
+    # of a harvesting import instead of asking the tree a second time (#1415).
+    # None for a mapper built with a forced kind or outside from_xml.
+    hierarchy_level = None
 
     @classmethod
     def from_xml(cls, xml, cache=None, hierarchy_level=None):
@@ -82,14 +87,41 @@ class MDMetadataXmlMapper(XmlMapper):
         mappers = []
 
         for md in md_nodes:
-            # ✅ MD_Metadata als eigenes XML-Dokument neu erzeugen
-            md_xml = etree.tostring(md, encoding="utf-8")
-            md_root = etree.fromstring(md_xml)
+            if len(md_nodes) == 1 and md.getparent() is None:
+                # the node is the whole document: the copy below would
+                # serialize and reparse it for a structurally identical tree.
+                # Every file a harvesting stores per record and every
+                # advertised document a registration downloads has this shape,
+                # so the import of one document pays one parse, not three
+                # transformations (#1415). The traversal of a mapper only ever
+                # reads its tree; the writers which change a document build
+                # their mapper from the bytes they own.
+                md_root = md
+            else:
+                # ✅ MD_Metadata als eigenes XML-Dokument neu erzeugen: a node
+                # below a search-response wrapper, or one of several, only
+                # answers the deterministic paths of a standalone document -
+                # and the backup of one record only carries its own record -
+                # after the serialize-and-reparse copy.
+                md_root = etree.fromstring(
+                    etree.tostring(md, encoding="utf-8"))
 
-            hierarchy = hierarchy_level or cls._detect_hierarchy_level(md_root)
+            if hierarchy_level is None:
+                detected = cls._detect_hierarchy_level(md_root)
+                hierarchy = detected
+            else:
+                # a forced kind is the caller's interpretation of the node and
+                # never travels as the document's own answer
+                detected = None
+                hierarchy = hierarchy_level
             mapping = cls._select_mapping(hierarchy)
 
             mapper = cls(xml=md_root, mapping=mapping, cache=cache)
+            if detected is not None:
+                # what the document named for itself, which the bucket check
+                # of a harvesting import reads here instead of running the
+                # same traversal over the hierarchyLevel element again (#1415)
+                mapper.hierarchy_level = detected
             mappers.append(mapper)
 
         return mappers

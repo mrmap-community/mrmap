@@ -100,23 +100,30 @@ def statements_touching(context, table, verb=None):
 
 # The history-attribution receiver (``ServiceHistoricalRecords.
 # create_historical_record``, registry/models/service.py) answers whether an
-# element belongs to a candidate by reading its service - one by-pk read of
-# the CONCRETE service row per candidate element the delete collector
-# collects at the end of the apply phase. This predates #1393 and is
-# unchanged by it; the scaling guards run with the pairs' configured
-# relations equal, so this read - and only it - is allowed to grow with the
-# pairs, named by fingerprint and pinned to exactly one statement per pair.
+# element belongs to a candidate by asking its service - one single-column
+# EXISTS on the CONCRETE service row per candidate element the delete
+# collector collects at the end of the apply phase. That per-element read
+# predates #1393; what #1482 narrowed is its WIDTH - the question is the
+# one column ``update_candidate_of_id``, not the whole service row, and the
+# question is skipped entirely whenever the caller already holds the
+# service. The scaling guards run with the pairs' configured relations
+# equal, so this read - and only it - is allowed to grow with the pairs,
+# named by fingerprint and pinned to exactly one statement per pair.
 WMS_HISTORY_NEEDLE = ('from "registry_webmapservice" where '
-                      '"registry_webmapservice"."id" = ?')
+                      '("registry_webmapservice"."id" = ?::uuid and '
+                      '"registry_webmapservice"."update_candidate_of_id" '
+                      'is not null)')
 WFS_HISTORY_NEEDLE = ('from "registry_webfeatureservice" where '
-                      '"registry_webfeatureservice"."id" = ?')
+                      '("registry_webfeatureservice"."id" = ?::uuid and '
+                      '"registry_webfeatureservice".'
+                      '"update_candidate_of_id" is not null)')
 
-# One by-pk read of the concrete service row per deleted candidate element is
-# the standing shape of the history attribution (see the comment above): the
-# scaling guards therefore allow exactly one statement per pair (``per_row``
-# 1) and name it; the fingerprint guards exclude the same fingerprint. The
-# for_update_diff plan read of the old service shares that fingerprint - it
-# is a constant two statements and rides within the ``extra`` slack.
+# One single-column EXISTS per deleted candidate element is the standing
+# shape of the history attribution (see the comment above): the scaling
+# guards therefore allow exactly one statement per pair (``per_row`` 1) and
+# name it; the fingerprint guards exclude the same fingerprint. The
+# for_update_diff plan reads of the old service are constant statements and
+# ride within the ``extra`` slack.
 
 
 class WmsUpdateReadPlanTest(SqlGuardMixin, TestCase):
@@ -323,6 +330,10 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
         Sanctioned: each configured relation is prefetched once per side
         (old and new read the same tables and share a fingerprint), so two
         repeats per relation table are the plan, a third is a regression.
+        The remote-metadata delete is sanctioned at two: the update's own
+        take-back of the stale advertised references (#1413) and the
+        candidate deletion's cascade over the same table are one statement
+        each, constant over the pairs, and share the fingerprint.
         """
         self._seed(100)
         self.assertNoNPlusOne(
@@ -331,7 +342,14 @@ class WmsLayerApplyPhaseTest(SqlGuardMixin, TestCase):
             sanctioned={
                 'from "registry_keyword"': 2,
                 'from "registry_referencesystem"': 2,
-                'left outer join "registry_layer" t3': 2},
+                'left outer join "registry_layer" t3': 2,
+                'delete from "registry_layerremotemetadata"': 2,
+                # the job's own deferred old/new service FK reads on the
+                # for_update_diff plan: constant two statements over any
+                # number of pairs (#1482 detached them from the excluded
+                # attribution fingerprint, which is now a narrow EXISTS)
+                'from "registry_webmapservice" where '
+                '"registry_webmapservice"."id" = ?::uuid limit ?': 2},
             label='the WMS layer apply phase at 100 pairs')
 
 
@@ -421,5 +439,16 @@ class WfsFeatureTypeApplyPhaseTest(SqlGuardMixin, TestCase):
                 'from "registry_referencesystem"': 2,
                 # the element rows are read once per side (old, candidate,
                 # and the mapped side the relations ride) - one fingerprint
-                'from "registry_featuretype"': 3},
+                'from "registry_featuretype"': 3,
+                # the update's own take-back of the stale advertised
+                # references (#1413) and the candidate deletion's cascade
+                # over the same table: one statement each, constant over
+                # the pairs, one shared fingerprint
+                'delete from "registry_featuretyperemotemetadata"': 2,
+                # the job's own deferred old/new service FK reads on the
+                # for_update_diff plan: constant two statements over any
+                # number of pairs (#1482 detached them from the excluded
+                # attribution fingerprint, which is now a narrow EXISTS)
+                'from "registry_webfeatureservice" where '
+                '"registry_webfeatureservice"."id" = ?::uuid limit ?': 2},
             label='the WFS feature-type apply phase at 100 pairs')

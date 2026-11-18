@@ -6,7 +6,6 @@
 # modules of this package which are not named here are listed there with the
 # import which reaches the worker instead.
 from .alerts import *  # noqa
-from .conformity import *  # noqa
 from .harvest import *  # noqa
 from .monitoring import *  # noqa
 from .security import *  # noqa

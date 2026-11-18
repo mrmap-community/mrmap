@@ -1407,6 +1407,14 @@ const en = lodashMerge(
       list: {
         actions: "Actions"
       },
+      page: {
+        // #833: the standard forbidden state an anonymous deep link into a
+        // private screen lands on; the keys mirror the de catalog
+        access_denied: "Access denied",
+      },
+      message: {
+        access_denied: "You do not have permission for this page.",
+      },
       notification: {
         updated_with_errors: "Element updated, but some related items could not be saved |||| %{smart_count} elements updated, but some related items could not be saved",
         created_with_errors: "Element created, but some related items could not be saved |||| %{smart_count} elements created, but some related items could not be saved",

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  useAuthState,
   useDataProvider,
   useGetList,
   useNotify,
@@ -105,6 +106,11 @@ export const BackgroundJobCenterProvider = ({
   const notify = useNotify();
   const translate = useTranslate();
   const { realtimeIsReady } = useHttpClientContext();
+  // #833: the job center is an operator screen - its processes stay behind
+  // the session. An anonymous visitor must never fire these reads, because a
+  // 401 from any mounted query runs the authProvider's checkError and would
+  // log out a visitor who never logged in.
+  const { authenticated } = useAuthState();
 
   const [state, setState] = useState<JobStoreState>(initialJobStoreState);
   const [open, setOpen] = useState(false);
@@ -122,12 +128,12 @@ export const BackgroundJobCenterProvider = ({
     filter: { status: "pending,running" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   const recentTerminal = useGetList<BackgroundJobRecord>("BackgroundProcess", {
     filter: { status: "failed,aborted,completed" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   // react-query rebuilds its result wrapper every render, so the effects
   // below name the refetch functions instead of calling through the wrapper
   const { refetch: refetchActiveProcesses } = activeProcesses;

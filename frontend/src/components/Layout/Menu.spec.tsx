@@ -28,6 +28,8 @@ const resources = vi.hoisted(() => {
     },
     // A resource no resources block names keeps its name as it does today.
     Layer: menuEntry("Layer", "WMS", 20),
+    // #833: the public list - a granted entry an anonymous visitor keeps.
+    WebMapService: menuEntry("WebMapService", "WMS", 10),
     // The Accounts group #836 gates: an administration user opens it, a
     // plain user sees neither the entries nor the group.
     User: menuEntry("User", "Accounts", 10),
@@ -36,11 +38,12 @@ const resources = vi.hoisted(() => {
 });
 
 /** Which checks the mocked react-admin access hooks are to answer how. */
-const access = vi.hoisted(() => ({ denied: [] as string[], pending: false }));
+const access = vi.hoisted(() => ({ denied: [] as string[], pending: false, session: true }));
 
 // The menu renders its entries through these react-admin pieces; the test
 // asserts the text the menu hands them, so they are replaced by their label.
 vi.mock("react-admin", () => ({
+  useAuthState: () => ({ authenticated: access.session }),
   DashboardMenuItem: () => null,
   MenuItemLink: ({ primaryText }: { primaryText: string }) => (
     <span>{primaryText}</span>
@@ -117,11 +120,13 @@ describe("menu entries gated by canAccess", () => {
     vi.mocked(useTranslate).mockReturnValue(i18nProvider.translate);
     access.denied = [];
     access.pending = false;
+    access.session = true;
   });
 
   afterEach(() => {
     access.denied = [];
     access.pending = false;
+    access.session = true;
   });
 
   it("hides the denied entries and the group they would empty", () => {
@@ -158,5 +163,23 @@ describe("menu entries gated by canAccess", () => {
 
     expect(screen.queryByText("Layer")).not.toBeInTheDocument();
     expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
+  });
+
+  it("offers an anonymous visitor only the granted public list, not the session screens", () => {
+    // #833: without a session only what `canAccess` keeps (the published
+    // kinds of service) is offered; dashboard, explorer and viewer belong to
+    // a session and are not rendered for this visitor
+    access.session = false;
+    access.denied = [
+      "CatalogueService", "HarvestingJob", "CatalogueServiceUpdateJob",
+      "ServiceAlert", "Layer", "User", "Organization",
+    ];
+    render(<CustomMenu />);
+
+    expect(screen.getByText("Web Map Services")).toBeInTheDocument();
+    expect(screen.queryByText("Layer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Accounts")).not.toBeInTheDocument();
+    expect(screen.queryByText("MapViewer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Service explorer")).not.toBeInTheDocument();
   });
 });

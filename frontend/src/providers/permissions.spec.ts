@@ -7,7 +7,9 @@
  *   table (specs also inject their sets to pin the wiring);
  * - everything else stays as it is today: every logged-in user may reach it,
  *   the backend keeps enforcing the records;
- * - anonymous requests are denied while #833 has not chosen its public set;
+ * - anonymous requests reach only #833's public set - the `list` and `show`
+ *   of the published kinds of service - and are denied every write and every
+ *   other resource;
  * - a record that carries #738's `allowedActions` is judged by that field
  *   alone - the policy never guesses a record permission it did not get.
  *
@@ -281,12 +283,51 @@ describe("resource checks for a logged-in user", () => {
 });
 
 describe("anonymous checks", () => {
-  it("denies everything outside #833's public set, which is still empty", () => {
-    expect(PUBLIC_READ_RESOURCES.size).toBe(0);
-    for (const action of ["list", "show", "create", "edit", "delete"]) {
-      expect(asAnonymous(action, "WebMapService")).toBe(false);
-      expect(asAnonymous(action, "User")).toBe(false);
+  it("opens list and show of the published kinds of service (#833)", () => {
+    // the table names exactly what the backend answers anonymously once a
+    // record is published: WMS and WFS - catalogues and everything else stay
+    // behind the session
+    expect([...PUBLIC_READ_RESOURCES].toSorted()).toEqual(
+      ["WebFeatureService", "WebMapService"]
+    );
+    for (const resource of ["WebMapService", "WebFeatureService"]) {
+      expect(asAnonymous("list", resource)).toBe(true);
+      expect(asAnonymous("show", resource)).toBe(true);
     }
+  });
+
+  it("denies writes on public resources and everything else", () => {
+    for (const action of ["create", "edit", "delete"]) {
+      expect(asAnonymous(action, "WebMapService")).toBe(false);
+      expect(asAnonymous(action, "WebFeatureService")).toBe(false);
+    }
+    // everything outside the public set: the catalogue list, the changelog
+    // aside of a public list, the operator screens and the accounts
+    for (const resource of [
+      "CatalogueService", "Layer", "FeatureType", "HistoricalWebMapService",
+      "ServiceAlert", "BackgroundProcess", "SystemStatus", "User",
+    ]) {
+      for (const action of ["list", "show", "create", "edit", "delete"]) {
+        expect(
+          asAnonymous(action, resource),
+          `anonymous ${action} of ${resource} must be denied`
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("is overruled by a record's allowedActions even on a public resource", () => {
+    // the #738 precedence stays intact: a record the backend hands without
+    // "view" is not shown just because its kind is in the public set
+    expect(
+      canAccessFromSnapshot({
+        action: "show",
+        resource: "WebMapService",
+        record: { id: "1", allowedActions: [] },
+        authenticated: false,
+        snapshot: ANONYMOUS_SNAPSHOT,
+      })
+    ).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useDataProvider, useGetList, useNotify, useTranslate } from 'react-admin';
+import { useAuthState, useDataProvider, useGetList, useNotify, useTranslate } from 'react-admin';
 import { ReadyState } from 'react-use-websocket';
 
 import { useHttpClientContext } from '../../../context/HttpClientContext';
@@ -66,6 +66,9 @@ const BackgroundJobBridge = ({
   const notify = useNotify();
   const translate = useTranslate();
   const { realtimeIsReady } = useHttpClientContext();
+  // #833: the recovery read below belongs to the session, not to a public
+  // screen - see the JobCenter provider; an unmounted fetch is also the only
+  // way to keep its 401 from running checkError on an anonymous visitor
 
   const handleBusEvent = useCallback((event: CrudEvent) => ingestEvent(store, event), [store]);
 
@@ -78,7 +81,10 @@ const BackgroundJobBridge = ({
     }),
     [],
   );
-  const { data: seedData, refetch } = useGetList('BackgroundProcess', params);
+  const { authenticated } = useAuthState();
+  const { data: seedData, refetch } = useGetList('BackgroundProcess', params, {
+    enabled: !!authenticated,
+  });
 
   useEffect(() => {
     if (!seedData) return;

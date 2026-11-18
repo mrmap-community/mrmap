@@ -128,6 +128,7 @@ const tabs: ServiceTab[] = [
   {
     path: "",
     label: "serviceShow.overview",
+    resource: "WebFeatureService",
     icon: <AutoGraphIcon />,
     content: (
       <OverviewTab/>
@@ -136,6 +137,7 @@ const tabs: ServiceTab[] = [
   {
     path: "alerts",
     label: "serviceShow.attention",
+    resource: "ServiceAlert",
     icon: <WarningAmberIcon />,
     content: <ServiceAttentionTab />,
   },
@@ -143,12 +145,14 @@ const tabs: ServiceTab[] = [
     path: "metadata",
     label: "serviceShow.metadata",
     resource: "WebFeatureService",
+    action: "edit",
     operation: "partial_update_WebFeatureService",
     content: <ServiceMetadataTab />,
   },
   {
     path: "operationUrls",
     label: "serviceShow.operationUrls",
+    resource: "WebFeatureServiceOperationUrl",
     countSource: "operationUrls",
     content: <OperationUrls />,
   },
@@ -163,6 +167,7 @@ const tabs: ServiceTab[] = [
   {
     path: "ProxySetting",
     label: "serviceShow.proxy",
+    resource: "WebFeatureServiceProxySetting",
     operation:
       "list_related_WebFeatureServiceProxySetting_of_WebFeatureService",
     content: (

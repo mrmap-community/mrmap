@@ -457,12 +457,20 @@ describe('authProvider.canAccess', () => {
     expect(await canAccess({ resource: 'SystemInfo', action: 'list' })).toBe(true);
   });
 
-  it('denies every check to an anonymous visitor without asking the backend', async () => {
-    const backend = mockBackend({ attributes: { isSuperuser: true } });
+  it('answers the public set of #833 to an anonymous visitor without asking the backend', async () => {
+    const backend = mockBackend({ isSuperuser: true });
     setSession(undefined);
     const canAccess = canAccessOf(sessionAuthProvider());
 
-    expect(await canAccess({ resource: 'WebMapService', action: 'list' })).toBe(false);
+    // the published kinds of service open their list and show screens -
+    // what those screens contain stays the api's answer
+    expect(await canAccess({ resource: 'WebMapService', action: 'list' })).toBe(true);
+    expect(await canAccess({ resource: 'WebMapService', action: 'show' })).toBe(true);
+    expect(await canAccess({ resource: 'WebFeatureService', action: 'list' })).toBe(true);
+    // every write and every other resource stays denied, and answering the
+    // whole table needs no backend: the anonymous path never fetches who-am-i
+    expect(await canAccess({ resource: 'WebMapService', action: 'edit' })).toBe(false);
+    expect(await canAccess({ resource: 'Layer', action: 'list' })).toBe(false);
     expect(await canAccess({ resource: 'User', action: 'list' })).toBe(false);
     expect(backend.whoAmIs()).toHaveLength(0);
   });

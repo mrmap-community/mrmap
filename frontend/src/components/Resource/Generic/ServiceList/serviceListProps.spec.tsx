@@ -152,4 +152,28 @@ describe("service list columns", () => {
     expect(sortOf("Last update")).toBeNull();
     expect(sortOf("Actions")).toBeNull();
   });
+
+  /**
+   * #833: the list of a published kind of service is opened to anonymous
+   * visitors through `disableAuthentication` - only the two kinds of service
+   * the backend answers anonymously get it; the catalogue list keeps asking
+   * for a session like every other screen.
+   */
+  it("opens only the screens of the published kinds of service without a session", () => {
+    expect(
+      serviceListProps({
+        resource: "WebMapService", protocol: "WMS", countLabelKey: "layers", fields: [],
+      }).disableAuthentication,
+    ).toBe(true);
+    expect(
+      serviceListProps({
+        resource: "WebFeatureService", protocol: "WFS", countLabelKey: "featureTypes", fields: [],
+      }).disableAuthentication,
+    ).toBe(true);
+    expect(
+      serviceListProps({
+        resource: "CatalogueService", protocol: "CSW", countLabelKey: "records", fields: [],
+      }).disableAuthentication,
+    ).toBe(false);
+  });
 });

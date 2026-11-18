@@ -81,7 +81,7 @@ const offsetMilliseconds = (offset: string): number | undefined => {
     const hours = Number(digits.slice(0, 2));
     const minutes = digits.length > 2 ? Number(digits.slice(2)) : 0;
     if (hours > 23 || minutes > 59) return undefined;
-    return (offset[0] === '-' ? -1 : 1) * (hours * MS_PER_HOUR + minutes * MS_PER_MINUTE);
+    return (offset.startsWith('-') ? -1 : 1) * (hours * MS_PER_HOUR + minutes * MS_PER_MINUTE);
 };
 
 /**

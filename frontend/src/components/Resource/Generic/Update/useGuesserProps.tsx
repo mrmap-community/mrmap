@@ -32,7 +32,7 @@ const useGuesserProps = () => {
       />
     ],
   }),[
-    fieldDefinitions, record, serviceKind
+    resource, fieldDefinitions, record, serviceKind
   ])
   return guesserProps
 }

@@ -112,7 +112,7 @@ const HarvestingJobTimingCharts = (
     }) 
 
     return _props
-  },[data])
+  },[data, record?.service, timeFormatter, valueFormatter])
 
   return (
     <ChartsContainer

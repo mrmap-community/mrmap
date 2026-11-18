@@ -87,15 +87,15 @@ const MyLayout = (
           '& .RaList-main': {
             width: `calc(${open ? '60vw' : '80vw'} - ${open ? '240px' : '50px'} - 3em)`,
             //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
-            overfloxX: 'hidden',
+            overflowX: 'hidden',
             marginLeft: "1em",
             marginRight: "1em",
             marginBottom: "1em",
           },
           '& .RaShow-main': {
-            width: `calc('100vw' - ${open ? '240px' : '50px'}  - 3em)`,
+            width: `calc(100vw - ${open ? '240px' : '50px'}  - 3em)`,
             //maxHeight: 'calc(50vh - 174px )', // 174px ==> 50 appbar, 52 pagination, 64 table actions, 8 top padding
-            overfloxX: 'hidden',
+            overflowX: 'hidden',
             marginLeft: "1em",
             marginRight: "1em",
             marginBottom: "1em",
@@ -129,7 +129,7 @@ const MyLayout = (
           </Box>
         </Box>
         <Card 
-          style={{
+          sx={{
             position: 'fixed',
             right: 0, 
             bottom: 0, 

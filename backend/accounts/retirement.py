@@ -51,6 +51,10 @@ COVERED_BY_ROLE = "covered_by_role"
 #: members which already held it, so their rights stand while the group goes
 PRESERVED_PER_USER = "preserved_per_user"
 
+#: the third answer of :func:`classify_grant`, named as a constant because the
+#: audit record distinguishes a right which was moved from one which was lost
+DROPPED = "dropped"
+
 #: whether an uncovered grant is preserved per user (``True``) or dropped with
 #: the group (``False``). ``True`` is the reading of Q5 = B this repository pins
 #: in ``tests/django/accounts/test_role_migration.py``: the person who could
@@ -245,7 +249,7 @@ def classify_grant(apps, role, row) -> dict:
     elif PRESERVE_UNCOVERED_GRANTS:
         disposition = PRESERVED_PER_USER
     else:
-        disposition = "dropped"
+        disposition = DROPPED
     return {
         "table": row._meta.model._meta.db_table,
         "row_pk": row.pk,
@@ -258,12 +262,14 @@ def classify_grant(apps, role, row) -> dict:
     }
 
 
-def _member_users(apps, group) -> list:
+def _member_users(group) -> list:
     """The people whose rights the retired group carries.
 
     Guardian's anonymous user and every inactive user are never among them:
     adopting either into a role group would make whatever that group grants
-    public, and Q2 of #727 allows no migration to publish anything.
+    public, and Q2 of #727 allows no migration to publish anything. The group's
+    own ``user_set`` answers that, so the registry is not asked for anything
+    here.
     """
     anonymous = getattr(
         settings, "GUARDIAN_ANONYMOUS_USER_NAME", "AnonymousUser")
@@ -283,7 +289,7 @@ def plan_role(apps, role) -> dict:
     row of the group with its disposition, and - when the group must not be
     deleted - ``declined`` naming the reason.
     """
-    Role = apps.get_model("accounts", "Role")
+    role_model = apps.get_model("accounts", "Role")
     group = role.group
     plan = {
         "group_pk": group.pk,
@@ -314,7 +320,7 @@ def plan_role(apps, role) -> dict:
         plan["declined"] = "the anonymous viewer role is never a successor"
         return plan
 
-    successor = Role.objects.filter(
+    successor = role_model.objects.filter(
         role_definition=definition,
         organization=role.organization,
         is_active=True).select_related("group").first()
@@ -330,7 +336,7 @@ def plan_role(apps, role) -> dict:
 
     holding = set(successor.group.user_set.values_list(
         "username", flat=True))
-    for user in _member_users(apps, group):
+    for user in _member_users(group):
         plan["members"].append({
             "user": user.username,
             "action": ("already_in_successor" if user.username in holding
@@ -351,15 +357,15 @@ def _adopt_members(apps, plan, successor):
     """
     if successor is None:
         return
-    RoleMembership = apps.get_model("accounts", "RoleMembership")
-    User = apps.get_model(*_user_model_label().split("."))
+    membership_model = apps.get_model("accounts", "RoleMembership")
+    user_model = apps.get_model(*_user_model_label().split("."))
     for entry in plan["members"]:
         if entry["action"] != "adopted":
             continue
-        user = User.objects.filter(username=entry["user"]).first()
+        user = user_model.objects.filter(username=entry["user"]).first()
         if user is None:
             continue
-        RoleMembership.objects.get_or_create(
+        membership_model.objects.get_or_create(
             role=successor, user=user, defaults={"granted_by": None})
         # the group is what enforces, so it is written regardless of whether
         # the membership row was already there - a row without the group would
@@ -400,6 +406,29 @@ def _preserve_grant(user_model, user, row, obj) -> bool:
     return True
 
 
+def _apply_disposition(apps, entry, grant_model, row, members) -> bool:
+    """Carry one grant row of a retired group into what it becomes.
+
+    Answers whether the row was *preserved*, the one disposition with a count
+    of its own; a row covered by the successor role needs no writing and a row
+    nobody can hold is reported instead. Writing the latter back into
+    ``entry`` is deliberate: the audit record an auditor reads has to tell a
+    right which was moved apart from a right which was lost.
+    """
+    if entry["disposition"] != PRESERVED_PER_USER:
+        return False
+    user_model = _user_grant_table(apps, grant_model)
+    obj = grant_object(row)
+    if user_model is None or obj is None:
+        # nothing can hold the grant per user, or the object it pointed
+        # at is gone: say so in the record instead of pretending
+        entry["disposition"] = DROPPED
+        return False
+    for user in members:
+        _preserve_grant(user_model, user, row, obj)
+    return True
+
+
 def _reconcile_grants(apps, plan, role) -> tuple:
     """Apply every disposition of ``plan`` and delete the rows.
 
@@ -409,7 +438,7 @@ def _reconcile_grants(apps, plan, role) -> tuple:
     """
     covered = preserved = 0
     by_username = {user.username: user for user in _member_users(
-        apps, role.group)}
+        role.group)}
     members = [by_username[entry["user"]] for entry in plan["members"]
                if entry["user"] in by_username]
 
@@ -421,17 +450,8 @@ def _reconcile_grants(apps, plan, role) -> tuple:
             continue
         if entry["disposition"] == COVERED_BY_ROLE:
             covered += 1
-        elif entry["disposition"] == PRESERVED_PER_USER:
-            user_model = _user_grant_table(apps, grant_model)
-            obj = grant_object(row)
-            if user_model is None or obj is None:
-                # nothing can hold the grant per user, or the object it pointed
-                # at is gone: say so in the record instead of pretending
-                entry["disposition"] = "dropped"
-            else:
-                for user in members:
-                    _preserve_grant(user_model, user, row, obj)
-                preserved += 1
+        elif _apply_disposition(apps, entry, grant_model, row, members):
+            preserved += 1
         grant_model.objects.filter(pk=entry["row_pk"]).delete()
     return covered, preserved
 
@@ -443,11 +463,11 @@ def _record(apps, plan, covered, preserved):
     of an upgraded instance reads this table to answer whose rights came from
     which legacy group and whether anything was broadened.
     """
-    LegacyGroupRetirement = apps.get_model("accounts", "LegacyGroupRetirement")
-    Role = apps.get_model("accounts", "Role")
-    successor = (Role.objects.filter(pk=plan["successor_pk"]).first()
+    retirement_model = apps.get_model("accounts", "LegacyGroupRetirement")
+    role_model = apps.get_model("accounts", "Role")
+    successor = (role_model.objects.filter(pk=plan["successor_pk"]).first()
                  if plan.get("successor_pk") else None)
-    record, _ = LegacyGroupRetirement.objects.get_or_create(
+    record, _ = retirement_model.objects.get_or_create(
         group_pk=plan["group_pk"],
         defaults={
             "group_name": plan["group_name"],
@@ -474,8 +494,8 @@ def retire_role(apps, role) -> dict:
     if plan["declined"]:
         return plan
 
-    Role = apps.get_model("accounts", "Role")
-    successor = Role.objects.filter(pk=plan["successor_pk"]).first()
+    role_model = apps.get_model("accounts", "Role")
+    successor = role_model.objects.filter(pk=plan["successor_pk"]).first()
     with transaction.atomic():
         _adopt_members(apps, plan, successor)
         covered, preserved = _reconcile_grants(apps, plan, role)
@@ -504,14 +524,16 @@ def retire_legacy_role_groups(apps=None, dry_run=False) -> dict:
     """
     if apps is None:
         apps = global_apps
-    Role = apps.get_model("accounts", "Role")
+    role_model = apps.get_model("accounts", "Role")
     report = {"retired": [], "declined": [], "skipped": [],
               "dry_run": dry_run}
     # Role.objects.retired() is the named selection of #741; the manager's own
     # method is not in the migration state this runs from, so the filter is
-    # spelled out here
-    for role in list(Role.objects.filter(is_active=False).select_related(
-            "group", "role_definition", "organization")):
+    # spelled out here. Iterating the queryset itself instead of a list() of it
+    # is safe exactly because the loop deletes: a QuerySet is fetched once, on
+    # the first step, and the rows walk out of that cache
+    for role in role_model.objects.filter(is_active=False).select_related(
+            "group", "role_definition", "organization"):
         if not is_legacy_model_group(apps, role):
             # an inactive role of the api's own shape was retired by a person
             # who may still undo it: it is reported, never deleted

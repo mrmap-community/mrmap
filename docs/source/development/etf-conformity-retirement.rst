@@ -141,6 +141,20 @@ the family.
 Code and infrastructure surface (the removal list for #1529/#1530)
 ####################################################################
 
+**Executed partway (#1458).** The task half of this list has already left:
+``backend/registry/tasks/conformity.py``, its import in
+``registry/tasks/__init__.py``, the liveness guard
+``backend/tests/django/registry/tasks/tests_conformity_tasks.py``, the two
+``CONFORMITY_ETF_TASK_*_TIME_LIMIT_SECONDS`` constants and the
+``test_celery_worker_config`` assertions which read them are removed by
+#1458, carried out on the operator's instruction while Q1 below stands
+open. The tasks are no longer registered: a by-name delivery is now
+discarded as unregistered (the #1199 behaviour) instead of executed and
+failed. Everything else on this page - models, managers, enums, the plugin
+helpers, the fixtures, the ``CONFORMITY_DEFAULT_*`` messages,
+``BASE_URL_FOR_ETF``, the validator infrastructure and the twelve tables -
+remains gated on Q1-Q3 and owned by #1529/#1530/#1531.
+
 Backend (all imports are family-internal; the only outside importer is
 ``tests/django/test_celery_worker_config.py`` consuming the time-limit
 constants):
@@ -307,13 +321,14 @@ How to re-derive every claim
 
 .. code:: text
 
-    # liveness guards (this stack recipe: backend/AGENTS.md "Prebuilt")
+    # worker-config guards (this stack recipe: backend/AGENTS.md "Prebuilt");
+    # the conformity task guard retired with the tasks themselves (#1458)
     docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
       django-tests python manage.py test \
-        tests.django.registry.tasks.tests_conformity_tasks \
         tests.django.test_celery_worker_config --noinput
     # by-name dispatch / API / frontend sweep (run from backend/)
-    git grep -n "async_run_conformity"        # only tasks + their tests
+    git grep -n "async_run_conformity"        # no hits since #1458 removed
+    # the tasks; the rest of the family still answers until #1530 lands
     git grep -ln "Conformity" -- registry/serializers registry/views registry/urls.py extras
     # (empty) ; git grep -iln conformity -- frontend/   # only a PNG false hit
     # live table names / counts / permission footprint

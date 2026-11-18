@@ -26,16 +26,41 @@ export const getEncapsulatedSchema = (operation: AxiosOperation): OpenAPIV3.NonA
   }
 }
 
-export const buildChoices = (property: OpenAPIV3.SchemaObject): { id: number; name: string }[] => {
-  return property.description?.split("*")?.map(choiceMeaning => {
-    const match = choiceMeaning.match(/`(\d+)`\s*-\s*(.+)/);
+/** One choice of an enum valued property, as the backend emits it in the
+ * `x-enum-labels` extension (#1487): the enum value and the label it shows. */
+export type EnumLabel = { value: unknown; label: unknown }
 
-    if (match) {
-      const id = Number.parseInt(match[1], 10); // "0" -> 0
-      const name = match[2];         // "Fatal"
-      return {id, name}
-    }
-  }).filter(item => item !== undefined) ?? []
+/** Schema extension carrying the display label of every enum value; the
+ * precedents are `x-iso-path` and the `x-jsonapi-*` family (extras/schema.py). */
+export const ENUM_LABELS_EXTENSION = 'x-enum-labels'
+
+/** The numeric id behind an enum value: the number itself, or the integer of
+ * a digit string; the schema is external input, anything else answers none. */
+const toId = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number.parseInt(value, 10)
+  return undefined
+}
+
+/** The choice contract of this layer is a numeric id: an entry only makes a
+ * choice when its value is a non-negative integer (a number or such a string)
+ * and it answers a label — the schema is external input, everything else of
+ * an entry is dropped as before. */
+const toChoice = (entry?: EnumLabel): { id: number; name: string } | undefined => {
+  const id = toId(entry?.value)
+  if (id === undefined || !Number.isInteger(id) || id < 0) return undefined
+  const label = entry?.label
+  if (typeof label !== 'string' || label === '') return undefined
+  return { id, name: label }
+}
+
+/** The choices of an enum valued property: the structured labels the backend
+ * emits, never a parsing of the description prose — that wording belongs to
+ * drf-spectacular and silently dropped the choices when it changed (#1487). */
+export const buildChoices = (property: OpenAPIV3.SchemaObject): { id: number; name: string }[] => {
+  const labels = property?.[ENUM_LABELS_EXTENSION as keyof OpenAPIV3.SchemaObject] as EnumLabel[] | undefined
+  if (!Array.isArray(labels)) return []
+  return labels.map(toChoice).filter(choice => choice !== undefined)
 }
 
 /** The JSON:API type of the records a nested list operation answers with: the enum

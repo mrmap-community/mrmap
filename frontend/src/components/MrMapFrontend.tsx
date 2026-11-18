@@ -2,6 +2,7 @@
 import { useMemo, useState, type ReactElement } from 'react';
 import {
   Admin,
+  Authenticated,
   CustomRoutes,
   defaultDarkTheme,
   defaultLightTheme,
@@ -133,20 +134,25 @@ const MrMapFrontend = (): ReactElement => {
         layout={MyLayout}
         store={store}
         disableTelemetry
-        requireAuth
       >
         {resources}
 
-        {/* ows context based mapviewer */}
+        {/* the screens of #833: the resource routes above answer the public
+            read-only list and show of published services to an anonymous
+            visitor, so the Admin no longer guards every route with
+            `requireAuth`. Everything behind a session - the dashboard, the
+            explorer, the viewer, the search and the metadata editor - guards
+            itself here with <Authenticated> or in its controller, and the
+            backend keeps enforcing every record either way. */}
         {
           <CustomRoutes >
-            <Route path="/viewer" element={<MapViewer />} />
-            <Route path="/service-explorer" element={<ServiceExplorer />} />
-            <Route path="/search" element={<PortalSearch />} />
+            <Route path="/viewer" element={<Authenticated><MapViewer /></Authenticated>} />
+            <Route path="/service-explorer" element={<Authenticated><ServiceExplorer /></Authenticated>} />
+            <Route path="/search" element={<Authenticated><PortalSearch /></Authenticated>} />
             {/* full screen record editor (#1245); :type is the JSON:API name */}
             <Route
               path="/metadata/:type/:id/edit"
-              element={<MetadataEditorRoute />}
+              element={<Authenticated><MetadataEditorRoute /></Authenticated>}
             />
           </CustomRoutes>
         } 

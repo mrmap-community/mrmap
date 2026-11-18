@@ -57,6 +57,7 @@ vi.mock("react-admin", () => {
     },
   };
   return {
+    useAuthState: () => ({ authenticated: true }),
     useDataProvider: () => provider,
     useGetList: (_resource: string, params: { filter: { status: string } }) =>
       params.filter.status === "pending,running"

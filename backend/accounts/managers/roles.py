@@ -149,16 +149,19 @@ class RoleMembershipQuerySet(models.QuerySet):
         never an answer; ``None`` asks the clock, so a caller may name the
         moment it judges (the test of the task does).
 
-        ``role__group`` is in the plan because deleting a membership takes the
-        user out of the group of its role: without it the sweep pays one query
-        per revoked row.
+        ``role`` and ``role__group`` are both named, and named apart: the
+        second is there because deleting a membership takes the user out of the
+        group of its role, the first because the task reads the role itself for
+        the line it logs. The join of ``role__group`` populates ``role`` today,
+        but a plan which only implies what its consumer reads is a plan which
+        turns lazy again the moment somebody edits the path.
         """
         if now is None:
             now = timezone.now()
         return self.filter(
             valid_until__isnull=False,
             valid_until__lte=now,
-        ).select_related("role__group", "user")
+        ).select_related("role", "role__group", "user")
 
     def delete(self):
         """Delete the memberships instance by instance.

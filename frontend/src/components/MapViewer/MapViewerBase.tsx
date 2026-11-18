@@ -174,7 +174,7 @@ export const MapViewerBase = ({children, previewExtent}: MapViewerBaseProps): Re
     }
       
     return featuresToCollection(features)
-  }, [position, bounds])
+  }, [positionGeoJSON, boundsGeoJSON])
 
   const mapLoading = useMemo<MapLoadingState>(() => {
     const requests = Object.entries(mapRequests)

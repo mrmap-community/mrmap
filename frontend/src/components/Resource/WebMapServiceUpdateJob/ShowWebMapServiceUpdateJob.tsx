@@ -208,9 +208,12 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
     { id: serviceId, meta },
     { enabled: serviceId != null && !finished },
   );
-  const newLayers: RaRecord[] = candidateQuery.data?.[config.elements] ?? [];
-  const oldLayers: RaRecord[] = currentQuery.data?.[config.elements] ?? [];
-  const mappings: RaRecord[] = job?.mappings ?? [];
+  // memos, not per-render `?? []` fallbacks: these feed the maps and the
+  // tree props below, whose identity must survive renders that changed
+  // nothing about the queried layers
+  const newLayers = useMemo<RaRecord[]>(() => candidateQuery.data?.[config.elements] ?? [], [candidateQuery.data, config.elements]);
+  const oldLayers = useMemo<RaRecord[]>(() => currentQuery.data?.[config.elements] ?? [], [currentQuery.data, config.elements]);
+  const mappings = useMemo<RaRecord[]>(() => job?.mappings ?? [], [job?.mappings]);
   const pending = mappings.filter((mapping) => !mapping.isConfirmed);
   const resolved = mappings.length - pending.length;
   const progress = mappings.length ? (resolved / mappings.length) * 100 : 0;

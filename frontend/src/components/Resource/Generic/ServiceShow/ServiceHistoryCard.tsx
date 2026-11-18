@@ -9,17 +9,18 @@ import { historicalSource } from '../History/historySources';
 const ServiceHistoryCard = () => {
   const resource = useResourceContext();
   const record = useRecordContext();
+  const recordId = record?.id;
   const operation = useOperation(`list_Historical${resource}`);
   const sources = useMemo(() => {
-    if (!record || !resource) return [];
-    const service = historicalSource(`Historical${resource}`, resource, 'Service changes', record.id, 'historyRelation');
+    if (recordId === undefined || !resource) return [];
+    const service = historicalSource(`Historical${resource}`, resource, 'Service changes', recordId, 'historyRelation');
     switch (resource) {
-      case 'WebMapService': return [service, historicalSource('HistoricalLayer', 'Layer', 'Layer changes', record.id, 'service')];
-      case 'WebFeatureService': return [service, historicalSource('HistoricalFeatureType', 'FeatureType', 'serviceShow.featureTypeChanges', record.id, 'service')];
-      case 'CatalogueService': return [service, harvestHistorySource(record.id)];
+      case 'WebMapService': return [service, historicalSource('HistoricalLayer', 'Layer', 'Layer changes', recordId, 'service')];
+      case 'WebFeatureService': return [service, historicalSource('HistoricalFeatureType', 'FeatureType', 'serviceShow.featureTypeChanges', recordId, 'service')];
+      case 'CatalogueService': return [service, harvestHistorySource(recordId)];
       default: return [];
     }
-  }, [resource, record?.id]);
+  }, [resource, recordId]);
   if (!operation || !record || !sources.length) return null;
   return <HistoryList variant="timeline" key={`${resource}:${record.id}`} sources={sources} record={record} />;
 }

@@ -33,7 +33,7 @@ export default defineConfig({
     // same routes from '/' as well, so '/' is correct for both.
     base: '/',
     optimizeDeps: {
-        include: ['@mui/material/Tooltip', '@mui/x-data-grid', '@emotion/styled'],
+        include: ['@mui/material/Tooltip', '@emotion/styled'],
     }
     // resolve: {
     //     alias: {

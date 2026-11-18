@@ -27,10 +27,14 @@ What these tests hold:
   login endpoint: at the cap a further login is a 403 which issues no token,
   expired rows do not occupy a slot, and freeing one opens the gate again.
 
-Each test clears the ``default`` cache first: throttle history is the only
-state these tests keep there, it survives the per-test transaction rollback
-(caches are not transactional), and without the reset the module would only
-pass in one order.
+Test isolation is by *key*, not by clearing the cache: the CI suite runs
+``--parallel=4`` over one shared redis, and a ``clear()`` of the whole cache
+wipes the window a sibling worker is mid-way filling (the red run of PR
+#1557 was exactly that race). Every throttle test therefore counts into its
+own anonymous window via its own ``REMOTE_ADDR``, and every user whose
+successful logins are counted carries an explicit ``pk`` far above anything
+the fixtures or auto-sequences reach — keys that no other test, and no
+other worker, can touch. Leftover counters expire with the 60 s window.
 """
 import base64
 import json
@@ -39,13 +43,29 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.cache import caches
 from django.test import Client, TestCase, override_settings
 from knox.models import AuthToken
 from knox.settings import knox_settings
 from rest_framework.throttling import ScopedRateThrottle
 
 LOGIN_URL = "/api/auth/login"
+
+# Addresses owned by this module. The anonymous window is keyed by
+# REMOTE_ADDR, so one address per counting test lets every test fill *its
+# own* window; 127.0.0.1 (the test client default) belongs to every other
+# test in the suite and must stay untouched here.
+IP_WRONG_CREDENTIALS = "10.145.0.1"
+IP_MISSING_CREDENTIAL = "10.145.0.2"
+IP_WINDOW_SURVIVAL = "10.145.0.3"
+IP_USER_RATE = "10.145.0.4"
+
+# Pks far above any auto sequence or fixture id: the per-user window is
+# keyed by user pk, so a counted login gets an identity no other test —
+# in this process or in a parallel worker's separate database — can hold.
+PK_WINDOW_SURVIVAL = 1450000001
+PK_FLOOD = 1450000002
+PK_BYSTANDER = 1450000003
+PK_TOKEN_LIMIT = 1450000004
 
 
 def basic_header(username, password):
@@ -64,16 +84,15 @@ class LoginThrottleTests(TestCase):
     """The two scopes of the login endpoint, probed with real requests."""
 
     def setUp(self):
-        caches["default"].clear()
         self.user = get_user_model().objects.create_user(
             username="throttle-probe", password="not-a-secret-pw1")
-        self.client = Client()
 
-    def attempt(self, header=None):
+    def attempt(self, ip, header=None):
+        """One login POST from one fixed client address."""
         headers = {"HTTP_ACCEPT": "application/json"}
         if header:
             headers["HTTP_AUTHORIZATION"] = header
-        return self.client.post(LOGIN_URL, **headers)
+        return Client(REMOTE_ADDR=ip).post(LOGIN_URL, **headers)
 
     def test_both_scopes_are_configured(self):
         """The rates are a deployment decision, not a missing setting."""
@@ -87,10 +106,10 @@ class LoginThrottleTests(TestCase):
         bad = basic_header(self.user.username, "wrong-password")
 
         for attempt in range(limit):
-            refused = self.attempt(bad)
+            refused = self.attempt(IP_WRONG_CREDENTIALS, bad)
             self.assertEqual(refused.status_code, 403, refused.content)
 
-        blocked = self.attempt(bad)
+        blocked = self.attempt(IP_WRONG_CREDENTIALS, bad)
         self.assertEqual(blocked.status_code, 429, blocked.content)
         self.assertIn(
             "throttl", json.loads(blocked.content)["detail"].lower())
@@ -108,13 +127,13 @@ class LoginThrottleTests(TestCase):
         limit = rate_requests("login_anon")
 
         for attempt in range(limit - 1):
-            refused = self.attempt()
+            refused = self.attempt(IP_MISSING_CREDENTIAL)
             self.assertEqual(refused.status_code, 403, refused.content)
 
-        last_before_window_full = self.attempt()
+        last_before_window_full = self.attempt(IP_MISSING_CREDENTIAL)
         self.assertEqual(last_before_window_full.status_code, 403,
                          last_before_window_full.content)
-        blocked = self.attempt()
+        blocked = self.attempt(IP_MISSING_CREDENTIAL)
         self.assertEqual(blocked.status_code, 429, blocked.content)
 
     def test_a_valid_credential_survives_a_full_anon_window(self):
@@ -123,15 +142,20 @@ class LoginThrottleTests(TestCase):
         A poisoned IP window must not deny the honest user on that address:
         the accepted attempt lands in the per-user window instead and is
         served even while every refused attempt from the same client is 429.
+        Its counted login uses the module's own pk (see module docstring).
         """
+        probe = get_user_model().objects.create_user(
+            username="throttle-window", password="not-a-secret-pw1",
+            pk=PK_WINDOW_SURVIVAL)
         limit = rate_requests("login_anon")
-        bad = basic_header(self.user.username, "wrong-password")
+        bad = basic_header(probe.username, "wrong-password")
         for attempt in range(limit):
-            self.attempt(bad)
-        self.assertEqual(self.attempt(bad).status_code, 429)
+            self.attempt(IP_WINDOW_SURVIVAL, bad)
+        self.assertEqual(
+            self.attempt(IP_WINDOW_SURVIVAL, bad).status_code, 429)
 
-        good = self.attempt(basic_header(self.user.username,
-                                         "not-a-secret-pw1"))
+        good = self.attempt(IP_WINDOW_SURVIVAL,
+                            basic_header(probe.username, "not-a-secret-pw1"))
         self.assertEqual(good.status_code, 200, good.content)
         self.assertIn("token", json.loads(good.content))
 
@@ -148,23 +172,30 @@ class LoginThrottleTests(TestCase):
         override — knox reloads its settings on that signal — because the cap
         would answer 403 before the third login reaches its throttle.
         """
+        flood_user = get_user_model().objects.create_user(
+            username="throttle-flood", password="not-a-secret-pw1",
+            pk=PK_FLOOD)
         other = get_user_model().objects.create_user(
-            username="throttle-bystander", password="not-a-secret-pw2")
+            username="throttle-bystander", password="not-a-secret-pw2",
+            pk=PK_BYSTANDER)
 
         with patch.dict(ScopedRateThrottle.THROTTLE_RATES, {"login": "2/min"}), \
                 override_settings(REST_KNOX={
                     **settings.REST_KNOX, "TOKEN_LIMIT_PER_USER": None}):
             for attempt in range(2):
                 first_user = self.attempt(
-                    basic_header(self.user.username, "not-a-secret-pw1"))
+                    IP_USER_RATE,
+                    basic_header(flood_user.username, "not-a-secret-pw1"))
                 self.assertEqual(first_user.status_code, 200,
                                  first_user.content)
 
             flood = self.attempt(
-                basic_header(self.user.username, "not-a-secret-pw1"))
+                IP_USER_RATE,
+                basic_header(flood_user.username, "not-a-secret-pw1"))
             self.assertEqual(flood.status_code, 429, flood.content)
 
             bystander = self.attempt(
+                IP_USER_RATE,
                 basic_header(other.username, "not-a-secret-pw2"))
             self.assertEqual(bystander.status_code, 200, bystander.content)
 
@@ -173,9 +204,12 @@ class TokenLimitPerUserTests(TestCase):
     """The explicit ``TOKEN_LIMIT_PER_USER`` knox's login endpoint enforces."""
 
     def setUp(self):
-        caches["default"].clear()
+        # own pk: every successful login of this class counts a few times
+        # into one user-keyed window which no other test can occupy, and
+        # five accepted logins stay far below the real 30/min rate
         self.user = get_user_model().objects.create_user(
-            username="tokenlimit-probe", password="not-a-secret-pw1")
+            username="tokenlimit-probe", password="not-a-secret-pw1",
+            pk=PK_TOKEN_LIMIT)
         self.client = Client()
 
     def login(self):

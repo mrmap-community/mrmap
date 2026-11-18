@@ -8,7 +8,6 @@ import {
 } from "../../../../../context/HttpClientContext";
 import useOperation from "../../../../../jsonapi/hooks/useOperation";
 import { updateOrAppendSearchParam } from "../../../../../ows-lib/OwsContext/utils";
-import { getAuthToken } from "../../../../../providers/authProvider";
 
 export type Protocol = "WMS" | "WFS" | "CSW";
 export const serviceResource = {
@@ -117,10 +116,11 @@ export const usePreview = (
       );
       if (endpoint.origin !== new URL(API_BASE_URL).origin)
         throw new PreviewFailure("denied");
-      const token = getAuthToken()?.token;
+      // same-origin of the guard above, so the browser session's cookie is
+      // already on this request (#835) - a header would only re-introduce a
+      // credential JavaScript has to hold for it
       config.headers = {
         Accept: "application/json",
-        ...(token ? { Authorization: `Token ${token}` } : {}),
       };
       try {
         const response = await api.client.request<PreviewResult>(config);
@@ -218,13 +218,14 @@ export const useIdentify = (
       if (!link || !url) throw new PreviewFailure("malformed");
       if (new URL(url).origin !== new URL(API_BASE_URL).origin)
         throw new PreviewFailure("denied");
-      const token = getAuthToken()?.token;
       try {
         const response = await fetch(url, {
           signal,
+          // same-origin of the guard above: the session cookie travels with it
+          // by itself, no credential is spelled out here any more (#835)
+          credentials: "include",
           headers: {
             Accept: link.infoFormat,
-            ...(token ? { Authorization: `Token ${token}` } : {}),
           },
         });
         if (response.status === 401 || response.status === 403)

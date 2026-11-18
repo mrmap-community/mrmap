@@ -14,10 +14,8 @@ import {
   ListItemButton,
 } from '@mui/material';
 
-import { dropUnassignedAuthentication } from '../../../../ows-lib/OwsContext/authentication';
 import { OWSContext } from '../../../../ows-lib/OwsContext/core';
 import { prepareGetCapabilititesUrl } from '../../../../ows-lib/OwsContext/utils';
-import { getAuthToken } from '../../../../providers/authProvider';
 import { useOwsContextBase } from '../../../../react-ows-lib/ContextProvider/OwsContextBase';
 
 
@@ -29,13 +27,6 @@ export interface WfsMapViewerButtonProps extends ButtonProps {
   element?: RaRecord
 }
 
-const sameOrigin = (href: string) => {
-  try {
-    return new URL(href, window.location.href).origin === window.location.origin
-  } catch {
-    return false
-  }
-}
 
 /**
  * The names a feature type answers to: the name as it was written and, for a qualified name, its
@@ -127,11 +118,11 @@ const WfsMapViewerButton = ({
   // the types the user chose become the active types of the freshly appended tree; the database
   // records of the feature types travel with the operations like the WMS layers do, so the tree
   // can answer their metadata without another request
-  const beforeSetHook = useCallback((context: OWSContext, treeId: number) => {
-    if (getCapabilitiesUrl !== undefined && sameOrigin(getCapabilitiesUrl))
-      // the registry served this document, so an operation it advertises on another origin is a
-      // public upstream one: the session of the requester is not its credential
-      dropUnassignedAuthentication(context, treeId, getCapabilitiesUrl)
+  const beforeSetHook = useCallback((context: OWSContext) => {
+    // no authentication is assigned to any operation of the tree (#835): the
+    // same-origin proxy answers with the browser session's cookie, and an
+    // operation the document advertises on another origin is asked the way any
+    // other client of it would - the requester's session is not its credential
     const selectedAliases = new Set(selected.flatMap(featureTypeAliases))
     context.features
       .filter(feature => feature.getWfsOffering() !== undefined)
@@ -161,7 +152,7 @@ const WfsMapViewerButton = ({
         operation.active = active
       })
     return context
-  }, [selected, featureTypes, wfsRecordWithUrl, getCapabilitiesUrl])
+  }, [selected, featureTypes, wfsRecordWithUrl])
 
   const confirm = useCallback(() => {
     setSelecting(false)
@@ -178,12 +169,9 @@ const WfsMapViewerButton = ({
     ) {
       // wait until the context is empty, then hand this service to the viewer
       const url = prepareGetCapabilititesUrl(getCapabilitiesUrl, 'wfs')
-      const token = sameOrigin(getCapabilitiesUrl) ? getAuthToken()?.token : undefined
-      addWFSByUrl(
-        url.href,
-        token ? new Headers({ 'Authorization': `Token ${token}` }) : undefined,
-        beforeSetHook
-      )
+      // no header argument (#835): the viewer's request to this origin carries
+      // the browser session's cookie by itself
+      addWFSByUrl(url.href, undefined, beforeSetHook)
       navigate('/viewer')
       setConfirmed(false)
     }

@@ -705,6 +705,58 @@ SESSION_COOKIE_AGE = 30 * 60
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
 
+# Cookie policy of the browser session (#835, accepted decision Q8=B). The SPA
+# authenticates with the session cookie ``api/auth/session`` opens; it is
+# deliberately not readable by JavaScript (``HttpOnly``), so an injected script
+# cannot copy it the way it could copy the knox token out of ``localStorage``.
+# ``SameSite=Lax`` is enough here and is what the same-origin topology allows:
+# nginx serves the SPA and proxies ``/api``, ``/csw`` and ``/ws`` on the very
+# host and port the SPA is loaded from (``docker/nginx/mrmap.conf``), so every
+# request which has to carry the credential is a same-site one anyway. A
+# cross-site subresource which Lax blocks is therefore not a request which
+# needs the session.
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# The CSRF cookie is the one cookie the browser *must* hand to JavaScript: the
+# SPA reads it and repeats its value in the ``X-CSRFToken`` header of every
+# state-changing request, which is what DRF's ``SessionAuthentication`` demands
+# for a request it authenticates through the session (see the contract in
+# docs/source/administration/authentication.md). That value grants nothing on
+# its own - without the session cookie it identifies no caller - so ``HttpOnly``
+# stays off for it on purpose, and ``SameSite=Lax`` matches the session cookie.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Both cookies are only sent (and only stored) over TLS when the deployment is
+# served over HTTPS. The default follows ``MRMAP_PRODUCTION`` because that is
+# the deployment this repository ships behind nginx and TLS
+# (``SECURE_PROXY_SSL_HEADER`` above reads the proxy's protocol); an http-only
+# deployment must set ``DJANGO_COOKIE_SECURE=False``, or the browser refuses to
+# store the session and no login ever sticks. Conversely an omitted flag would
+# let the session cross the wire in clear text on a https deployment, which is
+# why this is not left to the framework default of ``False``. Both cookies move
+# together on purpose: a session stored over http without its CSRF partner, or
+# the other way round, is not a working arrangement.
+
+
+def _cookie_secure_from_env(environ, production: bool) -> bool:
+    """Whether the session and CSRF cookies are TLS-only for one environment.
+
+    The explicit ``DJANGO_COOKIE_SECURE`` wins over the deployment-mode default,
+    so an http-only deployment can opt out and a https staging deployment which
+    is not flagged as production can opt in.
+    """
+    override = environ.get("DJANGO_COOKIE_SECURE")
+    if override is not None:
+        return override == "True"
+    return production
+
+
+COOKIE_SECURE = _cookie_secure_from_env(os.environ, MRMAP_PRODUCTION)
+SESSION_COOKIE_SECURE = COOKIE_SECURE
+CSRF_COOKIE_SECURE = COOKIE_SECURE
+
 ################################################################
 # DJANGO DEBUG TOOLBAR
 ################################################################
@@ -1020,19 +1072,20 @@ def default_renderer_classes(production: bool):
     return renderers
 
 
-# Browser session lifetime (#834, decision Q8=B). Until browser authentication
-# migrates to Django SessionAuthentication + CSRF (#835), the browser keeps its
-# credential as the knox token that ``api/auth/login`` issues. Its validity is a
-# deployment decision, configured here explicitly instead of silently inherited
-# from the knox package default: one working day, enforced server-side on every
-# request against the ``AuthToken.expires`` row - not a client-side notion.
-# ``AUTO_REFRESH`` stays off: a rolling extension would make the lifetime
-# unpredictable, the client caches the expiry the login answered and the token
-# model has no refresh concept; expiry then lands the user on the login page
-# with the reason (frontend contract of #834, policy in
-# ``docs/source/administration/authentication.md``). When #835 replaces this
-# mechanism, this block retires with it; the machine/API token policy documented
-# there stays a separate, explicit decision.
+# Machine / API token lifetime (#835, accepted decision Q8=B). Since the browser
+# authenticates with the Django session ``api/auth/session`` opens, the knox
+# token this endpoint still issues is a *machine* credential only: scripts and
+# CLI clients which authenticate with HTTP Basic and keep the answer. Its
+# validity stays an explicit deployment decision instead of a package default:
+# one working day, enforced server-side on every request against the
+# ``AuthToken.expires`` row - not a client-side notion. ``AUTO_REFRESH`` stays
+# off: a rolling extension would make the lifetime unpredictable and the token
+# model has no refresh concept. Revocation is per token (#832). A dedicated
+# machine-token policy - longer or unbounded lifetime, per-purpose scopes,
+# admin-issued tokens - is the open decision documented in
+# docs/source/administration/authentication.md and is deliberately not decided
+# by this block; the browser session's own lifetime is ``SESSION_COOKIE_AGE``
+# above and shares nothing with this one.
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
     "AUTO_REFRESH": False,

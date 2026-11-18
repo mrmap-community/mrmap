@@ -71,8 +71,13 @@ is what a viewset naming none of them falls back to.
   reading needs an identity: the four proxy-configuration endpoints of
   `backend/registry/views/security.py` (for `AllowedWebMapServiceOperation`,
   `AllowedWebFeatureServiceOperation`, `WebMapServiceProxySetting` and
-  `WebFeatureServiceProxySetting`, each carried by the mixin its nested endpoint shares) and
-  the users endpoint (`backend/accounts/views/users.py`).
+  `WebFeatureServiceProxySetting`, each carried by the mixin its nested endpoint shares),
+  the users endpoint (`backend/accounts/views/users.py`) and the groups and organizations
+  endpoints (`backend/accounts/views/groups.py`, #1448). Those two answered an anonymous
+  `PATCH` of their members relation until then, which handed out whatever the granted role
+  group may do; the members of a group are written by `POST /organizations/{id}/members`
+  (#736), which asks the organization the group belongs to, and the relation of the group
+  serializer is read-only since then.
 - `extras.permissions.DjangoObjectPermissionsOrAnonReadOnly` (`backend/extras/permissions.py`)
   — the same class with `authenticated_users_only = False`. This is the majority of the API,
   including the resource endpoints of `backend/registry/views/service.py`.

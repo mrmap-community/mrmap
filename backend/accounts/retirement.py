@@ -162,9 +162,11 @@ def _user_grant_table(apps, group_model):
 def group_grant_rows(apps, group):
     """Every guardian grant row which points at ``group``.
 
-    Yields ``(grant_model, row)`` for each row of every group grant table. The
-    permission is joined in: every classification asks it, so reading it is not
-    a per-row surprise (the convention of #1388).
+    Yields the rows themselves over every group grant table - the table a row
+    came from is named by ``row._meta``, and the plan carries its ``db_table``
+    for the writer, which resolves it back through ``_grant_model_by_table``.
+    The permission is joined in: every classification asks it, so reading it is
+    not a per-row surprise (the convention of #1388).
     """
     for grant_model in group_grant_models(apps):
         yield from grant_model.objects.filter(
@@ -335,7 +337,7 @@ def plan_role(apps, role) -> dict:
                        else "adopted"),
         })
 
-    for _, row in group_grant_rows(apps, group):
+    for row in group_grant_rows(apps, group):
         plan["grants"].append(classify_grant(apps, role, row))
     return plan
 

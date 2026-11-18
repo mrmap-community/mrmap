@@ -38,9 +38,14 @@ class KeywordLookupMultiplicityTests(TestCase):
     def setUpTestData(cls):
         cls.contact = MetadataContact.objects.create(
             name='Keyword distinct contact')
-        cls.word_one = Keyword.objects.create(keyword='Niederschlag')
-        cls.word_two = Keyword.objects.create(
-            keyword='Niederschlagsdefizit')
+        # keyword text is globally UNIQUE and the full-suite order carries
+        # committed fixture rows of these very words: create would collide
+        # on a shared worker (the CI of the first push answered exactly
+        # that), reuse is the tests_metadata_quality pattern
+        cls.word_one = Keyword.objects.get_or_create(
+            keyword='Niederschlag')[0]
+        cls.word_two = Keyword.objects.get_or_create(
+            keyword='Niederschlagsdefizit')[0]
 
     def record(self, model):
         """A fresh record of ``model`` carrying both keywords."""
@@ -56,10 +61,13 @@ class KeywordLookupMultiplicityTests(TestCase):
         record.keywords.set([self.word_one, self.word_two])
         return record
 
-    def filter(self, filterset_class, model, param, value):
-        return filterset_class(
-            data={param: value},
-            queryset=model.objects.all()).qs
+    def filter(self, filterset_class, base_qs, param, value):
+        # the base queryset names only this test's records: with a globally
+        # unique keyword text and committed fixture rows of the same words
+        # around in the full-suite order, an unfiltered table-wide answer
+        # is exactly as poisoned as it looks (tests_history_delta_size's
+        # isolation rule, read from the other side)
+        return filterset_class(data={param: value}, queryset=base_qs).qs
 
     def test_two_matching_keywords_answer_one_row_per_lookup(self):
         for model, filterset_class in (
@@ -76,7 +84,8 @@ class KeywordLookupMultiplicityTests(TestCase):
                         ('keywords__keyword__icontains', MATCHING_VALUE),
                         ('keywords__keyword__contains', SECOND_ONLY)):
                     answer = self.filter(
-                        filterset_class, model, param, value)
+                        filterset_class, model.objects.filter(pk=record.pk),
+                        param, value)
                     self.assertEqual(
                         answer.count(), 1,
                         f'{param} answered the joined rows instead of the '
@@ -99,7 +108,8 @@ class KeywordLookupMultiplicityTests(TestCase):
         second.keywords.set([self.word_two])
 
         answer = self.filter(
-            DatasetMetadataRecordSpatialFilterSet, DatasetMetadataRecord,
+            DatasetMetadataRecordSpatialFilterSet,
+            DatasetMetadataRecord.objects.filter(pk__in=[both.pk, second.pk]),
             'keywords__keyword__icontains', MATCHING_VALUE)
         self.assertEqual(
             sorted(pk for pk in answer.values_list('pk', flat=True)),
@@ -108,9 +118,10 @@ class KeywordLookupMultiplicityTests(TestCase):
             'distincted away')
 
     def test_a_value_matching_no_keyword_still_answers_nothing(self):
-        self.record(DatasetMetadataRecord)
+        record = self.record(DatasetMetadataRecord)
         answer = self.filter(
-            DatasetMetadataRecordSpatialFilterSet, DatasetMetadataRecord,
+            DatasetMetadataRecordSpatialFilterSet,
+            DatasetMetadataRecord.objects.filter(pk=record.pk),
             'keywords__keyword__icontains', 'Gletschereis')
         self.assertEqual(
             answer.count(), 0,

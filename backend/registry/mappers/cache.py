@@ -49,6 +49,14 @@ class LocalXmlCache:
             self._data[key] = key_list
         key_list.append(value)
 
+    def release(self, uuid):
+        """Drop every entry one mapper's uuid put into this cache."""
+        prefix = f"{uuid}:"
+        for key in [k for k in self._data
+                    if isinstance(k, str) and k.startswith(prefix)]:
+            del self._data[key]
+        self._data.pop(uuid, None)
+
     def clear(self):
         self._data.clear()
 
@@ -169,6 +177,26 @@ class GlobalXmlCache:
     def clear(cls):
         with cls._lock:
             cls._data.clear()
+
+    @classmethod
+    def release(cls, uuid):
+        """Drop every entry one mapper's uuid put into the cache.
+
+        The parsed instances of a document are read by the traversal and the
+        persistence of that document and by nobody else: their keys carry the
+        fresh uuid of one mapper. Releasing them at the end of an import keeps
+        a worker from holding every document it has imported until the TTL -
+        on a harvest worker that is a parsed copy of the backlog it just
+        worked through. Entries a crashed attempt left behind still expire
+        with the TTL; this is the release the successful path owes (#1415).
+        """
+        prefix = f"{uuid}:"
+        with cls._lock:
+            stale = [k for k in cls._data
+                     if isinstance(k, str) and k.startswith(prefix)]
+            stale.append(uuid)
+            for key in stale:
+                cls._data.pop(key, None)
 
     @classmethod
     def _cleanup_expired_locked(cls):

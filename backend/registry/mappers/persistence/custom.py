@@ -133,9 +133,20 @@ def get_or_create_metadatarecord(instances, handler):
     Returns:
         dict: the stored records by the key of the parsed instance
     """
-    backup = str(handler.mapper.serialize_document(), "UTF-8")
     change_reason = getattr(handler, "change_reason", None)
     db_objs = []
+    # the backup is the serialization of the whole document, which only a
+    # written record needs: a record the catalogue did not change is not
+    # written at all and does not pay for a backup either; when several
+    # records of one document are written, they share the one answer (#1415)
+    backup = _unset = object()
+
+    def document_backup():
+        nonlocal backup
+        if backup is _unset:
+            backup = str(handler.mapper.serialize_document(), "UTF-8")
+        return backup
+
     for instance in instances:
         if instance.__class__.__name__ not in METADATA_RECORD_TYPE_KEYS:
             raise ValueError(
@@ -156,7 +167,7 @@ def get_or_create_metadatarecord(instances, handler):
                 # row it inserted is the one which answers from now on, which is
                 # what get_or_create returned as well
                 with transaction.atomic():
-                    _save_record(db_obj, backup, change_reason)
+                    _save_record(db_obj, document_backup(), change_reason)
                 created = True
             except IntegrityError:
                 if (db_obj := _record_of(instance.__class__, instance.file_identifier)) is None:
@@ -164,7 +175,7 @@ def get_or_create_metadatarecord(instances, handler):
 
         if db_obj is not None and not created and instance.date_stamp > db_obj.date_stamp:
             _apply_values(db_obj, values)
-            _save_record(db_obj, backup, change_reason)
+            _save_record(db_obj, document_backup(), change_reason)
             update = True
 
         db_obj._custom_state = created, update

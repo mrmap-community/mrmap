@@ -48,6 +48,13 @@ PLATFORM_GROUP_PREFIX = "platform"
 #: second copy of the shape would be the drift the check exists to catch.
 ROLE_GROUP_SEPARATOR = ": "
 
+#: the readable name of a definition of the catalogue. Three models say it - the
+#: definition itself (#731) and both foreign keys which point at one (#736,
+#: #741) - so it is stated once: the catalog of translations carries one entry
+#: for it instead of three copies of the same words, and a wording which three
+#: fields share is a wording which should not be able to drift apart
+ROLE_DEFINITION_VERBOSE_NAME = _("role definition")
+
 
 def role_group_name(organization, slug, marker=""):
     """The name of the ``auth.Group`` which a role manages.
@@ -245,7 +252,7 @@ class RoleDefinition(HistoricalRecordMixin, models.Model):
 
     class Meta:
         ordering = ["slug"]
-        verbose_name = _("role definition")
+        verbose_name = ROLE_DEFINITION_VERBOSE_NAME
         verbose_name_plural = _("role definitions")
         permissions = [
             ('grant_platform_role', 'Can grant a platform scoped role')]
@@ -308,7 +315,7 @@ class Role(models.Model):
         to=RoleDefinition,
         on_delete=models.PROTECT,
         related_name="roles",
-        verbose_name=_("role definition"),
+        verbose_name=ROLE_DEFINITION_VERBOSE_NAME,
         help_text=_(
             "what this role means, from the catalogue of #731"),
     )
@@ -642,7 +649,7 @@ class LegacyGroupRetirement(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="retirements",
-        verbose_name=_("role definition"),
+        verbose_name=ROLE_DEFINITION_VERBOSE_NAME,
         help_text=_("what the retired role meant, from the catalogue"),
     )
     organization = models.ForeignKey(

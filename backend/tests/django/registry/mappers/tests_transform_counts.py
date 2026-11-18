@@ -52,7 +52,6 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
 from registry.models.metadata import (DatasetMetadataRecord,
                                       LayerRemoteMetadata, MetadataContact,
                                       MetadataRelation,
-                                      WebMapServiceRemoteMetadata,
                                       couple_document)
 from registry.models.service import CatalogueService, Layer, WebMapService
 
@@ -413,15 +412,20 @@ class BucketDetectionCountTest(CatalogueHarness, TestCase):
 
 
 class SharedReferenceCadenceTest(TransformationCounter, TestCase):
-    """One advertised document, every element which points at it.
+    """One advertised document, every layer which points at it.
 
-    The registration story behind #1410: a service and its layers advertise
-    the same metadata url; every reference is one delivery which maps its own
-    copy - the fetch is shared, the mapping stays per delivery, because no
-    cross-run cache may grow here. What a delivery does NOT pay for anymore:
-    the detach copy of the document and a whole-document backup serialization
-    each. The element count is read from the fixtures, so the cadence
-    assertion is deterministic however the fixtures are shaped.
+    The registration story behind #1410: the layers of a service advertise the
+    same metadata url; every reference is one delivery which maps its own copy
+    - the fetch is shared, the mapping stays per delivery, because no cross-run
+    cache may grow here. What a delivery does NOT pay for anymore: the detach
+    copy of the document and a whole-document backup serialization each. The
+    elements are the layers of the busiest service of the fixture, so the
+    cadence assertion is deterministic however the fixtures are shaped.
+
+    Only layers: the check constraint `one_related_object_selected` couples a
+    service element with a *service* record and a layer or feature type with a
+    *dataset* record, so the dataset document of the test data is not something
+    the service element itself may advertise.
     """
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
@@ -436,16 +440,12 @@ class SharedReferenceCadenceTest(TransformationCounter, TestCase):
                    .annotate(n=Count('pk'))
                    .order_by('-n').first())
         cls.wms = WebMapService.objects.get(pk=busiest['service'])
-        cls.described = [cls.wms] + list(
-            Layer.objects.filter(service=cls.wms))
-        cls.reference_count = len(cls.described)
+        cls.layers = list(Layer.objects.filter(service=cls.wms))
+        cls.reference_count = len(cls.layers)
         content = STANDALONE.decode('utf-8')
-        for element in cls.described:
-            model = (WebMapServiceRemoteMetadata
-                     if isinstance(element, WebMapService)
-                     else LayerRemoteMetadata)
-            model.objects.create(
-                link=LINK, remote_content=content, describes=element)
+        for layer in cls.layers:
+            LayerRemoteMetadata.objects.create(
+                link=LINK, remote_content=content, describes=layer)
 
     def setUp(self):
         super().setUp()
@@ -461,9 +461,8 @@ class SharedReferenceCadenceTest(TransformationCounter, TestCase):
             'the cadence question needs several elements on one document')
 
     def collect(self):
-        for model in (LayerRemoteMetadata, WebMapServiceRemoteMetadata):
-            for reference in model.objects.filter(link=LINK):
-                reference.create_metadata_instance()
+        for reference in LayerRemoteMetadata.objects.filter(link=LINK):
+            reference.create_metadata_instance()
 
     def test_shared_references_map_once_each_and_write_one_backup(self):
         """the count of one reference is one mapping - by design across
@@ -499,6 +498,19 @@ class SharedReferenceCadenceTest(TransformationCounter, TestCase):
             self.reference_count,
             'the shared mapping must not collapse the per-element couplings')
 
+    def test_a_coupled_document_leaves_nothing_in_the_global_cache(self):
+        """the registration seam releases the mapping it just consumed; the
+        record it answers rides on the returned objects, not on the cache"""
+        before = set(GlobalXmlCache._data)
+
+        record = couple_document(STANDALONE, LINK, self.layers[0])
+
+        self.assertIsNotNone(record)
+        self.assertEqual(
+            DatasetMetadataRecord.objects.filter(
+                file_identifier=FILE_IDENTIFIER).count(), 1)
+        self.assertEqual(set(GlobalXmlCache._data) - before, set())
+
 
 class CacheReleaseTest(ImportHarness, TestCase):
     """What an import leaves in - and no longer leaves in - global state."""
@@ -515,19 +527,6 @@ class CacheReleaseTest(ImportHarness, TestCase):
             set(GlobalXmlCache._data) - before, set(),
             'the import left its parsed document in the process-global '
             'cache for the whole TTL')
-
-    def test_a_coupled_document_leaves_nothing_in_the_global_cache(self):
-        """the registration seam releases the mapping it just consumed; the
-        record it answers rides on the returned objects, not on the cache"""
-        before = set(GlobalXmlCache._data)
-
-        record = couple_document(STANDALONE, LINK, None)
-
-        self.assertIsNotNone(record)
-        self.assertEqual(
-            DatasetMetadataRecord.objects.filter(
-                file_identifier=FILE_IDENTIFIER).count(), 1)
-        self.assertEqual(set(GlobalXmlCache._data) - before, set())
 
 
 class LocalCacheReleaseTest(SimpleTestCase):

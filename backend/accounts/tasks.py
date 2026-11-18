@@ -80,6 +80,7 @@ def revoke_expired_role_memberships(self, *args, **kwargs):
         reason = expiry_reason(membership)
         with transaction.atomic():
             membership._change_reason = reason
+            # orm-lint: ignore MRMAP-ORM-004 -- one delete per expired row is the design, not an oversight: the row is its own transaction, so a sweep which dies half-way leaves nobody in a group it should have left, and it is deleted through the model so simple-history writes the ``-`` row of that one membership with its own reason -- a bulk delete answers both statements wrongly
             membership.delete()
         revoked.append((granted, reason))
 

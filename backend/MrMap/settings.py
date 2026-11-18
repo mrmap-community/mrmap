@@ -1057,11 +1057,13 @@ SPECTACULAR_SETTINGS = {
     # endpoint documentation; see extras.schema.get_lib_doc_excludes
     "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
     # the enum hook is spectacular's own default and must be named again
-    # once the setting is overridden; the second hook stamps the ISO 19139
-    # element paths of the writable record fields into the schema, read
-    # from the mapper configs (#1240)
+    # once the setting is overridden; the second hook moves the structured
+    # enum labels (#1487) into the enum components the first hook extracts;
+    # the last stamps the ISO 19139 element paths of the writable record
+    # fields into the schema, read from the mapper configs (#1240)
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
+        "extras.schema.inject_enum_labels",
         "registry.schema.inject_iso_paths",
     ],
 }

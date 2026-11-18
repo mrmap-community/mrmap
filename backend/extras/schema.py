@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from rest_framework.filters import OrderingFilter as DRFOrderingFilter
+from rest_framework.serializers import ChoiceField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
@@ -32,6 +33,13 @@ LOOKUP_LABELS = {
     "regex": _("matches regex"),
     "iregex": _("matches regex (case-insensitive)"),
 }
+
+#: the OpenAPI extension carrying the display label of every enum value of a
+#: choices field, as ``[{"value": <enum value>, "label": <display>}]``.
+#: drf-spectacular documents the labels only inside the description PROSE
+#: (``* `0` - Fatal``); the wording belongs to the library, and a consumer
+#: parsing it silently loses the choices on an upstream change (#1487).
+ENUM_LABELS_EXTENSION = "x-enum-labels"
 
 
 # ``solve_lookup_type`` is a pure function of (model, lookup) and the
@@ -134,6 +142,23 @@ class CustomOperationId(JsonApiAutoSchema):
                 "enum" in schema and default not in schema["enum"]
             ):
                 del schema["default"]
+
+        # A choices field documents its value space as the enum of values;
+        # the label each value shows under lives only in the description
+        # PROSE drf-spectacular generates ("* `0` - Fatal"). That wording is
+        # the library's, and a consumer parsing choices back out of it loses
+        # them silently on an upstream rewording - which is exactly what the
+        # frontend did until #1487. Emit the same data structured: every
+        # documented enum of a choices field answers its labels next to it.
+        if isinstance(field, ChoiceField):
+            enum_schema = schema if "enum" in schema else (
+                schema.get("items") or {})  # multiple choice: the child node
+            if "enum" in enum_schema:
+                labels = [
+                    {"value": value, "label": str(label)}
+                    for value, label in field.choices.items()]
+                if labels:
+                    enum_schema[ENUM_LABELS_EXTENSION] = labels
         return schema
 
     def _get_related_fields_of_model(self, model):
@@ -333,6 +358,46 @@ class CustomOperationId(JsonApiAutoSchema):
                 sort_param["explode"] = False
             return
         super()._patch_sort_param_schema(sort_param=sort_param)
+
+
+def inject_enum_labels(result, **kwargs):
+    """Move ``x-enum-labels`` to where the enum lives in the document.
+
+    ``postprocess_schema_enums`` runs first (wired in ``MrMap/settings.py``):
+    it cuts ``type`` + ``enum`` out of every choices property into a shared
+    enum component, leaving the property a ``$ref`` plus its remaining keys.
+    Labels emitted next to the enum would then sit as siblings of that
+    ``$ref`` — dropped twice over: OpenAPI 3.0 ignores ``$ref`` siblings, and
+    the frontend's synchronous dereferencer replaces the whole object at a
+    ``$ref``. This hook moves the labels into the referenced component, so
+    they arrive beside the enum they name.
+
+    A component is only shared when values AND labels are identical — the
+    extraction hashes the (value, label) tuples through ``x-spec-enum-id`` —
+    so stamping it once is exact. Labels left beside a ``oneOf`` (choice sets
+    split into blank/null components) have no single ref to join and stay on
+    the property.
+    """
+    schemas = (result.get("components") or {}).get("schemas") or {}
+    _move_enum_labels_to_refs(result, schemas)
+    return result
+
+
+def _move_enum_labels_to_refs(node, schemas):
+    if isinstance(node, list):
+        for item in node:
+            _move_enum_labels_to_refs(item, schemas)
+    elif isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ENUM_LABELS_EXTENSION in node:
+            labels = node.pop(ENUM_LABELS_EXTENSION)
+            target = (
+                schemas.get(ref.rpartition("/")[2])
+                if ref.startswith("#/components/schemas/") else None)
+            if isinstance(target, dict) and "enum" in target:
+                target.setdefault(ENUM_LABELS_EXTENSION, labels)
+        for value in node.values():
+            _move_enum_labels_to_refs(value, schemas)
 
 
 def get_lib_doc_excludes():

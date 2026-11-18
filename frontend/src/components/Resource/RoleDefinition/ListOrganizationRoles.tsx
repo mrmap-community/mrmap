@@ -12,12 +12,12 @@ import { FieldDefinition, getIncludeOptions } from "../../../jsonapi/utils";
 import CustomListActions, {
   CustomListActionsProps,
 } from "../../Lists/CustomListActions";
-import HistoryChangelogLink from "../Generic/History/HistoryChangelogLink";
 import {
   OrganizationScopeProvider,
   useOrganizationScope,
 } from "../Generic/Administration/OrganizationScopeContext";
 import OrganizationScopeSelect from "../Generic/Administration/OrganizationScopeSelect";
+import HistoryChangelogLink from "../Generic/History/HistoryChangelogLink";
 
 /**
  * The `verb_model` reading of a Django permission codename - `view_user` is

@@ -25,6 +25,9 @@ source, not what this process happens to have imported. Dispatch through
 variables (``task_function = build_ogc_service`` and the like) is beyond a
 scan of the call sites and is not followed; the codebase dispatches by
 importing the task from its defining module, which the scan does follow.
+The same reading answers whether every ``send_task`` call names the queue
+its message rides on — a name-addressed call is a remote call, and its
+queue is part of the call, not of the declaration (#1455).
 """
 
 import ast
@@ -336,6 +339,38 @@ def _scheduled_task_name(call):
     return [name for name in found if isinstance(name, str)]
 
 
+@functools.lru_cache(maxsize=None)
+def name_addressed_calls(root=BACKEND_DIR):
+    """The ``send_task`` calls of the application sources.
+
+    A call which addresses a task by name is a remote call: what routes it
+    is what rides on the call, not the ``queue=`` of the task declaration
+    (#1455). Returns ``(module, lineno, name, names_queue)`` for every call
+    of a ``send_task`` whose first argument is a plain name string;
+    ``names_queue`` says whether the call carries a ``queue=`` keyword.
+    """
+    calls = []
+    for path in _source_files(root):
+        text = read_application_source(path)
+        if text is None:
+            continue
+        tree = ast.parse(text, filename=str(path))
+        module = _dotted(path, root)
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or node.func is None:
+                continue
+            func_path = _func_path(node.func)
+            if func_path is None or not func_path.endswith(".send_task"):
+                continue
+            if not (node.args and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)):
+                continue
+            calls.append((
+                module, node.lineno, node.args[0].value,
+                any(kw.arg == "queue" for kw in node.keywords)))
+    return tuple(calls)
+
+
 def _registry_task_modules():
     """The modules below ``registry/tasks/`` which define at least one task."""
     return {
@@ -582,3 +617,60 @@ class ScanOfAFakeBackendTests(SimpleTestCase):
                        str(root / "app" / "vanished_module.py"))
             with self.assertRaises(FileNotFoundError):
                 published_references(root)
+
+
+class NameAddressedCallRoutingTests(SimpleTestCase):
+    """A send_task call is a remote call - it must name its queue (#1455).
+
+    The AMQP router answers a bare task name with the broker default: the
+    ``queue=`` of a task declaration routes an ``apply_async`` of the task
+    object, not a call which addresses the task by name (Celery's calling
+    docs: for remote calls the queue is part of the call). The scan reads
+    every ``send_task`` call of the application sources; each one must
+    carry a ``queue=``. Which queue a real call lands on is asserted
+    behaviourally - through the app's router - in
+    ``tests.django.registry.tasks.tests_reference_work_queue`` and
+    ``tests.django.registry.tasks.tests_harvesting_recovery``.
+    """
+
+    def test_every_name_addressed_call_names_its_queue(self):
+        calls = name_addressed_calls()
+        # the scan reads the real call sites: were it to stop finding any,
+        # the assertion below would go vacuously green
+        found = {(module, name) for module, _line, name, _q in calls}
+        self.assertIn(
+            ("registry.tasks.harvest",
+             "registry.tasks.service.recover_registration_reference_work"),
+            found,
+            "the scan lost the name-addressed call of the hourly sweep")
+        unrouted = sorted(
+            "%s:%d -> %s" % (module, line, name)
+            for module, line, name, names_queue in calls
+            if not names_queue)
+        self.assertEqual(
+            unrouted, [],
+            "these calls address a task by name without naming the queue "
+            "the message rides on; the router answers the broker default "
+            "for such a call, away from whatever the task declares "
+            "(#1455): %s" % ", ".join(unrouted))
+
+    def test_a_call_without_a_queue_is_reported(self):
+        # the guard's own proof, on a source of known contents: one call
+        # with the queue on it, one without, read exactly apart
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "app").mkdir()
+            (root / "app" / "views.py").write_text(
+                "from celery import Celery\n"
+                "\n"
+                "app = Celery()\n"
+                "\n"
+                "\n"
+                "def publish():\n"
+                "    app.send_task('some.work')\n"
+                "    app.send_task('routed.work', queue='db-routines')\n",
+                encoding="utf-8")
+            self.assertEqual(
+                name_addressed_calls(root),
+                (("app.views", 7, "some.work", False),
+                 ("app.views", 8, "routed.work", True)))

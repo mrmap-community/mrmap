@@ -37,6 +37,16 @@ class Http423(Exception):
     pass
 
 
+# Header names which carry the caller's own credentials: the knox bearer token
+# or the session cookie with which it authenticated against MrMap. They never
+# belong in a persisted request log -- the rows are readable through the log
+# tooling -- so they are stripped before a row is written, the same denylist
+# the upstream call applies in get_remote_response (#1452). Compared against
+# normalized names: META carries underscores where the wire carries dashes.
+CREDENTIAL_HEADER_NAMES = frozenset(
+    {"authorization", "cookie", "x-forwarded-authorization"})
+
+
 def exception_handler(exc, context):
     if hasattr(context["view"], "ogc_request"):
         service_type = context["view"].ogc_request.service_type.lower()
@@ -95,6 +105,15 @@ class OgcServiceProxyView(APIView):
     start_time = None
     test_context = None
     service_type = None
+    # Nothing here is decided by a DRF permission: the answer comes from the
+    # security model of the proxied service (registry/managers/security.py and the
+    # AllowedWebMapServiceOperation rows) and a refusal travels as an OGC exception
+    # report, not as a JSON:API error. No DRF class can say that: the XML POST
+    # binding of WMS and WFS carries a GetMap or GetFeature -- both reads -- over
+    # HTTP POST, so the read-only floor of DEFAULT_PERMISSION_CLASSES (#1444) would
+    # refuse exactly the anonymous map client those bindings are specified for.
+    # Writes are refused by the proxy itself, see handle_secured_transaction.
+    permission_classes = []
 
     @property
     def is_get_request(self) -> bool:
@@ -383,11 +402,16 @@ class OgcServiceProxyView(APIView):
         else:
             user = self.request.user
         regex = re.compile("^HTTP_")
-        headers = {
-            regex.sub("", header): value
-            for (header, value) in self.request.META.items()
-            if header.startswith("HTTP_")
-        }
+        headers = {}
+        for (header, value) in self.request.META.items():
+            if not header.startswith("HTTP_"):
+                continue
+            name = regex.sub("", header)
+            # the logged headers keep the caller's IP and every non-credential
+            # header; the credentials themselves are stripped (#1452)
+            if name.lower().replace("_", "-") in CREDENTIAL_HEADER_NAMES:
+                continue
+            headers[name] = value
 
         # Determine the original user and test user for logging
         is_test_request = self.test_context is not None

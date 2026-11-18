@@ -137,20 +137,19 @@ class UserCreateSerializer(SystemInfoSerializerMixin, ModelSerializer):
         return password
 
     def create(self, validated_data):
-        """Build the user, hash its password, then write it exactly once.
+        """Hashes the password before the row is ever written (#1451).
 
-        The generic ``ModelSerializer`` would hand ``validated_data`` to
-        ``User.objects.create`` as it is and INSERT the password column
-        with the raw value: the row would carry the plaintext credential,
-        and since ``check_password`` only ever matches a hash, the created
-        user could never log in (#1451). So the password leaves the write
-        data, the instance is built unsaved, ``set_password`` hashes it
-        onto that instance and only then does the single INSERT happen.
-        The group join needs a saved row, so - like the generic
-        ``create()`` - it follows the save.
+        The plain ``ModelSerializer.save`` INSERTs the raw password as a
+        normal model value; hashing after that save only ever fixed the
+        in-memory instance, so the database kept the credential in
+        plaintext and ``check_password`` never matched - an API-created
+        user could never log in. Neither may happen: pop the password,
+        build the instance, hash it onto the one save.
         """
-        password = validated_data.pop("password")
-        groups = validated_data.pop("groups", None)
+        password = validated_data.pop('password')
+        # the m2m of this payload has no column to create the row with;
+        # ModelSerializer.create would have applied it after the save too
+        groups = validated_data.pop('groups', [])
         user = User(**validated_data)
         user.set_password(password)
         user.save()

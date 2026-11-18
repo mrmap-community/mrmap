@@ -11,6 +11,17 @@ from rest_framework.exceptions import AuthenticationFailed
 class TokenAuthMiddleware:
     """
     Token authorization middleware for Django Channels 2
+
+    Deprecated credential path (#835, accepted decision Q8=B): a token read from
+    the query string is a live credential in server access logs, browser history
+    and any referer the page leaks it to. The browser does not use it any more:
+    ``channels.auth.AuthMiddlewareStack`` underneath this middleware resolves the
+    same-origin ``sessionid`` cookie, so a WebSocket of a logged-in browser
+    authenticates without a credential in its URL (pinned by
+    ``tests/django/notify/test_consumers.py``). The token branch stays for the
+    clients which still carry a knox token while the browser migration rolls out,
+    and goes away with the machine-token decision of
+    ``docs/source/administration/authentication.md``.
     """
 
     def __init__(self, inner):

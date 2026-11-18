@@ -68,10 +68,11 @@ const RecordHistory = ({ harvests = false }: { harvests?: boolean }) => {
     operationId: "retrieve_HarvestedMetadataRelation",
     forInput: false,
   });
+  const recordId = record?.id;
   const sources = useMemo(
     () =>
-      record && resource ? [recordHistorySource(resource, record.id)] : [],
-    [resource, record?.id],
+      recordId !== undefined && resource ? [recordHistorySource(resource, recordId)] : [],
+    [resource, recordId],
   );
   if (!record) return null;
   if (!harvests)

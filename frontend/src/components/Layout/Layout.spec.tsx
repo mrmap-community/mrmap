@@ -41,6 +41,8 @@ vi.mock('react-admin', () => ({
     <div data-testid="layout">{children}</div>
   ),
   useSidebarState: () => [false, vi.fn()],
+  // the job center and the job bridge only fetch with a session (#833)
+  useAuthState: () => ({ authenticated: true }),
   useRefresh: () => permissionLostHooks.refresh,
   useDataProvider: () => ({
     subscribe: (topic: string, callback: (event: CrudEvent) => void) => {

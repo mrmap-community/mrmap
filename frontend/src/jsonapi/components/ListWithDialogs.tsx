@@ -71,7 +71,7 @@ const isCurrentResource = useMemo(() => {
     isCreate ? 
     <Fragment>{translate('ra.action.create')} {options.label ?? name}</Fragment>: 
     <Fragment>{translate('ra.action.edit')} <RecordRepresentation /></Fragment>
-  ),[isCreate, options])
+  ),[isCreate, options, translate, name])
 
   const actions = useMemo(()=>(
    <Fragment>

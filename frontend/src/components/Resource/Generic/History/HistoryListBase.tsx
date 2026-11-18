@@ -45,7 +45,7 @@ const HistoryListBase = (
   const { name } = useResourceDefinition({resource: props.resource})
 
   const { api } = useHttpClientContext()
-  const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api])
+  const hasStatisticalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Statistical${name}`)),[api, name])
 
   if (!hasStatisticalEndpoint){
     return fallback

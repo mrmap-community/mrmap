@@ -1,4 +1,4 @@
-import { createElement, useMemo, type ReactElement } from "react";
+import { createElement, Fragment, useMemo, type ReactElement } from "react";
 import { useTranslate, WrapperField } from "react-admin";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
@@ -12,6 +12,7 @@ import {
   useOrganizationScope,
 } from "../Generic/Administration/OrganizationScopeContext";
 import OrganizationScopeSelect from "../Generic/Administration/OrganizationScopeSelect";
+import HistoryChangelogLink from "../Generic/History/HistoryChangelogLink";
 import AddMemberDialogButton from "./AddMemberDialogButton";
 import AssignRoleButton from "./AssignRoleButton";
 import MemberRolesCell from "./MemberRolesCell";
@@ -29,7 +30,19 @@ const MembersActions = ({ preferenceKey }: CustomListActionsProps) => {
       preferenceKey={preferenceKey}
       createButton={false}
       isExportable={false}
-      additionalActions={canAdminister ? <AddMemberDialogButton /> : null}
+      additionalActions={(
+        <Fragment>
+          {canAdminister ? <AddMemberDialogButton /> : null}
+          {/* who was granted which role, by whom and who took it back again -
+              the changelog of the memberships, which #741 keeps beside the
+              rows themselves and which every account may read at least for
+              its own grants, so the link is not an administrator's tool */}
+          <HistoryChangelogLink
+            resource="RoleMembership"
+            label="administration.audit.memberships"
+          />
+        </Fragment>
+      )}
     />
   );
 };

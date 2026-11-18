@@ -37,6 +37,10 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       selfRevoked:
         "Sie haben Ihre eigene Administratorrolle entzogen; die Verwaltungsseiten stehen Ihnen nicht mehr zur Verfügung.",
     },
+    audit: {
+      roles: "Verlauf der Rollendefinitionen",
+      memberships: "Verlauf der Rollenmitgliedschaften",
+    },
     roles: {
       title: "Rollen",
       members: "Mitglieder in Organisation",

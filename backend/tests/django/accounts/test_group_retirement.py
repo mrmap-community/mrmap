@@ -252,18 +252,20 @@ class LegacyGroupRetirementTest(TestCase):
         still undo, so a migration must not delete it: the sweep reports it and
         leaves it, which is what ``is_legacy_model_group`` is for.
         """
-        retired_by_hand = Group.objects.create(
-            name=f"{ORGANIZATION_NAME}: {EDITOR_SLUG}")
-        role = Role.objects.create(
-            role_definition=self.editor_definition,
-            organization=self.organization,
-            group=retired_by_hand,
-            is_active=False)
+        # the real shape of #736: the role the bootstrap made for this
+        # organization, retired by a person over the api. Its group carries the
+        # name of the bootstrap - "<organization>: <slug>" - and not the
+        # "<organization> <model> Admins" of migration 0008, which is precisely
+        # the evidence the sweep asks for
+        role = Role.objects.for_org(
+            self.organization).with_definition(EDITOR_SLUG).get()
+        role.is_active = False
+        role.save()
         self.assertFalse(is_legacy_model_group(global_apps, role))
 
         report = retire_legacy_role_groups(apps=global_apps)
 
-        self.assertIn(retired_by_hand.name, report["skipped"])
+        self.assertIn(role.group.name, report["skipped"])
         self.assertTrue(
             Role.objects.filter(pk=role.pk).exists(),
             "a role an administrator retired was deleted by the migration")

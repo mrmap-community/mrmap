@@ -17,7 +17,7 @@ grants ``can_publish_for_organization`` onto the group of the organization's
 default role, so the right is an object grant of a role group and the whole
 chain - membership, group, guardian row - is what the sweep withdraws.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -132,10 +132,13 @@ class MembershipExpiryTest(TestCase):
         summary = self.sweep_at(timezone.now())
 
         self.assertEqual(summary["revoked"], 1)
-        audit = RoleMembership.change_log.filter(
-            user=self.member).order_by("-history_date").first()
-        self.assertEqual(audit.history_type, "-")
-        self.assertEqual(audit.history_change_reason, reason)
+        # the type of the row, not its timestamp, is what identifies it: the
+        # grant and its revocation can share a ``history_date``
+        deletions = RoleMembership.change_log.filter(
+            user=self.member, history_type="-")
+        self.assertEqual(
+            deletions.count(), 1, "the sweep deleted without an audit row")
+        self.assertEqual(deletions.get().history_change_reason, reason)
         self.assertIn("membership expired", reason)
         self.assertLessEqual(len(reason), 100,
                              "the reason no longer fits its column")
@@ -177,8 +180,10 @@ class ExpiryReasonTest(TestCase):
 
     def test_the_reason_names_the_moment_the_grant_ended(self):
         """Minute precision in the deployment's timezone, never a raw UTC iso."""
-        moment = timezone.datetime(
-            2026, 11, 18, 14, 30, tzinfo=timezone.utc)
+        # named in the deployment's own timezone: django.utils.timezone
+        # stopped re-exporting ``datetime`` and ``utc``, and a naive local
+        # moment made aware is what the docstring of the reason promises
+        moment = timezone.make_aware(datetime(2026, 11, 18, 14, 30))
 
         stamped = timezone.localtime(moment).strftime(
             EXPIRY_REASON_TIME_FORMAT)

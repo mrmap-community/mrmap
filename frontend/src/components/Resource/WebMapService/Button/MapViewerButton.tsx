@@ -167,7 +167,7 @@ const MapViewerButton = (
       navigate('/viewer')
       setClicked(false)
     }
-  }, [clicked, owsContext, getCapaibilitesUrl, wmsRecordWithUrl, addWFSByUrl, addWMSByUrl, authHeader, beforeSetHook, navigate, protocol])
+  }, [clicked, owsContext, getCapaibilitesUrl, wmsRecordWithUrl, addWFSByUrl, addWMSByUrl, beforeSetHook, navigate, protocol])
 
   return (
     <Button

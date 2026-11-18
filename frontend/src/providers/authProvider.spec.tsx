@@ -458,7 +458,7 @@ describe('authProvider.canAccess', () => {
   });
 
   it('answers the public set of #833 to an anonymous visitor without asking the backend', async () => {
-    const backend = mockBackend({ isSuperuser: true });
+    const backend = mockBackend({ attributes: { isSuperuser: true } });
     setSession(undefined);
     const canAccess = canAccessOf(sessionAuthProvider());
 

@@ -76,7 +76,8 @@ class AllowedHostsEnvTests(SimpleTestCase):
 
     def test_settings_keep_the_internal_callers(self):
         # the stack itself must stay reachable: dev server and health probes
-        # on localhost, the ETF validator callback, the django test client
+        # on localhost, the backend's own service address, the django test
+        # client
         for host in ('localhost', 'mrmap-appserver', 'testserver'):
             self.assertIn(host, settings.ALLOWED_HOSTS)
 

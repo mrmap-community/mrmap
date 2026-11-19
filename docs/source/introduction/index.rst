@@ -22,7 +22,6 @@ It encompasses the following aspects:
 * Service management (wms/wfs/csw)
 * Metadata Editor (service/dataset)
 * Metadata views
-* ETF testing framework interface (service/dataset)
 * Monitoring of registrated services (wms/wfs)
 * Proxy (service/dataset metadata)
 * Secured Access (wms/wfs/layer/featuretype)
@@ -37,6 +36,7 @@ What MrMap Is Not
 While MrMap strives to cover many areas of geodata infrastructure, the scope of its feature set is necessarily limited. This ensures that development focuses on core functionality and that scope creep is reasonably contained. To that end, it might help to provide some examples of functionality that MrMap does not provide:
 
 * Enhanced web-based Map viewer component
+* Conformity test suites for a registered service or dataset. MrMap does not run `ETF <https://github.com/etf-standard/eTF>`_ style INSPIRE conformity tests against a rendered resource; that integration was retired and its inventory, operator rollout contract and audit dispositions are recorded in :ref:`etf-conformity-retirement`. The validation which that retirement deliberately left in place is named there: the ISO/INSPIRE metadata profile validation of records, the documents harvested through CSW, the monitoring probes and the request validation of the security proxy.
 
 
 Design Philosophy

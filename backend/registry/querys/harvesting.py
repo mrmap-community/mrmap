@@ -1,6 +1,6 @@
 """The queryset of the harvesting jobs.
 
-Filed next to the manager of the aggregate (`registry/managers/havesting.py`), whose
+Filed next to the manager of the aggregate (`registry/managers/harvesting.py`), whose
 methods return querysets of these classes.
 """
 

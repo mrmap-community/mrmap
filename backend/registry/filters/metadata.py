@@ -48,11 +48,6 @@ class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_dataset_metadata_relation__harvesting_job": ["exact"],
             "harvested_dataset_metadata_relation__collecting_state": ["exact"],
-            # "harvested_by": ['exact', 'icontains', 'contains', 'in'],
-            # "harvested_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
-            # "ignored_by": ['exact', 'icontains', 'contains', 'in'],
-            # "updated_by": ['exact', 'icontains', 'contains', 'in'],
-            # "updated_by__background_process__started_at": ['gte', 'lte', 'exact', 'gt', 'lt', 'range'],
         }
 
 

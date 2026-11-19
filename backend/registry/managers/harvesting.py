@@ -12,7 +12,7 @@ from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from notify.tasks import finish_background_process
 from registry.enums.harvesting import CollectingStatenEnum, HarvestingPhaseEnum
 from registry.expressions.durations import DurationSeconds
-from registry.querys.havesting import HarvestingJobQuerySet, run_created_at
+from registry.querys.harvesting import HarvestingJobQuerySet, run_created_at
 
 # The answers about a run which are no column of its row but a number read from
 # its work: the steps it took, how far it came, and what it measures while it is
@@ -136,7 +136,7 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
     def get_queryset(self):
         """The queryset of the aggregate, which can carry a count it has read.
 
-        ``registry/querys/havesting.py``: the statistics of a page of jobs are
+        ``registry/querys/harvesting.py``: the statistics of a page of jobs are
         bounded by a CTE over the whole table of the harvested metadata relations,
         and the paginator of the overview asks that annotated queryset for the
         number of rows of the answer (#885).

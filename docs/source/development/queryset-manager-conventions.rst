@@ -115,7 +115,7 @@ Worked examples
   read ``...objects.for_monitoring_task().get(pk=run_pk)``; the SQL is the
   SQL of the inline chain it replaced, one row, one join.
 - ``TemporaryMdMetadataFileQuerySet.for_harvest_import()``
-  (``registry/managers/havesting.py``): as described above — the plan of
+  (``registry/managers/harvesting.py``): as described above — the plan of
   ``import_md_metadata_file``, both the chunk importer and the single-row
   seam, 1 row and three one-to-one joins per import.
 

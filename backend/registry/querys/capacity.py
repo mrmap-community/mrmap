@@ -93,7 +93,7 @@ from registry.models.update import (CatalogueServiceUpdateJob,
                                     WebMapServiceUpdateSetting)
 from registry.querys.alerts import SERVICE_KIND_OF
 from registry.querys.harvest_history import harvest_durations
-from registry.querys.havesting import run_created_at
+from registry.querys.harvesting import run_created_at
 
 #: the days of history the measured median and p95 are answered from. A
 #: weekly schedule fills the p95 minimum within this window, and a

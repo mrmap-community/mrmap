@@ -38,9 +38,9 @@ from registry.enums.metadata import (DocumentAcquisitionStateEnum,
                                      ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
-                                         HarvestingJobManager,
-                                         TemporaryMdMetadataFileManager)
+from registry.managers.harvesting import (HarvestedMetadataRelationQuerySet,
+                                          HarvestingJobManager,
+                                          TemporaryMdMetadataFileManager)
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.utils import make_instance_key

@@ -457,7 +457,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
         new_url = self.get_secured_url(
             request=request, url_name="wms-operation")
 
-        # Hint: this can only work performant if all related objects are retreived with select_related and prefetch_related
+        # Hint: this can only work performant if all related objects are retrieved with select_related and prefetch_related
         # therefore we have the @warn_on_queries decorator here to warn us if this is not the case.
         # We simply iterate over all related objects and update the urls.
         for operation_url in self.operation_urls.all():

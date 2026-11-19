@@ -19,14 +19,14 @@ from django_cte import CTEManager, CTEQuerySet
 from extras.managers import DefaultHistoryManager
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.service import AuthTypeEnum
-from registry.managers.havesting import (HarvestingJobManager,
-                                         TemporaryMdMetadataFileManager,
-                                         TemporaryMdMetadataFileQuerySet)
+from registry.managers.harvesting import (HarvestingJobManager,
+                                          TemporaryMdMetadataFileManager,
+                                          TemporaryMdMetadataFileQuerySet)
 from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
 from registry.models.metadata import MetadataContact
 from registry.models.security import CatalogueServiceAuthentication
 from registry.models.service import CatalogueService
-from registry.querys.havesting import HarvestingJobQuerySet
+from registry.querys.harvesting import HarvestingJobQuerySet
 
 from tests.django.utils import QUERY_TABLE_RE, QueryPlanMixin
 

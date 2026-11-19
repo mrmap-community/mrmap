@@ -3,7 +3,7 @@
 The sums a harvesting run answers over its records were built for the dataset and
 the service record; the application record arrived with #827 and the run still
 answered nothing about it. The counts of all three kinds now share the counter
-definitions of ``registry.managers.havesting`` - with two promises worth pinning:
+definitions of ``registry.managers.harvesting`` - with two promises worth pinning:
 
 * the application counts answer with the states the relations carry, gated on the
   sparse fieldsets like every other aggregated field, and

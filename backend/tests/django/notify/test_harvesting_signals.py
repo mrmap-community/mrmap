@@ -203,7 +203,7 @@ class HarvestingJobSignalsTest(TestCase):
         # Frozen 30 s into the run, so that the elapsed time is a positive number
         # and the estimate is answered at all.
         instant = now() + timedelta(seconds=30)
-        with patch("registry.managers.havesting.now", return_value=instant):
+        with patch("registry.managers.harvesting.now", return_value=instant):
             published = self.publish_during(lambda: job.save())
             message = self.job_message(published, job)
             attributes = self.attributes_of(message)

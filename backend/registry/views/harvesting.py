@@ -18,10 +18,10 @@ from registry.filters.harvesting import (HarvestingJobFilterSet,
                                          HarvestingLogFilterSet)
 from registry.filters.scheduling import NextRunOrderingFilter
 from registry.filters.search import SearchVectorSearchFilter
-from registry.managers.havesting import (METADATA_RECORD_COUNTS,
-                                         RUN_PROGRESS_FIELDS,
-                                         metadata_count_annotation,
-                                         metadata_count_range)
+from registry.managers.harvesting import (METADATA_RECORD_COUNTS,
+                                          RUN_PROGRESS_FIELDS,
+                                          metadata_count_annotation,
+                                          metadata_count_range)
 from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
@@ -150,65 +150,8 @@ class HarvestingJobViewSetMixin(SparseFieldMixin, SerializerClassesMixin,):
                      queryset=CatalogueServiceOperationUrl.objects.only(
                          "id", "service_id")),
         ],
-        # "backgroundProcess": BACKGROUND_PROCESS_PREFETCHES,
-        # "backgroundProcess.logs": [
-        #    Prefetch("background_process",
-        #             queryset=BackgroundProcess.objects.prefetch_related(
-        #                 # Prefetch(
-        #                 #    "threads",
-        #                 #    queryset=TaskResult.objects.only(
-        #                 #        "id"
-        #                 #    )
-        #                 # ),
-        #                 Prefetch(
-        #                     "logs",
-        #                     queryset=BackgroundProcessLog.objects.all()
-        #                 ),
-        #             )
-        #             ),
-        # ],
-        # "temporaryMdMetadataFiles": [
-        #    Prefetch('temporary_md_metadata_files',
-        #             queryset=TemporaryMdMetadataFile.objects.select_related('job'))
-        # ],
-        # "harvestedDatasetMetadata": [
-        #    Prefetch("harvested_dataset_metadata",
-        #             queryset=HarvestedDatasetMetadataRelation.objects.select_related(
-        #                 'harvesting_job', 'dataset_metadata_record', )
-        #             )
-        # ] + DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES,
-        # "harvestedServiceMetadata": [
-        #    Prefetch("harvested_service_metadata",
-        #             queryset=HarvestedServiceMetadataRelation.objects.select_related(
-        #                 'harvesting_job', 'service_metadata_record', )
-        #             )
-        # ] + DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES,
     }
-    prefetch_for_not_includes = {
-        # "temporaryMdMetadataFiles": [
-        #     Prefetch(
-        #         "temporary_md_metadata_files",
-        #         queryset=TemporaryMdMetadataFile.objects.only(
-        #             "id",
-        #             "job_id",
-        #         ),
-        #     )
-        # ],
-        # "harvestedDatasetMetadata,newDatasetMetadataCount,updatedDatasetMetadataCount,existingDatasetMetadataCount,duplicatedDatasetMetadataCount": [
-        #    Prefetch(
-        #        "harvested_dataset_metadata",
-        #        queryset=HarvestedDatasetMetadataRelation.objects.only(
-        #            "id"),
-        #    ), *DEFAULT_HARVESTED_DATASET_METADATA_PREFETCHES
-        # ],
-        # "harvestedServiceMetadata,newServiceMetadataCount,updatedServiceMetadataCount,existingServiceMetadataCount,duplicatedServiceMetadataCount": [
-        #     Prefetch(
-        #         "harvested_service_metadata",
-        #         queryset=HarvestedServiceMetadataRelation.objects.only(
-        #             "id")
-        #     ), *DEFAULT_HARVESTED_SERVICE_METADATA_PREFETCHES
-        # ],
-    }
+    prefetch_for_not_includes = {}
 
     def _metadata_count_answers_asked(self):
         """The counters of the collected records which this request reads.

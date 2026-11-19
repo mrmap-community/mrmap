@@ -29,10 +29,11 @@ MrMap write have one here or in ``accounts/models/guardian.py``:
 
 The organizations and the groups the bootstrap also grants on - all of them of an
 integer primary key - are in ``accounts/models/guardian.py``. What is left are the
-models whose permissions nothing writes today, like the ``User`` of
-``accounts.models.users.User.assign_object_perms``: named by a uuid, their rows in
-the shared table are readable for every lookup, so they answer generically until
-the role work needs a table. Since #735 the set of models which does have tables is
+models whose permissions nothing writes today, like the ``User``: named by a uuid,
+its rows in the shared table are readable for every lookup, so it answers
+generically until the role work needs a table. The one code path which ever wrote
+a user grant of its own was dead and #741 removed it. Since #735 the
+set of models which does have tables is
 declared in ``accounts.settings.GUARDIAN_PERF_MODELS``, and the guard which watches
 the declaration against these classes is the system check of
 ``accounts/checks.py``.

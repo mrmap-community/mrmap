@@ -458,16 +458,19 @@ counts requests or parser invocations, not broker messages or rows.
      - ``DescribeFeatureType`` has **no reachable first-party call path**.
        ``models/service.py:1125-1147`` and ``:1166`` are called only from
        ``tests/django/registry/models/tests_document.py``; ``FeatureTypeProperty``
-       rows come from the WFS 2.0.0 **capabilities** config
-       (``mappers/configs/wfs200.py:230``), not from a describe
+       is mapped only by the describe config (``mappers/configs/wfs200.py:230``,
+       inside the ``("DescribeFeatureType", "2.0.0")`` key), whose only reader is
+       ``FeatureType.parse()`` - no production flow writes those rows (corrected
+       by #1414, which had attributed them to the capabilities config)
      - 0 requests in registration, update, monitoring, harvest and preview today
-     - confirmed (no traffic) → #1414 must start
-       from this fact
-     - batching would save 0 requests on today's code. Either a consumer exists
-       that the audit cannot see (an operator command, an external script) or the
-       epic's premise needs re-reading before any batching work is scheduled.
-       Fixture: none exists; a call-path test would be the assertion that no
-       production path reaches it
+     - confirmed (no traffic) → #1414 verdict:
+       no batching, recorded in :ref:`wfs-describe-batching-verdict`
+     - batching would save 0 requests on today's code; the premise re-read per
+       this row, no hidden consumer found (operator commands, scripts, proxy,
+       preview and the frontend were all traced) - the per-type chain is tested
+       but unconnected since the chord task was removed in ``6b3110891``.
+       Fixture: ``tests/django/registry/models/tests_describe_call_path.py``
+       now asserts that no production path reaches it
    * - **R7**
      - Spatially secured WMS ``GetFeatureInfo`` sends a request whose answer it
        cannot use. ``proxy/wms_proxy.py:460`` assigns the **Response** of

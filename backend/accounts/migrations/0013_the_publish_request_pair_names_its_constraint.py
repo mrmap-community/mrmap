@@ -12,7 +12,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0010_organizationgroupobjectpermission_created_at_and_more'),
+        ('accounts', '0012_the_legacy_role_groups_are_retired'),
     ]
 
     operations = [

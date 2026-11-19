@@ -1,5 +1,7 @@
 from accounts.views import auth as auth_views
+from accounts.views import effective_permissions as effective_permissions_views
 from accounts.views import groups as group_views
+from accounts.views import historical as historical_views
 from accounts.views import roles as role_views
 from accounts.views import users as user_views
 from django.urls import path
@@ -50,7 +52,24 @@ router.register(r'roledefinitions', role_views.RoleDefinitionViewSet,
 router.register(r'memberships', role_views.RoleMembershipViewSet,
                 basename='rolemembership')
 
+# the audit trail of the role system (#741): the changelogs of the three role
+# tables, readable with the very permission class of the resource they trail
+router.register(
+    r'historical-roledefinitions', historical_views.RoleDefinitionHistoricalViewSet,
+    basename='roledefinition-historical')
+router.register(
+    r'historical-roles', historical_views.RoleHistoricalViewSet,
+    basename='role-historical')
+router.register(
+    r'historical-memberships', historical_views.RoleMembershipHistoricalViewSet,
+    basename='membership-historical')
+
 urlpatterns = router.urls
 urlpatterns.extend([
     path('who-am-i/', auth_views.WhoAmIView.as_view(), name='whoami'),
+    # the explain answer of #741: a decision about one object, named down to
+    # the grant which decided it. No resource, so no route on the router
+    path('effective-permissions/',
+         effective_permissions_views.EffectivePermissionsView.as_view(),
+         name='effective-permissions'),
 ])

@@ -602,6 +602,318 @@ def allowed(user, perm, obj, checker=None) -> bool:
     return False
 
 
+#: The names of the layers, in the order ``allowed()`` asks them. The audit
+#: answer of #741 names one of them, so the vocabulary is declared once and a
+#: reader of an answer can tell which axis decided without reading this module.
+BREAK_GLASS_LAYER = "break_glass_superuser"
+OBJECT_GRANT_LAYER = "object_grant"
+PUBLIC_GRANT_LAYER = "public_object_grant"
+PLATFORM_ROLE_LAYER = "platform_role"
+ORGANIZATION_ROLE_LAYER = "organization_role"
+
+#: what a refusal is called: ``allowed()`` is a disjunction, so a refusal has
+#: no deciding layer and the answer says so instead of naming the last axis it
+#: asked
+DENIED_LAYER = "denied"
+
+
+def _legacy_global_grant(user, app_label, codename) -> bool:
+    """Whether ``user`` still holds the retired *global* grant of Q5=B.
+
+    Held directly (``user_permissions``) or through a plain ``Group`` - the
+    ``Default-Permissions`` shape every pre-role deployment carried. Asked of
+    the tables and not of ``has_perm``: with an object, ``has_perm`` reaches
+    guardian's backend and answers the object axes again under another name,
+    which is exactly the confusion the answer must not carry. It decides
+    nothing here - ``GLOBAL_GRANTS_EFFECTIVE`` says what it decides - but it
+    is what an auditor of an upgraded instance asks for: this grant is the one
+    #741's migration maps onto roles.
+    """
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+    if user.user_permissions.filter(
+            content_type__app_label=app_label,
+            codename=codename).exists():
+        return True
+    return user.groups.filter(
+        permissions__content_type__app_label=app_label,
+        permissions__codename=codename).exists()
+
+
+def _grant_select(model) -> list:
+    """The relations of a guardian grant table which explain a row.
+
+    The dedicated tables of #735/#740 carry who wrote the grant, guardian's
+    generic one does not, and asking ``select_related`` for a field a table
+    has not got raises - so the plan is built from the table which is asked.
+    """
+    names = {field.name for field in model._meta.get_fields()}
+    select = ["permission__content_type"]
+    select += [name for name in ("granted_by", "group") if name in names]
+    return select
+
+
+def _grant_row(row, kind, group=None) -> dict:
+    """One guardian grant row of ``explain``, in the shape it answers with.
+
+    The row is the concrete grant AC2 asks for: who it was written for, which
+    permission it is and, where the table carries it, who wrote it (#740's
+    grant metadata exists on the dedicated tables of the models which have
+    them, and on those only - ``None`` then means "the table stores no
+    decision", not "nobody decided"). A group which is managed by a role is
+    named by its role, because "grant via the ``organization_admin`` role of
+    ACME" is the answer an auditor needs; a plain group is named by its name.
+    """
+    permission = row.permission
+    grant = {
+        "kind": kind,
+        "permission": f"{permission.content_type.app_label}."
+                      f"{permission.codename}",
+        "group": group.name if group is not None else None,
+        "role": None,
+        "role_definition": None,
+        "organization": None,
+        "granted_by": None,
+        "granted_at": None,
+    }
+    granted_by = getattr(row, "granted_by", None)
+    if granted_by is not None:
+        grant["granted_by"] = granted_by.username
+    granted_at = getattr(row, "granted_at", None)
+    if granted_at is not None:
+        grant["granted_at"] = granted_at.isoformat()
+    if group is not None:
+        from accounts.models.roles import Role
+
+        role = Role.objects.filter(group=group).first()
+        if role is not None:
+            grant["role"] = str(role)
+            grant["role_definition"] = role.role_definition.slug
+            grant["organization"] = (
+                role.organization.name if role.organization else None)
+    return grant
+
+
+def _object_grants(user, perm, obj) -> list:
+    """The guardian grant rows which put ``user`` over ``obj``.
+
+    Both halves of the object axis - the user's own rows and the rows of every
+    group they are in - over the table which stores this model's object
+    permissions (the dedicated one of #735 or guardian's generic one), asked
+    the way ``authorized_explicit_scoped_object_grant`` decides. The checker
+    answers *whether*; it keeps no row identity to name, so this is the part
+    of the answer which needs its own query and why it is asked only by the
+    explain endpoint and never on a list.
+    """
+    from guardian.utils import (get_anonymous_user,
+                                get_group_obj_perms_model,
+                                get_user_obj_perms_model)
+
+    if not getattr(user, "is_authenticated", False):
+        # the object axis answers an anonymous caller through guardian's
+        # anonymous database row (see allowed()); the explain answer names the
+        # rows behind exactly that decision
+        user = get_anonymous_user()
+
+    app_label, codename = _split_perm(perm, obj)
+    grants = []
+    for model, kind in ((get_user_obj_perms_model(obj), "user"),
+                        (get_group_obj_perms_model(obj), "group")):
+        rows = model.objects.filter(
+            permission__codename=codename,
+            permission__content_type__app_label=app_label)
+        if kind == "user":
+            rows = rows.filter(user=user)
+        else:
+            rows = rows.filter(group__in=user.groups.all())
+        if model.objects.is_generic():
+            rows = rows.filter(
+                content_type__app_label=obj._meta.app_label,
+                content_type__model=obj._meta.model_name,
+                object_pk=str(obj.pk))
+        else:
+            rows = rows.filter(content_object_id=obj.pk)
+        for row in rows.select_related(*_grant_select(model)):
+            grants.append(_grant_row(
+                row, kind, group=getattr(row, "group", None)))
+    return grants
+
+
+def _public_grants(perm, obj) -> list:
+    """The anonymous viewer's rows which make ``obj`` public to everyone."""
+    from guardian.utils import get_group_obj_perms_model
+
+    from accounts.utils import anonymous_viewer_group
+
+    app_label, codename = _split_perm(perm, obj)
+    group = anonymous_viewer_group()
+    if group is None:
+        return []
+    model = get_group_obj_perms_model(obj)
+    rows = model.objects.filter(
+        group=group,
+        permission__codename=codename,
+        permission__content_type__app_label=app_label)
+    if model.objects.is_generic():
+        rows = rows.filter(
+            content_type__app_label=obj._meta.app_label,
+            content_type__model=obj._meta.model_name,
+            object_pk=str(obj.pk))
+    else:
+        rows = rows.filter(content_object_id=obj.pk)
+    return [_grant_row(row, "group", group=group)
+            for row in rows.select_related(*_grant_select(model))]
+
+
+def _role_grants(user, perm, scope, organization_id=None) -> list:
+    """The membership rows through which a role grants ``perm``.
+
+    The same selection the role axes decide with - ``_valid_membership_queryset``
+    - read out instead of asked for existence, so the answer names the
+    membership: the role, its definition, the organization it belongs to, who
+    granted it and until when it is valid. That is the whole chain of
+    "why does she hold this, and who decided it?" for the role axes.
+    """
+    memberships = _valid_membership_queryset(user, perm, scope)
+    if organization_id is None:
+        memberships = memberships.filter(role__organization__isnull=True)
+    else:
+        memberships = memberships.filter(role__organization_id=organization_id)
+    memberships = memberships.select_related(
+        "role__role_definition", "role__organization", "granted_by").distinct()
+    grants = []
+    for membership in memberships:
+        role = membership.role
+        grants.append({
+            "kind": "membership",
+            "permission": perm,
+            "role": str(role),
+            "role_definition": role.role_definition.slug,
+            "organization": (
+                role.organization.name if role.organization else None),
+            "granted_by": (
+                membership.granted_by.username
+                if membership.granted_by else None),
+            "granted_at": membership.granted_at.isoformat(),
+            "valid_until": (membership.valid_until.isoformat()
+                            if membership.valid_until else None),
+        })
+    return grants
+
+
+def explain(user, perm, obj, checker=None) -> dict:
+    """The decision of ``allowed()``, named down to the grant which decided it.
+
+    #734 answers "may this user do this"; #741 asks the next question - *why* -
+    and the answer may not come from a second implementation which is free to
+    drift from the first. So this walks the same axes, in the same order,
+    through the same functions, and only where an axis answers *yes* does it
+    look the concrete rows up. The disjunction itself is untouched: an answer
+    which names a layer is an ``allowed()`` of True, and the refusal names the
+    layers it asked.
+
+    Args:
+        user: the user the question is about
+        perm (str): ``"app_label.codename"``, as ``allowed()`` takes it
+        obj: the object the decision is about
+        checker: the caller's ``ObjectPermissionChecker``, when there is one
+
+    Returns:
+        dict: ``allowed``, ``permission``, ``decided_by``, ``grants`` (the
+        concrete grants of the deciding layer, empty for the break-glass which
+        is a flag and not a grant), ``layers`` (every axis asked, in ask order,
+        with its answer), ``legacy_global_grant`` - whether the retired global
+        grant of Q5=B exists for this user, and ``global_grants_effective`` -
+        whether that grant decides anywhere. Both are stated because the
+        migration of that grant onto roles is what an auditor of an upgraded
+        instance is looking for, and an answer which hid it could not tell an
+        upgraded instance from a migrated one
+    """
+    from accounts.models.roles import RoleScope
+
+    # the same normalization the axes perform, so the answer names the
+    # permission the way the grant rows do and a caller may hand either shape
+    app_label, codename = _split_perm(perm, obj)
+    perm = f"{app_label}.{codename}"
+
+    layers = []
+    organization = object_organization(obj)
+
+    def answer(is_allowed, decided_by, decided_grants=()):
+        return {
+            "allowed": is_allowed,
+            "permission": perm,
+            "decided_by": decided_by,
+            "grants": list(decided_grants),
+            "layers": layers,
+            "legacy_global_grant": legacy_global_grant,
+            # the policy the answer was judged under: with the retired global
+            # grant effective, ``legacy_global_grant`` decides as well
+            "global_grants_effective": GLOBAL_GRANTS_EFFECTIVE,
+        }
+
+    # the retired axis is *observed*, never asked as a decider: Q5=B retires
+    # the unrestricted global grant, and an audit which silently dropped it
+    # could not tell an upgraded instance from a migrated one.
+    legacy_global_grant = _legacy_global_grant(user, app_label, codename)
+
+    if audited_break_glass_superuser(user):
+        layers.append({"layer": BREAK_GLASS_LAYER, "holds": True})
+        return answer(True, BREAK_GLASS_LAYER)
+
+    if user is None:
+        layers.append({"layer": OBJECT_GRANT_LAYER, "holds": False})
+        return answer(False, DENIED_LAYER)
+
+    if not getattr(user, "is_authenticated", False):
+        # anonymous: only an explicit grant over the anonymous database user's
+        # row reaches an object - the same shape allowed() takes, so the
+        # answer cannot be wider than the endpoint
+        holds = authorized_explicit_scoped_object_grant(
+            user, perm, obj, checker=checker)
+        layers.append({"layer": OBJECT_GRANT_LAYER, "holds": holds})
+        if holds:
+            return answer(True, OBJECT_GRANT_LAYER,
+                          _object_grants(user, perm, obj))
+        return answer(False, DENIED_LAYER)
+
+    if not getattr(user, "is_active", False):
+        # an inactive user grants nothing, superuser aside - allowed()'s rule,
+        # stated as a layer so the answer says what it refused
+        layers.append({"layer": "inactive_user", "holds": True})
+        return answer(False, DENIED_LAYER)
+
+    if authorized_explicit_scoped_object_grant(
+            user, perm, obj, checker=checker):
+        layers.append({"layer": OBJECT_GRANT_LAYER, "holds": True})
+        return answer(True, OBJECT_GRANT_LAYER,
+                      _object_grants(user, perm, obj))
+    layers.append({"layer": OBJECT_GRANT_LAYER, "holds": False})
+
+    if authorized_public_object_grant(user, perm, obj, checker=checker):
+        layers.append({"layer": PUBLIC_GRANT_LAYER, "holds": True})
+        return answer(True, PUBLIC_GRANT_LAYER, _public_grants(perm, obj))
+    layers.append({"layer": PUBLIC_GRANT_LAYER, "holds": False})
+
+    if authorized_platform_scoped_perm(user, perm, checker=checker):
+        layers.append({"layer": PLATFORM_ROLE_LAYER, "holds": True})
+        return answer(True, PLATFORM_ROLE_LAYER,
+                      _role_grants(user, perm, RoleScope.PLATFORM))
+    layers.append({"layer": PLATFORM_ROLE_LAYER, "holds": False})
+
+    if authorized_role_membership_grant(user, perm, obj, checker=checker):
+        layers.append({"layer": ORGANIZATION_ROLE_LAYER, "holds": True})
+        return answer(True, ORGANIZATION_ROLE_LAYER, _role_grants(
+            user, perm, RoleScope.ORGANIZATION,
+            organization_id=organization.pk if organization else None))
+    layers.append({"layer": ORGANIZATION_ROLE_LAYER, "holds": False})
+
+    # nothing decided: the answer names every layer it asked, which is what
+    # lets support say "she holds no role of this organization" without
+    # reading guardian tables
+    return answer(False, DENIED_LAYER)
+
+
 def allowed_model_scope(user, perm, checker=None) -> bool:
     """The decision where no object exists yet: the right to register.
 

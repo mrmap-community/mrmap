@@ -7,7 +7,7 @@ changed no rule - which is what the two test classes below tell apart:
 
 * ``PublishRequest`` - one request per pair of organizations. The rule IS an
   index of the table, whose name the constraint carries since
-  ``accounts/migrations/0011_the_publish_request_pair_names_its_constraint.py``;
+  ``accounts/migrations/0013_the_publish_request_pair_names_its_constraint.py``;
 * ``Contact`` - the whole contact block identifies one organization. The
   declaration stands on the abstract, and Django reads the options of a model
   from ONE Meta: the model's own when it declares one, else the first base
@@ -101,7 +101,7 @@ class OrganizationContactIdentityTests(TestCase):
         """Where the declaration stands, and why no migration follows it.
 
         The two halves are the answer to the question a reader of the pull
-        request asks: ``accounts/migrations/0011_...`` renames the index of
+        request asks: ``accounts/migrations/0013_...`` renames the index of
         ``accounts_publishrequest`` and brings nothing for the contact block,
         because the block is not an option of ``Organization``. The second
         half is what turns red if a child ever does name it: the row above

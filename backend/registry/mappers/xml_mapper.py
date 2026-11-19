@@ -949,19 +949,28 @@ class XmlMapper:
         for item in additions:
             if self._value_row_matches(spec, item, steps, nsmap):
                 continue
-            existing = find_mapped_elements(
-                self.current_element, steps, nsmap)
-            if existing:
-                leaf = create_mapped_row(
-                    None, row_steps, nsmap, element_order,
-                    after=existing[-1])
-            else:
-                container = ensure_mapped_element(
-                    self.current_element, steps[:-1], nsmap, element_order)
-                leaf = create_mapped_row(
-                    container, row_steps, nsmap, element_order)
+            leaf = self._ensure_value_row(
+                row_steps, steps, nsmap, element_order)
             self._write_row_values(
                 name, spec, item, leaf, None, nsmap, element_order)
+
+    def _ensure_value_row(self, row_steps, steps, nsmap, element_order):
+        """The leaf row a new addition travels into.
+
+        Rows already stand where the base path looks, so the new one joins
+        them as the sibling after the last - the container is the document's
+        own and its namespace declarations are already there. Nothing stands
+        there yet, so the container path is built first, down to the last
+        step which names a row (#985).
+        """
+        existing = find_mapped_elements(
+            self.current_element, steps, nsmap)
+        if existing:
+            return create_mapped_row(
+                None, row_steps, nsmap, element_order, after=existing[-1])
+        container = ensure_mapped_element(
+            self.current_element, steps[:-1], nsmap, element_order)
+        return create_mapped_row(container, row_steps, nsmap, element_order)
 
     def _value_row_matches(self, spec, item, steps, nsmap):
         """The rows the base path answers which carry every field of *item*."""

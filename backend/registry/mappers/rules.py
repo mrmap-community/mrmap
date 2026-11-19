@@ -256,12 +256,13 @@ def _convert_value(name, value):
         # bounding box or polygon fragment the path names (#1246)
         from django.contrib.gis.geos import GEOSGeometry
         return value if isinstance(value, GEOSGeometry) else _UNCHANGED
-    if name == "operates_on":
+    if name == "operates_on" and isinstance(value, dict):
         # the publish diff of the record to record couplings of #985: it
         # arrives from the relation flow already in the shape the write
         # mapper reads ({"add": [...], "remove": [...]}), so nothing is
-        # converted - the branch only lets it pass the overlay gate
-        return value if isinstance(value, dict) else _UNCHANGED
+        # converted - the branch only lets it pass the overlay gate;
+        # anything which is not the diff falls through to _UNCHANGED
+        return value
     if name == "time_extents":
         # rows arrive as instances (the row, the validated relationship);
         # answer the dict shape the extraction answered, which is what

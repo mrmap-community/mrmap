@@ -128,6 +128,14 @@ const PARTNER_COLUMNS: Record<string, RelationGroup> = {
   },
 };
 
+// the four sentences of the pair row, keyed by the end of the coupling the
+// screen is and by the shape of the assertion; a table instead of nested
+// ternaries, because the four sentences differ ONLY in their key (#985)
+const PAIR_SENTENCE_KEYS = {
+  own: { edge: "operatesOnEdge", column: "operatesOnColumn" },
+  partner: { edge: "operatedOnByEdge", column: "operatedOnByColumn" },
+} as const;
+
 export const recordColumn = (resource: string) => RECORD_COLUMNS[resource];
 
 export const recordSource = (resource: string) => RECORD_SOURCES[resource];
@@ -507,20 +515,12 @@ const RecordRelations = ({ readOnly = false }: { readOnly?: boolean }) => {
   // document which publishes it is the operating record's, so the screen on the
   // operating end says "operates on" and the other end names its operator (#985)
   const pairSentence = useCallback(
-    (group: RelationGroup, edge: boolean) =>
-      group.operator === "partner"
-        ? translate(
-            edge
-              ? "recordShow.operatedOnByEdge"
-              : "recordShow.operatedOnByColumn",
-            { kind: kindName(group.resource) },
-          )
-        : translate(
-            edge
-              ? "recordShow.operatesOnEdge"
-              : "recordShow.operatesOnColumn",
-            { kind: kindName(group.resource) },
-          ),
+    (group: RelationGroup, edge: boolean) => {
+      const keys = PAIR_SENTENCE_KEYS[group.operator ?? "own"];
+      return translate(`recordShow.${keys[edge ? "edge" : "column"]}`, {
+        kind: kindName(group.resource),
+      });
+    },
     [translate, kindName],
   );
   // the groups of the screen with their sentences: the column lists mirror the

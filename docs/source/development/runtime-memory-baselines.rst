@@ -457,6 +457,17 @@ What the measured picture allows to say, and what it does not:
   the phase names, so a re-run extends this table instead of contradicting
   it).
 
+What #1614 did with this
+========================
+
+``docker-compose.lightweight.yml`` (:ref:`compose-profiles`) is the supported
+form of the tiering this page's numbers argue for: the log store, its UI and the
+two operator UIs became Compose profiles, the check containers became a tier of
+their own so ``up`` cannot boot them as services, and the core is documented to
+start without any of it. The mode's own budget rows are the arithmetic of the
+paragraph above, labelled as derived - a stack of that mode was not sampled
+while #1614 was implemented, and the page says so where it quotes them.
+
 Admission authority
 ===================
 

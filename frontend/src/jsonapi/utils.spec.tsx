@@ -5,6 +5,7 @@ import { ArrayField, TextField, TextInput } from "react-admin";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  capsulateJsonApiPrimaryData,
   encapsulateJsonApiDocumentData,
   encapsulateJsonApiPrimaryData,
   getArrayInput,
@@ -184,5 +185,87 @@ describe("mapped element metadata (#1249)", () => {
   it("only accepts a textual extension value", () => {
     expect(getIsoPath({ "x-iso-path": 42 } as never)).toBeUndefined();
     expect(getIsoPath(undefined)).toBeUndefined();
+  });
+});
+
+/** The request body schema of a service registration, as the backend documents
+ *  it: `owner` is a relationship of the primary data, not an attribute. */
+const createWmsOperation = {
+  method: "post",
+  requestBody: {
+    content: {
+      "application/vnd.api+json": {
+        schema: {
+          type: "object",
+          properties: {
+            data: {
+              type: "object",
+              properties: {
+                attributes: {
+                  type: "object",
+                  properties: {
+                    getCapabilitiesUrl: { type: "string", format: "uri" },
+                  },
+                },
+                relationships: {
+                  type: "object",
+                  properties: {
+                    owner: {
+                      type: "object",
+                      properties: {
+                        data: {
+                          type: "object",
+                          properties: {
+                            id: { type: "integer" },
+                            type: { type: "string", enum: ["Organization"] },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as never;
+
+describe("the owner relation of a create payload (#733)", () => {
+  it("sends an organization picked in the form as the owner relationship", () => {
+    // the form value of the owner picker is the record identifier the
+    // autocomplete parses out of its choice
+    const payload = capsulateJsonApiPrimaryData(
+      {
+        getCapabilitiesUrl: "https://example.com/wms?REQUEST=GetCapabilities",
+        owner: { id: "901" },
+      },
+      "WebMapService",
+      createWmsOperation,
+    );
+
+    expect(payload.relationships).toEqual({
+      owner: { data: { id: "901", type: "Organization" } },
+    });
+    expect(payload.attributes).not.toHaveProperty("owner");
+  });
+
+  it("leaves the owner out of the payload when none was picked", () => {
+    // the backend then answers the owner from the memberships of the caller,
+    // or refuses with a 400 which names the owner - sending an empty
+    // relationship would answer the second case with a different error
+    const payload = capsulateJsonApiPrimaryData(
+      {
+        getCapabilitiesUrl: "https://example.com/wms?REQUEST=GetCapabilities",
+        owner: null,
+      },
+      "WebMapService",
+      createWmsOperation,
+    );
+
+    expect(payload.relationships).toBeUndefined();
+    expect(payload.attributes).not.toHaveProperty("owner");
   });
 });

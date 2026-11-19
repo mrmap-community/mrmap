@@ -468,7 +468,6 @@ CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
-CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
 CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
@@ -499,10 +498,8 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # hard limit SIGKILLs the slot a further five minutes later and the prefork
 # pool replaces it. A hard-killed attempt leaves an open row in the attempt
 # samples of #1330, which the sweep flags abandoned only after
-# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS - the longest deliberate override
-# of a single task (the external ETF conformity check, registry/settings.py)
-# stays below that grace on purpose. Time limits belong to the prefork pool,
-# which is what the celery-worker of docker-compose.yml runs.
+# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS. Time limits belong to the prefork
+# pool, which is what the celery-worker of docker-compose.yml runs.
 CELERY_TASK_SOFT_TIME_LIMIT = 2700
 CELERY_TASK_TIME_LIMIT = 3000
 # the number of slots a celery worker process runs; docker-compose.yml hands
@@ -1032,6 +1029,20 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
+# How many hours an unfinished service-update job may stand undriven before the
+# sweep of ``registry/tasks/update.py`` fails it (#1460). The guards of #1453
+# redeliver a lost message, but a delivery which is gone for good - a broker
+# recreated with the database kept, a purge, a discard - or a run whose retries
+# died without the job deciding leaves it unfinished, and the constraint of one
+# unfinished job per service then blocks every later update of that service.
+# The sweep only fails unfinished jobs aged beyond this horizon; no legitimate
+# update run takes so long, which is what makes the horizon the line that
+# protects a job which still works. It fires hourly (see registry/apps.py).
+# A horizon below one hour is raised to one: a busy queue is #1320's verdict,
+# not this sweep's work
+UPDATE_JOB_STALE_HORIZON_HOURS = int(
+    os.getenv("MRMAP_UPDATE_JOB_STALE_HORIZON_HOURS", "24"))
+
 # The activation gate of the metadata editor's record writes (#1241, opened
 # by #1244). The create/update endpoints of the metadata records answer the
 # default json:api CRUD contract; a committed write regenerates the ISO
@@ -1089,17 +1100,49 @@ def default_renderer_classes(production: bool):
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
     "AUTO_REFRESH": False,
+    # Concurrency cap, not a lifetime (#1450): knox's stock default is None —
+    # unlimited parallel tokens per user — so one credential seen by an
+    # attacker could farm tokens without bound while a refusal to *issue* one
+    # never leaks anything about the account. The login endpoint refuses with
+    # 403 once the user already holds this many not-yet-expired rows; a logout
+    # (or expiry) frees a slot, guessing at passwords cannot. Five covers the
+    # scripts and CLI clients of one user across a working day; the browser
+    # path of #835 logs in through ``api/auth/session`` and occupies no knox
+    # row (see ``docs/source/administration/authentication.md``).
+    "TOKEN_LIMIT_PER_USER": 5,
 }
 
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
     "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    # The stack every view authenticates with unless it names its own. Basic
+    # is deliberately NOT in it (#1450): Basic carries the account password,
+    # and with this stack global, every endpoint of the API silently accepted
+    # the password in place of the credential it documents - the machine token
+    # of #835 exists exactly so that a caller does not hand out the password to
+    # each request. The two endpoints the password is documented for,
+    # ``api/auth/session`` and ``api/auth/login``, declare Basic on the view
+    # now (``accounts/views/auth.py``), and they are the only ones.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF 3.15 ships this empty, which throttles nothing: a scope only exists
+    # once a rate is named here. The one scope is the login attempt budget of
+    # #1450 - the POSTs of ``api/auth/session`` and ``api/auth/login``, the
+    # two endpoints which read a password, counted per client address before
+    # the credential is looked at (``accounts/throttling.py``).
+    # ``30/min`` is sized from what the application itself does on one address:
+    # the whole unit suite logs in about 25 times and the acceptance features
+    # about 8, spread over minutes, and a browser or a script with a 10-hour
+    # token re-logs in when a person types a password - nobody reaches 30 in a
+    # minute by hand. A credential guessing tool loses over 99% of its rate.
+    # A deployment whose machine clients all share one NAT address and log in
+    # more often than this raises the number there.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "30/min",
+    },
     # DRF's own default is an empty list, which asks nothing of anybody: a view
     # class naming no permission of its own answered writes to anonymous clients.
     # This is the floor such a view falls back to -- reading stays open, a write

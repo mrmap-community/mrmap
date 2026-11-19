@@ -22,9 +22,12 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    celery-capacity-telemetry
    celery-task-orm-audit
    outbound-ogc-request-audit
+   update-metadata-refresh-policy
+   wfs-describe-batching-verdict
    queryset-manager-conventions
    celery-task-sql-regression
    etf-conformity-retirement
+   metadata-transform-inventory
    orm-static-analysis
    capacity-snapshot
    background-notifications
@@ -33,6 +36,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    decision-requests
+   release-versioning-baseline
    schedule-optimization-v3
    code-quality
    keyword-triggers

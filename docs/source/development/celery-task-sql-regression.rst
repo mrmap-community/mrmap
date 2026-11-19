@@ -52,7 +52,6 @@ From the repository root, on the prebuilt dependency image (see
       tests.django.registry.tasks.tests_task_sql_monitoring \
       tests.django.registry.tasks.tests_task_sql_update \
       tests.django.registry.tasks.tests_task_sql_harvesting \
-      tests.django.registry.tasks.tests_conformity_tasks \
       tests.django.registry.tests_task_sql_alert_refresh \
       tests.django.system.test_task_sql_guards \
       tests.django.notify.test_task_sql_guards \
@@ -190,14 +189,15 @@ assertion was not tightened with it - that is the intent.
        keeps its identity across refreshes (green, #1319/#1030)
      - #1394
    * - conformity checks
-     - ``registry/tasks/tests_conformity_tasks.py``
-     - liveness, not queries: the ``self.task``/``self.job`` result-backend
-       seam is gone from the module and a source guard keeps it out (green,
-       shipped with #1394); no first-party code dispatches the family, and
-       the tasks' base-model fetch could never answer - the family is dead
-       code pending its owners' keep-or-remove decision, so no query guard
-       would have anything to regress
-     - #1394 (verdict), #1393 at most
+     - retired with #1458 and #1530
+     - the three dead tasks and their liveness guard left the codebase with
+       #1458: nothing on develop ever dispatched them and their abstract
+       base fetch could never answer, so no query guard had anything to
+       regress; #1530 then retired the rest of the family - models,
+       managers, enums, plugin helpers, fixtures and all twelve tables -
+       through ``registry/migrations/0062_retire_conformity_check_family``,
+       per the decision record of gate #1528
+     - #1458, gate #1528, #1530
    * - security log analysis
      - not pinned
      - already optimal as an ORM plan per the audit; its volume question is
@@ -325,8 +325,9 @@ Not covered here, and why
 
 - **conformity**: #1394 established that no first-party code dispatches the
   family and that its tasks read the abstract run base, which has no table -
-  a query guard would measure a dead path, so the family page carries a
-  liveness guard instead. **security-log-analysis**: already optimal per the
+  a query guard would measure a dead path. The tasks retired with #1458 and
+  the whole family, schema included, retired with #1530, so there is nothing
+  left to guard. **security-log-analysis**: already optimal per the
   audit; a count guard would re-assert a conclusion that has nothing to
   regress.
 - **Runtime behavior of any kind** - durations, backpressure, queue drain:

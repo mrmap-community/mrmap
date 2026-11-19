@@ -40,6 +40,10 @@ const en = lodashMerge(
         selfRevoked:
           "You revoked your own administration role; the administration screens are no longer yours.",
       },
+      audit: {
+        roles: "Role catalogue history",
+        memberships: "Membership history",
+      },
       roles: {
         title: "Roles",
         members: "Members in organization",

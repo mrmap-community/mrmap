@@ -6,10 +6,8 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.geos import Polygon
-from django.contrib.postgres.indexes import GistIndex
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
@@ -121,9 +119,28 @@ class ServiceHistoricalRecords(HistoricalRecords):
     """Record published services and elements, excluding temporary candidates."""
 
     def create_historical_record(self, instance, history_type, using=None):
-        service = instance.service if isinstance(
-            instance, ServiceElement) else instance
-        if service.update_candidate_of_id is not None:
+        if isinstance(instance, ServiceElement):
+            # the skip question is ONE column of the service row; reading
+            # ``instance.service`` loaded the whole service - metadata text
+            # and document reference included - per audit row of every
+            # harvested element. Use a service the caller already holds,
+            # otherwise ask for the one column as a single-column EXISTS (#1482)
+            service = instance._state.fields_cache.get("service")
+            if service is not None:
+                is_candidate = service.update_candidate_of_id is not None
+            else:
+                _using = using if using is not None else instance._state.db
+                # the FK's own column, not the relation: `__isnull` over the
+                # relation would JOIN the service table a second time
+                services = instance._meta.get_field(
+                    "service").related_model.objects.using(_using)
+                is_candidate = services.filter(
+                    pk=instance.service_id,
+                    update_candidate_of_id__isnull=False,
+                ).exists()
+            if is_candidate:
+                return
+        elif instance.update_candidate_of_id is not None:
             return
         return super().create_historical_record(instance, history_type, using=using)
 
@@ -202,20 +219,30 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
     class Meta:
         abstract = True
 
-        indexes = [
-            models.Index(fields=["update_candidate_of",]),
-        ]
+        # kept as the empty list the concrete services concatenate: a plain
+        # index over ``update_candidate_of`` stood here, but the OneToOneField
+        # already carries a UNIQUE btree index over exactly this column, and
+        # no query asks the non-unique twin - it only doubled the write cost
+        # of every candidate the update creates (#1481)
+        indexes = []
 
     def save(self, *args, **kwargs):
         adding = self._state.adding
-        old = None
+        # the cascade below is decided by ONE column; reading the full old
+        # row loaded the metadata text and the document reference of the
+        # service on every update save for a boolean comparison (#1482)
+        old_is_active = None
         if not adding:
             if isinstance(self, WebMapService):
-                old = WebMapService.objects.filter(pk=self.pk).first()
+                old_is_active = WebMapService.objects.filter(
+                    pk=self.pk).values_list('is_active', flat=True).first()
             elif isinstance(self, WebFeatureService):
-                old = WebFeatureService.objects.filter(pk=self.pk).first()
+                old_is_active = WebFeatureService.objects.filter(
+                    pk=self.pk).values_list('is_active', flat=True).first()
         super().save(*args, **kwargs)
-        if not adding and old and old.is_active != self.is_active:
+        # is_active is non-null, so a value here means a row existed (which
+        # excludes adding); nothing read means nothing to compare against
+        if old_is_active is not None and old_is_active != self.is_active:
             # the active sate of this and all descendant elements shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
             if isinstance(self, WebMapService):
@@ -364,7 +391,7 @@ class WebMapService(HistoricalRecordMixin, OgcService):
 
     objects = WebMapServiceQuerySet.as_manager()
     security = WebMapServiceSecurityManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web map service")
@@ -481,7 +508,7 @@ class WebFeatureService(HistoricalRecordMixin, OgcService):
 
     objects = WebFeatureServiceQuerySet.as_manager()
     security = WebFeatureServiceSecurityManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("web feature service")
@@ -528,7 +555,7 @@ class CatalogueService(HistoricalRecordMixin, OgcService):
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = CatalogueServiceManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("catalogue service")
@@ -705,13 +732,15 @@ class ServiceElement(CapabilitiesDocumentModelMixin, CommonServiceInfo):
 
     class Meta:
         abstract = True
-        indexes = [
-            GistIndex(
-                fields=["bbox_lat_lon"],
-                condition=Q(bbox_lat_lon__isnull=False),
-                name="%(class)s_bbox_not_null",
-            ),
-        ]
+        # kept as the empty list Layer and FeatureType concatenate: a partial
+        # GiST index over ``bbox_lat_lon`` (WHERE bbox_lat_lon IS NOT NULL)
+        # stood here beside the implicit full GiST index Django's
+        # spatial_index=True maintains for the column. A GiST index never
+        # stores a NULL key in the first place, so the partial twin held
+        # exactly the entries of the full one - and both were maintained by
+        # every harvest write. ``bbox && x`` is served by the full index,
+        # which the schema state owns and a migration can find again (#1481)
+        indexes = []
 
     def __str__(self):
         try:
@@ -860,7 +889,7 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
     )
 
     objects = LayerManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("layer")
@@ -884,11 +913,15 @@ class Layer(HistoricalRecordMixin, LayerMetadata, ServiceElement, Node):
         layer will be updated with ``is_active=False``.
         """
         adding = self._state.adding
-        old = None
+        # as in OgcService.save: the comparison below needs the old flag,
+        # not the whole old row - which for a Layer includes the bounding
+        # box geometry and the metadata text (#1482)
+        old_is_active = None
         if not adding:
-            old = Layer.objects.filter(pk=self.pk).first()
+            old_is_active = Layer.objects.filter(
+                pk=self.pk).values_list('is_active', flat=True).first()
         super().save(*args, **kwargs)
-        if not adding and old and old.is_active != self.is_active:
+        if old_is_active is not None and old_is_active != self.is_active:
             # the active sate of this and all descendant layers shall be changed to the new value. Bulk update
             # is the most efficient way to do it.
             if self.is_active:
@@ -1094,7 +1127,7 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
     objects = DefaultHistoryManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("feature type")
@@ -1118,9 +1151,13 @@ class FeatureType(HistoricalRecordMixin, FeatureTypeMetadata, ServiceElement):
         adding = self._state.adding
         super().save(*args, **kwargs)
         if not adding and self.is_active:
-            WebFeatureService.objects.filter(pk=self.service_id).update(
-                is_active=self.is_active
-            )
+            # activating the service is one decision, not a reflex: the
+            # flag is read first, so the hundredth active save of a
+            # harvest pays a single-column read and no write at all; the
+            # activation itself still happens exactly once (#1482)
+            services = WebFeatureService.objects.filter(pk=self.service_id)
+            if services.values_list('is_active', flat=True).first() is False:
+                services.update(is_active=True)
 
     def fetch_describe_feature_type_document(self, save=True):
         """Return the fetched described feature type document and update the content if save is True"""

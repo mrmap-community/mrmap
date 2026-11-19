@@ -477,9 +477,10 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
-        indexes = [
-            models.Index(fields=["keyword"])
-        ]
+        # no plain index over the column: the UNIQUE constraint below is a
+        # btree index over exactly it, and a second, non-unique twin on a
+        # Text column only doubled the insert cost of every new keyword
+        # (#1481)
         constraints = [
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_keywords",
@@ -660,36 +661,44 @@ def couple_document(content, link, describes):
         record, never a fabricated one (#1261)
     """
     mappers = MDMetadataXmlMapper.from_xml(content)
-    data = mappers[0].xml_to_django()
-    parsed_instance = data[0]
-    handler = PersistenceHandler(
-        mapper=mappers[0],
-        defaults={
-            "dataset": {
-                "origin": MetadataOriginEnum.CAPABILITIES.value,
-                "origin_url": link
+    try:
+        data = mappers[0].xml_to_django()
+        parsed_instance = data[0]
+        handler = PersistenceHandler(
+            mapper=mappers[0],
+            defaults={
+                "dataset": {
+                    "origin": MetadataOriginEnum.CAPABILITIES.value,
+                    "origin_url": link
+                }
             }
-        }
-    )
-    created_instances = handler.persist_all()
-    # search by unique file_identifier to get the created record.
-    created_instance = next(
-        (
-            v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
-            if parsed_instance.file_identifier in k
-        ),
-        None
-    )
+        )
+        created_instances = handler.persist_all()
+        # search by unique file_identifier to get the created record.
+        created_instance = next(
+            (
+                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+                if parsed_instance.file_identifier in k
+            ),
+            None
+        )
 
-    if not created_instance:
-        logging.warning(
-            f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
-        return None
+        if not created_instance:
+            logging.warning(
+                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+            return None
 
-    drop_superseded_relations_for_link(link, describes, created_instance)
-    created_instance.add_metadata_relation(
-        related_object=describes)
-    return created_instance
+        drop_superseded_relations_for_link(link, describes, created_instance)
+        created_instance.add_metadata_relation(
+            related_object=describes)
+        return created_instance
+    finally:
+        # one coupling reads the mapping of its own document and nobody reads
+        # it again: a registration which couples a hundred references to one
+        # document would otherwise leave a parsed copy of it in the
+        # process-global cache until the TTL (#1415)
+        for mapper in mappers:
+            mapper.release_cache()
 
 
 def drop_superseded_relations_for_link(link, describes, created_instance):
@@ -715,14 +724,36 @@ def drop_superseded_relations_for_link(link, describes, created_instance):
     the work row's own url, so the registration keeps closing stale
     couplings after its consumer moved from ``RemoteMetadata`` to the work
     queue.
+
+    The loop this shape replaced loaded every superseded record whole and
+    DELETEd one relation-set per roundtrip; every superseded record shares
+    the class of ``created_instance``, so the relation columns are the same
+    for all of them and one aggregate delete answers the whole pair (#1482).
     """
-    superseded = created_instance.__class__.objects.filter(
-        origin_url=link).exclude(pk=created_instance.pk)
-    for stale_record in superseded:
-        stale_record.remove_metadata_relation(
-            related_object=describes,
-            internal=False,
-            origin=MetadataOriginEnum.CAPABILITIES.value)
+    superseded_ids = list(
+        created_instance.__class__.objects.filter(
+            origin_url=link).exclude(pk=created_instance.pk)
+        .values_list('pk', flat=True))
+    if not superseded_ids:
+        # nothing is taken back here, so nothing can fail either: the loud
+        # answer for a described class without a column stays bound to an
+        # actual removal, exactly as per-record it did
+        return
+    described_field, record_field = MetadataRelation.relation_columns(
+        describes, created_instance)
+    if described_field is None:
+        raise ValueError(
+            "remove_metadata_relation must be cited the described "
+            "element whose coupling is taken back.")
+    kwargs = {
+        described_field: describes,
+        f'{record_field}__in': superseded_ids,
+    }
+    MetadataRelation.objects.select_for_update().filter(
+        is_internal=False,
+        origin=MetadataOriginEnum.CAPABILITIES.value,
+        **kwargs
+    ).delete()
 
 
 FK_TARGET_WMS = "registry.WebMapService"
@@ -1301,6 +1332,30 @@ class MetadataRelation(models.Model):
             models.UniqueConstraint(
                 name="unique_service_metadata_representation_for_wfs",
                 fields=["service_metadata", "wfs"]
+            ),
+            # a coupling of a dataset record to one element is stored once per
+            # kind of coupling (#1483). The key is the one
+            # :meth:`MetadataRecord.add_metadata_relation` re-asserts on - the
+            # filled columns plus `is_internal`, and `origin` is a filled
+            # column - because the table holds rows of one pair on purpose:
+            # the imported evidence of a document, the coupling a curator
+            # maintains (`publication_kind`) and the EDITOR coupling a
+            # collection finds already standing beside its own are separate
+            # rows, which `tests/django/registry/tasks/
+            # tests_reference_work_queue.py` pins for the collection. A key
+            # without `origin` would refuse what that flow writes.
+            # Only the layer and the feature type are named: the check
+            # constraint `one_related_object_selected` allows a dataset record
+            # beside no other element. The service block above is narrower
+            # than this and predates it; these two mirror their own write path.
+            models.UniqueConstraint(
+                name="unique_dataset_metadata_representation_for_layer",
+                fields=["is_internal", "origin", "dataset_metadata", "layer"]
+            ),
+            models.UniqueConstraint(
+                name="unique_dataset_metadata_representation_for_feature_type",
+                fields=["is_internal", "origin", "dataset_metadata",
+                        "feature_type"]
             )
         ]
 
@@ -1525,6 +1580,12 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         relation which is already there instead of stacking a second row
         beside it. A class without a column of its own raises instead of
         writing an unrenderable half row (#1261).
+
+        The lock is not what makes this idempotent: `select_for_update` locks a
+        row which is already there and nothing at all for a missing one, so two
+        writers of the same pair both see no row and both insert. What refuses
+        the second one is the unique constraint of the pair in
+        :class:`MetadataRelation.Meta` (#1483).
         """
         kwargs = {}
         described_field, record_field = MetadataRelation.relation_columns(
@@ -1660,7 +1721,7 @@ class DatasetMetadataRecord(MetadataRecord):
     )
 
     objects = DatasetMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
@@ -1723,7 +1784,7 @@ class ServiceMetadataRecord(MetadataRecord):
         excluded_fields=("keywords_list", "search_vector",),
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         indexes = [
@@ -1780,7 +1841,7 @@ class ApplicationMetadataRecord(MetadataRecord):
     )
 
     objects = ApplicationMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("application metadata")
@@ -1817,7 +1878,11 @@ class DatasetMetadataRecordKeywordsLink(models.Model):
         # the first release. Then remove these db_table overrides to use
         # Django's default through-model table names.
         db_table = "registry_datasetmetadatarecord_keywords"
-        unique_together = (("datasetmetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("datasetmetadatarecord", "keyword"),
+                name="unique_keyword_per_dataset_metadata_record"),
+        ]
 
 
 class ServiceMetadataRecordKeywordsLink(models.Model):
@@ -1836,7 +1901,11 @@ class ServiceMetadataRecordKeywordsLink(models.Model):
     class Meta:
         # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_servicemetadatarecord_keywords"
-        unique_together = (("servicemetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("servicemetadatarecord", "keyword"),
+                name="unique_keyword_per_service_metadata_record"),
+        ]
 
 
 class ApplicationMetadataRecordKeywordsLink(models.Model):
@@ -1855,4 +1924,8 @@ class ApplicationMetadataRecordKeywordsLink(models.Model):
     class Meta:
         # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_applicationmetadatarecord_keywords"
-        unique_together = (("applicationmetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("applicationmetadatarecord", "keyword"),
+                name="unique_keyword_per_application_metadata_record"),
+        ]

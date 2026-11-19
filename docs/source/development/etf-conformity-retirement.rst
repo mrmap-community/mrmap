@@ -141,6 +141,44 @@ the family.
 Code and infrastructure surface (the removal list for #1529/#1530)
 ####################################################################
 
+**Executed partway (#1458).** The task half of this list has already left:
+``backend/registry/tasks/conformity.py``, its import in
+``registry/tasks/__init__.py``, the liveness guard
+``backend/tests/django/registry/tasks/tests_conformity_tasks.py``, the two
+``CONFORMITY_ETF_TASK_*_TIME_LIMIT_SECONDS`` constants and the
+``test_celery_worker_config`` assertions which read them are removed by
+#1458, carried out on the operator's instruction while Q1 below stands
+open. The tasks are no longer registered: a by-name delivery is now
+discarded as unregistered (the #1199 behaviour) instead of executed and
+failed. Everything else on this page - models, managers, enums, the plugin
+helpers, the fixtures, the ``CONFORMITY_DEFAULT_*`` messages,
+``BASE_URL_FOR_ETF``, the validator infrastructure and the twelve tables -
+remains gated on Q1-Q3 and owned by #1529/#1530/#1531.
+
+**Executed (#1530).** On the operator's instruction — the same shape as
+#1458 and #1529 above — the whole family left the codebase with #1530
+while the Q1-Q3 rows below still read Pending; that deviation from the
+gate is recorded here, not hidden. Removed: ``registry/models/conformity.py``
+(all 9 models) and its re-export in ``registry/models/__init__.py``,
+``registry/managers/conformity.py``, ``registry/enums/conformity.py``,
+``registry/helper/plugins/`` (``etf.py``, ``internal.py`` and the package
+itself) and ``registry/helper/mapping_helper.py``; the six seed fixtures;
+and all twelve tables through the one migration
+``registry/migrations/0062_retire_conformity_check_family``, which follows
+the then-current leaf 0061 and additionally deletes the family's 9 content
+types (post-migrate never prunes them, and an explicit drop keeps the
+database free of ghost permissions). The upgrade path was verified on a
+scratch database built from pre-#1530 code: fixtures loaded, representative
+ETF/internal run rows, unrelated rows, then the new code — twelve tables
+and their permissions gone, survivors intact, reverse-then-forward clean.
+The German catalog lost the family's four run help texts via the canonical
+``makemessages``. What the family page still names as remaining — the
+``CONFORMITY_DEFAULT_*`` messages and ``BASE_URL_FOR_ETF`` — is owned by
+#1531, runtime verification by #1532 and the remaining docs sweep by #1533.
+Applying the migration to a live deployment stays destructive data work:
+the export-before-drop and maintenance-window contract below binds the
+operator, and nothing in the migration invents or re-derives data.
+
 Backend (all imports are family-internal; the only outside importer is
 ``tests/django/test_celery_worker_config.py`` consuming the time-limit
 constants):
@@ -174,15 +212,95 @@ constants):
   registry leaf** (``0057`` at the time of writing — re-check the leaf when
   #1530 branches, run ``scripts/migration_graph_smoke.py``).
 
-Validator infrastructure (#1529):
+Validator infrastructure (**executed (#1529)**): the service, its image
+and its development tooling are removed:
 
 * ``docker/inspire-validator/`` (Dockerfile, Dockerrun.aws.json, README,
-  res/docker-entrypoint.sh, res/squid.conf);
+  VERSION, LICENSE, res/docker-entrypoint.sh, res/squid.conf, the apache
+  proxy config and the bundled Functx resources);
 * the ``inspire-validator`` service in ``docker-compose.dev.yml`` (port
-  5557:8080, ``extra_hosts`` for the callback) and the prebuilt-file comment
-  naming its unpinned port;
+  5557:8080, ``extra_hosts`` for the callback), the prebuilt-file comment
+  naming its unpinned port, the ``inspire-validator`` term in the AGENTS.md
+  list of host-pinned ports, and - with the subtree gone - the
+  ``docker/inspire-validator/**`` Sonar exclusion;
 * the "run ETF validator" task in ``.vscode/tasks.json``;
-* the environment docs entry for ``MRMAP_BASE_URL_FOR_ETF``.
+* the environment docs entry for ``MRMAP_BASE_URL_FOR_ETF``: the
+  ``DJANGO_ALLOWED_HOST_DEFAULTS`` description no longer names the validator
+  as a caller. The settings constant itself and the shipped allow-list
+  preset stay for #1531.
+
+Nothing else in the tracked tree referenced the service: the prebuilt image
+work (``dev-images.yml``, ``scripts/dev_image_id.py``) never built or
+published it, and no workflow, nginx conf or deployment manifest names it.
+The regression guard is ``scripts/test_validator_retirement.py``: it sweeps
+the tracked Compose, VS Code, Sonar and ``docker/`` surfaces for the
+validator's name and, where docker is present, resolves every committed
+Compose variant - failing on a validator service, on its build context, on
+its old host port 5557, or on a resolution in which the shared networks no
+longer survive.
+
+Operator cleanup: what a host may still carry (#1529)
+######################################################
+
+The removal is a checkout change; it deletes nothing that already sits on a
+host. An ``inspire-validator`` container, the image it was built into, or a
+mount it used can outlive the service definition, and only the operator of
+that host can tell whether the object is still wanted. Every step below is
+targeted removal by exact name - the rule the agent stacks follow as well
+(AGENTS.md "Docker ownership and cleanup"): a blanket ``docker volume
+prune``, ``docker container prune`` or ``docker system prune`` would also
+take the named volumes of other stacks (``frontend-node-modules`` is one of
+them) and the shared, deliberately retained prebuilt dependency images.
+
+1. **Containers.** List first, then remove by exact id, never by a name
+   pattern that could match a running job:
+
+   .. code:: text
+
+       docker ps -a --filter "name=inspire-validator"
+       docker ps -a --filter "label=com.docker.compose.service=inspire-validator"
+       docker rm <exact-container-id>
+
+   The label filter also finds containers of agent stacks whose project name
+   prefixed the container name; ``docker inspect`` shows the project label to
+   check before removing one another job might own. A *running* container
+   named for the validator is a deployment doing something this repository
+   no longer ships: find out what reads it before removing anything.
+
+2. **Images.** The dev compose built the image under the project-prefixed tag
+   ``<project>-inspire-validator`` (``docker compose config --images``
+   listed it per project); hand-built or hand-tagged copies can carry any
+   name. List candidates, then remove only what no container references:
+
+   .. code:: text
+
+       docker images --format '{{.Repository}}:{{.Tag}}' | grep -Ei 'inspire-validator|etf-webapp'
+       docker rmi <exact-image-name-or-id>
+
+   Its base image ``jetty:9.4.58-jre8`` is shared: remove it only when
+   ``docker ps -a --filter ancestor=jetty:9.4.58-jre8`` comes back empty.
+   The validator image was never published centrally - ``dev-images.yml``
+   built only the backend and frontend dev images - so there is nothing to
+   retire in the registry.
+
+3. **Mounts and volumes.** A validator container started outside the compose
+   tree can hold a bind mount or named volume of its own (deployment check 5
+   below). Read the mounts *before* removing the container:
+
+   .. code:: text
+
+       docker inspect --format '{{json .Mounts}}' <container-id>
+
+   and remove only a named volume that the inspection names, that no other
+   container references (``docker ps -a --filter volume=<exact-volume>``)
+   and whose content the operator has confirmed disposable.
+
+4. **Env and override footprint.** A deployment may still set
+   ``MRMAP_BASE_URL_FOR_ETF``; the value is inert from this PR on and the
+   setting itself retires with #1531. A compose override outside this tree
+   that still adds the service now adds one without image and without
+   build: it cannot start and is dead weight - remove the block, the way
+   this PR removed it from ``docker-compose.dev.yml``.
 
 Deployment evidence that first-party inspection cannot answer
 ##############################################################
@@ -307,13 +425,15 @@ How to re-derive every claim
 
 .. code:: text
 
-    # liveness guards (this stack recipe: backend/AGENTS.md "Prebuilt")
+    # worker-config guards (this stack recipe: backend/AGENTS.md "Prebuilt");
+    # the conformity task guard retired with the tasks themselves (#1458)
     docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
       django-tests python manage.py test \
-        tests.django.registry.tasks.tests_conformity_tasks \
         tests.django.test_celery_worker_config --noinput
     # by-name dispatch / API / frontend sweep (run from backend/)
-    git grep -n "async_run_conformity"        # only tasks + their tests
+    git grep -n "async_run_conformity"        # no hits since #1458 removed
+    # the tasks; since #1530 removed the rest of the family the sweeps
+    # below answer empty everywhere
     git grep -ln "Conformity" -- registry/serializers registry/views registry/urls.py extras
     # (empty) ; git grep -iln conformity -- frontend/   # only a PNG false hit
     # live table names / counts / permission footprint

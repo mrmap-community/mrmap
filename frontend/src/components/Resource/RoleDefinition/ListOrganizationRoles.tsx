@@ -9,11 +9,15 @@ import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../jsonapi/hooks/useFieldsForOperation";
 import useResourceSchema from "../../../jsonapi/hooks/useResourceSchema";
 import { FieldDefinition, getIncludeOptions } from "../../../jsonapi/utils";
+import CustomListActions, {
+  CustomListActionsProps,
+} from "../../Lists/CustomListActions";
 import {
   OrganizationScopeProvider,
   useOrganizationScope,
 } from "../Generic/Administration/OrganizationScopeContext";
 import OrganizationScopeSelect from "../Generic/Administration/OrganizationScopeSelect";
+import HistoryChangelogLink from "../Generic/History/HistoryChangelogLink";
 
 /**
  * The `verb_model` reading of a Django permission codename - `view_user` is
@@ -73,6 +77,26 @@ const RolePermissionsCell = ({ record }: { record?: Record<string, unknown> }) =
   );
 };
 
+/**
+ * The toolbar of the roles screen: the shared list controls, plus the way to
+ * the audit trail of the catalogue. #741's first acceptance criterion is that
+ * the history of a role is *shown* in the administration - the `history` route
+ * of the resource answers the changelog as soon as the schema answers
+ * `list_HistoricalRoleDefinition`, and a route no screen links to is not found
+ * by the person who needs it.
+ */
+const RolesActions = (props: CustomListActionsProps) => (
+  <CustomListActions
+    {...props}
+    additionalActions={(
+      <HistoryChangelogLink
+        resource="RoleDefinition"
+        label="administration.audit.roles"
+      />
+    )}
+  />
+);
+
 const RolesList = (): ReactElement => {
   const translate = useTranslate();
   const { organizationId, roles } = useOrganizationScope();
@@ -115,6 +139,7 @@ const RolesList = (): ReactElement => {
       resource="RoleDefinition"
       sort={{ field: "slug", order: "ASC" }}
       header={<OrganizationScopeSelect />}
+      ActionsComponent={RolesActions}
       columns={columns}
       {...(includePermissions
         ? { queryOptions: { meta: { jsonApiParams: { include: "permissions" } } } }

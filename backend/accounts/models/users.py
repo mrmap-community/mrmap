@@ -10,7 +10,6 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from guardian.shortcuts import assign_perm
 
 
 def get_settings_default():
@@ -52,19 +51,6 @@ class User(AbstractUser):
 
     def natural_key(self):
         return (self.username,)
-
-    def assign_object_perms(self):
-        # the app_label names the app of this model: the ``User`` lives in
-        # ``accounts``, so its permission rows do too (#729)
-        assign_perm(perm='accounts.view_user',
-                    user_or_group=self,
-                    obj=self)
-        assign_perm(perm='accounts.change_user',
-                    user_or_group=self,
-                    obj=self)
-        assign_perm(perm='accounts.delete_user',
-                    user_or_group=self,
-                    obj=self)
 
     def create_activation(self):
         """ Create an activation object

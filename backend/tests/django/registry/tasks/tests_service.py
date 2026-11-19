@@ -2,6 +2,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from celery.exceptions import Retry
 from django.db import IntegrityError, transaction
 from django.test import TestCase, TransactionTestCase
 from django.test.utils import override_settings
@@ -29,6 +30,7 @@ from registry.models.service import (FeatureType, Layer, WebFeatureService,
 from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
 from registry.tasks.service import build_ogc_service, collect_reference
 from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import Timeout as RequestsTimeout
 from requests.sessions import Session
 from rest_framework import status
 from tests.django.utils import MockResponse, WorkerRunMixin
@@ -391,6 +393,47 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
         self.assertEqual(
             mock_send.call_args.kwargs['timeout'],
             REGISTRATION_REQUEST_TIMEOUT_SECONDS)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def test_a_refused_host_reaches_the_base_retry_untouched(self):
+        """The transport errors of requests travel to the retry, not to the
+        failure report of the task (#1457).
+
+        The task's transport branch named the BUILTINS ``ConnectionError``
+        and ``TimeoutError``; ``requests`` raises its own exceptions, which
+        are not subclasses of the builtins, so every attempt against a
+        refused host fell into the generic branch: it wrote the error text
+        as the phase of the process and logged an exception, while
+        ``BackgroundProcessBased.autoretry_for`` — which names the requests
+        classes — retried that very error as transient. The transport
+        answer must reach that base retry untouched: the process keeps the
+        phase the task last reported, and the task defers to the retry
+        instead of deciding a failure.
+        """
+        for transport_error in (
+                RequestsConnectionError('connection refused'),
+                RequestsTimeout('connection timed out')):
+            with self.subTest(error=str(transport_error)):
+                with patch.object(
+                        Session, 'send', side_effect=transport_error):
+                    with self.assertRaises(Retry):
+                        build_ogc_service.delay(
+                            get_capabilities_url='https://maps.dwd.de/geoserver/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities',
+                            collect_metadata_records=False,
+                            service_auth_pk=None,
+                            http_request=self.http_request,
+                            background_process_pk=self.background_process.pk,
+                            **{'user_pk': 'af7aaeff-ce21-4e35-af4a-dd2caec92f0f'})
+
+                self.background_process.refresh_from_db()
+                self.assertEqual(
+                    self.background_process.phase,
+                    'download_capabilities',
+                    msg="the transport error became the phase of the "
+                        "process: the generic failure branch answered the "
+                        "refused host instead of the base retry (#1457).")
 
 
 class CapabilitiesPersistenceErrorTest(TestCase):

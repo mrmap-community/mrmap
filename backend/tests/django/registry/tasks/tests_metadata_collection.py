@@ -42,7 +42,9 @@ from unittest.mock import patch
 
 from celery.app.trace import build_tracer
 from django.apps import apps
+from django.db import connection
 from django.test import TestCase, TransactionTestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from notify.enums import LogTypeEnum, ProcessStatusEnum
 from notify.models import BackgroundProcess, BackgroundProcessLog
 from registry.enums.metadata import (CollectionStepOutcome,
@@ -68,6 +70,7 @@ SERVICE = (ISO_DATA / 'service.xml').read_text()
 # republish the very same document under
 FILE_IDENTIFIER = "de.dwd.geoserver.fach.RBSN_FF"
 SECOND_IDENTIFIER = "de.dwd.geoserver.fach.RBSN_SECOND"
+THIRD_IDENTIFIER = "de.dwd.geoserver.fach.RBSN_THIRD"
 LINK = "http://example.gov/md/1"
 
 
@@ -85,6 +88,13 @@ def document_republished():
     republished = DATASET.replace(FILE_IDENTIFIER, SECOND_IDENTIFIER)
     assert SECOND_IDENTIFIER in republished
     return republished
+
+
+def document_republished_again():
+    """The dataset sample under a THIRD file identifier (#1482's shape)."""
+    again = DATASET.replace(FILE_IDENTIFIER, THIRD_IDENTIFIER)
+    assert THIRD_IDENTIFIER in again
+    return again
 
 
 class CollectionHarness:
@@ -348,6 +358,54 @@ class RelationBookkeepingTests(CollectionHarness, TestCase):
             pk=curated.pk, layer=self.layer,
             origin=MetadataOriginEnum.EDITOR.value,
             is_internal=True).exists())
+
+    def test_two_superseded_records_are_closed_with_one_delete(self):
+        """The take-back of #1261 is per pair, not per record (#1482).
+
+        The loop this shape replaced loaded every superseded record whole
+        and DELETEd its stale couplings one statement per record. Every
+        superseded record shares the class of the created one, so the
+        relation columns are the same for all of them and the take-back
+        answers the whole (describes, origin) pair with one DELETE - here
+        through two generations of republishing, so TWO records of this
+        link are stale for the element when the third document arrives.
+        """
+        remote_metadata = self.reference(DATASET)
+        first = remote_metadata.create_metadata_instance()
+        second = self.reference(
+            document_republished()).create_metadata_instance()
+        self.assertNotEqual(first.pk, second.pk)
+
+        # the second collection closed the layer coupling of the first;
+        # re-assert it, so both predecessors carry a capabilities coupling
+        # of this very element when the third document supersedes them
+        first.add_metadata_relation(related_object=self.layer)
+        self.assertTrue(MetadataRelation.objects.filter(
+            layer=self.layer, dataset_metadata=first,
+            is_internal=False).exists())
+
+        with CaptureQueriesContext(connection) as queries:
+            third = self.reference(
+                document_republished_again()).create_metadata_instance()
+
+        relation_deletes = [
+            q['sql'] for q in queries.captured_queries
+            if q['sql'].startswith('DELETE')
+            and 'registry_metadatarelation' in q['sql']]
+        self.assertEqual(
+            len(relation_deletes), 1,
+            f'two stale records answered {len(relation_deletes)} DELETEs - '
+            'the take-back went per record again')
+
+        # both stale couplings of this element are gone, the new one stands
+        for stale in (first, second):
+            self.assertFalse(MetadataRelation.objects.filter(
+                layer=self.layer, dataset_metadata=stale,
+                is_internal=False).exists(),
+                'a stale coupling survived the aggregated take-back')
+        self.assertTrue(MetadataRelation.objects.filter(
+            layer=self.layer, dataset_metadata=third,
+            is_internal=False).exists())
 
     def test_the_outcome_without_a_record_keeps_existing_relations(self):
         """A failed collection removes nothing: there is no replacement."""

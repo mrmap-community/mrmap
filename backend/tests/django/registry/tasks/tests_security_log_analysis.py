@@ -4,10 +4,15 @@ The request and response logs of the proxy are abstract models with one concrete
 model per service type, so the task which analyzes a logged response is told which
 model its primary key belongs to: read from the abstract base there is no table at
 all, and an abstract model cannot be instantiated (#1153).
+
+The hand-off of that task is one message per logged response, which this module
+pins as deliberately as the analysis itself: a message per row is the design and
+not an accident waiting for a batch task (#1459).
 """
 import tempfile
 from datetime import timedelta
 from io import BytesIO
+from unittest.mock import call, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
@@ -41,6 +46,11 @@ def map_image(width=100, height=100, transparent_columns=0):
 
 
 class AnalyzeLoggedResponseTest(TestCase):
+    """What one logged response is worth to the analysis, and what it hands over.
+
+    The analysis reads the row it was handed and stores a count for that row
+    alone; the hand-off which asks for it runs once per logged response.
+    """
 
     fixtures = ["test_users.json", "test_keywords.json", "test_wms.json",
                 "test_wfs.json"]
@@ -78,6 +88,34 @@ class AnalyzeLoggedResponseTest(TestCase):
             response_log.content.save(
                 name="response.png", content=ContentFile(content))
         return response_log
+
+    @patch("registry.models.security.async_analyze_log")
+    def test_a_logged_response_hands_over_one_message_and_no_other(
+            self, mocked_analysis):
+        # the unit the analysis is asked for is the logged response: one message
+        # per row, naming that row and the concrete model it is stored in. Neither
+        # a companion message around it, nor one message for the rows which are
+        # not analyzed yet -- the analysis counts the content of one response and
+        # writes the one-to-one row which belongs to it (#1459).
+        with self.captureOnCommitCallbacks(execute=True):
+            wms_response = self.logged_response(
+                WebMapServiceHttpResponseLog, WebMapServiceHttpRequestLog,
+                WebMapService.objects.get(pk=WMS_PK), content=map_image())
+            wfs_response = self.logged_response(
+                WebFeatureServiceHttpResponseLog,
+                WebFeatureServiceHttpRequestLog,
+                WebFeatureService.objects.get(pk=WFS_PK),
+                content=b"<wfs:FeatureCollection/>")
+
+        self.assertEqual(
+            [
+                call(args=(wms_response.pk,
+                           "registry.webmapservicehttpresponselog")),
+                call(args=(wfs_response.pk,
+                           "registry.webfeatureservicehttpresponselog")),
+            ],
+            mocked_analysis.apply_async.call_args_list,
+            "the two logged responses were not handed over one per row")
 
     def test_the_map_of_a_logged_wms_response_is_analyzed(self):
         response_log = self.logged_response(

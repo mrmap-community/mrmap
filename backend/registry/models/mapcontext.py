@@ -10,8 +10,8 @@ from django.utils.translation import gettext_lazy as _
 from mptt2.models import Node
 from registry.managers.mapcontext import (MapContextLayerManager,
                                           MapContextManager)
-from registry.models import DatasetMetadataRecord, Layer
-from registry.models.metadata import Style
+from registry.models.metadata import DatasetMetadataRecord, Style
+from registry.models.service import Layer
 from simple_history.models import HistoricalRecords
 
 

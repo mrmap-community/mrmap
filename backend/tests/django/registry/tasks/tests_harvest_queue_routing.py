@@ -35,6 +35,7 @@ from MrMap import celery_queues
 from MrMap.celery import app
 from MrMap.settings import CELERY_TASK_QUEUES
 # importing the task modules registers the tasks the router resolves
+import accounts.tasks  # noqa: F401  (registers revoke_expired_role_memberships)
 import notify.tasks  # noqa: F401  (registers finish_background_process)
 import system.tasks  # noqa: F401  (registers delete_old_slow_request_dumps)
 import registry.tasks.alerts  # noqa: F401  (registers refresh_service_alerts)

@@ -59,6 +59,7 @@ from registry.settings import (REGISTRATION_ORPHAN_FILE_GRACE_SECONDS,
                                REGISTRATION_REFERENCE_LEASE_SECONDS,
                                REGISTRATION_REQUEST_TIMEOUT_SECONDS)
 from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout
 from rest_framework.reverse import reverse
 
 #: The recovery of #1263 re-drives a PENDING row only after it has outlived
@@ -182,7 +183,13 @@ def build_ogc_service(
                 }
             }
         }
-    except (ConnectionError, TimeoutError) as e:
+    except (ConnectionError, Timeout) as e:
+        # the requests exceptions, not the builtins of the same name:
+        # requests raises requests.exceptions.*, which are not subclasses
+        # of the builtins, and BackgroundProcessBased.autoretry_for covers
+        # exactly these two (#1457). A host which refused or stayed silent
+        # is a retry, not a failure of the build: running it through the
+        # generic branch below reported every attempt as one.
         raise e
     except Exception as e:
         self.update_state(state=states.FAILURE)

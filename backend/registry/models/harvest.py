@@ -2012,7 +2012,14 @@ class TemporaryMdMetadataFile(models.Model):
         if self.job is None or not self.job.service_id:
             return False
         requested = self.job.get_record_types()
-        detected = MDMetadataXmlMapper._detect_hierarchy_level(mapper.xml_root)
+        # the mapper was built with the detection answer of this very node;
+        # a harvesting import never forces a kind, so the answer is there.
+        # A mapper which carries none - a future caller which forced one -
+        # still gets the document asked the way it was before (#1415).
+        detected = mapper.hierarchy_level
+        if detected is None:
+            detected = MDMetadataXmlMapper._detect_hierarchy_level(
+                mapper.xml_root)
         if detected in requested:
             return False
         file_identifier = "".join(mapper.xml_root.xpath(
@@ -2053,6 +2060,7 @@ class TemporaryMdMetadataFile(models.Model):
         of the document itself is documented on the file and re-raised.
         """
         with self.md_metadata_file.open('rb') as _file:
+            mappers = []
             try:
                 with transaction.atomic():
                     start_db_processing = now()
@@ -2088,6 +2096,14 @@ class TemporaryMdMetadataFile(models.Model):
                 self.has_import_error = True
                 self.save()
                 raise e
+            finally:
+                # the next reader of these parsed instances is another
+                # import, which maps the document again under a fresh uuid;
+                # holding them in the process-global cache until its TTL is
+                # holding a parsed copy of every file this worker imported
+                # (#1415)
+                for mapper in mappers:
+                    mapper.release_cache()
 
     def _import_mapped_instance(self, mapper, instance, start_db_processing):
         """Persist one mapped instance and tell what the import answered.

@@ -51,7 +51,7 @@ Used to configure the allowed hosts from the origin header. The entries are sepa
 ``DJANGO_ALLOWED_HOST_DEFAULTS``
 ********************************
 
-The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the ETF validator answering to ``MRMAP_BASE_URL_FOR_ETF``, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
+The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the deployment's own service address, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
 
 ``DJANGO_TIME_ZONE``
 ********************
@@ -150,6 +150,11 @@ Used to configure how the draining import backlog reports its progress to the ba
 ******************************************
 
 Used to configure how many days the metadata records a harvesting run stored below ``<MEDIA_ROOT>/temporary_md_metadata_file/`` stay after the run reached a terminal phase, before the periodic cleanup of ``registry.tasks.harvest`` takes the rows and their files back (#1237). The default is 0, which takes them with the run as soon as it ended. Every day above 0 is the window in which an administrator can still reschedule the import of a stored record of a run which completed from the admin and find the document there; the hourly sweep ``registry.tasks.harvest.sweep_ended_harvest_temp_files`` names the run again once its window passed (#1295). Unlike the other retention knobs of a media directory, 0 does not mean "keep them until an operator removes them" here: an unbounded window over this pile is exactly the 849k files and 24.4 GB of ended runs the issue reports, so 0 is the minimum of the window and not its absence. This is not ``MRMAP_HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS``, which only says how long a run must have been over before ``manage.py cleanup_temporary_harvest_files`` names it without being asked to.
+
+``MRMAP_UPDATE_JOB_STALE_HORIZON_HOURS``
+****************************************
+
+Used to configure how many hours an unfinished service-update job may stand in a not-yet-decided state - waiting for processing, updating or resumed - before the hourly sweep ``registry.tasks.update.sweep_stale_update_jobs`` fails it and tells the incident channel about the service (#1460). The default is 24. The guards of #1453 redeliver a lost message; this horizon answers the delivery which is gone for good - a broker recreated with the database kept, a purge, a discard - or a run whose retries died without the job ever deciding, because the constraint of one unfinished job per service would otherwise block that service's updates silently, forever. No legitimate update run takes so long, which is what makes the horizon the line that protects a job which still works; a job a worker takes at this very moment is additionally covered by the same row lock the runners hold. A mapping which waits for a human review and a run which decided its outcome while only its metadata step is open are never swept. A value below 1 is raised to 1: a busy queue is the queue watchdog's verdict of #1320, not this sweep's work.
 
 ``CELERY_WORKER_CONCURRENCY``
 *****************************

@@ -32,6 +32,7 @@ functions below naming that case.
 from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.http import Http404
+from extras.permissions import object_organization
 from guardian.shortcuts import get_objects_for_user
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
@@ -124,6 +125,29 @@ def may_see_roles_of(user, target) -> bool:
     # directly
     return administered_organizations(user).filter(
         pk__in=target.groups.values("pk")).exists()
+
+
+def may_audit_permissions_of(user, obj) -> bool:
+    """Whether ``user`` may ask *why* the grants over ``obj`` look as they do.
+
+    #741's explain endpoint answers the grants behind a decision, which
+    discloses who holds which role over which object - more than the caller's
+    own rights. Two authorities answer that: the platform holder and the superuser
+    (whose duty is the whole instance), and the administrator of the
+    organization the object belongs to (the delegated scope of #727's Q3, which
+    stops at its own organization). An object which knows no organization is
+    nobody's delegated business, so only the first two answer it.
+
+    It is deliberately *not* the only gate of that endpoint: a caller whose own
+    rights over the object answer "allowed" has a stake in the answer about
+    themselves, which the view checks beside this.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if getattr(user, "is_superuser", False) or may_grant_platform_role(user):
+        return True
+    organization = object_organization(obj)
+    return may_administer_organization(user, organization)
 
 
 class IsAuthenticatedReadOnlyOrPlatform(BasePermission):

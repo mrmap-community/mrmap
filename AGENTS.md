@@ -73,6 +73,13 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
   GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
   hand when touching either tool.
+  `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
+  #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
+  `docker/` surfaces for the validator's name and — where docker is present, probing for it
+  and skipping the affected checks out loud where it is not — resolves every committed
+  Compose variant and fails when a validator service, its build context or its old host
+  port 5557 appears, or when the shared networks no longer survive the resolution
+  (`python3 scripts/test_validator_retirement.py`).
 
 ### Asking for human decisions
 
@@ -178,7 +185,7 @@ satisfies most of it.
   With that in the environment, the `-f docker-compose.yml -f docker-compose.dev.yml` of the
   examples elsewhere can be dropped. Run all Compose commands from the repository root: the
   `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
-  `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
+  `flower` 5655, `victoria-logs` 5514, plus pgadmin and grafana) and
   `frontend-tests` pins its container name; add them to the override when a check needs them.
 
   This override file belongs to the local-build flow; the preferred prebuilt startup below carries

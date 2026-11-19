@@ -9,6 +9,7 @@ behind it stalls in silence.
 """
 
 from django.test import SimpleTestCase
+from unittest.mock import patch
 
 from MrMap import celery_queues
 from MrMap.celery import (app, check_consumed_queues, queues_without_consumer,
@@ -17,6 +18,7 @@ from MrMap.celery import (app, check_consumed_queues, queues_without_consumer,
 # registering the harvest tasks of the real app, the way importing an app's
 # tasks module registers them; the check must name the tasks it finds
 from registry.tasks import harvest  # noqa: F401
+from registry.tasks import monitoring, update  # noqa: F401
 
 
 class QueuesWithoutConsumerTests(SimpleTestCase):
@@ -72,6 +74,18 @@ class TasksRoutedToTests(SimpleTestCase):
             any("without a queue of its own" in entry
                 for entry in tasks_routed_to(celery_queues.DEFAULT)))
 
+    def test_monitoring_and_update_carry_their_beat_tasks(self):
+        # since #1455 the create_* tasks which the queue-named beat rows of
+        # the monitoring and update settings fire declare the very queue
+        # their rows carry - so a worker narrowed with -Q must hear that it
+        # would strand that work, not "(nothing routes to it yet)"
+        self.assertIn(
+            "registry.tasks.monitoring.create_wms_monitoring_run",
+            tasks_routed_to(celery_queues.MONITORING))
+        self.assertIn(
+            "registry.tasks.update.create_wms_update_job",
+            tasks_routed_to(celery_queues.UPDATE))
+
 
 class CheckConsumedQueuesTests(SimpleTestCase):
     def setUp(self):
@@ -95,13 +109,15 @@ class CheckConsumedQueuesTests(SimpleTestCase):
         self.assertIn("celery@test", message)
 
     def test_error_says_so_for_a_queue_no_task_routes_to(self):
-        # the update and monitoring queues are declared with no task
-        # declaring them today; the line must read as that, not as empty
-        self.queues.select([
-            queue.name for queue in app.conf.task_queues
-            if queue.name != celery_queues.MONITORING])
-        with self.assertLogs("celery", level="ERROR") as logs:
-            check_consumed_queues(sender="celery@test")
+        # the message branch for a queue which carries nothing: since #1455
+        # every queue the deployment declares carries tasks again - the
+        # update and monitoring queues got the create_* declarations their
+        # beat rows already named - so the branch is replayed against a
+        # queue name no task declares, the shape of a retired queue
+        with patch('MrMap.celery.queues_without_consumer',
+                   return_value=['retired-queue']), \
+                self.assertLogs('celery', level='ERROR') as logs:
+            check_consumed_queues(sender='celery@test')
         self.assertIn(
-            "%s' carries: (nothing routes to it yet)" % celery_queues.MONITORING,
+            "'retired-queue' carries: (nothing routes to it yet)",
             "\n".join(logs.output))

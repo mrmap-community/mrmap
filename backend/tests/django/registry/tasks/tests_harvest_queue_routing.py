@@ -24,7 +24,7 @@ import json
 import os
 import re
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 from django.conf import settings
@@ -39,12 +39,22 @@ import accounts.tasks  # noqa: F401  (registers revoke_expired_role_memberships)
 import notify.tasks  # noqa: F401  (registers finish_background_process)
 import system.tasks  # noqa: F401  (registers delete_old_slow_request_dumps)
 import registry.tasks.alerts  # noqa: F401  (registers refresh_service_alerts)
+import registry.tasks.monitoring  # noqa: F401  (registers the create_*_monitoring_run)
+import registry.tasks.update  # noqa: F401  (registers the create_*_update_job)
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.harvesting import LogLevelEnum
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.harvest import (HarvestingJob, PeriodicHarvestingJob,
+                                     TemporaryMdMetadataFile)
+from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
+                                        WebFeatureServiceMonitoringSetting,
+                                        WebMapServiceMonitoringSetting)
+from registry.models.update import (CatalogueServiceUpdateSetting,
+                                    WebFeatureServiceUpdateSetting,
+                                    WebMapServiceUpdateSetting)
 from registry.tasks.harvest import (call_chord_md_metadata_file_to_db,
                                     chord_publish_message_state,
-                                    recover_harvesting_jobs)
+                                    recover_harvesting_jobs,
+                                    recover_harvests_after_restart)
 from tests.django.registry.tasks.tests_harvest_recovery_staleness import \
     FakeRedisClient
 
@@ -101,6 +111,15 @@ class RoutingMapTest(TestCase):
         'registry.tasks.harvest.call_fetch_total_records': celery_queues.DEFAULT,
         'registry.tasks.harvest.recover_harvesting_jobs': celery_queues.DEFAULT,
         'registry.tasks.harvest.create_harvesting_job': celery_queues.DEFAULT,
+        # the tasks the per-service setting rows of beat fire: since #1455
+        # the declaration names the same queue the row's ``queue`` column
+        # names, so beat and an api-triggered run ride one queue
+        'registry.tasks.monitoring.create_wms_monitoring_run': celery_queues.MONITORING,
+        'registry.tasks.monitoring.create_wfs_monitoring_run': celery_queues.MONITORING,
+        'registry.tasks.monitoring.create_csw_monitoring_run': celery_queues.MONITORING,
+        'registry.tasks.update.create_wms_update_job': celery_queues.UPDATE,
+        'registry.tasks.update.create_wfs_update_job': celery_queues.UPDATE,
+        'registry.tasks.update.create_csw_update_job': celery_queues.UPDATE,
     }
 
     def test_every_task_routes_onto_the_queue_of_its_role(self):
@@ -127,10 +146,13 @@ class RoutingMapTest(TestCase):
                 self.assertIn(_queue_of(task_name), declared)
 
     def test_the_beat_scheduled_tasks_reach_their_queues(self):
-        """beat sends through the task declarations (there are no routes), so
-        every periodic task the migration creates must resolve onto a queue
-        a harvest can not fill - the 193 unconsumed check_for_files_to_import
-        messages of the issue are the failure this guards"""
+        """beat sends through the row's ``queue`` column where it carries
+        one and through the task declarations elsewhere (there are no
+        routes), so every periodic task the migration creates must resolve
+        onto a queue a harvest can not fill - the 193 unconsumed
+        check_for_files_to_import messages of the issue are the failure this
+        guards. That the column and the declaration say the same thing is
+        the guard of #1455 below."""
         declared = {queue.name for queue in CELERY_TASK_QUEUES}
         scheduled = PeriodicTask.objects.exclude(task='').values_list('task', flat=True)
         self.assertTrue(len(list(scheduled)) > 0, 'the migrations create beat tasks')
@@ -181,6 +203,98 @@ class RoutingMapTest(TestCase):
                     f'{name} restates {sorted(restated)} on the worker command; '
                     f'a command without -Q consumes the queues the app declares '
                     f'and cannot be half-installed (#1040)')
+
+
+class NameAddressedCallAndBeatColumnTest(TestCase):
+    """Where the dispatch of #1455 really lands: on the call, in the row.
+
+    The routing map above asks the declaration. Two publishers do not get
+    their answer from the declaration alone and need this own question:
+    the name-addressed ``send_task``, for which a celery version may or may
+    not consult the registry of the sending process - the queue on the call
+    is the answer which never depends on that - and the beat dispatch, to
+    which django-celery-beat hands the row's ``queue`` column as call
+    options, overriding the declaration. The guard below therefore asks,
+    for every beat row which names a queue and for every queue the setting
+    models write into a new row, that it names the queue the task itself
+    declares: the drift this issue is about is a row whose column says
+    monitoring while the declaration says default, so the same task is
+    published from two publishers onto two queues.
+    """
+
+    def _routed_queue(self, options, name):
+        """The queue the app's AMQP router delivers a call with these
+        options onto - the answer a publish gets."""
+        route = app.amqp.router.route(dict(options), name)
+        queue = route.get('queue')
+        return getattr(queue, 'name', queue)
+
+    def test_a_bare_name_addressed_call_lands_on_the_default_queue(self):
+        # the counterfactual the queue= on the recovery calls exists for:
+        # with no queue named on the call the router answers the broker
+        # default - away from the db-routines isolation of #1263 - whatever
+        # the task's own declaration says
+        self.assertEqual(
+            self._routed_queue(
+                {}, 'registry.tasks.service.'
+                    'recover_registration_reference_work'),
+            celery_queues.DEFAULT)
+
+    def test_the_worker_start_call_of_the_harvest_recovery_names_its_queue(
+            self):
+        worker = Mock()
+        recover_harvests_after_restart(worker)
+        (name,), options = worker.app.send_task.call_args
+        self.assertEqual(
+            name, 'registry.tasks.harvest.recover_harvesting_jobs')
+        self.assertEqual(
+            self._routed_queue(options, name),
+            recover_harvesting_jobs.queue,
+            msg='the queue named on the call must be what routes it, and '
+                'it must be the queue the task declares (#1455)')
+
+    def test_no_beat_row_names_a_queue_its_task_does_not_declare(self):
+        rows = (PeriodicTask.objects
+                .exclude(queue=None).exclude(queue=''))
+        for row in rows:
+            with self.subTest(task=row.task):
+                self.assertEqual(
+                    row.queue,
+                    app.tasks[row.task].queue,
+                    msg='beat hands the queue column to the producer and it '
+                        'overrides the declaration; both must say the same '
+                        'thing (#1455)')
+
+    def test_the_setting_rows_default_to_their_task_queue(self):
+        # the rows the per-service setting models build, shaped exactly as
+        # their own __init__ builds them and never saved: the column they
+        # write must agree with the declaration of the task they name
+        shapes = (
+            (WebMapServiceMonitoringSetting(),
+             'registry.tasks.monitoring.create_wms_monitoring_run'),
+            (WebFeatureServiceMonitoringSetting(),
+             'registry.tasks.monitoring.create_wfs_monitoring_run'),
+            (CatalogueServiceMonitoringSetting(),
+             'registry.tasks.monitoring.create_csw_monitoring_run'),
+            (WebMapServiceUpdateSetting(),
+             'registry.tasks.update.create_wms_update_job'),
+            (WebFeatureServiceUpdateSetting(),
+             'registry.tasks.update.create_wfs_update_job'),
+            (CatalogueServiceUpdateSetting(),
+             'registry.tasks.update.create_csw_update_job'),
+            # the kwargs are given so the __init__ does not read the user
+            # table for its default; the queue column is set before it
+            (PeriodicHarvestingJob(kwargs='{"service_id": "1"}'),
+             'registry.tasks.harvest.create_harvesting_job'),
+        )
+        for row, task_name in shapes:
+            with self.subTest(task=task_name):
+                self.assertEqual(row.task, task_name)
+                self.assertEqual(
+                    row.queue,
+                    app.tasks[task_name].queue,
+                    msg='the queue column the model writes must agree with '
+                        'the declaration of the task it names (#1455)')
 
 
 class ChordRoutingTest(TestCase):

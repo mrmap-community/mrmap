@@ -14,7 +14,11 @@ from requests.exceptions import RequestException
 logger = logging.getLogger(__name__)
 
 
-@shared_task(queue="default")
+# the create_* tasks are what beat fires: the update settings write the
+# "update" queue into their PeriodicTask rows, and since #1455 the task
+# declarations carry the same queue - a beat row and an api-triggered run
+# of one task must not ride two different queues
+@shared_task(queue=celery_queues.UPDATE)
 def create_wms_update_job(*args, **kwargs):
     from registry.models.update import (WebMapServiceUpdateJob,
                                         WebMapServiceUpdateSetting)
@@ -63,7 +67,7 @@ def run_wms_update(*args, **kwargs):
         )
 
 
-@shared_task(queue="default")
+@shared_task(queue=celery_queues.UPDATE)
 def create_wfs_update_job(*args, **kwargs):
     from registry.models.update import (WebFeatureServiceUpdateJob,
                                         WebFeatureServiceUpdateSetting)
@@ -118,7 +122,7 @@ def run_wfs_update(*args, **kwargs):
         )
 
 
-@shared_task(queue="default")
+@shared_task(queue=celery_queues.UPDATE)
 def create_csw_update_job(*args, **kwargs):
     from registry.models.update import (CatalogueServiceUpdateJob,
                                         CatalogueServiceUpdateSetting)

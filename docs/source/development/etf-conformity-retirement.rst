@@ -17,8 +17,8 @@ The decision itself lives in the `Decision register of #1528
 <https://github.com/mrmap-community/mrmap/issues/1528>`_, asked and recorded
 through ``scripts/decisions`` per :ref:`development-decision-requests`. The
 three rows below still read ``Pending`` — re-read them with
-``scripts/decisions --issue 1528 scan`` rather than trusting this page. Two of
-the removal PRs (#1458, #1529, #1530) were carried out on the operator's
+``scripts/decisions --issue 1528 scan`` rather than trusting this page. The
+removal PRs (#1458, #1529, #1530, #1531, #1532) were carried out on the operator's
 instruction while those rows stood open; that deviation from the gate is
 recorded where it happened, below, and no executed merge on this page is
 presented as an accepted decision. What the open rows still govern is the
@@ -194,8 +194,10 @@ and their permissions gone, survivors intact, reverse-then-forward clean.
 The German catalog lost the family's four run help texts via the canonical
 ``makemessages``. What the family page named as remaining — the
 ``CONFORMITY_DEFAULT_*`` messages and ``BASE_URL_FOR_ETF`` — was retired
-by #1531, runtime verification is owned by #1532 and the remaining docs
-sweep by #1533.
+by #1531, the documentation and audit sweep ran with #1532, and the
+final verification — the exhaustive tracked-tree sweep, the fresh
+installs, the upgrade rehearsal and the runtime checks — ran with #1533
+and is recorded at the end of this page.
 Applying the migration to a live deployment stays destructive data work:
 the export-before-drop and maintenance-window contract below binds the
 operator, and nothing in the migration invents or re-derives data.
@@ -444,32 +446,35 @@ Retention coordination with #1497
   under: full retirement bounds that growth by removing the tables outright,
   strictly better than a retention policy on dead rows.
 
-What still names the family today (#1531 owns these)
-#####################################################
+What still names the family today (#1533 sweep)
+##################################################
 
-The sweeps of #1529 and #1530 left the tracked tree clean of the family's
-code, but three settings sites and one test comment still carry its name. All
-of them are inert — no reader resolves any of them (verified with ``git grep``
-over ``backend/`` at this sweep: each name occurs only at its own definition)
-— and removing them is #1531's, not this page's:
+**Executed (#1531).** The three settings sites and the one test comment
+which still carried the family's name after #1530 are gone:
+``BASE_URL_FOR_ETF`` (env ``MRMAP_BASE_URL_FOR_ETF``) and the stale
+worker-budget comment of ``MrMap/settings.py``, the three unread
+``CONFORMITY_DEFAULT_*_MESSAGE`` strings of ``registry/settings.py`` with
+their catalog msgids, and the validator-callback comment of
+``test_allowed_hosts_settings.py``.
 
-* ``backend/MrMap/settings.py``: ``BASE_URL_FOR_ETF`` (env
-  ``MRMAP_BASE_URL_FOR_ETF``, default ``http://mrmap-appserver:8001``), read
-  by nothing since #1530 removed the client which used it — and the comment
-  block above ``CELERY_TASK_SOFT_TIME_LIMIT`` which still grounds the
-  worker-wide budget in the ETF validator's answer time. The limit itself
-  stays; only its stated reason is stale, and :ref:`celery-queues` already
-  re-grounds that budget on the harvesting request ceiling.
-* ``backend/registry/settings.py``: ``CONFORMITY_DEFAULT_UNKNOWN_MESSAGE``,
-  ``CONFORMITY_DEFAULT_SUCCESS_MESSAGE`` and ``CONFORMITY_DEFAULT_FAIL_MESSAGE``
-  — their only readers were the plugin helpers which left with #1530. Their
-  msgids are still in ``backend/locale/de/LC_MESSAGES/django.po``, sourced
-  from ``registry/settings.py:104-106``, so dropping them is a
-  ``makemessages`` plus ``compilemessages`` pair in the same change, never a
-  hand-edit of the catalog.
-* ``backend/tests/django/test_allowed_hosts_settings.py``: a comment naming
-  "the ETF validator callback" among the reasons for the internal allow-list.
-  The hosts that test asserts on are still wanted; only the reason is stale.
+**Executed (#1533).** The sweep of #1533 then walked every tracked file —
+code, docs, hidden files, assets, environment examples, Docker, CI, tests,
+manifests, lockfiles and fixtures — for the word ``ETF``, the terms
+``inspire-validator``, ``etf-webapp``, port ``5557``, ``squid``,
+``functx``, ``conformity`` in any casing, the task names
+``async_run_conformity*``, the settings names ``CONFORMITY_*`` and
+``BASE_URL_FOR_ETF``, ``QualityEtf``/``QualityInternal``,
+``mapping_helper``, the ``registry_rule``/``registry_ruleset`` table
+names, the six seed-fixture names as ``loaddata`` targets and the
+``report_type`` columns. Every hit belongs to a permitted holder: the
+historical migrations (``0001``, ``0052``, ``0053``, ``0062``, and
+``0063`` only through its dependency line on ``0062``), ``CHANGELOG.md``,
+this page, the three audit pages and the introduction's "What MrMap Is
+Not" note, the guard ``scripts/test_validator_retirement.py`` — plus
+coincidental byte matches in binary images, in ``GETFEATURE`` and
+``IETF`` inside the bundled OGC schema documents, in bounding-box numbers
+of WMS test fixtures and in the ``jettySize`` style attribute of drawio
+diagrams. No live legacy reference remained.
 
 Kept on purpose, and not orphans: the family's name in the historical
 migrations (``0001``, ``0052``, ``0053`` — history is never edited) and in
@@ -504,17 +509,19 @@ inferred from this page:
      - models, managers, enums, plugin helpers, the six fixtures and the
        twelve tables are gone through ``0062``
    * - #1531
-     - open
+     - closed
      - the residual settings, catalog entries and stale comment of the
-       section above
+       section above are gone
    * - #1532
-     - this page's sweep
+     - closed
      - the documentation, the agent instructions and the audit dispositions
-       recorded below
+       carry the retired status recorded below
    * - #1533
-     - open
-     - fresh-install and upgrade verification, the exhaustive tracked-file
-       sweep and the runtime confirmation no checkout can make
+     - closed by its verification PR
+     - the tracked-tree sweep, the fresh installs, the upgrade rehearsal
+       and the runtime confirmation ran on ``develop`` — evidence at the
+       end of this page; what no checkout can answer stays the deployment
+       unknowns above
    * - #1507
      - open, on hold
      - superseded or narrowed by Q3, which is still unanswered
@@ -598,13 +605,11 @@ runs. What follows answers on today's ``develop``, with the stack recipe of
     git grep -n "async_run_conformity" -- backend       # empty
     #    (the name survives only in docs/ and CHANGELOG.md, as audit trail)
     git grep -in conformity -- backend | grep -v migrations
-    # -> only the three CONFORMITY_DEFAULT_* definitions of #1531, which
-    #    nothing reads
+    # -> empty since #1531 removed the last three CONFORMITY_DEFAULT_*
+    #    definitions
     git grep -n "ETF" -- backend | grep -v migrations
-    # -> BASE_URL_FOR_ETF and its stale comment in MrMap/settings.py, the one
-    #    stale reason in tests/django/test_allowed_hosts_settings.py, and
-    #    nothing else which is ours: the rest are GETFEATURE and IETF inside
-    #    the bundled OGC schema documents, not names to rename
+    # -> nothing which is ours: only GETFEATURE and IETF inside the
+    #    bundled OGC schema documents, not names to rename
     git grep -n "ETF" -- docs ':(exclude)docs/source/development'
     # -> only the retirement note of "What MrMap Is Not" in the introduction
     # 3. the twelve tables and their content types are gone on a migrated db
@@ -620,3 +625,60 @@ runs. What follows answers on today's ``develop``, with the stack recipe of
 The live counts of a *deployment* are not derivable from a checkout at all —
 they are the numbered unknowns above, and only that deployment's operator can
 answer them.
+
+
+Verification evidence of the final gate (#1533)
+###############################################
+
+Re-executed on ``develop`` at ``0ac18ad93`` (2026-11-19) in the job's own
+Compose stack on the prebuilt backend image (fingerprint ``fcbd17dfa3b5``).
+Everything below was measured there, not inferred, and no deployment was
+touched.
+
+*   **Tracked-tree sweep:** clean, as the section above records; the guard
+    ``python3 scripts/test_validator_retirement.py`` passes its 76 checks
+    and every committed Compose variant resolves without a validator
+    service, without its build context and without port 5557.
+*   **Fresh installs:** three databases migrated from scratch to the
+    current leaf ``0063`` (the test runner's ``test_mrmap``, the backend
+    service's ``mrmap`` and the rehearsal scratch), each with
+    ``manage.py check`` reporting no issues, ``makemigrations --check
+    --dry-run`` reporting no drift, and the full CI pre-submit check green
+    (flake8, migration drift, translation freshness);
+    ``scripts/migration_graph_smoke.py`` reports one leaf per app.
+*   **Upgrade rehearsal:** on a scratch database the schema was reversed
+    to ``registry/0061``, the family was re-seeded — the six retired seed
+    fixtures' rows reproduced as SQL (they cannot pass ``loaddata`` under
+    current code, their models being gone: itself the confirmation that
+    no loader of theirs survives) — plus representative rows in all four
+    run tables carrying ETF report bodies (finished, still running with
+    ``passed`` NULL, and failed variants) and unrelated fixture rows
+    (users, CRS, keywords, a WMS with layers). Migrated forward through
+    ``0062`` and ``0063``: all twelve tables, the 9 content types and the
+    36 permissions were gone, while 187 survivor tables — the metadata
+    profile rule tables among them —, the 110 remaining registry content
+    types and every other permission row compared identical. A second
+    reverse-then-forward pass verified the same again.
+*   **Worker and Beat state:** the celery registry of the migrated
+    application holds 44 tasks and none of the three retired names;
+    ``PeriodicTask`` holds 13 rows, none naming the family. Broker queue
+    contents and Beat rows of a *deployment* remain the operator unknowns
+    above.
+*   **Ordinary work unaffected:** the worker time-limit guard
+    (``tests.django.test_celery_worker_config``, 7 tests), the
+    harvesting/update/monitoring task modules (44 tests) and the whole
+    Behave suite (96 features, 708 scenarios, 4701 steps, 0 failures) ran
+    green; the generated OpenAPI schema (170945 lines, exit 0) carries no
+    conformity or ETF resource; the frontend type check, lint and the
+    full Vitest coverage run (1723 tests, the MetadataEditor screens
+    among them) passed.
+*   **Host footprint:** the targeted listings of the operator cleanup
+    section — container by name, container by compose-service label,
+    image by ``inspire-validator``/``etf-webapp`` — came back empty on
+    the verification host; the runbook commands are executable as
+    written.
+*   **Still open after this gate (owners, not code):** Q1-Q3 of #1528
+    read ``Pending``, so applying ``0062`` to a live database, the fate
+    of #1507 and the export/restore rehearsal owned by #1509 remain
+    per-deployment owner decisions exactly as the contract above draws
+    them.

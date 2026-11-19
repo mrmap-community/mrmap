@@ -40,6 +40,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    release-versioning-baseline
    canonical-version
    commit-classification
+   release-planning
    versioned-images
    schedule-optimization-v3
    code-quality

@@ -52,15 +52,26 @@ The window
     in this order:
 
     1. **While no release has ever been promoted** (today's state): the
-       configured ``last-release-sha``, set to ``e4b59b976`` - the last commit
-       on ``develop`` before 2023-03-24, the date of ``0.1.0`` in the
-       changelog. That is the machine reading of the approved baseline: every
-       commit after it is unreleased, and everything merged after it joins the
-       same first planned release. ``commit-search-depth`` (6000) must stay
-       larger than the distance between anchor and tip - the offline suite
-       measures the distance on every run and fails when the depth stops
-       spanning it, because a window that silently truncates is the one
-       failure mode that would drop a change from the changelog forever.
+       configured ``last-release-sha``, measured as
+       ``git rev-list -1 --first-parent --before=2023-03-24 origin/develop``
+       → ``e4b59b976f`` ("Update django.po, list_permissions.feature, and 39
+       more files..."). Its own commit date is 2023-03-24 09:47+01:00 - one
+       day after the changelog baseline of ``0.1.0`` (2023-03-23) - and an
+       exact date rule cannot be applied on this history: merge commits carry
+       old committer dates (the same walk with an explicit
+       ``--before=2023-03-24T00:00:00Z`` lands on a merge whose committer
+       date is 2021-07-08), so the filter is quoted exactly rather than a
+       rule that would not reproduce. The day of the boundary is
+       plan-neutral anyway: the anchor and its neighbours are prose-era 2023
+       commits that never parse (#1578: 53 of 7585 parse, the conventional
+       era starts years later), so no note and no bump hangs on which
+       2023-03-2x commit carries the boundary. Everything merged after the
+       anchor is unreleased, which is the baseline's meaning: the first
+       planned release collects it all. ``commit-search-depth`` (6000) must
+       stay larger than the distance between anchor and tip - the offline
+       suite measures the distance on every run and fails when the depth
+       stops spanning it, because a window that silently truncates is the
+       one failure mode that would drop a change from the changelog forever.
     2. **From the first promoted release on** (after #1584): a plain **git
        tag** - nothing else. Verified: with no GitHub release, the planner
        backfills the release from the tag whose name matches the manifest

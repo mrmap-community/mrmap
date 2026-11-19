@@ -183,17 +183,21 @@ def changelog_checks(changelog, config, manifest):
     check('the curated Unreleased section survives',
           '## Unreleased\n' in changelog)
     # release-please inserts its release before the FIRST heading matching
-    # DEFAULT_VERSION_HEADER_REGEX; the curated section must not match it, or
-    # generated releases land above "Unreleased" and the file lies.
-    first = re.search(r'\n#{1,3} ?v?[0-9[]', changelog)
-    lands_on_baseline = (first is not None and
-                         changelog.startswith('## [0.1.0]', first.start() + 1))
-    check('the first version-shaped heading is the released baseline',
-          lands_on_baseline,
-          f'first heading: '
-          f'{changelog[first.start():first.start() + 22].strip() if first else None!r}; the '
-          'planner inserts its release there, so the curated heading must not '
-          'look like a version (it is spelled "## Unreleased" for this reason)')
+    # its DEFAULT_VERSION_HEADER_REGEX ('\n###? v?[0-9[]', mirrored here).
+    # The invariant that must survive the planner's own releases: that
+    # heading carries the canonical version - today the baseline 0.1.0,
+    # after a release PR whatever VERSION that PR moved to - so no edit of
+    # this suite is ever needed inside the release flow.
+    version = cv.read_version(REPO)
+    first = re.search(r'\n#{2,3} v?[0-9[]', changelog)
+    lands_on_canonical = (first is not None and
+                          changelog.startswith(f'## [{version}]', first.start() + 1))
+    check('the first version-shaped heading carries the canonical version',
+          lands_on_canonical,
+          f'expected "## [{version}]" where the planner inserts, found '
+          f'{changelog[first.start():first.start() + 24].strip() if first else None!r}; '
+          'the curated section must not look like a version (it is spelled '
+          '"## Unreleased" for this reason)')
 
 
 def projection_checks():

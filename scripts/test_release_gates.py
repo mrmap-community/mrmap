@@ -304,6 +304,44 @@ def test_api_ledger_validation():
         check("api: an exception without refs is not approval and cannot run",
               code == 2 and "refs" in err, err)
 
+    with tempfile.TemporaryDirectory(prefix="rg-api-") as tmp:
+        # one reviewed entry must not become a blanket approval for its kind
+        base = {"/api/x": {"get": {"operationId": "g", "responses": resp(OBJ)}}}
+        args = scenario(tmp, released_manifest(), doc(base), doc({}),
+                        exceptions=[{"id": "E1", "kind": "removed-operation",
+                                     "target": "*", "refs": ["#1583"]}])
+        code, out, err = run_gates(args, tmp)
+        check("api: a ledger target of '*' is a wildcard over the whole kind "
+              "and cannot run (exit 2), not a covering exception",
+              code == 2 and "wildcard" in err, err)
+
+        # the matcher itself cannot over-cover either, validated or not
+        rg = gates_module()
+        blanket = [{"id": "E1", "kind": "removed-operation",
+                    "target": "*", "refs": ["#1583"]}]
+        check("api: match_exception never lets a bare '*' cover a finding",
+              rg.match_exception("removed-operation", "GET /anything",
+                                 blanket) is None, "")
+
+    with tempfile.TemporaryDirectory(prefix="rg-api-") as tmp:
+        # a BOUNDED prefix stays legal: it names the family a human reviewed
+        base = {"/api/x": {"get": {
+            "operationId": "g",
+            "parameters": [{"name": "p", "in": "query", "required": False},
+                           {"name": "q", "in": "query", "required": False}],
+            "responses": resp(OBJ)}}}
+        cand = {"/api/x": {"get": {
+            "operationId": "g",
+            "parameters": [{"name": "p", "in": "query", "required": False}],
+            "responses": resp(OBJ)}}}
+        args = scenario(tmp, released_manifest(), doc(base), doc(cand),
+                        exceptions=[{"id": "E1", "kind": "removed-parameter",
+                                     "target": "GET /api/x*",
+                                     "refs": ["#1583"]}])
+        code, out, err = run_gates(args, tmp)
+        check("api: a bounded prefix target ('GET /api/x*') still covers the "
+              "family it names", code == 0, err)
+
 
 def test_api_ref_resolution():
     base_schema = {"$ref": "#/components/schemas/Pet"}
@@ -711,6 +749,28 @@ def test_upgrade_destructive_needs_approval():
                                     "--constraints", "constraints.json"], repo)
         check("upgrade: the ledger entry with refs approves it",
               code == 0, err)
+
+        # a blanket waiver of the whole kind is not a reviewable entry
+        (repo / "scripts" / "release_contract_exceptions.json").write_text(
+            json.dumps({"exceptions": [{
+                "id": "D3", "kind": "destructive-migration",
+                "target": "*", "refs": ["#1583"]}]}), encoding="utf-8")
+        code, out, err = run_gates(["upgrade", "--base", "develop",
+                                    "--constraints", "constraints.json"], repo)
+        check("upgrade: a '*' destructive target cannot run - one approved "
+              "drop is not approval for every future one",
+              code == 2 and "wildcard" in err, err)
+
+        # the bounded prefix stays legal here too
+        (repo / "scripts" / "release_contract_exceptions.json").write_text(
+            json.dumps({"exceptions": [{
+                "id": "D4", "kind": "destructive-migration",
+                "target": "notify.0007_*", "refs": ["#1583"]}]}),
+            encoding="utf-8")
+        code, out, err = run_gates(["upgrade", "--base", "develop",
+                                    "--constraints", "constraints.json"], repo)
+        check("upgrade: a bounded prefix target approves the migration it "
+              "names", code == 0, err)
 
         # an exception for a migration nobody added is stale
         (repo / "scripts" / "release_contract_exceptions.json").write_text(

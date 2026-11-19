@@ -79,7 +79,13 @@ answer, it never re-asks it and never accepts an answer at the command line.
     destructive operation in a new migration, passes only when an entry names
     it and cites the issue or pull request that reviewed it (``refs``). An
     entry that matches no current finding is itself a failure - **stale
-    exceptions are how a ledger starts covering changes nobody reviewed.**
+    exceptions are how a ledger starts covering changes nobody reviewed.** A
+    target is matched exactly, or as a *bounded* trailing-``*`` prefix
+    (``notify.0007_*``); a bare ``*`` is refused as a cannot-run, because its
+    empty prefix matches everything of that kind - one reviewed entry would
+    approve every future breaking change of the kind, and the stale check could
+    never fire for it. The point of the ledger is that the PR editing it IS the
+    review, and what a human approved there was a named change.
 
 ``scripts/release_upgrade_baseline.json``
     The staged #1180 boundaries: the oldest supported upgrade baseline (the

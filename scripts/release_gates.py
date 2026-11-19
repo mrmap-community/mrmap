@@ -46,7 +46,10 @@ api       Diff the candidate OpenAPI/JSON:API document against the committed
           body, removed response status code, removed property, newly required
           property, changed property type, narrowed enum. Every breaking
           finding must be covered by an entry of the reviewed exceptions
-          ledger naming the issue that reviewed it (`refs`), and an exception
+          ledger naming the issue that reviewed it (`refs`), matched exactly or
+          by a BOUNDED trailing-* prefix - a bare `*` target is a wildcard over
+          the whole kind and is refused, since one reviewed change is not
+          approval for every change of its kind. An exception
           that matches no finding is itself a failure (reviewed exceptions do
           not accumulate). Additive changes are reported, never failed. A
           candidate whose `info.version` differs from the canonical version of
@@ -326,6 +329,21 @@ def read_exceptions(root, path):
         if entry["id"] in seen:
             raise GateCannotRun(
                 f"{path}: duplicate exception id {entry['id']}")
+        target = entry["target"]
+        if isinstance(target, str) and target.endswith("*") \
+                and not target[:-1].strip():
+            # The one degenerate case of the prefix rule. `*` alone leaves an
+            # empty prefix, and startswith("") is true for everything, so one
+            # entry reviewed for ONE named change would cover every future
+            # breaking change of that kind - and the stale-exception check
+            # could never fire for it while any finding of the kind exists.
+            # The ledger is reviewed content: the PR that edits it is the
+            # review, and what a human approved there was a target.
+            raise GateCannotRun(
+                f"{path}: exception {entry['id']}! target {target!r} is a "
+                "wildcard over the whole kind, which no review can mean - "
+                "name the change it reviewed (a bounded prefix such as "
+                "'notify.0007_*' is allowed, a bare '*' is not)")
         seen.add(entry["id"])
     return entries
 
@@ -333,12 +351,16 @@ def read_exceptions(root, path):
 def match_exception(kind, target, exceptions):
     """The covering exception for a finding, or None. Target matching is exact
     or by an explicit trailing-* prefix written in the ledger - not a regex, so
-    a ledger entry cannot quietly widen itself into other findings."""
+    a ledger entry cannot quietly widen itself into other findings. A prefix
+    must have content beside the star: `read_exceptions` refuses a bare '*' as
+    a wildcard over the whole kind, and the branch here requires it too, so an
+    unvalidated caller cannot get the match-all behaviour either."""
     for entry in exceptions:
         if entry["kind"] != kind:
             continue
         want = entry["target"]
-        if want.endswith("*") and target.startswith(want[:-1]):
+        if want.endswith("*") and want[:-1].strip() \
+                and target.startswith(want[:-1]):
             return entry
         if want == target:
             return entry

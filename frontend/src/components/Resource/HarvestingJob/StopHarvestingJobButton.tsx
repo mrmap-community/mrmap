@@ -3,7 +3,6 @@ import {
   Button,
   useNotify,
   useRecordContext,
-  useRefresh,
   useResourceDefinition,
   useTranslate,
   useUpdate,
@@ -41,7 +40,6 @@ const StopHarvestingJobButton = () => {
   const { hasEdit } = useResourceDefinition({ resource: "HarvestingJob" });
   const translate = useTranslate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const [update, { isPending }] = useUpdate();
   const [asking, setAsking] = useState(false);
 
@@ -65,7 +63,6 @@ const StopHarvestingJobButton = () => {
         { mutationMode: "pessimistic", returnPromise: true },
       );
       notify("harvestRun.list.stopAsked", { type: "info" });
-      refresh();
       setAsking(false);
     } catch {
       notify("harvestRun.stopFailed", { type: "error" });

@@ -116,6 +116,48 @@ def _record_of(model, file_identifier):
         file_identifier=file_identifier).first()
 
 
+def _write_record_of(instance, handler, change_reason, document_backup):
+    """Write one parsed record once and answer with the stored row.
+
+    The row carries the `_custom_state` the handler reads to tell a created
+    record from an updated and an untouched one. `document_backup` is called
+    only when a write actually happens, so an unchanged record pays no
+    serialization of the document (#1415).
+    """
+    if instance.__class__.__name__ not in METADATA_RECORD_TYPE_KEYS:
+        raise ValueError(
+            f"Unsupported model class {instance.__class__} for custom persistence.")
+
+    values = _write_values_of(instance, handler)
+    created = update = False
+    db_obj = _record_of(instance.__class__, instance.file_identifier)
+
+    if db_obj is None:
+        # a new record gets the key of the parsed instance: the relations of
+        # the document are set on the instance which carries that key
+        db_obj = instance.__class__(
+            file_identifier=instance.file_identifier, **values)
+        try:
+            # the savepoint keeps the transaction of the import usable when a
+            # concurrent import of the same file identifier was faster: the
+            # row it inserted is the one which answers from now on, which is
+            # what get_or_create returned as well
+            with transaction.atomic():
+                _save_record(db_obj, document_backup(), change_reason)
+            created = True
+        except IntegrityError:
+            if (db_obj := _record_of(instance.__class__, instance.file_identifier)) is None:
+                raise
+
+    if db_obj is not None and not created and instance.date_stamp > db_obj.date_stamp:
+        _apply_values(db_obj, values)
+        _save_record(db_obj, document_backup(), change_reason)
+        update = True
+
+    db_obj._custom_state = created, update
+    return db_obj
+
+
 def get_or_create_metadatarecord(instances, handler):
     """Look every parsed metadata record up and write it once.
 
@@ -133,42 +175,22 @@ def get_or_create_metadatarecord(instances, handler):
     Returns:
         dict: the stored records by the key of the parsed instance
     """
-    backup = str(handler.mapper.serialize_document(), "UTF-8")
     change_reason = getattr(handler, "change_reason", None)
-    db_objs = []
-    for instance in instances:
-        if instance.__class__.__name__ not in METADATA_RECORD_TYPE_KEYS:
-            raise ValueError(
-                f"Unsupported model class {instance.__class__} for custom persistence.")
+    # the backup is the serialization of the whole document, which only a
+    # written record needs: a record the catalogue did not change is not
+    # written at all and does not pay for a backup either; when several
+    # records of one document are written, they share the one answer (#1415)
+    backup = _unset = object()
 
-        values = _write_values_of(instance, handler)
-        created = update = False
-        db_obj = _record_of(instance.__class__, instance.file_identifier)
+    def document_backup():
+        nonlocal backup
+        if backup is _unset:
+            backup = str(handler.mapper.serialize_document(), "UTF-8")
+        return backup
 
-        if db_obj is None:
-            # a new record gets the key of the parsed instance: the relations of
-            # the document are set on the instance which carries that key
-            db_obj = instance.__class__(
-                file_identifier=instance.file_identifier, **values)
-            try:
-                # the savepoint keeps the transaction of the import usable when a
-                # concurrent import of the same file identifier was faster: the
-                # row it inserted is the one which answers from now on, which is
-                # what get_or_create returned as well
-                with transaction.atomic():
-                    _save_record(db_obj, backup, change_reason)
-                created = True
-            except IntegrityError:
-                if (db_obj := _record_of(instance.__class__, instance.file_identifier)) is None:
-                    raise
-
-        if db_obj is not None and not created and instance.date_stamp > db_obj.date_stamp:
-            _apply_values(db_obj, values)
-            _save_record(db_obj, backup, change_reason)
-            update = True
-
-        db_obj._custom_state = created, update
-        db_objs.append(db_obj)
+    db_objs = [_write_record_of(
+        instance, handler, change_reason, document_backup)
+        for instance in instances]
 
     final_key_map = handler.build_final_key_map(db_objs)
     original_key_map = handler.build_final_key_map(instances)

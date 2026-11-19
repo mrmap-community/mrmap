@@ -51,32 +51,41 @@ class WebFeatureServiceClient(OgcClient):
             "//*[local-name()='Operation' and @name='GetFeature']"
             "/*[local-name()='Parameter' and @name='outputFormat']//*[local-name()='Value']/text()")
         for node in root.findall("{*}FeatureTypeList/{*}FeatureType"):
-            name = (node.findtext("{*}Name") or "").strip()
-            if not name or (eligible is not None and name not in eligible):
-                continue
-            formats = node.xpath("./*[local-name()='OutputFormats']/*/text()") or operation_formats
-            output_format = next((value.strip() for value in formats if value.strip().lower() in
-                                  {"application/json", "application/geo+json", "json", "geojson"}), None)
-            crs = node.xpath(
-                "./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or "
-                "local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
-            if not output_format or not any(value.strip().upper().endswith((":4326", "::4326", "/4326")) for value in crs):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
-                continue
-            try:
-                west, south, east, north = self._get_preview_bbox(node)
-            except ValueError:
-                continue
-            try:
-                request = self.get_feature_kvp_request(
-                    type_names=[name], max_features=max_features,
-                    srs_name="EPSG:4326", output_format=output_format)
-            except InitialError as error:
-                raise ValueError(str(error)) from error
-            request.url = update_queryparams(
-                url=request.url,
-                params={"BBOX": ",".join(map(str, (south, west, north, east))) + ",EPSG:4326"})
-            return request
+            request = self._preview_request_for_feature_type(
+                node, eligible, operation_formats, max_features)
+            if request is not None:
+                return request
         raise ValueError("Capabilities contain no feature type suitable for a GeoJSON preview")
+
+    def _preview_request_for_feature_type(self, node, eligible,
+                                          operation_formats, max_features):
+        """The bounded GeoJSON preview request of one advertised feature
+        type, or None when the feature type is not suitable."""
+        name = (node.findtext("{*}Name") or "").strip()
+        if not name or (eligible is not None and name not in eligible):
+            return None
+        formats = node.xpath("./*[local-name()='OutputFormats']/*/text()") or operation_formats
+        output_format = next((value.strip() for value in formats if value.strip().lower() in
+                              {"application/json", "application/geo+json", "json", "geojson"}), None)
+        crs = node.xpath(
+            "./*[local-name()='DefaultCRS' or local-name()='OtherCRS' or "
+            "local-name()='DefaultSRS' or local-name()='OtherSRS' or local-name()='SRS']/text()")
+        if not output_format or not any(value.strip().upper().endswith((":4326", "::4326", "/4326")) for value in crs):  # NOSONAR "::4326" is the suffix of the CRS URN urn:ogc:def:crs:EPSG::4326, an OGC identifier, not an IP address
+            return None
+        try:
+            west, south, east, north = self._get_preview_bbox(node)
+        except ValueError:
+            return None
+        try:
+            request = self.get_feature_kvp_request(
+                type_names=[name], max_features=max_features,
+                srs_name="EPSG:4326", output_format=output_format)
+        except InitialError as error:
+            raise ValueError(str(error)) from error
+        request.url = update_queryparams(
+            url=request.url,
+            params={"BBOX": ",".join(map(str, (south, west, north, east))) + ",EPSG:4326"})
+        return request
 
     @staticmethod
     def _get_preview_bbox(node):

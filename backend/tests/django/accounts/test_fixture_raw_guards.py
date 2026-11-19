@@ -41,8 +41,9 @@ from accounts.models.guardian import (GroupGroupObjectPermission,
                                       OrganizationGroupObjectPermission,
                                       OrganizationUserObjectPermission)
 from accounts.models.groups import Organization
+from accounts.models.roles import Role
 from accounts.signals import (handle_organization_creation,
-                              handle_secured_model_creation)
+                              handle_role_managed_model_creation)
 from registry.models.guardian import (
     WebFeatureServiceGroupObjectPermission,
     WebMapServiceGroupObjectPermission)
@@ -86,9 +87,9 @@ def grant_rows():
     Both the dedicated guardian tables of the models the bootstrap grants on
     and guardian's shared tables are asked: a grant which a receiver duplicates
     during a ``loaddata`` has to show up in one of them, wherever guardian
-    answers it from. The global permissions a group holds are counted as well,
-    because ``handle_secured_model_creation`` adds ``add_<model>`` to the
-    administering group as part of a grant.
+    answers it from. The global permissions a group holds are counted as well:
+    before #732 the bootstrap added ``add_<model>`` to the group it granted,
+    and a global grant is exactly what must never move during a load.
 
     Returns:
         dict: table label -> row count, plus the global group permissions
@@ -170,7 +171,7 @@ class ReceiverTakesRawTestCase(TestCase):
         # the reading has to include what is there, else this test would also
         # pass for an app which simply connected nothing at all
         self.assertIn("accounts.signals.handle_organization_creation", connected)
-        self.assertIn("accounts.signals.handle_secured_model_creation",
+        self.assertIn("accounts.signals.handle_role_managed_model_creation",
                       connected)
 
         without_guard = sorted(
@@ -215,30 +216,35 @@ class ReceiverCalledWithRawTestCase(TestCase):
             self):
         """An owner in memory is exactly what the guard has to outrule
 
-        Without the guard this call reaches the grant: the administering group
-        of the organization exists, the instance names its owner and carries a
-        primary key, so it is the situation of #862 - and ``raw`` is the only
-        argument which says that nothing was really registered.
+        Without the guard this call reaches the grant: the organization's role
+        which manages the model exists and is active, the instance names its
+        owner and carries a primary key, so it is the situation of #862 - and
+        ``raw`` is the only argument which says that nothing was really
+        registered.
         """
         organization = Organization.objects.create(name="Raw Guard Org")
-        admins = Group.objects.get(
-            name=f"Raw Guard Org {WebMapService._meta.model_name} Admins")
+        self.assertTrue(
+            Role.objects.for_org(organization).with_definition(
+                "resource_editor").exists(),
+            "without a role which manages the model the guard has nothing "
+            "to outrule")
+        before = grant_rows()
 
         loaded = WebMapService(title="Loaded WMS")
         loaded.pk = "11111111-2222-3333-4444-555555555555"
         loaded.owner = organization
 
         with self.assertNoLogs(LOGGER, level="WARNING"):
-            handle_secured_model_creation(
+            handle_role_managed_model_creation(
                 sender=WebMapService, instance=loaded, created=True, raw=True)
 
         self.assertFalse(
             WebMapServiceGroupObjectPermission.objects.filter(
                 content_object_id=loaded.pk).exists())
-        self.assertFalse(
-            admins.permissions.filter(codename="add_webmapservice").exists(),
-            "the administering group was given the right to register services "
-            "for a service which a fixture loaded")
+        self.assertEqual(
+            grant_rows(), before,
+            "a loaded service moved a grant row, which only a registration "
+            "may do")
 
 
 class DeployedOrganizationDumpTestCase(TestCase):
@@ -342,7 +348,7 @@ class LoadedServiceStaysQuietTestCase(TestCase):
     def test_a_loaded_service_leaves_the_receiver_quiet(self):
         """The guard, not the missing owner, is what keeps it quiet
 
-        ``handle_secured_model_creation`` warns once for every service it cannot
+        ``handle_role_managed_model_creation`` warns once for every service it cannot
         grant, and it is reached for a loaded service unless ``raw`` returned
         first. The class fixtures hold no service: the only save inside the
         block is the one of the fixture rows.

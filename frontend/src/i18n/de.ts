@@ -1,6 +1,54 @@
 import { TranslationMessages } from "ra-core";
 
 const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
+  // die Sitzungszustände aus #834: warum die Login-Seite erschien und was eine
+  // abgelehnte Aktion für eine gültige Sitzung bedeutet
+  auth: {
+    sessionExpired: "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+    sessionRevoked:
+      "Ihre Anmeldung wurde vom Server widerrufen. Bitte melden Sie sich erneut an.",
+    forbidden: "Sie haben für diese Aktion keine Rechte mehr.",
+  },
+  // die Organisationsverwaltung aus #737: Mitglieder und Rollen einer
+  // ausgewählten Organisation, gateiert über den Berechtigungs-Snapshot aus #836
+  administration: {
+    organization: {
+      label: "Organisation",
+      placeholder: "Organisation auswählen",
+      noneForUser: "Sie administrieren keine Organisation.",
+    },
+    members: {
+      title: "Mitglieder",
+      roles: "Rollen",
+      noRoles: "Keine Rolle in dieser Organisation",
+      add: "Mitglied hinzufügen",
+      addTitle: "Ein Mitglied zur Organisation hinzufügen",
+      user: "Benutzer",
+      added: "%{user} wurde zur Organisation hinzugefügt",
+      addFailed: "Das Mitglied konnte nicht hinzugefügt werden.",
+      assign: "Rolle zuweisen",
+      assignTitle: "Eine Rolle für %{user} zuweisen",
+      role: "Rolle",
+      assigned: "Die Rolle %{role} wurde zugewiesen.",
+      assignFailed: "Die Rolle konnte nicht zugewiesen werden.",
+      revoke: "Rolle %{role} entziehen",
+      revoked: "Die Rolle %{role} wurde entzogen.",
+      revokeFailed: "Die Rolle konnte nicht entzogen werden.",
+      selfRevoked:
+        "Sie haben Ihre eigene Administratorrolle entzogen; die Verwaltungsseiten stehen Ihnen nicht mehr zur Verfügung.",
+    },
+    audit: {
+      roles: "Verlauf der Rollendefinitionen",
+      memberships: "Verlauf der Rollenmitgliedschaften",
+    },
+    roles: {
+      title: "Rollen",
+      members: "Mitglieder in Organisation",
+      permissions: "Berechtigungen",
+      permissionCount:
+        "%{smart_count} Berechtigung |||| %{smart_count} Berechtigungen",
+    },
+  },
   cronInput: {
     openEditor: "Klicken, um den Cron-Zeitplan zu bearbeiten.",
     minuteHint: "Mit Minute 0 wird der Job einmal zu jeder ausgewählten Stunde ausgeführt. * bedeutet jede Minute.",
@@ -26,6 +74,34 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     weekly: "Jeden %{days} um %{time} Uhr",
     monthly: "Jeden Monat am Tag %{day} um %{time} Uhr",
     yearly: "Jedes Jahr am %{day}. %{month} um %{time} Uhr",
+  },
+  // die Antwort der Zeitplan-Formulare vor dem Speichern (#1327); die
+  // Warnungen selbst kommen übersetzt aus dem Vorschau-Endpunkt
+  schedulePreview: {
+    title: "Zeitplan-Vorschau",
+    description:
+      "Was dieser Zeitplan bedeuten würde, beantwortet bevor etwas gespeichert wird.",
+    button: "Zeitplan vorschauen",
+    loading: "Wird geprüft…",
+    missingService:
+      "Dieses Formular ist keinem Dienst zugeordnet, sein Zeitplan kann nicht vorgeschaut werden.",
+    nextRuns: "Nächste Läufe",
+    interval: "Abstand zwischen den Läufen",
+    p50: "Median der Laufdauer",
+    p95: "95. Perzentil der Laufdauer",
+    samples: "Vergleichbare abgeschlossene Läufe",
+    unknown: "unbekannt",
+    warnings: "Warnungen",
+    capacity: "Worker-Kapazität",
+    suggestions: "Taktgleiche Alternativen",
+    suggestionApply: "Übernehmen",
+    suggestionFirings: "Ausführungen im geprüften Horizont",
+    suggestionOccupancy: "Erwartete Queue-Auslastung",
+    suggestionSamples: "Gemessene Task-Stichproben (Queue)",
+    noSuggestions: "Keine Alternative vorgeschlagen",
+    stale:
+      "Das Formular wurde nach dieser Antwort geändert; Vorschau erneut ausführen.",
+    error: "Die Vorschau konnte nicht beantwortet werden: %{detail}",
   },
   viewerAdd: {
     title: "Kartendienst hinzufügen",
@@ -81,6 +157,8 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     selectLayer: "Wählen Sie einen Layer im Baum, um Deckkraft, Stil und Dimensionen zu bearbeiten.",
     edit: "%{layer} bearbeiten",
     title: "Layer-Einstellungen",
+    mapSettings: "Karteneinstellungen",
+    wmsList: "WMS-Liste",
     opacity: "Deckkraft",
     opacityValue: "%{percent}%",
     pin: "Zeitleiste anheften",
@@ -261,6 +339,72 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "spatialSecured": "Räumliche Zugriffsregeln konfiguriert",
     "rules": "Zugriffsregeln",
   },
+  metadataEditor: {
+    "sections": "Bereiche",
+    "completeness": "Profil-Vollständigkeit",
+    "completenessCount": "%{filled} von %{total} Pflichtfeldern ausgefüllt",
+    "validation": "Validierung",
+    "errorCount": "%{smart_count} Fehler |||| %{smart_count} Fehler",
+    "warningCount": "%{smart_count} Warnung |||| %{smart_count} Warnungen",
+    "validationClean": "Bisher keine Befunde.",
+    "jumpToField": "Zu %{field} springen",
+    "writtenTo": "geschrieben nach %{path}",
+    "isoToggle": "ISO-Pfade",
+    "unsavedChanges": "%{smart_count} ungespeicherte Änderung |||| %{smart_count} ungespeicherte Änderungen",
+    "allSaved": "Alle Änderungen gespeichert",
+    "saveAndPublish": "Speichern und veröffentlichen",
+    "saved": "Der Datensatz wurde gespeichert.",
+    "saveFailed": "Der Datensatz konnte nicht gespeichert werden.",
+    "noPermission": "Sie dürfen diesen Datensatz nicht bearbeiten.",
+    "simple": "Einfach",
+    "advanced": "Erweitert",
+    "modeHint": "Einfach zeigt die Pflichtfelder und empfohlenen Felder des Profils; Erweitert ergänzt die optionalen.",
+    "otherElements": "Weitere Elemente",
+    "fieldsSection": "Felder",
+    "sourceCard": "Herkunft",
+    "customizedHint": "Dieser Datensatz wurde von mrmap geschrieben und kann von seiner übernommenen Quelle abweichen.",
+    "relationsReadonly": "Verknüpfungen werden auf der Datensatzseite verwaltet; der Editor zeigt sie schreibgeschützt an.",
+    "keywords": {
+      "createHint": "Eingeben, um ein neues Keyword zu erzeugen",
+      "preview": "Geschrieben als"
+    },
+    "contacts": {
+      "reused": "%{smart_count} Datensatz nutzt diesen Kontakt |||| %{smart_count} Datensätze nutzen diesen Kontakt"
+    },
+    "extent": {
+      "bbox": "Begrenzungsrechteck",
+      "polygon": "Polygon",
+      "wgs84Hint": "Die Koordinaten sind WGS84 (EPSG:4326); die Ausdehnung wird genau wie gezeichnet gespeichert."
+    },
+    "timeExtents": {
+      "none": "Keine zeitlichen Ausdehnungen zugeordnet.",
+      "begin": "Beginn",
+      "end": "Ende",
+      "add": "Zeit hinzufügen",
+      "added": "Die Zeit wurde erzeugt und dem Datensatz zugeordnet.",
+      "addFailed": "Die Zeit konnte nicht erzeugt werden.",
+      "remove": "Diese Zeit vom Datensatz lösen",
+      "orderError": "Der Beginn darf nicht nach dem Ende liegen.",
+      "hintUtc": "Eingabe als UTC."
+    }
+  },
+  recordCreate: {
+    "startTitle": "Startpunkt",
+    "profileHint": "Das Profil bestimmt, welche Felder das Formular abfragt und welche ISO-Abschnitte sofort mit Inhalt entstehen.",
+    "templateTitle": "Vorlage",
+    "templateChoice": "Leerer Datensatz",
+    "templateComingSoon": "Vorlagen folgen später",
+    "templateHint": "Das Anlegen auf Basis eines vorhandenen Datensatzes oder einer Vorlage ist der nächste Schritt dieses Workflows und in dieser Version noch nicht enthalten.",
+    "getTitle": "Was Sie erhalten",
+    "getCreated": "Entsteht jetzt mit Inhalt:",
+    "getAddedLater": "Wird später im erweiterten Modus ergänzt:",
+    "getIdentity": "Die Kennung wird für Sie erzeugt; Sie können auch eine eigene setzen - sie darf noch nicht existieren.",
+    "getMarked": "Der Datensatz wird als vom Editor gespeichert markiert; ein Harvest, der später dieselbe Kennung mit einem neueren Datum liefert, kann ihn weiterhin aktualisieren.",
+    "fileIdentifier": "Datei-Kennung",
+    "fileIdentifierHint": "Optional. Leer lassen, um eine erzeugte UUID zu erhalten.",
+    "noProfiles": "Es konnten keine Metadatenprofile geladen werden. Seite neu laden oder Profile prüfen.",
+    "profileLoading": "Profile werden geladen...",
+  },
   recordShow: {
     "catalogue": "Katalog",
     "linkOrigin": "Herkunft der Verknüpfung",
@@ -275,6 +419,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "storedXml": "Gespeichertes XML herunterladen",
     "storedXmlHint": "Das XML-Dokument, das die Datenübernahme neben diesem Datensatz gespeichert hat.",
     "noStoredXml": "Für diesen Datensatz ist kein XML-Dokument gespeichert.",
+    "xmlSource": "XML-Quelltext",
+    "sourceHint": "Das für diesen Datensatz ausgelieferte ISO-Dokument. Änderungen werden vor dem Speichern geprüft; ein abgelehnter Speichern ändert nichts. Die vom Formular abgebildeten Felder werden beim Speichern aus diesem Dokument rückgewonnen — das nächste Speichern im Formular erzeugt die abgebildeten Elemente aus diesen Werten.",
+    "sourceSave": "Dokument speichern",
+    "sourceDiscard": "Änderungen verwerfen",
+    "sourceSaved": "Das Quelldokument wurde gespeichert.",
+    "sourceReadOnly": "Ohne Bearbeitungsrecht ist das Dokument nur lesbar.",
+    "sourceLoadFailed": "Das gespeicherte Dokument konnte nicht geladen werden.",
+    "sourceChangedLines": "Geänderte Zeilen: %{count}",
     "identity": "Identität",
     "quality": "Klassifikation, Qualität und Herkunft",
     "time": "Zeitliche Ausdehnung",
@@ -285,7 +437,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     "usage": "Nutzung und Lizenzierung",
     "searchable": "Für die Suche veröffentlicht",
     "unpublished": "Nicht für die Suche veröffentlicht",
-    "writtenAgain": "Mehrfach gespeichert",
+    "editorSaved": "Vom Editor gespeichert",
     "broken": "Fehlerhafter Datensatz",
     "openData": "Offene Daten",
     "copyId": "UUID kopieren",
@@ -376,6 +528,44 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     map: "Karte",
     hasCoverage: "Geografische Abdeckung",
     missingCoverage: "Keine Ausdehnung erfasst"
+  },
+  batchEdit: {
+    action: "Stapelbearbeitung",
+    selectRow: "Diesen Datensatz auswählen",
+    title: "Ein Element in %{smart_count} ausgewählten Datensatz ändern |||| Ein Element in %{smart_count} ausgewählten Datensätzen ändern",
+    description: "Ein Metadaten-Element für alle ausgewählten Datensätze gleichzeitig setzen. Jeder Datensatz wird in einer eigenen Anfrage gespeichert und wie üblich geprüft – ein Datensatz, dem die Prüfung widerspricht, behält seinen bisherigen Wert.",
+    stepSelection: "Auswahl",
+    stepChange: "Änderung",
+    stepPreview: "Prüfen",
+    element: "Element",
+    elementPlaceholder: "Element zum Ändern wählen",
+    isoPath: "Abgebildet auf %{path}",
+    info: "Jeder ausgewählte Datensatz wird geschrieben wie eine Einzelbearbeitung: über den üblichen Speicherpfad mit seiner Prüfung und Veröffentlichung. Welche Elemente änderbar sind, bestimmen die Schnittstellen der Datensätze.",
+    preview: "Vorschau",
+    back: "Zurück",
+    apply: "Auf %{smart_count} Datensatz anwenden |||| Auf %{smart_count} Datensätze anwenden",
+    record: "Datensatz",
+    now: "Bisheriger Wert",
+    after: "Neuer Wert",
+    status: "Status",
+    outcome: {
+      pending: "Wartend",
+      applying: "Speichern ...",
+      applied: "Gespeichert",
+      rejected: "Abgelehnt",
+      skipped: "Übersprungen",
+    },
+    notEditable: "nicht editierbar",
+    unchanged: "unverändert",
+    noValue: "kein Wert",
+    yes: "ja",
+    no: "nein",
+    capGuidance: "Diese Stapelbearbeitung würde mehr als %{max} Datensätze schreiben. Sie ist auf %{max} Datensätze begrenzt – bitte die Liste weiter eingrenzen und eine kleinere Auswahl treffen.",
+    progress: "%{done} von %{total} Datensätzen bearbeitet",
+    result: "%{applied} Datensätze gespeichert, %{rejected} abgelehnt",
+    staleSelection: "Einige ausgewählte Datensätze wurden nicht gefunden und bleiben unberührt.",
+    loadError: "Die aktuellen Werte der ausgewählten Datensätze konnten nicht geladen werden.",
+    httpError: "Der Datensatz konnte nicht gespeichert werden (HTTP-Status %{status}).",
   },
   datasetExplorer: {
     searchArea: "Dieses Gebiet durchsuchen",
@@ -591,6 +781,27 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     neverRan: "Noch nie ausgeführt",
     noNextRun: "Kein nächster Lauf",
     attentionTitle: "Zeitpläne, die Aufmerksamkeit brauchen",
+  },
+  scheduleWarnings: {
+    columnLabel: "Zeitplanwarnungen",
+    codes: {
+      schedule_overdue: "Zeitplan überfällig",
+      schedule_too_tight: "Intervall kürzer als beobachtete Laufzeit",
+      insufficient_evidence: "Datenlage unzureichend",
+      schedule_expired: "Zeitplan abgelaufen",
+    },
+    reasons: {
+      no_completed_runs: "Noch kein abgeschlossener Lauf hat diesen Zeitplan gemessen",
+      too_few_samples: "Zu wenige abgeschlossene Läufe für eine Bewertung",
+    },
+    interval: "Intervall: %{value}",
+    observed: "Beobachtete Laufzeit: %{value}",
+    samples: "%{smart_count} abgeschlossener Lauf gemessen |||| %{smart_count} abgeschlossene Läufe gemessen",
+    lastDone: "Letzter Lauf:",
+    expectedAt: "Erwartet seit:",
+    expiredAt: "Abgelaufen seit:",
+    computedAt: "Berechnet:",
+    checkSchedule: "Zeitplan prüfen",
   },
   harvestingStats: {
     records: "Datensätze",
@@ -828,6 +1039,42 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       historyType: "Aktion",
       historyRelation: "Objekt",
       lastChanges: "Letzte Änderungen",
+      created: "erstellt",
+      deleted: "gelöscht",
+      updated: "aktualisiert",
+    },
+    WebMapServiceMonitoringRun: {
+      lastMonitoringRuns: "Letzte Monitoring-Läufe",
+      passed: "Erfolgreich",
+      failed: "Fehlgeschlagen",
+      noSetting: "Für diesen WMS ist kein Monitoring eingerichtet.",
+      createSetting: "Monitoringeinstellung erstellen",
+      settingsDisabled: "Das Monitoring ist deaktiviert. Aktivieren Sie eine Monitoringeinstellung, um Läufe zu planen.",
+      waitingForFirstRun: "Noch keine Monitoring-Läufe vorhanden. Warten auf den ersten geplanten Lauf.",
+      runOverdue: "Ein geplanter Monitoring-Lauf ist überfällig. Prüfen Sie die Monitoring-Zeitplanung.",
+      settingsLoadError: "Die Monitoringeinstellungen konnten nicht geladen werden.",
+    },
+    WebMapServiceUpdateJob: {
+      reviewRequired: "Prüfung erforderlich",
+      reviewRequiredSubheader: "Die entfernten Capabilities enthalten noch nicht übernommene Änderungen.",
+      lastUpdateJobs: "Letzte Aktualisierungsaufträge",
+      lastUpdateJobsSubheader: "Keine Aktion erforderlich.",
+      noSetting: "Für diesen WMS sind keine automatischen Aktualisierungen eingerichtet.",
+      createSetting: "Aktualisierungseinstellung erstellen",
+      settingsDisabled: "Automatische Aktualisierungen sind deaktiviert. Aktivieren Sie eine Aktualisierungseinstellung, um Aufträge zu planen.",
+      waitingForFirstRun: "Noch keine Aktualisierungsaufträge vorhanden. Warten auf den ersten geplanten Lauf.",
+      runOverdue: "Ein geplanter Aktualisierungsauftrag ist überfällig. Prüfen Sie die Aktualisierungszeitplanung.",
+      settingsLoadError: "Die Aktualisierungseinstellungen konnten nicht geladen werden.",
+    },
+    WebMapService: {
+      singular: "Web Map Service",
+      plural: "Web Map Services",
+      listSubheader: "Registrierte Web Map Services (WMS) verwalten",
+    },
+    WebFeatureService: {
+      singular: "Web Feature Service",
+      plural: "Web Feature Services",
+      listSubheader: "Registrierte Web Feature Services (WFS) verwalten",
     },
     CatalogueService: {
       singular: "Katalogdienst",
@@ -975,9 +1222,9 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     occurrenceBadge: "%{count}×",
     firstSeen: "Erstmals",
     resolvedAt: "Behoben",
-    retryAttempt: "Versuch %{attempt}",
-    retryOfTotal: "von %{total}",
-    nextAttempt: "nächster Versuch um %{time}",
+    retryCount:
+      "%{smart_count} Wiederholung gemeldet |||| %{smart_count} Wiederholungen gemeldet",
+    nextAttempt: "nächster Versuch bis %{time}",
     openTarget: "Betroffene Ressource öffnen",
     loadError: "Die für Sie sichtbaren Störungen konnten nicht geladen werden.",
     emptyActive: "Derzeit braucht nichts Ihre Aufmerksamkeit.",
@@ -1014,6 +1261,31 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       updateReviewRequired: "Eine Aktualisierung dieses Dienstes wartet auf eine Entscheidung.",
       harvestAborted: "Das letzte Harvesting dieses Katalogs wurde vor dem Abschluss abgebrochen.",
       harvestIncomplete: "Das letzte Harvesting dieses Katalogs konnte nicht alle Datensätze übernehmen.",
+    },
+  },
+  contextualIncidents: {
+    activeLabel: "Aktive Vorfälle zu dieser Ressource",
+    viewDetails: "Details anzeigen",
+    retry:
+      "%{smart_count} Wiederholung gemeldet |||| %{smart_count} Wiederholungen gemeldet",
+    nextAttempt: "nächster Versuch",
+    occurrences: "%{smart_count} Auftreten insgesamt |||| %{smart_count} Auftreten insgesamt",
+    moreActive: "%{smart_count} weiterer aktiver Vorfall |||| %{smart_count} weitere aktive Vorfälle",
+    historyTitle: "Behobene Vorfälle",
+    historyLabel: "Verlauf behobener Vorfälle zu dieser Ressource",
+    resolvedAgo: "Behoben",
+    lastSeen: "Zuletzt gesehen",
+    states: {
+      retrying: "läuft erneut",
+      stalled: "blockiert",
+      failed: "fehlgeschlagen",
+      resolved: "behoben",
+    },
+    sources: {
+      harvesting: "Erfassung",
+      update: "Aktualisierung",
+      monitoring: "Überwachung",
+      system: "System",
     },
   },
   monitoringRun: {
@@ -1226,6 +1498,30 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
     metadata: "Metadaten",
     capabilities: "GetCapabilities-URL",
+    // die drei Antworten, die das Backend aus den Guardian-Rechten des Diensts
+    // selbst ableitet (#739); ein Dienst ohne diese Antwort, etwa ein Katalog,
+    // zeigt gar keine Sichtbarkeit
+    visibility: "Sichtbarkeit",
+    visibilityValues: {
+      public: "Öffentlich",
+      "organization-internal": "Organisationsintern",
+      restricted: "Eingeschränkt",
+    },
+    visibilityHints: {
+      public: "Diesen Dienst darf jeder einsehen, auch ohne Anmeldung.",
+      "organization-internal":
+        "Nur die Rollen der Organisation, der der Dienst gehört, dürfen ihn einsehen.",
+      restricted:
+        "Nur einzeln benannte Gruppen oder Personen dürfen diesen Dienst einsehen.",
+    },
+    // die Organisation, der der Dienst gehört (#733); die Relation wird
+    // schreibgeschützt beantwortet, ein Dienst aus der Zeit vor der
+    // Eigentümerschaft nennt also keine, und wer nicht Mitglied ist, kann sie
+    // gar nicht lesen
+    owner: "Eigentümerorganisation",
+    ownerNone:
+      "Keine Eigentümerorganisation gespeichert. Dieser Dienst wurde registriert, bevor die Eigentümerschaft gespeichert wurde.",
+    ownerUnavailable: "nicht lesbar",
     operationUrls: "Operations-URLs",
     layers: "Layer",
     featureTypes: "Feature-Typen",
@@ -1256,6 +1552,11 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     bbox_lat_lon__contains: "Begrenzungsrahmen ist enthalten in",
     bbox_lat_lon__covers: "Begrenzungsrahmen überdeckt",
     bbox_lat_lon__equals: "Begrenzungsrahmen entspricht",
+  },
+  footer: {
+    "appVersion": "MrMap-Anwendungsversion %{version}",
+    "versionMismatch": "Das Frontend hat %{frontend}, das Backend antwortet mit %{backend} – diese Bereitstellung mischt zwei Builds",
+    "devRevision": "Entwicklungsrevision"
   },
   systemInfo: {
     "title": "Systeminformationen",

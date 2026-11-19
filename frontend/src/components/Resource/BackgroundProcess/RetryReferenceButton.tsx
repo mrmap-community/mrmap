@@ -1,7 +1,6 @@
 import {
   useNotify,
   useRecordContext,
-  useRefresh,
   useTranslate,
   useUpdate,
 } from "react-admin";
@@ -37,7 +36,6 @@ const RetryReferenceButton = ({
   const record = useRecordContext();
   const translate = useTranslate();
   const notify = useNotify();
-  const refresh = useRefresh();
   const [update, { isPending }] = useUpdate();
 
   if (!record || !retryable || record.state !== REFERENCE_FAILED_STATE) {
@@ -60,7 +58,6 @@ const RetryReferenceButton = ({
                 notify("backgroundActivity.references.retryAsked", {
                   type: "info",
                 });
-                refresh();
               },
               onError: () =>
                 notify("backgroundActivity.references.retryFailed", {

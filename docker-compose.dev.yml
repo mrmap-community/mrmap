@@ -15,17 +15,6 @@ services:
     ports:
       - 5556:6379
 
-  inspire-validator:
-    build:
-      context: ./docker/inspire-validator
-    ports:
-      - "5557:8080"
-    networks:
-      - mrmap-internal
-    extra_hosts:
-      - host.docker.internal:host-gateway
-
-
   mapserver:
     image: camptocamp/mapserver:8.6
     hostname: "mrmap-mapserver"
@@ -108,8 +97,9 @@ services:
       # of grants must answer 200). The editor activation gate of #1241 is a
       # deployment posture, not a permission, and it would answer 403 in front
       # of those grants; the behave runner is not a public deployment, so it
-      # opens the gate and keeps the matrix specified. The shipped default (and
-      # the closed-gate 403) is pinned by tests.django.registry.tests_metadata_record_writes.
+      # pins the gate open and keeps the matrix specified independently of the
+      # shipped default. The default-open write path and the closed-gate 403
+      # are pinned by tests.django.registry.tests_metadata_record_writes.
       MRMAP_METADATA_EDITOR_WRITES_ENABLED: "True"
     depends_on:
       - postgis
@@ -255,16 +245,29 @@ services:
     hostname: "mrmap-frontend-tests"
     container_name: "mrmap-frontend-tests"
     working_dir: /opt/mrmap/frontend
+    entrypoint: /usr/local/bin/mrmap-frontend-bootstrap
     volumes:
+      - type: bind
+        source: ./docker/frontend/tests-entrypoint.sh
+        target: /usr/local/bin/mrmap-frontend-bootstrap
+        read_only: true
       - type: bind
         source: ./frontend
         target: /opt/mrmap/frontend
+      # The canonical version file (#1579): vite.config.mjs reads it at
+      # ../VERSION - the parent of /opt/mrmap/frontend - on every vitest and
+      # build run, so the specs measure the same file the image bakes in.
+      - type: bind
+        source: ./VERSION
+        target: /opt/mrmap/VERSION
+        read_only: true
       # Keeps npm dependencies out of the host checkout and warm between runs.
       - type: volume
         source: frontend-node-modules
         target: /opt/mrmap/frontend/node_modules
-    command: >
-      /bin/sh -c "npm ci --no-audit --no-fund && npm run test -- --run"
+    # Bootstrap runs even when an explicit command replaces this default,
+    # including the VS Code development server task.
+    command: npm run test -- --run
     networks:
       - mrmap-internal
 

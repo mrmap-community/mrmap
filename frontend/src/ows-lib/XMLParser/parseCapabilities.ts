@@ -1,5 +1,4 @@
-import moment from 'moment'
-
+import { parseDuration } from '../iso8601'
 import { AdvertisedDimension, ElevationDimension, InheritableProperties, Style, TempDimension, TimeDimension, WmsCapabilitites, WmsLayer } from './types'
 import { getAttribute, getDescendantByPath, getDocument, getChild, getText } from './utils'
 
@@ -56,16 +55,26 @@ const parseScaleDenominator = (value: string | undefined): number | undefined =>
   return Number.isNaN(parsed) ? undefined : parsed
 }
 
+/**
+ * The time dimension the value text of a `Dimension` element names: its first observation, its last
+ * one when the range states one, and the duration between the observations. The two instants are read
+ * as the `Date` of the stated text, as they have always been read here, while a resolution outside
+ * the ISO 8601 grammar of a WMS duration is answered by nothing.
+ */
+const parseTimeDimensionValue = (value: string): TimeDimension => {
+  const [start, stop, resolution] = value.split('/')
+  return {
+    start: new Date(start),
+    stop: stop ? new Date(stop) : undefined,
+    resolution: resolution ? parseDuration(resolution) : undefined
+  }
+}
+
 export const parseTimeDimension = (timeDimension: Element): TimeDimension | undefined => {
   const dimensionValue = timeDimension.textContent?.trim()
   if (!dimensionValue) return undefined
 
-  const [start, stop, resolution] = dimensionValue.split('/')
-  return {
-    start: new Date(start),
-    stop: stop ? new Date(stop) : undefined,
-    resolution: resolution ? moment.duration(resolution) : undefined
-  }
+  return parseTimeDimensionValue(dimensionValue)
 }
 
 export const parseDimension = (dimension: Element): TimeDimension | TempDimension | ElevationDimension | undefined => {
@@ -74,12 +83,7 @@ export const parseDimension = (dimension: Element): TimeDimension | TempDimensio
   const value = dimension.textContent?.trim() ?? ''
 
   if (type === 'time' && units === 'ISO8601') {
-    const [start, stop, resolution] = value.split('/')
-    return {
-      start: new Date(start),
-      stop: stop ? new Date(stop) : undefined,
-      resolution: resolution ? moment.duration(resolution) : undefined
-    }
+    return parseTimeDimensionValue(value)
   }
 
   if (type === 'temperature') {
@@ -87,7 +91,7 @@ export const parseDimension = (dimension: Element): TimeDimension | TempDimensio
       unit: units ?? '',
       unitSymbol: getAttribute(dimension, 'unitSymbol') ?? '',
       default: Number(getAttribute(dimension, 'default') ?? 0),
-      values: value.split('/').map(v => Number(v))
+      values: value.split('/').map(Number)
     }
   }
 
@@ -96,7 +100,7 @@ export const parseDimension = (dimension: Element): TimeDimension | TempDimensio
       crs: units ?? '',
       unitSymbol: getAttribute(dimension, 'unitSymbol') ?? '',
       default: getAttribute(dimension, 'default') ?? '',
-      values: value.split('/').map(v => Number(v))
+      values: value.split('/').map(Number)
     }
   }
 
@@ -131,6 +135,134 @@ export const forceArray = <T>(obj: T | T[] | undefined): T[] => {
   return Array.isArray(obj) ? obj : [obj]
 }
 
+/** everything a layer element carries among its direct children, collected while walking them */
+interface DeclaredLayerMembers {
+  abstract?: string
+  srsValues: string[]
+  crsValues: string[]
+  styles: Style[]
+  dimensions: (TimeDimension | TempDimension | ElevationDimension)[]
+  advertisedDimensions: AdvertisedDimension[]
+  minScaleDenominator?: string
+  maxScaleDenominator?: string
+  bboxElement?: Element
+  sublayers: Element[]
+}
+
+/** record one direct child of a layer among the members it declares; a Dimension child is a
+ *  structured dimension and an advertised one whenever it names its values */
+const collectLayerMember = (child: Element, declared: DeclaredLayerMembers) => {
+  switch (child.localName) {
+    case 'Abstract':
+      declared.abstract = child.textContent?.trim() || undefined
+      break
+    case 'SRS':
+      declared.srsValues.push(child.textContent?.trim() || '')
+      break
+    case 'CRS':
+      declared.crsValues.push(child.textContent?.trim() || '')
+      break
+    case 'Style':
+      declared.styles.push(parseStyle(child))
+      break
+    case 'Dimension': {
+      const dimension = parseDimension(child)
+      if (dimension) declared.dimensions.push(dimension)
+      const name = getAttribute(child, 'name')
+      const values = child.textContent?.trim() ?? ''
+      if (name && values) {
+        const units = getAttribute(child, 'units')
+        const unitSymbol = getAttribute(child, 'unitSymbol')
+        const defaultValue = getAttribute(child, 'default')
+        declared.advertisedDimensions.push({
+          name,
+          values,
+          ...(units !== undefined && { units }),
+          ...(unitSymbol !== undefined && { unitSymbol }),
+          ...(defaultValue !== undefined && { default: defaultValue })
+        })
+      }
+      break
+    }
+    case 'MinScaleDenominator':
+      declared.minScaleDenominator = child.textContent?.trim() || undefined
+      break
+    case 'MaxScaleDenominator':
+      declared.maxScaleDenominator = child.textContent?.trim() || undefined
+      break
+    case 'EX_GeographicBoundingBox':
+    case 'LatLonBoundingBox':
+      declared.bboxElement = child
+      break
+    case 'Layer':
+      declared.sublayers.push(child)
+      break
+  }
+}
+
+/** the layer's settings resolved against its parent: what the layer states replaces the inherited
+ *  value - including "0" and false - and is inherited wherever the layer does not state it */
+const resolveLayerSettings = (layer: Element, declared: DeclaredLayerMembers, inherited?: InheritableProperties) => {
+  // WMS 1.1.1 states all reference systems of a layer whitespace separated in one "SRS" element,
+  // WMS 1.3.0 one "CRS" element per reference system.
+  const declaredReferenceSystems = (declared.srsValues.length > 0 ? declared.srsValues : declared.crsValues)
+    .flatMap(value => value.split(/\s+/))
+    .filter(Boolean)
+
+  // Reference systems and styles are inherited and added to; a style which repeats the name of an
+  // inherited style replaces that inherited definition.
+  return {
+    referenceSystems: [...new Set([
+      ...(inherited?.referenceSystems ?? []),
+      ...declaredReferenceSystems
+    ])],
+    styles: [...new Map([...(inherited?.styles ?? []), ...declared.styles]
+      .map(style => [style.metadata.name, style] as [string, Style])).values()],
+    dimensions: declared.dimensions.length > 0 ? declared.dimensions : inherited?.dimension,
+    // A dimension a layer states replaces the inherited dimension of the same name; the others stay inherited.
+    advertisedDimensions: [...new Map([
+      ...(inherited?.advertisedDimension ?? []),
+      ...declared.advertisedDimensions
+    ].map(dimension => [dimension.name.toLowerCase(), dimension] as [string, AdvertisedDimension])).values()],
+    bbox: getLayerBoundsFromBbox(declared.bboxElement) ?? inherited?.bbox,
+    minScaleDenominator: parseScaleDenominator(declared.minScaleDenominator) ?? inherited?.minScaleDenominator,
+    maxScaleDenominator: parseScaleDenominator(declared.maxScaleDenominator) ?? inherited?.maxScaleDenominator,
+    isQueryable: parseLayerAttribute(layer, 'queryable') ?? inherited?.isQueryable,
+    isOpaque: parseLayerAttribute(layer, 'opaque') ?? inherited?.isOpaque,
+    isCascaded: parseLayerAttribute(layer, 'cascaded') ?? inherited?.isCascaded
+  }
+}
+
+type ResolvedLayerSettings = ReturnType<typeof resolveLayerSettings>
+
+/** the settings a layer hands on to its children: everything it resolved, stated or inherited */
+const inheritableOf = (resolved: ResolvedLayerSettings): InheritableProperties => ({
+  referenceSystems: resolved.referenceSystems,
+  styles: resolved.styles,
+  ...(resolved.bbox && { bbox: resolved.bbox }),
+  ...(resolved.dimensions && { dimension: resolved.dimensions }),
+  ...(resolved.advertisedDimensions.length > 0 && { advertisedDimension: resolved.advertisedDimensions }),
+  ...(resolved.minScaleDenominator !== undefined && { minScaleDenominator: resolved.minScaleDenominator }),
+  ...(resolved.maxScaleDenominator !== undefined && { maxScaleDenominator: resolved.maxScaleDenominator }),
+  ...(resolved.isQueryable !== undefined && { isQueryable: resolved.isQueryable }),
+  ...(resolved.isOpaque !== undefined && { isOpaque: resolved.isOpaque }),
+  ...(resolved.isCascaded !== undefined && { isCascaded: resolved.isCascaded })
+})
+
+/** the WMS properties of the layer itself: only what it actually carries is kept */
+const wmsPropertiesOf = (resolved: ResolvedLayerSettings): Omit<WmsLayer, 'metadata'> => ({
+  ...(resolved.referenceSystems.length > 0 && { referenceSystems: resolved.referenceSystems }),
+  ...(resolved.dimensions !== undefined && resolved.dimensions.length > 0 && { dimension: resolved.dimensions }),
+  ...(resolved.advertisedDimensions.length > 0 && { advertisedDimension: resolved.advertisedDimensions }),
+  ...(resolved.bbox && { bbox: resolved.bbox }),
+  ...(resolved.styles.length > 0 && { styles: resolved.styles }),
+  ...(resolved.minScaleDenominator !== undefined && { minScaleDenominator: resolved.minScaleDenominator }),
+  ...(resolved.maxScaleDenominator !== undefined && { maxScaleDenominator: resolved.maxScaleDenominator }),
+  ...(resolved.isQueryable !== undefined && { isQueryable: resolved.isQueryable }),
+  ...(resolved.isOpaque !== undefined && { isOpaque: resolved.isOpaque }),
+  ...(resolved.isCascaded !== undefined && { isCascaded: resolved.isCascaded })
+})
+
 export const parseLayer = (
   layer: Element,
   inherited?: InheritableProperties
@@ -138,129 +270,32 @@ export const parseLayer = (
   const layerStart = performance.now()
   parseLayerMetrics.count += 1
 
-  let abstract: string | undefined
-  const srsValues: string[] = []
-  const crsValues: string[] = []
-  const declaredStyles: Style[] = []
-  const declaredDimensions: (TimeDimension | TempDimension | ElevationDimension)[] = []
-  const declaredAdvertisedDimensions: AdvertisedDimension[] = []
-  let minScaleDenominator: string | undefined
-  let maxScaleDenominator: string | undefined
-  let bboxElement: Element | undefined
-  const sublayers: Element[] = []
-
+  const declared: DeclaredLayerMembers = {
+    srsValues: [],
+    crsValues: [],
+    styles: [],
+    dimensions: [],
+    advertisedDimensions: [],
+    sublayers: []
+  }
   for (const child of Array.from(layer.children)) {
-    switch (child.localName) {
-      case 'Abstract':
-        abstract = child.textContent?.trim() || undefined
-        break
-      case 'SRS':
-        srsValues.push(child.textContent?.trim() || '')
-        break
-      case 'CRS':
-        crsValues.push(child.textContent?.trim() || '')
-        break
-      case 'Style':
-        declaredStyles.push(parseStyle(child))
-        break
-      case 'Dimension': {
-        const dimension = parseDimension(child)
-        if (dimension) declaredDimensions.push(dimension)
-        const name = getAttribute(child, 'name')
-        const values = child.textContent?.trim() ?? ''
-        if (name && values) {
-          const units = getAttribute(child, 'units')
-          const unitSymbol = getAttribute(child, 'unitSymbol')
-          const defaultValue = getAttribute(child, 'default')
-          declaredAdvertisedDimensions.push({
-            name,
-            values,
-            ...(units !== undefined && { units }),
-            ...(unitSymbol !== undefined && { unitSymbol }),
-            ...(defaultValue !== undefined && { default: defaultValue })
-          })
-        }
-        break
-      }
-      case 'MinScaleDenominator':
-        minScaleDenominator = child.textContent?.trim() || undefined
-        break
-      case 'MaxScaleDenominator':
-        maxScaleDenominator = child.textContent?.trim() || undefined
-        break
-      case 'EX_GeographicBoundingBox':
-      case 'LatLonBoundingBox':
-        bboxElement = child
-        break
-      case 'Layer':
-        sublayers.push(child)
-        break
-    }
+    collectLayerMember(child, declared)
   }
 
-  // WMS 1.1.1 states all reference systems of a layer whitespace separated in one "SRS" element,
-  // WMS 1.3.0 one "CRS" element per reference system.
-  const declaredReferenceSystems = (srsValues.length > 0 ? srsValues : crsValues)
-    .flatMap(value => value.split(/\s+/))
-    .filter(Boolean)
-
-  // Reference systems and styles are inherited and added to; a style which repeats the name of an
-  // inherited style replaces that inherited definition. Every other setting the layer states
-  // replaces the inherited value - including "0" and false - and is inherited wherever the layer
-  // does not state it.
-  const referenceSystems = [...new Set([
-    ...(inherited?.referenceSystems ?? []),
-    ...declaredReferenceSystems
-  ])]
-  const styles = [...new Map([...(inherited?.styles ?? []), ...declaredStyles]
-    .map(style => [style.metadata.name, style] as [string, Style])).values()]
-  const dimensions = declaredDimensions.length > 0 ? declaredDimensions : inherited?.dimension
-  // A dimension a layer states replaces the inherited dimension of the same name; the others stay inherited.
-  const advertisedDimensions = [...new Map([
-    ...(inherited?.advertisedDimension ?? []),
-    ...declaredAdvertisedDimensions
-  ].map(dimension => [dimension.name.toLowerCase(), dimension] as [string, AdvertisedDimension])).values()]
-  const bbox = getLayerBoundsFromBbox(bboxElement) ?? inherited?.bbox
-  const minScaleDenominatorValue = parseScaleDenominator(minScaleDenominator) ?? inherited?.minScaleDenominator
-  const maxScaleDenominatorValue = parseScaleDenominator(maxScaleDenominator) ?? inherited?.maxScaleDenominator
-  const isQueryable = parseLayerAttribute(layer, 'queryable') ?? inherited?.isQueryable
-  const isOpaque = parseLayerAttribute(layer, 'opaque') ?? inherited?.isOpaque
-  const isCascaded = parseLayerAttribute(layer, 'cascaded') ?? inherited?.isCascaded
-
-  // these resolved settings are what the children of this layer inherit
-  const inheritable: InheritableProperties = {
-    referenceSystems,
-    styles,
-    ...(bbox && { bbox }),
-    ...(dimensions && { dimension: dimensions }),
-    ...(advertisedDimensions.length > 0 && { advertisedDimension: advertisedDimensions }),
-    ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),
-    ...(maxScaleDenominatorValue !== undefined && { maxScaleDenominator: maxScaleDenominatorValue }),
-    ...(isQueryable !== undefined && { isQueryable }),
-    ...(isOpaque !== undefined && { isOpaque }),
-    ...(isCascaded !== undefined && { isCascaded })
-  }
+  const resolved = resolveLayerSettings(layer, declared, inherited)
 
   const layerObj: WmsLayer = {
     metadata: {
       title: getText(layer, 'Title') ?? '',
       name: getText(layer, 'Name') ?? '',
-      ...(abstract ? { abstract } : {})
+      ...(declared.abstract ? { abstract: declared.abstract } : {})
     },
-    ...(referenceSystems.length > 0 && { referenceSystems }),
-    ...(dimensions && dimensions.length > 0 && { dimension: dimensions }),
-    ...(advertisedDimensions.length > 0 && { advertisedDimension: advertisedDimensions }),
-    ...(bbox && { bbox }),
-    ...(styles.length > 0 && { styles }),
-    ...(minScaleDenominatorValue !== undefined && { minScaleDenominator: minScaleDenominatorValue }),
-    ...(maxScaleDenominatorValue !== undefined && { maxScaleDenominator: maxScaleDenominatorValue }),
-    ...(isQueryable !== undefined && { isQueryable }),
-    ...(isOpaque !== undefined && { isOpaque }),
-    ...(isCascaded !== undefined && { isCascaded })
+    ...wmsPropertiesOf(resolved)
   }
 
-  if (sublayers.length > 0) {
-    layerObj.children = sublayers.map(child => parseLayer(child, inheritable))
+  if (declared.sublayers.length > 0) {
+    // these resolved settings are what the children of this layer inherit
+    layerObj.children = declared.sublayers.map(child => parseLayer(child, inheritableOf(resolved)))
   }
 
   parseLayerMetrics.totalMs += performance.now() - layerStart

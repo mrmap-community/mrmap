@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import {
   Link,
   RecordContext,
+  useCreatePath,
   useRecordContext,
   useTranslate,
 } from "react-admin";
@@ -31,11 +32,12 @@ import {
 
 import RelativeDateField from "../../../Field/RelativeDateField";
 import {
-  ACTIVE_INCIDENT_STATES,
+  ACTIVE_INCIDENT_DISPLAY_STATES,
   INCIDENT_SEVERITIES,
+  incidentDisplayState,
   isResolvedIncident,
+  type IncidentDisplayState,
   type IncidentSeverity,
-  type IncidentState,
   type OperationalIncidentRecord,
 } from "../incidentContract";
 import { useIncidentCenter, type IncidentWindow } from "./IncidentCenterContext";
@@ -55,21 +57,24 @@ const TAB_PANEL_SX = {
   "&[hidden]": { display: "none" },
 } as const;
 
-const STATE_ICONS: Record<IncidentState, ReactNode> = {
+const STATE_ICONS: Record<IncidentDisplayState, ReactNode> = {
   retrying: <AutorenewIcon color="info" />,
   stalled: <MoreTimeIcon color="warning" />,
   failed: <ErrorOutlinedIcon color="error" />,
   resolved: <CheckCircleOutlinedIcon color="success" />,
 };
 
-const STATE_CHIP_COLOR: Record<IncidentState, "info" | "warning" | "error" | "default"> = {
+const STATE_CHIP_COLOR: Record<
+  IncidentDisplayState,
+  "info" | "warning" | "error" | "default"
+> = {
   retrying: "info",
   stalled: "warning",
   failed: "error",
   resolved: "default",
 };
 
-/** the moment of `nextRetryAt`, absolute and short: "next attempt at
+/** the moment of `retryScheduledUntil`, absolute and short: "next attempt by
  *  14:37" is the sentence of the epic (#1104) and the moment is about the
  *  hour of the day, not about its distance to now */
 const formatAttemptMoment = (value: string): string => {
@@ -95,14 +100,16 @@ const formatAttemptMoment = (value: string): string => {
  * so ten retries of one incident sit in this row with an updated count and
  * never in ten rows.
  *
- * The destination: `targetPath` is the path the server answers only for a
- * target this client may open (the ServiceAlert pattern). Without it the row
- * offers no link and no path is ever derived from the code, the source or
- * the id client-side.
+ * The destination: the api answers `affectedResource` for the incidents of
+ * resources this caller may view - the permission filtering is the list
+ * itself (#1319) - so the row links to the show view of exactly what the
+ * server named, and a system incident, which names no resource, offers no
+ * link and no path is derived client-side.
  */
 const IncidentEntry = (): ReactNode => {
   const record = useRecordContext<OperationalIncidentRecord>();
   const translate = useTranslate();
+  const createPath = useCreatePath();
   const { setOpen } = useIncidentCenter();
 
   if (record === undefined) {
@@ -110,26 +117,24 @@ const IncidentEntry = (): ReactNode => {
   }
 
   const resolved = isResolvedIncident(record);
+  const display = incidentDisplayState(record);
   const isFailure = record.severity === "error";
-  // the retry state is built from the pieces it actually answers: an attempt
-  // without a known total says "attempt 4", a known next attempt joins them
+  // the retry state is built from the pieces the api actually answers: the
+  // retries the operation told, and until when the next attempt is due
   const retryLine: string[] = [];
-  if (record.retryAttempt !== undefined && record.retryAttempt !== null) {
+  if (record.retryCount !== undefined && record.retryCount > 0) {
     retryLine.push(
-      translate("incidentCenter.retryAttempt", { attempt: record.retryAttempt }),
+      translate("incidentCenter.retryCount", {
+        smart_count: record.retryCount,
+      }),
     );
-    if (record.retryTotal !== undefined && record.retryTotal !== null) {
-      retryLine.push(
-        translate("incidentCenter.retryOfTotal", { total: record.retryTotal }),
-      );
-    }
-    if (record.nextRetryAt) {
-      retryLine.push(
-        translate("incidentCenter.nextAttempt", {
-          time: formatAttemptMoment(record.nextRetryAt),
-        }),
-      );
-    }
+  }
+  if (record.retryScheduledUntil) {
+    retryLine.push(
+      translate("incidentCenter.nextAttempt", {
+        time: formatAttemptMoment(record.retryScheduledUntil),
+      }),
+    );
   }
 
   return (
@@ -144,7 +149,7 @@ const IncidentEntry = (): ReactNode => {
     >
       <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start" }}>
         <Box sx={{ pt: 0.25 }} aria-hidden>
-          {STATE_ICONS[record.state]}
+          {STATE_ICONS[display]}
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: "baseline" }}>
@@ -155,7 +160,7 @@ const IncidentEntry = (): ReactNode => {
               {record.summary}
             </Typography>
             <RelativeDateField
-              source="lastOccurrence"
+              source="lastOccurredAt"
               sx={{ whiteSpace: "nowrap" }}
             />
           </Stack>
@@ -166,15 +171,15 @@ const IncidentEntry = (): ReactNode => {
           >
             <Chip
               size="small"
-              color={STATE_CHIP_COLOR[record.state]}
+              color={STATE_CHIP_COLOR[display]}
               variant={resolved ? "outlined" : "filled"}
-              label={translate(`incidentCenter.states.${record.state}`)}
+              label={translate(`incidentCenter.states.${display}`)}
             />
             <Chip
               size="small"
               variant="outlined"
-              label={translate(`incidentCenter.sources.${record.sourceType}`, {
-                _: record.sourceType,
+              label={translate(`incidentCenter.sources.${record.source}`, {
+                _: record.source,
               })}
             />
             {record.occurrenceCount > 1 && (
@@ -203,7 +208,7 @@ const IncidentEntry = (): ReactNode => {
             <Typography variant="caption" color="text.secondary">
               {translate("incidentCenter.firstSeen")}
             </Typography>
-            <RelativeDateField source="firstOccurrence" />
+            <RelativeDateField source="firstOccurredAt" />
             {resolved && (
               <>
                 <Typography variant="caption" color="text.secondary">
@@ -213,11 +218,15 @@ const IncidentEntry = (): ReactNode => {
               </>
             )}
           </Stack>
-          {record.targetPath && (
+          {record.scope === "resource" && record.affectedResource && (
             <Button
               size="small"
               component={Link}
-              to={record.targetPath}
+              to={createPath({
+                resource: record.affectedResource.type,
+                type: "show",
+                id: record.affectedResource.id,
+              })}
               onClick={() => setOpen(false)}
               sx={{ mt: 0.5 }}
             >
@@ -246,7 +255,7 @@ const IncidentRow = ({
 /** one facet of the window filter: chips toggle, the selected one is filled
  *  and carries `aria-pressed`, so the filter is operable without a mouse and
  *  announced as a toggle */
-const FacetGroup = ({
+const FacetGroup = <T extends string>({
   label,
   options,
   selected,
@@ -254,10 +263,10 @@ const FacetGroup = ({
   wordOf,
 }: {
   label: string;
-  options: readonly string[];
-  selected: string | undefined;
-  onSelect: (value: string | undefined) => void;
-  wordOf: (value: string) => string;
+  options: readonly T[];
+  selected: T | undefined;
+  onSelect: (value: T | undefined) => void;
+  wordOf: (value: T) => string;
 }): ReactNode => (
   <Stack
     direction="row"
@@ -366,11 +375,14 @@ const WindowContent = ({
  *
  * A right MUI drawer over the active and the resolved window of the same
  * permitted query the app bar badge reads: the active tab answers the
- * incidents which ask for attention - retrying, suspected stalled, failed -
- * and the resolved tab answers the recoveries which left it, so "recovery
- * removed from the active count, still visible in history" is one drawer
- * wide. Severity, state and source narrow the bounded window client-side;
- * permission is never narrowed client-side because it is never held
+ * incidents which ask for attention - retrying, suspected stalled, failed,
+ * as the contract derives them from the api's answer - and the resolved tab
+ * answers the recoveries which left it, so "recovery removed from the active
+ * count, still visible in history" is one drawer wide. Severity, state and
+ * source narrow the bounded window client-side - the display state is a
+ * reading of the answered fields, not a filter term, and the endpoint's own
+ * declared facets belong to the full list screens which ask them server-side
+ * (#1322); permission is never narrowed client-side because it is never held
  * client-side (#1319 filters it server-side).
  *
  * The new parts are the shell, the two tabs and the facet chips; the rows
@@ -387,9 +399,9 @@ const IncidentCenterDrawer = (): ReactNode => {
   const [severity, setSeverity] = useState<IncidentSeverity | undefined>(
     undefined,
   );
-  const [stateFilter, setStateFilter] = useState<IncidentState | undefined>(
-    undefined,
-  );
+  const [stateFilter, setStateFilter] = useState<
+    IncidentDisplayState | undefined
+  >(undefined);
   const [source, setSource] = useState<string | undefined>(undefined);
 
   const activeRecords = useMemo(() => active.data ?? [], [active.data]);
@@ -400,21 +412,21 @@ const IncidentCenterDrawer = (): ReactNode => {
   const tabRecords = tab === "active" ? activeRecords : resolvedRecords;
   // the sources the visible window actually answers - no invented option list
   const sources = useMemo(
-    () => [...new Set(tabRecords.map((record) => record.sourceType))],
+    () => [...new Set(tabRecords.map((record) => record.source))],
     [tabRecords],
   );
-  // the state facet names states which ask for attention; every resolved row
-  // answers "resolved", so the facet is the active window's question - both
-  // windows are filtered on their own, so the hidden panel carries its own
-  // rows and never an empty stand-in
+  // the state facet names display states which ask for attention; every
+  // resolved row reads "resolved", so the facet is the active window's
+  // question - both windows are filtered on their own, so the hidden panel
+  // carries its own rows and never an empty stand-in
   const rowsOf = (records: OperationalIncidentRecord[], withState: boolean) =>
     records.filter(
       (record) =>
         (severity === undefined || record.severity === severity) &&
-        (source === undefined || record.sourceType === source) &&
+        (source === undefined || record.source === source) &&
         (!withState ||
           stateFilter === undefined ||
-          record.state === stateFilter),
+          incidentDisplayState(record) === stateFilter),
     );
   const activeRows = rowsOf(activeRecords, true);
   const resolvedRows = rowsOf(resolvedRecords, false);
@@ -507,7 +519,7 @@ const IncidentCenterDrawer = (): ReactNode => {
             {tab === "active" && (
               <FacetGroup
                 label={translate("incidentCenter.facets.state")}
-                options={ACTIVE_INCIDENT_STATES}
+                options={ACTIVE_INCIDENT_DISPLAY_STATES}
                 selected={stateFilter}
                 onSelect={setStateFilter}
                 wordOf={(value) =>

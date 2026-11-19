@@ -39,10 +39,11 @@ from registry.serializers.monitoring import (
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework_json_api.views import ModelViewSet
 
 
-class WebMapServiceMonitoringSettingViewSetMixin:
+class WebMapServiceMonitoringSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     """ Endpoints for resource `WebMapServiceMonitoringSetting`
 
         create:
@@ -361,7 +362,7 @@ class NestedGetMapProbeViewSet(
     pass
 
 
-class WebFeatureServiceMonitoringSettingViewSetMixin:
+class WebFeatureServiceMonitoringSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     """ Endpoints for resource `WebFeatureServiceMonitoringSetting`
 
         create:
@@ -584,7 +585,7 @@ class NestedWebFeatureServiceGetFeatureProbeViewSet(
     serializer_class = WebFeatureServiceGetFeatureProbeSerializer
 
 
-class CatalogueServiceMonitoringSettingViewSetMixin:
+class CatalogueServiceMonitoringSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     """ Endpoints for resource `CatalogueServiceMonitoringSetting`
 
         create:
@@ -801,7 +802,7 @@ class ProbeResponseContentView(APIView):
             # as gone as no name at all (#1150)
             artifact.size
             body = artifact.open("rb")
-        except (FileNotFoundError, OSError, ValueError):
+        except (OSError, ValueError):
             raise Http404("The stored response is not in the storage.")
 
         content_type = result.response_content_type

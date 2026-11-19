@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""migration_graph_smoke: do this branch and master end up with two leaf migrations?
+"""migration_graph_smoke: do this branch and develop end up with two leaf migrations?
 
 Host-side check carried by this repository; run it as `python3
 scripts/migration_graph_smoke.py` from the repository root. Standard library only,
@@ -11,7 +11,7 @@ harness itself could not run.
 Why the leaf of a migration graph is checked here, and nowhere else
 -------------------------------------------------------------------
 Two branches which each add a migration to the same app are both green on their own:
-each has one leaf against the master it was cut from, so each passes the
+each has one leaf against the develop it was cut from, so each passes the
 `makemigrations --check --dry-run` of `backend/.bash_scripts/pre_commit_check.sh`.
 Merged they are not: the tree of the merge queue carries both files, the app ends up
 with two leaf nodes, and `makemigrations` answers `CommandError: Conflicting
@@ -22,7 +22,7 @@ after a `0036` triple-claim came a `0037` and a `0038` pair, with PR #1114 bring
 `0037_store_the_rows_of_the_alerts`. Neither branch could see it, and every discovery
 cost one merge-queue cycle.
 
-The property is one of (branch UNION master), not of either side alone, which is the
+The property is one of (branch UNION develop), not of either side alone, which is the
 same reason this repository keeps `scripts/nginx_routing_smoke.py` and
 `scripts/static_mounts_smoke.py`. Django decides a conflict by counting leaf nodes
 per app - `MigrationLoader.detect_conflicts` - so that is exactly what is counted
@@ -31,7 +31,7 @@ here, in the two seconds a push has.
 What it checks
 --------------
 Per app of `backend/`: the migration files of `--head` (default `HEAD`), of `--base`
-(default `origin/master`) and the names of their merge base, listed with `git
+(default `origin/develop`) and the names of their merge base, listed with `git
 ls-tree`; the `dependencies` of each file, read with `ast` out of its `Migration`
 class - no import, so no GDAL, no settings, no database and no compose stack. A file
 belongs to the tree the queue builds when HEAD carries it, or when only the base
@@ -64,7 +64,7 @@ A new app with a `migrations` package needs nothing here - the listing finds it.
 `replaces`, or a `run_before` are the shapes whose edges this does not model yet; each
 needs the parser extended, not the assertion weakened. Renumbering a leaf is the fix a
 reported conflict asks for, and it belongs to the branch whose migration is not in
-master yet. The offline checks are `scripts/test_migration_graph_smoke.py` (no docker,
+develop yet. The offline checks are `scripts/test_migration_graph_smoke.py` (no docker,
 no network, synthetic graphs plus one throw-away git repository).
 """
 
@@ -80,7 +80,7 @@ from pathlib import Path
 # The apps are <checkout>/backend/<app>/migrations/*.py; nothing else is read.
 APPS_ROOT = "backend"
 DEFAULT_HEAD = "HEAD"
-DEFAULT_BASE = "origin/master"
+DEFAULT_BASE = "origin/develop"
 
 # Django's loader rule (MigrationLoader.load_disk): a .py of a migrations package
 # whose name starts with neither "_" nor "~" is a migration.
@@ -216,7 +216,7 @@ def queue_files(head, base, merge):
     file to read ("head" wins where both carry it, because that is what a merge keeps
     from the branch), and `sides` says which of the two refs a reader will find the
     file in. The merge base is here for one decision only: a file HEAD deleted is gone
-    from the queue's tree, while a file only the base carries is one master added after
+    from the queue's tree, while a file only the base carries is one develop added after
     this branch split off and is really there. Reading the base for both cases would
     turn a deleted migration into a leaf that exists nowhere.
     """
@@ -346,7 +346,7 @@ def verdict(nodes, leaves, reported):
                      f"migrations detected; multiple leaf nodes in the migration graph: "
                      f"({', '.join(app_leaves)} in {app}).\"")
         renamed = next_number(numbers)
-        lines.append(f"        fix: the branch whose migration master does not carry yet "
+        lines.append(f"        fix: the branch whose migration develop does not carry yet "
                      f"renumbers it to {app}/{renamed or 'N'}_<topic> and depends on the "
                      f"leaf the other side brings")
     return lines, conflicts

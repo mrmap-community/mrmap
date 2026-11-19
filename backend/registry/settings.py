@@ -29,16 +29,38 @@ HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS = 1.2
 HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS = 900
 
 
+# The bounds of the single flight which keeps concurrent deliveries of one
+# GetRecords page from asking the catalogue twice (#1411). A delivery claims the
+# page it downloads for as long as the request it makes may take plus GRACE, the
+# time the storage of the answer costs beyond the request itself; a delivery
+# which arrives while the page is claimed waits for the outcome of the request
+# instead of making one of its own.
+# WAIT_CAP bounds how long a worker may stand idle for a page it could fetch
+# itself: a deployment which would rather pay the second request than park a
+# worker caps the wait below the lease, and 0 never waits. Nothing is lost by
+# capping it - a delivery which stops waiting fetches the page, and the storage
+# of a page two workers brought in already settles under the lock of the job.
+# POLL and POLL_MAX bound how often a waiting delivery looks at the claim: the
+# wait is as long as a request and the look is a cache read, which is cheaper the
+# less often it is taken.
+HARVESTING_PAGE_LEASE_GRACE_SECONDS = 60
+HARVESTING_PAGE_WAIT_CAP_SECONDS = None
+HARVESTING_PAGE_POLL_SECONDS = 0.25
+HARVESTING_PAGE_POLL_MAX_SECONDS = 2
+
+
 # How long one request of a service registration may wait for its server: the
 # capabilities document and every remote metadata document which that document
 # references. The value is shared on purpose - both requests are asked of the
 # same host within one registration, so a host which cannot answer a plain GET
 # within this window is a host Mr. Map must not wait for. It has to be said
-# explicitly because nothing else bounds these requests: no
-# ``task_time_limit`` or ``soft_time_limit`` of the deployment stops a task
-# which sits in a request, and a server which accepts the connection and then
-# stays silent would hold a worker of the ``download`` queue for every
-# registration which references one of its documents (#1260).
+# explicitly because the request timeout is the first bound of these requests:
+# the global task time limits of the deployment (#1454, the CELERY_TASK_*
+# limits of MrMap/settings.py) only cut a task attempt seconds or minutes
+# after a bounded request would already have returned, and they take the
+# whole slot with them - a server which accepts the connection and then stays
+# silent is ended here, politely and per request, and not by losing the work
+# of the slot at the task limit (#1260).
 REGISTRATION_REQUEST_TIMEOUT_SECONDS = 15
 
 
@@ -77,11 +99,5 @@ MONITORING_THRESHOLDS = {'WARNING_RESPONSE_TIME': WARNING_RESPONSE_TIME,
 # Some pre defined health messages
 MONITORING_DEFAULT_UNKNOWN_MESSAGE = _(
     'The health state is unknown, cause no health checks runs for this resource.')
-
-# Some pre defined conformity messages
-CONFORMITY_DEFAULT_UNKNOWN_MESSAGE = _('The validation state is unknown.')
-CONFORMITY_DEFAULT_SUCCESS_MESSAGE = _('The resource is valid.')
-CONFORMITY_DEFAULT_FAIL_MESSAGE = _('The resource is invalid.')
-
 
 METADATA_URL_BLACKLIST = ["request=GetMetadata"]

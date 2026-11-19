@@ -5,6 +5,7 @@ import {
   AdminContext,
   RecordContextProvider,
   ResourceContextProvider,
+  testDataProvider,
   TextField,
 } from "react-admin";
 
@@ -12,6 +13,20 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ServiceOverview from "./ServiceOverview";
+
+// the owning organization is only asked for by a signed-in caller, since the
+// organizations endpoint refuses everybody else (#833's public seam)
+vi.mock("../../../../providers/authProvider", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../../providers/authProvider")
+  >()),
+  getPermissionSnapshot: () =>
+    Promise.resolve({
+      roles: [],
+      administeredOrganizationIds: [],
+      isSuperuser: false,
+    }),
+}));
 
 vi.mock("../../../../context/HttpClientContext", () => ({
   API_BASE_URL: "https://mrmap.test",
@@ -21,9 +36,6 @@ vi.mock("../../../../context/HttpClientContext", () => ({
       getOperation: () => ({}),
     },
   }),
-}));
-vi.mock("../../../../providers/authProvider", () => ({
-  getAuthToken: () => ({ token: "mrmap-token" }),
 }));
 vi.mock("../../../../jsonapi/hooks/useFieldsForOperation", () => ({
   useFieldsForOperation: () =>
@@ -63,13 +75,19 @@ const service = {
   ],
 };
 
+/** the shown service as the api answers the `owner` relation of #733: an
+ *  identifier of an organization, without its name */
+const serviceWithOwner = { ...service, owner: { id: "901" } };
+
 const setup = (
   protocol: ServiceProtocol,
   record = service,
   props: Partial<ComponentProps<typeof ServiceOverview>> = {},
+  dataProvider?: ComponentProps<typeof AdminContext>["dataProvider"],
 ) =>
   render(
     <AdminContext
+      dataProvider={dataProvider}
       i18nProvider={{
         translate: (key) => key,
         changeLocale: async () => {},
@@ -168,5 +186,38 @@ describe("service overview previews", () => {
 
     expect(screen.getByText("Custom preview")).toBeInTheDocument();
     expect(screen.queryByText("Live preview WMS")).not.toBeInTheDocument();
+  });
+});
+
+describe("the owning organization on a shown service (#733)", () => {
+  it.each(["WMS", "WFS", "CSW"] as const)(
+    "names the organization of the %s service it shows",
+    async (protocol) => {
+      const getList = vi.fn().mockResolvedValue({
+        data: [
+          { id: "901", stringRepresentation: "City of Springfields" },
+        ],
+        total: 1,
+      });
+
+      setup(
+        protocol,
+        serviceWithOwner,
+        {},
+        testDataProvider({ getList }),
+      );
+
+      expect(await screen.findByText("serviceShow.owner")).toBeInTheDocument();
+      expect(screen.getByText("City of Springfields")).toBeInTheDocument();
+    },
+  );
+
+  it("documents a service which names no owner", () => {
+    // the fixture of the shown service asks the question and answers none,
+    // which is what a service of before ownership was stored looks like
+    setup("WMS");
+
+    expect(screen.getByText("serviceShow.owner")).toBeInTheDocument();
+    expect(screen.getByText("serviceShow.ownerNone")).toBeInTheDocument();
   });
 });

@@ -181,9 +181,49 @@ jobs:
           if-no-files-found: error
           path: backend/coverage/
 
+  orm-static-analysis:
+    name: orm-static-analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # The analyzer is a stdlib-only script: no services, no credentials and
+      # no Sonar token, so it answers fork PRs too (#1398 rule 4). The gate
+      # fails only on NEW findings of the blocking rules; everything already
+      # accepted lives in scripts/orm_lint_baseline.json.
+      - name: Build the machine-readable report
+        run: |
+          mkdir -p reports/orm-lint
+          python3 scripts/orm_lint.py --format sonar \
+            --output reports/orm-lint/orm-issues.json --fail-on nothing
+          python3 scripts/orm_lint.py --format sarif \
+            --output reports/orm-lint/orm-issues.sarif --fail-on nothing
+
+      - name: Annotate the new findings
+        if: always()
+        run: python3 scripts/orm_lint.py --format github --fail-on nothing
+
+      - name: Summarize the findings
+        if: always()
+        run: python3 scripts/orm_lint.py >> "$GITHUB_STEP_SUMMARY" --fail-on nothing
+
+      - name: Fail on new blocking findings
+        run: python3 scripts/orm_lint.py
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: orm-lint-issues
+          if-no-files-found: error
+          path: |
+            reports/orm-lint/orm-issues.json
+            reports/orm-lint/orm-issues.sarif
+
   sonarcloud:
     name: sonarcloud
-    needs: [backend-coverage, frontend-tests]
+    needs: [backend-coverage, frontend-tests, orm-static-analysis]
     # Fork PRs and Dependabot do not receive repository secrets. Variables opt in
     # only after the public SonarCloud project and its analysis token are ready.
     if: >-
@@ -205,6 +245,10 @@ jobs:
         with:
           name: frontend-coverage
           path: frontend/coverage
+      - uses: actions/download-artifact@v8
+        with:
+          name: orm-lint-issues
+          path: reports/orm-lint
       - name: Make coverage paths relative to the repository root
         run: |
           python3 - <<'PYTHON'
@@ -257,4 +301,5 @@ jobs:
           args: >-
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
             -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.externalIssuesReportPaths=reports/orm-lint/orm-issues.json
             -Dsonar.qualitygate.wait=true

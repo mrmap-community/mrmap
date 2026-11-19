@@ -15,6 +15,7 @@ import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
+import BatchEditButton from "../BatchEdit/BatchEditButton";
 import { ExplorerView } from "./ExplorerView";
 import { MetadataFacets, MetadataIndicators } from "./MetadataIndicators";
 
@@ -26,6 +27,9 @@ interface MetadataExplorerProps {
   MapComponent?: ComponentType<CoverageMapProps>;
   showDetails?: boolean;
   rowDetails?: (record: RaRecord) => ReactNode;
+  /** Actions for a selection of results in the bulk actions toolbar; its
+   *  presence offers the selection checkboxes of the results (#1249). */
+  bulkActions?: ReactNode;
 }
 
 export const MetadataExplorer = ({
@@ -33,6 +37,7 @@ export const MetadataExplorer = ({
   MapComponent,
   showDetails = true,
   rowDetails,
+  bulkActions,
 }: MetadataExplorerProps) => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
   const translate = useTranslate();
@@ -53,6 +58,7 @@ export const MetadataExplorer = ({
         namespace={namespace}
         showDetails={showDetails}
         rowDetails={rowDetails}
+        bulkActions={bulkActions}
         onSearchArea={(geometry) =>
           setFilters(
             { ...filterValues, bounding_geometry__intersects: geometry },
@@ -64,10 +70,16 @@ export const MetadataExplorer = ({
   );
 };
 
+/** the indicators a metadata row shows below itself */
+const metadataRowDetails = (record: RaRecord) => (
+  <MetadataIndicators record={record} />
+);
+
 const ListMetadataRecords = ({
   namespace,
   MapComponent,
   showDetails,
+  bulkActions = <BatchEditButton />,
   ...props
 }: Partial<ListProps> & MetadataExplorerProps & { resource: string }) => (
   <ListGuesser
@@ -92,7 +104,8 @@ const ListMetadataRecords = ({
           namespace={namespace}
           MapComponent={MapComponent}
           showDetails={showDetails}
-          rowDetails={(record) => <MetadataIndicators record={record} />}
+          rowDetails={metadataRowDetails}
+          bulkActions={bulkActions}
         />
       </>
     }

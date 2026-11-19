@@ -14,7 +14,10 @@ export interface UseJsonApiQueryProps {
 
 const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
   const { name, options } = useResourceDefinition();
-  const fieldsets: SparseFieldsets[] = options?.list?.sparseFieldsets ?? [];
+  // Own useMemo: the `?? []` fallback of a schema without sparse fieldsets
+  // would otherwise be a fresh array on every render and destabilise the
+  // query memo below (and with it every consumer's request).
+  const fieldsets = useMemo<SparseFieldsets[]>(() => options?.list?.sparseFieldsets ?? [], [options]);
   const operationId = relatedResource ? `list_related_${name}_of_${relatedResource}` : `list_${name}`;
   const { operation, sparseFields } = useSparseFieldsForOperation(operationId);
   const preferenceKey = `preferences.${operationId}.datagrid`;
@@ -23,9 +26,9 @@ const useJsonApiQuery = ({ relatedResource }: UseJsonApiQueryProps) => {
   const [selectedColumnsIdxs] = useStore<string[]>(`${preferenceKey}.columns`, []);
 
   return useMemo(() => {
-    const supported = (sparseFields[name] ?? []).map(element => snakeCase(element));
+    const supported = new Set((sparseFields[name] ?? []).map(element => snakeCase(element)));
     const selected = availableColumns.filter(column =>
-      column.source !== undefined && supported.includes(snakeCase(column.source)) &&
+      column.source !== undefined && supported.has(snakeCase(column.source)) &&
       (selectedColumnsIdxs.length > 0 ? selectedColumnsIdxs.includes(column.index) : !omit.includes(column.source)),
     ).map(column => snakeCase(column.source));
     const query: JsonApiQueryParams = {};

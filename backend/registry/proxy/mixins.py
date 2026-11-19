@@ -37,6 +37,16 @@ class Http423(Exception):
     pass
 
 
+# Header names which carry the caller's own credentials: the knox bearer token
+# or the session cookie with which it authenticated against MrMap. They never
+# belong in a persisted request log -- the rows are readable through the log
+# tooling -- so they are stripped before a row is written, the same denylist
+# the upstream call applies in get_remote_response (#1452). Compared against
+# normalized names: META carries underscores where the wire carries dashes.
+CREDENTIAL_HEADER_NAMES = frozenset(
+    {"authorization", "cookie", "x-forwarded-authorization"})
+
+
 def exception_handler(exc, context):
     if hasattr(context["view"], "ogc_request"):
         service_type = context["view"].ogc_request.service_type.lower()
@@ -95,8 +105,15 @@ class OgcServiceProxyView(APIView):
     start_time = None
     test_context = None
     service_type = None
-
-    # authentication_classes = (TokenAuthentication,)
+    # Nothing here is decided by a DRF permission: the answer comes from the
+    # security model of the proxied service (registry/managers/security.py and the
+    # AllowedWebMapServiceOperation rows) and a refusal travels as an OGC exception
+    # report, not as a JSON:API error. No DRF class can say that: the XML POST
+    # binding of WMS and WFS carries a GetMap or GetFeature -- both reads -- over
+    # HTTP POST, so the read-only floor of DEFAULT_PERMISSION_CLASSES (#1444) would
+    # refuse exactly the anonymous map client those bindings are specified for.
+    # Writes are refused by the proxy itself, see handle_secured_transaction.
+    permission_classes = []
 
     @property
     def is_get_request(self) -> bool:
@@ -172,7 +189,7 @@ class OgcServiceProxyView(APIView):
         """Check if requesting user is authorized to test as other users."""
         user = self.request.user
         # Require staff/superuser status
-        # TODO: check if user is "service admin"
+        # FUTURE: check if user is "service admin"
         if not user.is_staff and not user.is_superuser:
             return False
         return True
@@ -193,10 +210,10 @@ class OgcServiceProxyView(APIView):
             raise PermissionDenied
 
         # Step 2: Retrieve the test user
-        User = get_user_model()
+        user_model = get_user_model()
         try:
-            test_user = User.objects.get(username=test_user_identifier)
-        except User.DoesNotExist:
+            test_user = user_model.objects.get(username=test_user_identifier)
+        except user_model.DoesNotExist:
             raise Http404(f"User '{test_user_identifier}' not found")
 
         if not test_user.is_active:
@@ -272,7 +289,7 @@ class OgcServiceProxyView(APIView):
         :return: the camouflaged capabilities document.
         :rtype: :class:`django.http.response.HttpResponse`
         """
-        # todo: handle different service versions
+        # FUTURE: handle different service versions
         return HttpResponse(
             status=200, content=self.service.get_capabilitites_for_request(self.request), content_type="application/xml"
         )
@@ -310,7 +327,6 @@ class OgcServiceProxyView(APIView):
             request = Request(
                 method=self.ogc_request.method,
                 url=url,
-                # params=self.ogc_request.params if self.ogc_request.method == "GET" else None,
                 data=self.ogc_request.data if self.ogc_request.method == "POST" else None,
                 # Authenticate upstream with the registered service credentials,
                 # never with the caller's MrMap token or browser cookies.
@@ -340,7 +356,7 @@ class OgcServiceProxyView(APIView):
                 }
             )
         except Exception as e:
-            # todo: log exception
+            # FUTURE: log exception
             r.update(
                 {
                     "status_code": 500,
@@ -372,102 +388,118 @@ class OgcServiceProxyView(APIView):
             return
         try:
             with transaction.atomic():
-                if self.request.user.username == "":
-                    user = get_user_model().objects.get(username="AnonymousUser")
-                else:
-                    user = self.request.user
-                regex = re.compile("^HTTP_")
-                headers = dict(
-                    (regex.sub("", header), value)
-                    for (header, value) in self.request.META.items()
-                    if header.startswith("HTTP_")
-                )
-
-                # Determine the original user and test user for logging
-                is_test_request = self.test_context is not None
-                if is_test_request:
-                    # Log the original user who requested the test
-                    logged_user = self.test_context['original_user']
-                    test_user = self.test_context['test_user']
-                else:
-                    logged_user = user
-                    test_user = None
-
-                # HttpRequestLog and HttpResponseLog are abstract base classes, and
-                # an abstract model cannot be instantiated. The concrete pair of the
-                # service which is logged is the model behind its "http_request_logs"
-                # relation and the response which belongs to that one (#1153).
-                request_log_cls = self.service.http_request_logs.model
-                response_log_cls = request_log_cls._meta.get_field(
-                    "response").related_model
-
-                request_log = request_log_cls(
-                    timestamp=self.start_time,
-                    elapsed=datetime.datetime.now() - self.start_time,
-                    method=self.request.method,
-                    url=self.request.get_full_path(),
-                    headers=headers,
-                    service=self.service,
-                    user=logged_user,
-                    is_test_request=is_test_request,
-                    test_user=test_user,
-                )
-                # the body field keeps the document which was posted. A payload the
-                # parsers turned into an object is no document, so those requests
-                # are logged without one.
-                data = self.request.data
-                if isinstance(data, str):
-                    data = data.encode()
-                if isinstance(data, bytes):
-                    request_log.body.save(
-                        name=self._logged_body_name(self.request.content_type),
-                        content=ContentFile(data),
-                    )
-                else:
-                    request_log.save()
-                if isinstance(response, dict):
-                    # the dict of get_remote_response for a remote service which
-                    # never answered: only its own status and message are known, so
-                    # the fields which are not named keep their default value.
-                    response_log = response_log_cls(
-                        status_code=response.get("status_code") or 0,
-                        reason=response.get("reason") or "",
-                        elapsed=response.get("elapsed") or (
-                            datetime.datetime.now() - self.start_time),
-                        headers=response.get("headers") or {},
-                        url=response.get("url") or self.request.get_full_path(),
-                        request=request_log,
-                    )
-                    if response.get("content", None):
-                        response_log.content.save(
-                            name=self._logged_body_name(
-                                response.get("content_type")),
-                            content=ContentFile(response.get("content")),
-                        )
-                    else:
-                        response_log.save()
-                else:
-                    response_log = response_log_cls(
-                        status_code=response.status_code,
-                        reason=response.reason,
-                        elapsed=response.elapsed,
-                        headers=dict(response.headers),
-                        url=response.url,
-                        request=request_log,
-                    )
-                    if response.content:
-                        response_log.content.save(
-                            name=self._logged_body_name(
-                                response.headers.get("content-type")),
-                            content=ContentFile(response.content),
-                        )
-                    else:
-                        response_log.save()
+                request_log = self._write_request_log()
+                self._write_response_log(request_log, response)
         except Exception:
-            logging.error(
+            logging.exception(
                 "Could not log the proxied response of service %s",
-                self.service.pk,
-                exc_info=True)
+                self.service.pk)
+
+    def _write_request_log(self):
+        """The request row of this proxy call, with its posted body if any."""
+        if self.request.user.username == "":
+            user = get_user_model().objects.get(username="AnonymousUser")
+        else:
+            user = self.request.user
+        regex = re.compile("^HTTP_")
+        headers = {}
+        for (header, value) in self.request.META.items():
+            if not header.startswith("HTTP_"):
+                continue
+            name = regex.sub("", header)
+            # the logged headers keep the caller's IP and every non-credential
+            # header; the credentials themselves are stripped (#1452)
+            if name.lower().replace("_", "-") in CREDENTIAL_HEADER_NAMES:
+                continue
+            headers[name] = value
+
+        # Determine the original user and test user for logging
+        is_test_request = self.test_context is not None
+        if is_test_request:
+            # Log the original user who requested the test
+            logged_user = self.test_context['original_user']
+            test_user = self.test_context['test_user']
+        else:
+            logged_user = user
+            test_user = None
+
+        # HttpRequestLog and HttpResponseLog are abstract base classes, and
+        # an abstract model cannot be instantiated. The concrete pair of the
+        # service which is logged is the model behind its "http_request_logs"
+        # relation and the response which belongs to that one (#1153).
+        request_log_cls = self.service.http_request_logs.model
+
+        request_log = request_log_cls(
+            timestamp=self.start_time,
+            elapsed=datetime.datetime.now() - self.start_time,
+            method=self.request.method,
+            url=self.request.get_full_path(),
+            headers=headers,
+            service=self.service,
+            user=logged_user,
+            is_test_request=is_test_request,
+            test_user=test_user,
+        )
+        # the body field keeps the document which was posted. A payload the
+        # parsers turned into an object is no document, so those requests
+        # are logged without one.
+        data = self.request.data
+        if isinstance(data, str):
+            data = data.encode()
+        if isinstance(data, bytes):
+            request_log.body.save(
+                name=self._logged_body_name(self.request.content_type),
+                content=ContentFile(data),
+            )
+        else:
+            request_log.save()
+        return request_log
+
+    def _write_response_log(self, request_log, response):
+        """The response row which belongs to the given request row."""
+        response_log_cls = request_log._meta.get_field(
+            "response").related_model
+        if isinstance(response, dict):
+            # the dict of get_remote_response for a remote service which
+            # never answered: only its own status and message are known, so
+            # the fields which are not named keep their default value.
+            response_log = self._response_log_from_dict(
+                response_log_cls, request_log, response)
+            content = response.get("content", None)
+            content_type = response.get("content_type")
+        else:
+            response_log = response_log_cls(
+                status_code=response.status_code,
+                reason=response.reason,
+                elapsed=response.elapsed,
+                headers=dict(response.headers),
+                url=response.url,
+                request=request_log,
+            )
+            content = response.content
+            content_type = response.headers.get("content-type")
+
+        if content:
+            response_log.content.save(
+                name=self._logged_body_name(content_type),
+                content=ContentFile(content),
+            )
+        else:
+            response_log.save()
+        return response_log
+
+    def _response_log_from_dict(self, response_log_cls, request_log,
+                                response):
+        """The response row of a remote service which never answered."""
+        return response_log_cls(
+            status_code=response.get("status_code") or 0,
+            reason=response.get("reason") or "",
+            elapsed=response.get("elapsed") or (
+                datetime.datetime.now() - self.start_time),
+            headers=response.get("headers") or {},
+            url=response.get("url") or self.request.get_full_path(),
+            request=request_log,
+        )
 
     def return_http_response(self, response):
         """Return the http response for the client.
@@ -503,7 +535,7 @@ class OgcServiceProxyView(APIView):
                 headers.update({"Content-Encoding": content_encoding})
 
         if isinstance(response, dict) and status_code > 399:
-            # todo: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
+            # FUTURE: response with owsExceptionReport: http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd
             content = render_to_string(
                 template_name="registry/xml/ows/exception.xml", context=response
             )

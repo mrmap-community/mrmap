@@ -330,7 +330,7 @@ describe("per resource states while the working layers keep rendering", () => {
     successful();
 
     const view = renderControl();
-    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    await waitFor(() => expect(state.geoJson).toHaveLength(1));
 
     act(() => view.unmount());
 
@@ -351,7 +351,7 @@ describe("attributes of a loaded feature", () => {
 
     renderControl();
 
-    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    await waitFor(() => expect(state.geoJson).toHaveLength(1));
     const handlers: Record<string, (event?: unknown) => void> = {};
     state.geoJson[0].onEachFeature?.(dangerous.features[0] as Feature, {
       on: (name: string, handler: (event?: unknown) => void) => {
@@ -378,7 +378,7 @@ describe("the blending of a vector layer", () => {
 
     renderControl();
 
-    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    await waitFor(() => expect(state.geoJson).toHaveLength(1));
     expect(state.geoJson[0].style).toMatchObject({ opacity: 1, fillOpacity: 0.15 });
   });
 
@@ -389,7 +389,7 @@ describe("the blending of a vector layer", () => {
 
     renderControl();
 
-    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    await waitFor(() => expect(state.geoJson).toHaveLength(1));
     // the ratio of the style is kept: a dimmed layer dims its outline and its fill together
     expect(state.geoJson[0].style).toMatchObject({ opacity: 0.5, fillOpacity: 0.075 });
   });
@@ -405,7 +405,7 @@ describe("the blending of a vector layer", () => {
       </QueryClientProvider>
     );
     const { rerender } = render(control());
-    await waitFor(() => expect(state.geoJson.length).toBe(1));
+    await waitFor(() => expect(state.geoJson).toHaveLength(1));
 
     state.opacity = 0.5;
     rerender(control());

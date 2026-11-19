@@ -10,7 +10,7 @@ import { Box, Chip, Stack, Typography } from "@mui/material";
 
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
-import ListActions from "../../Lists/CustomListActions";
+import PlainListActions from "../../Lists/PlainListActions";
 import ListTemporaryMdMetadataFile from "../TemporaryMdMetadataFile/ListTemporaryMdMetadataFile";
 
 /**
@@ -88,13 +88,7 @@ const HarvestingRunMissingRecords = (): ReactElement | null => {
           storeKey={false}
           refetchInterval={refetchInterval}
           rowActions={<></>}
-          ActionsComponent={(props) => (
-            <ListActions
-              {...props}
-              isConfigureable={false}
-              isExportable={false}
-            />
-          )}
+          ActionsComponent={PlainListActions}
           columns={[
             <FunctionField
               key="collectingState"

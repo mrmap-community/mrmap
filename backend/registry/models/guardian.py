@@ -29,12 +29,17 @@ MrMap write have one here or in ``accounts/models/guardian.py``:
 
 The organizations and the groups the bootstrap also grants on - all of them of an
 integer primary key - are in ``accounts/models/guardian.py``. What is left are the
-models whose permissions nothing writes today, like the ``User`` of
-``accounts.models.users.User.assign_object_perms``: named by a uuid, their rows in
-the shared table are readable for every lookup, so they answer generically until
-the role work needs a table. The guard which watches the whole set is #735.
+models whose permissions nothing writes today, like the ``User``: named by a uuid,
+its rows in the shared table are readable for every lookup, so it answers
+generically until the role work needs a table. The one code path which ever wrote
+a user grant of its own was dead and #741 removed it. Since #735 the
+set of models which does have tables is
+declared in ``accounts.settings.GUARDIAN_PERF_MODELS``, and the guard which watches
+the declaration against these classes is the system check of
+``accounts/checks.py``.
 """
 from django.db import models
+from extras.models import GrantMetadataMixin
 from registry.models.mapcontext import MapContext, MapContextLayer
 from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.service import (CatalogueService, WebFeatureService,
@@ -43,24 +48,49 @@ from registry.models.service import (CatalogueService, WebFeatureService,
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 
 
-class WebMapServiceUserObjectPermission(UserObjectPermissionBase):
+# The four tables of the two shareable service kinds carry the grant metadata
+# of #740 (``extras.models.GrantMetadataMixin``): a share of a service and the
+# resource grants of an accepted ``PublishRequest`` are decisions and name the
+# person who wrote them. The remaining tables keep plain guardian rows - the
+# models which are not shareable today gain the columns together with the
+# share path which needs them, not ahead of it.
+class WebMapServiceUserObjectPermission(GrantMetadataMixin,
+                                        UserObjectPermissionBase):
     content_object = models.ForeignKey(
         to=WebMapService, on_delete=models.CASCADE)
 
+    # the grant metadata mixin carries a Meta of its own; the concrete table
+    # names the guardian base Meta explicitly, or its unique_together - the
+    # one constraint that keeps a grant row single - would silently vanish
+    class Meta(UserObjectPermissionBase.Meta):
+        pass
 
-class WebMapServiceGroupObjectPermission(GroupObjectPermissionBase):
+
+class WebMapServiceGroupObjectPermission(GrantMetadataMixin,
+                                         GroupObjectPermissionBase):
     content_object = models.ForeignKey(
         to=WebMapService, on_delete=models.CASCADE)
 
+    class Meta(GroupObjectPermissionBase.Meta):
+        pass
 
-class WebFeatureServiceUserObjectPermission(UserObjectPermissionBase):
+
+class WebFeatureServiceUserObjectPermission(GrantMetadataMixin,
+                                            UserObjectPermissionBase):
     content_object = models.ForeignKey(
         to=WebFeatureService, on_delete=models.CASCADE)
 
+    class Meta(UserObjectPermissionBase.Meta):
+        pass
 
-class WebFeatureServiceGroupObjectPermission(GroupObjectPermissionBase):
+
+class WebFeatureServiceGroupObjectPermission(GrantMetadataMixin,
+                                             GroupObjectPermissionBase):
     content_object = models.ForeignKey(
         to=WebFeatureService, on_delete=models.CASCADE)
+
+    class Meta(GroupObjectPermissionBase.Meta):
+        pass
 
 
 # The catalogue is no secured model and nothing grants on it today, but both

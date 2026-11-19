@@ -31,8 +31,8 @@ const LayerLabel = ({
 }: LayerLabelProps) => {
   const { refetch } = useShowContext();
 
-  const hasIsActive = Object.prototype.hasOwnProperty.call(record, 'isActive');
-  const hasIsSearchable = Object.prototype.hasOwnProperty.call(record, 'isSearchable');
+  const hasIsActive = Object.hasOwn(record, 'isActive');
+  const hasIsSearchable = Object.hasOwn(record, 'isSearchable');
 
 
   const toggleIsActive = useMemo(()=>(
@@ -48,7 +48,7 @@ const LayerLabel = ({
     >
       {record.isActive ? <ToggleOnIcon/>: <ToggleOffIcon/>}
     </SimpleUpdateButton>
-  ),[record])
+  ),[record, hasIsActive, refetch])
 
   const toggleIsSearchable = useMemo(()=>(
     <SimpleUpdateButton
@@ -63,7 +63,7 @@ const LayerLabel = ({
     >
       {record.isActive ? <VisibilityIcon/>: <VisibilityOffIcon/>}
     </SimpleUpdateButton>
-  ),[record])
+  ),[record, hasIsSearchable, refetch])
 
   return (
       <Fragment>
@@ -100,7 +100,7 @@ const WmsTreeView = ({
     undefined, 
     getLayerProps
   ) || [],
-  [record?.layers, getLayerProps])
+  [record?.layers, getLayerProps, sortedLayers])
   
   const [selectedLayer, setSelectedLayer] = useQueryParam('selectedLayer', record?.layers?.[0]?.id.toString());
 
@@ -169,7 +169,7 @@ const WmsTreeView = ({
       cancelAnimationFrame(frame);
       container?.removeEventListener('transitionend', tryScroll);
     };
-  }, [effectiveSelectedLayer, focusSelectedLayer, tree, props.expandedItems, expandedItems]);
+  }, [effectiveSelectedLayer, focusSelectedLayer, tree, props.expandedItems, expandedItems, apiRef]);
 
   return (
     <SimpleTreeView

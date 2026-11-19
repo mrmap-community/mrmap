@@ -1,5 +1,8 @@
 import { useEffect } from "react";
 import { useDataProvider, useGetList } from "react-admin";
+import { ReadyState } from "react-use-websocket";
+
+import { useHttpClientContext } from "../../../context/HttpClientContext";
 
 export const ALERT_REFETCH_INTERVAL = 20000;
 
@@ -13,6 +16,7 @@ const useServiceAlerts = (
   filter: Record<string, string | number | undefined> = {},
 ) => {
   const provider = useDataProvider();
+  const { realtimeIsReady } = useHttpClientContext();
   const result = useGetList(
     "ServiceAlert",
     {
@@ -20,7 +24,11 @@ const useServiceAlerts = (
       sort: { field: "severity,-occurredAt", order: "ASC" },
       filter,
     },
-    { refetchInterval: ALERT_REFETCH_INTERVAL, retry: false },
+    {
+      // the bus carries the alert topic - it only polls while that is down
+      refetchInterval: realtimeIsReady === ReadyState.OPEN ? false : ALERT_REFETCH_INTERVAL,
+      retry: false,
+    },
   );
   const { refetch } = result;
   useEffect(() => {

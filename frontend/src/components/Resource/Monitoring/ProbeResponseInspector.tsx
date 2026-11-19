@@ -16,7 +16,6 @@ import {
   API_BASE_URL,
   useHttpClientContext,
 } from "../../../context/HttpClientContext";
-import { getAuthToken } from "../../../providers/authProvider";
 import { PreviewImage } from "../Generic/ServiceShow/ServicePreviewImage";
 
 /** The execution summary of one probe, as the result serializers answer it
@@ -67,21 +66,15 @@ const readDuration = (value?: string | null) => {
   if (!value) return null;
   const [hours = "0", minutes = "0", rest = "0"] = value.split(":");
   const total = Number(hours) * 3600 + Number(minutes) * 60 + Number(rest);
-  return Number.isFinite(total)
-    ? total < 1
-      ? `${Math.round(total * 1000)} ms`
-      : `${total.toFixed(1)} s`
-    : value;
+  if (!Number.isFinite(total)) return value;
+  return total < 1 ? `${Math.round(total * 1000)} ms` : `${total.toFixed(1)} s`;
 };
 
 const ArtifactAlert = ({ status }: { status?: number }) => {
   const translate = useTranslate();
-  const key =
-    status === 410
-      ? "monitoringRun.response.expired"
-      : status === 404
-        ? "monitoringRun.response.missing"
-        : "monitoringRun.response.unavailable";
+  let key = "monitoringRun.response.unavailable";
+  if (status === 410) key = "monitoringRun.response.expired";
+  else if (status === 404) key = "monitoringRun.response.missing";
   return (
     <Alert severity="warning" icon={<CloudOffOutlineIcon fontSize="inherit" />}>
       {translate(key)}
@@ -206,7 +199,8 @@ const ResponseArtifact = ({
       const endpoint = new URL(url, API_BASE_URL);
       if (endpoint.origin !== new URL(API_BASE_URL).origin)
         throw new Error("Artifact must use the MrMap API");
-      const token = getAuthToken()?.token;
+      // same-origin of the guard above: the session cookie is on this request
+      // by itself, no credential is spelled out for it any more (#835)
       return (
         await api.client.request<Blob>({
           url: endpoint.href,
@@ -214,7 +208,6 @@ const ResponseArtifact = ({
           signal,
           headers: {
             Accept: "*/*",
-            ...(token ? { Authorization: `Token ${token}` } : {}),
           },
         })
       ).data;

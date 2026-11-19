@@ -127,7 +127,9 @@ def _parse(document) -> etree._Element:
             "The capabilities document of the service can not be read.",
             status=502,
         )
-    if root is None:
+    # lxml answers None for a document without a root element, the
+    # syntax branch above does not cover that case
+    if root is None:  # NOSONAR
         raise CapabilitiesError(
             MALFORMED,
             "The capabilities document of the service is empty.",

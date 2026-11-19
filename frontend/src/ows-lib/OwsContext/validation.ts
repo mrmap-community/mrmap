@@ -50,7 +50,7 @@ export const isWfsOfferingCode = (code: unknown): boolean => [
 
 /** Normalize losslessly recoverable fields of older MrMap exports. */
 export const normalizeResourceProperties = (properties: OWSResourceProperties): OWSResourceProperties => {
-    const result = JSON.parse(JSON.stringify(properties)) as OWSResourceProperties
+    const result = structuredClone(properties) as OWSResourceProperties
     const aliases = { minScaleDenominator: 'minscaledenominator', maxScaleDenominator: 'maxscaledenominator' }
     Object.entries(aliases).forEach(([legacy, canonical]) => {
         if (result[legacy] !== undefined) {
@@ -101,17 +101,19 @@ export interface OwsContextValidationResult {
     context?: IOWSContext
 }
 
-const SUPPORTED_HTTP_METHODS = ['get', 'post', 'put', 'delete']
+const SUPPORTED_HTTP_METHODS = new Set(['get', 'post', 'put', 'delete'])
 
-const GEOJSON_GEOMETRY_TYPES = [
+const GEOJSON_GEOMETRY_TYPES = new Set([
     'Point', 'MultiPoint', 'LineString', 'MultiLineString', 'Polygon', 'MultiPolygon', 'GeometryCollection'
-]
+])
 
 const UUID_IDENTIFIER_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const ABSOLUTE_URI_PATTERN = /^[A-Za-z][A-Za-z0-9+.-]*:/
 
-const RFC_3339_PATTERN = /^\d{4}-\d{2}-\d{2}([Tt ]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})?)?$/
+const RFC_3339_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+const RFC_3339_TIME_SUFFIX_PATTERN = /^[Tt ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[Zz]|[+-]\d{2}:\d{2})?$/
 
 const LANGUAGE_TAG_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/
 
@@ -121,7 +123,12 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isFilledString = (value: unknown): value is string =>
     typeof value === 'string' && value.trim().length > 0
 
-const isRfc3339 = (value: string) => RFC_3339_PATTERN.test(value) && !Number.isNaN(Date.parse(value))
+const isRfc3339 = (value: string) => {
+    const rest = value.slice(10)
+    return RFC_3339_DATE_PATTERN.test(value.slice(0, 10)) &&
+        (rest.length === 0 || RFC_3339_TIME_SUFFIX_PATTERN.test(rest)) &&
+        !Number.isNaN(Date.parse(value))
+}
 
 const isAbsoluteUrl = (value: string) => {
     try {
@@ -132,7 +139,11 @@ const isAbsoluteUrl = (value: string) => {
     }
 }
 
-const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+const clone = <T>(value: T): T => structuredClone(value) as T
+
+/** what an error message shows for a value whose type the document got wrong */
+const folderDisplay = (value: unknown): string =>
+    typeof value === "object" && value !== null ? JSON.stringify(value) : String(value)
 
 interface IssueCollector {
     issues: OwsContextIssue[]
@@ -159,7 +170,7 @@ export const ensureCoreProfile = (properties: OWSContextProperties): OWSContextP
 
     return {
         ...properties,
-        links: { ...(properties.links ?? {}), profiles: [...profiles, OWS_CONTEXT_CORE_PROFILE] }
+        links: { ...properties.links, profiles: [...profiles, OWS_CONTEXT_CORE_PROFILE] }
     }
 }
 
@@ -193,7 +204,7 @@ const validateGeometry = (collector: IssueCollector, geometry: unknown, path: st
         collector.error(path, 'must be a GeoJSON geometry object or null')
         return
     }
-    if (typeof geometry.type !== 'string' || !GEOJSON_GEOMETRY_TYPES.includes(geometry.type))
+    if (typeof geometry.type !== 'string' || !GEOJSON_GEOMETRY_TYPES.has(geometry.type))
         collector.error(`${path}.type`, 'must be one of the GeoJSON geometry types')
     if (geometry.type === 'GeometryCollection') {
         if (!Array.isArray(geometry.geometries)) collector.error(`${path}.geometries`, 'must be an array of geometries')
@@ -274,7 +285,7 @@ const validateOperations = (collector: IssueCollector, operations: unknown, path
 
         if (!isFilledString(operation.method))
             collector.error(`${operationPath}.method`, 'is required and must be "GET", "POST", "PUT" or "DELETE"')
-        else if (!SUPPORTED_HTTP_METHODS.includes(operation.method.toLowerCase()))
+        else if (!SUPPORTED_HTTP_METHODS.has(operation.method.toLowerCase()))
             collector.warn(`${operationPath}.method`, `"${operation.method}" is not a supported HTTP method`)
 
         // the viewer builds its requests with new URL(operation.href), so a relative href is fatal
@@ -290,64 +301,77 @@ const validateOperations = (collector: IssueCollector, operations: unknown, path
 
 
 
+/** validate a list of objects which each state one required string member, e.g. contents or styles */
+const validateMemberList = (
+    collector: IssueCollector,
+    members: unknown,
+    path: string,
+    key: string,
+    kind: string
+) => {
+    if (!Array.isArray(members)) collector.error(path, `must be an array of ${kind}`)
+    else members.forEach((member, index) => {
+        const memberPath = `${path}[${index}]`
+        if (!isRecord(member)) collector.error(memberPath, `must be an object with a "${key}" member`)
+        else if (!isFilledString(member[key])) collector.error(`${memberPath}.${key}`, 'is required and must be a non empty string')
+    })
+}
+
+/** validate an offering's dimensions: every dimension names its values */
+const validateDimensions = (collector: IssueCollector, dimensions: unknown, path: string) => {
+    if (!Array.isArray(dimensions)) collector.error(path, 'must be an array of dimensions')
+    else dimensions.forEach((dimension, index) => {
+        const dimensionPath = `${path}[${index}]`
+        if (!isRecord(dimension)) collector.error(dimensionPath, 'must be an object with a "name" and a "values" member')
+        else {
+            if (!isFilledString(dimension.name)) collector.error(`${dimensionPath}.name`, 'is required and must be a non empty string')
+            if (!isFilledString(dimension.values)) collector.error(`${dimensionPath}.values`, 'is required and must be a non empty string')
+        }
+    })
+}
+
+/** validate one offering: its code, the operations it offers and the inline members it carries */
+const validateOffering = (collector: IssueCollector, offering: unknown, offeringPath: string) => {
+    if (!isRecord(offering)) {
+        collector.error(offeringPath, 'must be an object with a "code" member')
+        return
+    }
+    if (!isFilledString(offering.code)) {
+        collector.error(`${offeringPath}.code`, 'is required and must be a non empty string')
+        return
+    }
+    const isWmsOffering = isWmsOfferingCode(offering.code)
+    const isWfsOffering = isWfsOfferingCode(offering.code)
+    if (!isWmsOffering && !isWfsOffering)
+        collector.warn(`${offeringPath}.code`, `"${offering.code}" is an offering the viewer cannot render; the resource is kept as an extension`)
+
+    let supportedOperations: string[] | undefined
+    if (isWmsOffering) supportedOperations = SUPPORTED_WMS_OPERATIONS
+    else if (isWfsOffering) supportedOperations = SUPPORTED_WFS_OPERATIONS
+
+    validateOperations(
+        collector,
+        offering.operations,
+        `${offeringPath}.operations`,
+        supportedOperations
+    )
+
+    if (offering.contents !== undefined)
+        validateMemberList(collector, offering.contents, `${offeringPath}.contents`, 'type', 'contents')
+    if (offering.styles !== undefined)
+        validateMemberList(collector, offering.styles, `${offeringPath}.styles`, 'name', 'styles')
+    if (offering.dimensions !== undefined)
+        validateDimensions(collector, offering.dimensions, `${offeringPath}.dimensions`)
+}
+
 const validateOfferings = (collector: IssueCollector, offerings: unknown, path: string) => {
     if (offerings === undefined) return
     if (!Array.isArray(offerings)) {
         collector.error(path, 'must be an array of offerings')
         return
     }
-    offerings.forEach((offering, offeringIndex) => {
-        const offeringPath = `${path}[${offeringIndex}]`
-        if (!isRecord(offering)) {
-            collector.error(offeringPath, 'must be an object with a "code" member')
-            return
-        }
-        if (!isFilledString(offering.code)) {
-            collector.error(`${offeringPath}.code`, 'is required and must be a non empty string')
-            return
-        }
-        const isWmsOffering = isWmsOfferingCode(offering.code)
-        const isWfsOffering = isWfsOfferingCode(offering.code)
-        if (!isWmsOffering && !isWfsOffering)
-            collector.warn(`${offeringPath}.code`, `"${offering.code}" is an offering the viewer cannot render; the resource is kept as an extension`)
-
-        validateOperations(
-            collector,
-            offering.operations,
-            `${offeringPath}.operations`,
-            isWmsOffering ? SUPPORTED_WMS_OPERATIONS : isWfsOffering ? SUPPORTED_WFS_OPERATIONS : undefined
-        )
-
-        if (offering.contents !== undefined) {
-            if (!Array.isArray(offering.contents)) collector.error(`${offeringPath}.contents`, 'must be an array of contents')
-            else offering.contents.forEach((content, index) => {
-                const contentPath = `${offeringPath}.contents[${index}]`
-                if (!isRecord(content)) collector.error(contentPath, 'must be an object with a "type" member')
-                else if (!isFilledString(content.type)) collector.error(`${contentPath}.type`, 'is required and must be a non empty string')
-            })
-        }
-
-        if (offering.styles !== undefined) {
-            if (!Array.isArray(offering.styles)) collector.error(`${offeringPath}.styles`, 'must be an array of styles')
-            else offering.styles.forEach((style, index) => {
-                const stylePath = `${offeringPath}.styles[${index}]`
-                if (!isRecord(style)) collector.error(stylePath, 'must be an object with a "name" member')
-                else if (!isFilledString(style.name)) collector.error(`${stylePath}.name`, 'is required and must be a non empty string')
-            })
-        }
-
-        if (offering.dimensions !== undefined) {
-            if (!Array.isArray(offering.dimensions)) collector.error(`${offeringPath}.dimensions`, 'must be an array of dimensions')
-            else offering.dimensions.forEach((dimension, index) => {
-                const dimensionPath = `${offeringPath}.dimensions[${index}]`
-                if (!isRecord(dimension)) collector.error(dimensionPath, 'must be an object with a "name" and a "values" member')
-                else {
-                    if (!isFilledString(dimension.name)) collector.error(`${dimensionPath}.name`, 'is required and must be a non empty string')
-                    if (!isFilledString(dimension.values)) collector.error(`${dimensionPath}.values`, 'is required and must be a non empty string')
-                }
-            })
-        }
-    })
+    offerings.forEach((offering, offeringIndex) =>
+        validateOffering(collector, offering, `${path}[${offeringIndex}]`))
 }
 
 const validateResourceProperties = (
@@ -379,7 +403,7 @@ const validateResourceProperties = (
     // a folder may be named and does not need to describe its parent groups, both is normalized onto
     // the numbered paths the layer tree works with, only a folder without any segment is unusable
     if (!isFilledString(properties.folder) || splitFolderPath(properties.folder).length === 0) {
-        collector.error(`${path}.folder`, `"${String(properties.folder)}" does not describe a folder, e.g. "/0" or "/root/algal"`)
+        collector.error(`${path}.folder`, `"${folderDisplay(properties.folder)}" does not describe a folder, e.g. "/0" or "/root/algal"`)
         return
     }
 
@@ -417,10 +441,22 @@ const validateFeatures = (collector: IssueCollector, features: unknown[]) => {
 
 
 
-const validateContextProperties = (collector: IssueCollector, properties: Record<string, unknown>) => {
-    const path = 'properties'
+/** members which may be absent and must be strings when they are present */
+const validateOptionalStrings = (
+    collector: IssueCollector,
+    holder: Record<string, unknown>,
+    path: string,
+    members: string[]
+) => {
+    members.forEach(member => {
+        if (holder[member] !== undefined && typeof holder[member] !== 'string')
+            collector.error(`${path}.${member}`, 'must be a string')
+    })
+}
 
-    // "lang" is required by the core profile; the mrmap backend has been emitting "language" for it
+/** the language of a context: "lang" is required by the core profile and the mrmap
+ *  backend has been emitting "language" for it */
+const validateLanguageTag = (collector: IssueCollector, properties: Record<string, unknown>, path: string) => {
     if (!isFilledString(properties.lang)) {
         if (isFilledString(properties.language)) {
             properties.lang = properties.language
@@ -431,6 +467,28 @@ const validateContextProperties = (collector: IssueCollector, properties: Record
     } else if (!LANGUAGE_TAG_PATTERN.test(properties.lang)) {
         collector.warn(`${path}.lang`, `"${properties.lang}" does not look like a RFC-3066 language tag`)
     }
+}
+
+/** the generator of a context: its title, uri and version stated as strings */
+const validateGenerator = (collector: IssueCollector, generator: unknown, path: string) => {
+    if (!isRecord(generator)) collector.error(path, 'must be an object')
+    else validateOptionalStrings(collector, generator, path, ['title', 'uri', 'version'])
+}
+
+/** the display of a context: the positive numbers the viewer sizes its maps with */
+const validateDisplay = (collector: IssueCollector, display: unknown, path: string) => {
+    if (!isRecord(display)) collector.error(path, 'must be an object')
+    else ['pixelWidth', 'pixelHeight', 'mmPerPixel'].forEach(member => {
+        const value = display[member]
+        if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0))
+            collector.error(`${path}.${member}`, 'must be a positive number')
+    })
+}
+
+const validateContextProperties = (collector: IssueCollector, properties: Record<string, unknown>) => {
+    const path = 'properties'
+
+    validateLanguageTag(collector, properties, path)
 
     if (!isFilledString(properties.title))
         collector.error(`${path}.title`, 'is required and must be a non empty string')
@@ -444,30 +502,9 @@ const validateContextProperties = (collector: IssueCollector, properties: Record
     }
     validateCategories(collector, properties.categories, `${path}.categories`)
 
-    const stringMembers = ['publisher', 'rights', 'subtitle']
-    stringMembers.forEach(member => {
-        if (properties[member] !== undefined && typeof properties[member] !== 'string')
-            collector.error(`${path}.${member}`, 'must be a string')
-    })
-
-    const generator = properties.generator
-    if (generator !== undefined) {
-        if (!isRecord(generator)) collector.error(`${path}.generator`, 'must be an object')
-        else ['title', 'uri', 'version'].forEach(member => {
-            if (generator[member] !== undefined && typeof generator[member] !== 'string')
-                collector.error(`${path}.generator.${member}`, 'must be a string')
-        })
-    }
-
-    const display = properties.display
-    if (display !== undefined) {
-        if (!isRecord(display)) collector.error(`${path}.display`, 'must be an object')
-        else ['pixelWidth', 'pixelHeight', 'mmPerPixel'].forEach(member => {
-            const value = display[member]
-            if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value <= 0))
-                collector.error(`${path}.display.${member}`, 'must be a positive number')
-        })
-    }
+    validateOptionalStrings(collector, properties, path, ['publisher', 'rights', 'subtitle'])
+    if (properties.generator !== undefined) validateGenerator(collector, properties.generator, `${path}.generator`)
+    if (properties.display !== undefined) validateDisplay(collector, properties.display, `${path}.display`)
 
     const links = properties.links
     if (links !== undefined && !isRecord(links)) {
@@ -488,15 +525,8 @@ const validateContextProperties = (collector: IssueCollector, properties: Record
  * core profile reference) and the numbered folder structure the layer tree works with, while unknown
  * members are passed through untouched.
  */
-export const validateOwsContext = (value: unknown): OwsContextValidationResult => {
-    const collector = createCollector()
-
-    if (!isRecord(value)) {
-        collector.error('document', 'must be a JSON object holding an OWS Context FeatureCollection')
-        return { hasErrors: true, issues: collector.issues }
-    }
-
-    const context = clone(value)
+/** bring the legacy members of a freshly parsed document into the shape the viewer works with */
+const normalizeLegacyMembers = (collector: IssueCollector, context: Record<string, unknown>) => {
     if (isRecord(context.properties)) {
         const properties = context.properties
         Object.entries({ language: 'lang', subtilte: 'subtitle' }).forEach(([legacy, canonical]) => {
@@ -519,10 +549,10 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
             collector.warn(`features[${index}].properties`, 'normalized legacy WMS identifiers, offerings or scale names')
         feature.properties = normalized
     })
+}
 
-    if (context.type !== 'FeatureCollection')
-        collector.error('type', `must be "FeatureCollection", found ${JSON.stringify(context.type)}`)
-
+/** the context's identifier must be a URI; a bare UUID identifies the document and is kept usable */
+const normalizeContextId = (collector: IssueCollector, context: Record<string, unknown>) => {
     if (!isFilledString(context.id)) {
         collector.error('id', 'is required and must be a string holding a URI, e.g. "https://..." or "urn:uuid:..."')
     } else if (UUID_IDENTIFIER_PATTERN.test(context.id)) {
@@ -532,6 +562,45 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
     } else if (!ABSOLUTE_URI_PATTERN.test(context.id) && !context.id.startsWith('/')) {
         collector.warn('id', `"${context.id}" is not a URI, e.g. "https://..." or "urn:uuid:..."`)
     }
+}
+
+/** the header credentials the viewer sends to operations: complete entries with unique ids.
+ *  The viewer consumes this extension directly; malformed credentials must be rejected before
+ *  they can replace the working context. Missing values/origins remain repairable. */
+const validateAuthenticationHeaders = (collector: IssueCollector, headers: unknown) => {
+    if (!Array.isArray(headers)) {
+        collector.error('authenticationHeaders', 'must be an array of header credentials')
+        return
+    }
+    const ids = new Set<string>()
+    headers.forEach((auth, index) => {
+        const path = `authenticationHeaders[${index}]`
+        if (!isRecord(auth) || auth.type !== 'header' || !isFilledString(auth.id) ||
+            !isFilledString(auth.name) || typeof auth.value !== 'string' ||
+            (auth.origin !== undefined && typeof auth.origin !== 'string')) {
+            collector.error(path, 'must describe a header credential with an id, name and string value')
+            return
+        }
+        if (ids.has(auth.id)) collector.error(`${path}.id`, 'must be unique')
+        ids.add(auth.id)
+    })
+}
+
+export const validateOwsContext = (value: unknown): OwsContextValidationResult => {
+    const collector = createCollector()
+
+    if (!isRecord(value)) {
+        collector.error('document', 'must be a JSON object holding an OWS Context FeatureCollection')
+        return { hasErrors: true, issues: collector.issues }
+    }
+
+    const context = clone(value)
+    normalizeLegacyMembers(collector, context)
+
+    if (context.type !== 'FeatureCollection')
+        collector.error('type', `must be "FeatureCollection", found ${JSON.stringify(context.type)}`)
+
+    normalizeContextId(collector, context)
 
     validateBBox(collector, context.bbox, 'bbox')
 
@@ -550,26 +619,8 @@ export const validateOwsContext = (value: unknown): OwsContextValidationResult =
         collector.error('properties', 'is required and must be an object')
     }
 
-    // The viewer consumes this extension directly; malformed credentials must be rejected
-    // before they can replace the working context. Missing values/origins remain repairable.
-    if (context.authenticationHeaders !== undefined) {
-        if (!Array.isArray(context.authenticationHeaders)) {
-            collector.error('authenticationHeaders', 'must be an array of header credentials')
-        } else {
-            const ids = new Set<string>()
-            context.authenticationHeaders.forEach((auth, index) => {
-                const path = `authenticationHeaders[${index}]`
-                if (!isRecord(auth) || auth.type !== 'header' || !isFilledString(auth.id) ||
-                    !isFilledString(auth.name) || typeof auth.value !== 'string' ||
-                    (auth.origin !== undefined && typeof auth.origin !== 'string')) {
-                    collector.error(path, 'must describe a header credential with an id, name and string value')
-                    return
-                }
-                if (ids.has(auth.id)) collector.error(`${path}.id`, 'must be unique')
-                ids.add(auth.id)
-            })
-        }
-    }
+    if (context.authenticationHeaders !== undefined)
+        validateAuthenticationHeaders(collector, context.authenticationHeaders)
 
     if (Array.isArray(context.features)) validateFeatures(collector, context.features)
     else collector.error('features', 'is required and must be an array of OWS Context resources')

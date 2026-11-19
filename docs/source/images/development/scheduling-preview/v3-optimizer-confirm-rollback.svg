@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <title>V3-Bestaetigung und Ruecknahme (Konzept, nicht implementiert)</title>
+  <rect width="1600" height="900" fill="#f4f5f7"/>
+  <rect x="0" y="0" width="1600" height="64" fill="#1f2937"/>
+  <text x="32" y="40" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="bold">MrMap</text>
+  <text x="1010" y="40" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold">Zeitpläne</text>
+  <rect x="32" y="100" width="1536" height="240" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="136" fill="#0f172a" font-family="sans-serif" font-size="22" font-weight="bold">Bestätigen – letzte Stufe vor der Speicherung</text>
+  <rect x="1180" y="116" width="300" height="32" rx="16" fill="#fef3c7" stroke="#b45309"/>
+  <text x="1330" y="137" fill="#92400e" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">PHASE 3 · IDEE · NICHT IMPLEMENTIERT</text>
+  <g font-family="sans-serif" font-size="13">
+    <rect x="56" y="166" width="14" height="14" rx="3" fill="#16a34a"/>
+    <text x="84" y="178" fill="#0f172a">Ich habe die Vorschau gelesen und möchte diese 4.982 Änderungen speichern.</text>
+    <rect x="56" y="198" width="14" height="14" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="84" y="210" fill="#64748b">Ich habe die Auswirkungen auf andere Organisationen gesehen. (Pflicht, vorausgewählt)</text>
+    <rect x="56" y="230" width="14" height="14" rx="3" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="84" y="242" fill="#64748b">Wiederholung in derselben Woche vermeiden – nur wenn die Anwendung es anzeigt.</text>
+  </g>
+  <rect x="56" y="268" width="1488" height="50" rx="6" fill="#fef2f2" stroke="#fecaca"/>
+  <text x="76" y="298" fill="#b91c1c" font-family="sans-serif" font-size="13">Ohne ausgehakte Auswirkungs-Bestätigung bleibt der Speichern-Knopf grau. Ein Klick speichert sofort – es gibt keinen Zwischenschritt.</text>
+  <rect x="1230" y="268" width="280" height="50" rx="6" fill="#2563eb"/>
+  <text x="1370" y="298" fill="#ffffff" font-family="sans-serif" font-size="14" font-weight="bold" text-anchor="middle" opacity="0.5">SPEICHERN (DEAKTIVIERT)</text>
+  <rect x="32" y="370" width="1536" height="230" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="402" fill="#0f172a" font-family="sans-serif" font-size="16" font-weight="bold">Protokollierung – was gespeichert wurde</text>
+  <g font-family="monospace" font-size="12" fill="#334155">
+    <text x="56" y="434">2026-11-15 14:03:12  zeitplan-aenderung  aenderungspaket=8f2c1a  zeitpläne=4982  aktion=gespeichert</text>
+    <text x="56" y="456">2026-11-15 14:03:12    ursprung=manueller-vorschlag  optimierungslauf=lauf-2026-11-15-03  budget=5000/5000</text>
+    <text x="56" y="478">2026-11-15 14:03:12    wirkung-prognose  p95=2h58m  verletzungen=38330  (Simulation – gemessene Werte folgen)</text>
+    <text x="56" y="500" fill="#16a34a">2026-11-15 21:00:00    wirkung-gemessen    p95=3h04m  verletzungen=37200  (erste 7 h Betrieb)</text>
+    <text x="56" y="536" fill="#94a3b8">Pro Person und Organisation auswertbar · nichts wird ohne diese Spur gespeichert</text>
+  </g>
+  <text x="900" y="434" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="bold">Widerruf</text>
+  <text x="900" y="460" fill="#475569" font-family="sans-serif" font-size="12">Ein Klick stellt alle Zeitpläne dieses</text>
+  <text x="900" y="478" fill="#475569" font-family="sans-serif" font-size="12">Pakets auf den Stand vor der Änderung zurück.</text>
+  <text x="900" y="496" fill="#475569" font-family="sans-serif" font-size="12">Bedingung: der Zeitplan wurde seither nicht</text>
+  <text x="900" y="514" fill="#475569" font-family="sans-serif" font-size="12">von anderer Hand bearbeitet.</text>
+  <rect x="900" y="530" width="200" height="40" rx="6" fill="#ffffff" stroke="#dc2626"/>
+  <text x="1000" y="555" fill="#dc2626" font-family="sans-serif" font-size="13" font-weight="bold" text-anchor="middle">ÄNDERUNG WIDERRUFEN</text>
+  <rect x="32" y="630" width="1536" height="180" rx="8" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="56" y="662" fill="#0f172a" font-family="sans-serif" font-size="16" font-weight="bold">Wöchentliches Sicherheitsfenster</text>
+  <text x="56" y="694" fill="#475569" font-family="sans-serif" font-size="13">Wenn die Organisation wiederkehrende Optimierungen eingeschaltet hat (V3.3): jeder Lauf endet hier, nicht direkt in der Anwendung.</text>
+  <g font-family="sans-serif" font-size="12">
+    <rect x="56" y="720" width="220" height="56" rx="6" fill="#f8fafc" stroke="#cbd5e1"/><text x="166" y="744" text-anchor="middle" fill="#0f172a">Di 03:00</text><text x="166" y="762" text-anchor="middle" fill="#64748b">Lauf + Simulation</text>
+    <text x="300" y="752" fill="#94a3b8" font-size="16">→</text>
+    <rect x="330" y="720" width="220" height="56" rx="6" fill="#eff6ff" stroke="#2563eb"/><text x="440" y="744" text-anchor="middle" fill="#1e40af">bis Di 12:00</text><text x="440" y="762" text-anchor="middle" fill="#64748b">Sicherheitsfenster</text>
+    <text x="574" y="752" fill="#94a3b8" font-size="16">→</text>
+    <rect x="604" y="720" width="280" height="56" rx="6" fill="#f0fdf4" stroke="#16a34a"/><text x="744" y="744" text-anchor="middle" fill="#166534">Di 12:00 ohne Widerspruch</text><text x="744" y="762" text-anchor="middle" fill="#64748b">wird gespeichert</text>
+    <text x="900" y="752" fill="#94a3b8" font-size="12" font-family="sans-serif">oder</text>
+    <rect x="930" y="720" width="260" height="56" rx="6" fill="#fef2f2" stroke="#dc2626"/><text x="1060" y="744" text-anchor="middle" fill="#b91c1c">jederzeit: ablehnen</text><text x="1060" y="762" text-anchor="middle" fill="#64748b">Lauf verworfen, nichts gespeichert</text>
+  </g>
+  <text x="32" y="856" fill="#94a3b8" font-family="sans-serif" font-size="12">Mockup · Beispieldaten · keine Funktion aktiv · Cadence und Fenster bleiben wie gehabt</text>
+</svg>

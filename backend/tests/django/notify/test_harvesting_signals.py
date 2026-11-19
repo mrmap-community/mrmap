@@ -31,7 +31,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from channels.layers import BaseChannelLayer
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils.timezone import now
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
@@ -88,8 +88,9 @@ class HarvestingJobSignalsTest(TestCase):
     def job_message(self, published, job):
         """The message of the job among everything the save published.
 
-        A service backed job additionally invalidates the service alerts on
-        every save, and that message carries no records to read.
+        A service backed job additionally invalidates the service alerts when
+        the save is a status transition (#1485), and that message carries no
+        records to read.
         """
         topic = f"resource/HarvestingJob/{job.pk}"
         _, message = next(
@@ -202,7 +203,7 @@ class HarvestingJobSignalsTest(TestCase):
         # Frozen 30 s into the run, so that the elapsed time is a positive number
         # and the estimate is answered at all.
         instant = now() + timedelta(seconds=30)
-        with patch("registry.managers.havesting.now", return_value=instant):
+        with patch("registry.managers.harvesting.now", return_value=instant):
             published = self.publish_during(lambda: job.save())
             message = self.job_message(published, job)
             attributes = self.attributes_of(message)
@@ -261,3 +262,158 @@ class HarvestingJobSignalsTest(TestCase):
             published, [],
             "the payload is rendered relative to a request; without one there "
             "is nothing to send and the receiver must not break the save")
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True)
+class HarvestingJobAlertInvalidationTest(TestCase):
+    """The alerts of the catalogue only hear the status transitions of a run.
+
+    The harvest alert reads the job row for three facts only - which run of
+    the catalogue is the newest, whether it was aborted, whether it is done
+    (`annotate_harvest_alerts` in registry/querys/alerts.py) - while the run
+    writes itself on every step of its workflow. Before #1485 every one of
+    those saves invalidated the stored alerts: a working harvest enqueued the
+    refresh of the whole alert table and published the invalidation message
+    per plan and progress save, for a state no alert reads differently with.
+    These tests pin which saves speak to the alerts and which do not. The
+    websocket push of the run itself is untouched by the rule - one per save,
+    as the tests above pin; the progress-save test below asserts both halves.
+
+    Eager celery: the invalidation publishes its message and then hands the
+    refresh over to a worker; with no consumer of a queue here the publish
+    stops at the message (`invalidate_service_alerts`) instead of reaching for
+    a broker.
+
+    Run with:
+
+        docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm \
+            django-tests python manage.py test \
+            tests.django.notify.test_harvesting_signals -v 3 --noinput
+    """
+
+    ALERTS_TOPIC = "resource/ServiceAlert"
+
+    def setUp(self):
+        # the receiver builds its payload with a request and stays quiet without
+        # one; inside a celery task extras/tasks.py provides it
+        self.request = APIRequestFactory().get(
+            "/api/registry/harvesting/harvesting-jobs/")
+        self.request.query_params = OrderedDict()
+        HistoricalRecords.context.request = self.request
+        self.layer = RecordingChannelLayer()
+        # the creation of the catalogue goes through bulk_create: the save of a
+        # service would start its registration task
+        contact = MetadataContact.objects.create(name='Alert test contact')
+        self.catalogue = CatalogueService(
+            id=uuid4(), title='Alert test catalogue', version=202, origin=1,
+            service_url='https://example.com/csw',
+            metadata_contact=contact, service_contact=contact)
+        CatalogueService.objects.bulk_create([self.catalogue])
+
+    def tearDown(self):
+        if hasattr(HistoricalRecords.context, "request"):
+            del HistoricalRecords.context.request
+
+    def publish_during(self, action):
+        """Runs action and returns the (group, message) pairs it published."""
+        before = len(self.layer.sent)
+        with patch("notify.utils.get_channel_layer", return_value=self.layer):
+            with self.captureOnCommitCallbacks(execute=True):
+                action()
+        return self.layer.sent[before:]
+
+    def catalogue_backed_job(self):
+        """Creates a downloading run of the catalogue and returns it freshly read."""
+        # the creation schedules the fetch of the total records on commit
+        with patch("registry.tasks.harvest.call_fetch_total_records"):
+            job = HarvestingJob.objects.create(
+                service=self.catalogue, total_records=10, max_step_size=5,
+                phase=Phase.DOWNLOAD_RECORDS.value)
+        return HarvestingJob.objects.get(pk=job.pk)
+
+    def alert_invaluations(self, published):
+        return [(group, message) for group, message in published
+                if message["json"]["topic"] == self.ALERTS_TOPIC]
+
+    def job_message(self, published, job):
+        topic = f"resource/HarvestingJob/{job.pk}"
+        _, message = next(
+            (group, message) for group, message in published
+            if message["json"]["topic"] == topic)
+        return message
+
+    def test_the_creation_invalidates_the_alerts(self):
+        """the new run is the newest of its catalogue, and the alert reads that"""
+        with patch("registry.tasks.harvest.call_fetch_total_records"):
+            published = self.publish_during(
+                lambda: HarvestingJob.objects.create(
+                    service=self.catalogue, total_records=10,
+                    max_step_size=5, phase=Phase.DOWNLOAD_RECORDS.value))
+
+        self.assertEqual(len(self.alert_invaluations(published)), 1)
+
+    def test_a_progress_save_invalidates_nothing_but_still_pushes(self):
+        """the plan and progress saves of the tasks decide no alert differently
+
+        The workflow writes `total_records`, the step size and the plan of the
+        next fan-out with ordinary saves (``fetch_total_records``, the recovery
+        path of ``call_fetch_total_records``). The run screen of the frontend
+        still waits for the push of every such save - only the alerts are
+        thinned out (#1485).
+        """
+        job = self.catalogue_backed_job()
+
+        def progress_save():
+            job.total_records = 20
+            job.save()
+
+        published = self.publish_during(progress_save)
+
+        self.assertEqual(
+            self.alert_invaluations(published), [],
+            "an open run which neither started nor decided anything must not "
+            "enqueue the refresh of the whole alert table")
+        self.assertIsNotNone(
+            self.job_message(published, job),
+            "the run screen reads its progress from the push of these saves")
+
+    def test_a_transition_save_invalidates(self):
+        """the workflow saves which write the audit row of the run are transitions
+
+        The phase saves of ``registry/tasks/harvest.py`` name
+        ``skip_history_when_saving=False``: whatever a deployment later lets the
+        alerts read off a running phase, the transition itself is announced
+        from now on and not only at the terminal state.
+        """
+        job = self.catalogue_backed_job()
+        job.phase = Phase.RECORDS_TO_DB.value
+
+        published = self.publish_during(
+            lambda: job.save(skip_history_when_saving=False))
+
+        self.assertEqual(len(self.alert_invaluations(published)), 1)
+
+    def test_the_completion_invalidates(self):
+        """a run which is done moves the harvest state of its catalogue"""
+        job = self.catalogue_backed_job()
+        job.phase = Phase.COMPLETED.value
+        job.done_at = now()
+
+        published = self.publish_during(lambda: job.save())
+
+        self.assertEqual(len(self.alert_invaluations(published)), 1)
+
+    def test_an_aborted_run_invalidates(self):
+        """the aborted phase is what the abort alert reads, whatever wrote it
+
+        The phase alone holds here, without ``done_at`` and without an audit
+        row: a PATCH of the api can write the phase of a run on an ordinary
+        save, and the alert must not miss the very state it is built to
+        answer.
+        """
+        job = self.catalogue_backed_job()
+        job.phase = Phase.ABORTED.value
+
+        published = self.publish_during(lambda: job.save())
+
+        self.assertEqual(len(self.alert_invaluations(published)), 1)

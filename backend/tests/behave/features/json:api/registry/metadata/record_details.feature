@@ -12,7 +12,7 @@ Feature: Metadata record detail
         Then I expect the response status is 200
         Then I expect that response json has an attribute "data.type" with value "DatasetMetadataRecord"
         Then I expect that response json has an attribute "data.attributes.title" with value "Niederschlag an RBSN Stationen"
-        Then I expect that response json has an attribute "data.attributes.canEdit" with value "False"
+        Then I expect that response json has an attribute "data.attributes.allowedActions" with value "[]"
 
     Scenario: Follow the record's keywords
         Given I use the endpoint http://localhost:8000/api/registry/dataset-metadata/d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4/keywords

@@ -172,22 +172,29 @@ class SingletonTaskTest(TestCase):
         run with the run and its lock with it, so the next fire is not locked out
         until some timeout expires"""
         name = 'singleton.test.killed'
-        with self.assertLogs(settings.ROOT_LOGGER, level='WARNING') as told:
+        unrelated_name = 'singleton.test.unrelated'
+        with singleton_lock(unrelated_name) as unrelated_held, \
+                self.assertLogs(settings.ROOT_LOGGER, level='WARNING') as told:
+            self.assertTrue(unrelated_held, 'the unrelated lock was not taken')
             with singleton_lock(name) as held:
                 self.assertTrue(held, 'the test could not take the lock')
                 self.assertFalse(
                     self.lock_is_free(name),
                     'another session can take the lock this run is holding')
-                holders = self.advisory_holders()
+                holders = self.advisory_holders(name)
                 self.assertEqual(
                     len(holders), 1,
-                    f'{holders} hold an advisory lock, expected this run alone')
+                    f'{holders} hold the lock of {name}, expected this run alone')
                 # the way a killed worker ends: the server drops the backend, and
                 # with it the locks of that backend
                 self.terminate(holders[0])
                 # leaving the block now unlocks a session which is gone, which is
                 # told and not raised: the run of the dead worker is not the
                 # failure the operator has to see, a missing lock is not either
+
+            self.assertEqual(self.advisory_holders(name), [])
+            self.assertFalse(self.lock_is_free(unrelated_name),
+                             'the unrelated lock was released with the run')
 
         self.assertTrue(self.lock_is_free(name),
                         'the lock of the killed run is still taken')
@@ -200,19 +207,21 @@ class SingletonTaskTest(TestCase):
     # the database side of that lock
     # ------------------------------------------------------------------
 
-    def advisory_holders(self):
-        """The other sessions which hold an advisory lock in this database.
-
-        While these tests run, the run of a singleton is the only holder, so what
-        answers here is the session which holds the lock the test is about.
-        """
+    def advisory_holders(self, name):
+        """The other sessions holding this task's lock in this database."""
         with connection.cursor() as cursor:
+            # Reassemble the signed bigint key: hashtext may be negative.
             cursor.execute(
                 """
                 SELECT pid FROM pg_locks
                 WHERE locktype = 'advisory' AND pid <> pg_backend_pid()
+                  AND database = (
+                      SELECT oid FROM pg_database
+                      WHERE datname = current_database())
+                  AND ((classid::bigint << 32) | objid::bigint) = hashtext(%s)::bigint
+                  AND objsubid = 1 AND granted
                 ORDER BY pid
-                """)
+                """, [singleton_lock_id(name)])
             return [row[0] for row in cursor.fetchall()]
 
     def terminate(self, pid):

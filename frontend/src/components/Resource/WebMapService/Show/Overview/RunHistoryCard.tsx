@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import {
   CreateButton,
   Loading,
@@ -32,6 +32,86 @@ interface RunHistoryCardProps extends PropsWithChildren {
     overdue: boolean,
   ) => Pick<CardHeaderProps, "title" | "subheader" | "action">;
 }
+
+/** a configured run which is overdue: the state a warning is raised for */
+const isOverdueRun = (setting: RunSetting): boolean => setting.enabled && setting.runOverdue;
+
+/** which empty state the settings describe: nothing configured, overdue,
+ *  waiting for the first run of an enabled schedule or all schedules off */
+const emptyMessageKey = (
+  noSettings: boolean,
+  overdue: boolean,
+  hasEnabledSetting: boolean,
+): string => {
+  if (noSettings) return "noSetting";
+  if (overdue) return "runOverdue";
+  return hasEnabledSetting ? "waitingForFirstRun" : "settingsDisabled";
+};
+
+/** what the card shows while there are no runs, and the notice which rides above
+ *  the runs when the settings are broken or a run is overdue */
+const buildNotices = ({
+  settingsError,
+  settingsReady,
+  overdue,
+  noSettings,
+  emptyMessage,
+  serviceId,
+  settingsResource,
+  createToShow,
+  message,
+}: {
+  settingsError: unknown;
+  settingsReady: boolean;
+  overdue: boolean;
+  noSettings: boolean;
+  emptyMessage: string;
+  serviceId: RaRecord["id"] | undefined;
+  settingsResource: string;
+  createToShow: (serviceId: RaRecord["id"]) => string;
+  message: (key: string) => string;
+}): { emptyNotice: ReactNode; settingsNotice: ReactNode } => {
+  let emptyNotice: ReactNode;
+  if (settingsError) {
+    emptyNotice = <Alert severity="error">{message("settingsLoadError")}</Alert>;
+  } else if (!settingsReady) {
+    emptyNotice = <Loading />;
+  } else {
+    emptyNotice = (
+      <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
+        {overdue ? (
+          <Alert severity="warning">{message(emptyMessage)}</Alert>
+        ) : (
+          <Typography>{message(emptyMessage)}</Typography>
+        )}
+        {noSettings && serviceId !== undefined && (
+          <CreateButton
+            resource={settingsResource}
+            label={message("createSetting")}
+            to={`${createToShow(serviceId)}/${settingsResource}/create`}
+          />
+        )}
+      </Stack>
+    );
+  }
+
+  let settingsNotice: ReactNode = null;
+  if (settingsError) {
+    settingsNotice = (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {message("settingsLoadError")}
+      </Alert>
+    );
+  } else if (overdue) {
+    settingsNotice = (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        {message("runOverdue")}
+      </Alert>
+    );
+  }
+
+  return { emptyNotice, settingsNotice };
+};
 
 const RunHistoryCard = ({
   children,
@@ -67,18 +147,30 @@ const RunHistoryCard = ({
   const settingsReady =
     !settings.isPending && !settings.error && settings.data !== undefined;
   const noSettings = settingsReady && settings.data?.length === 0;
-  const overdue = Boolean(
-    settingsReady &&
-    settings.data?.some((setting) => setting.enabled && setting.runOverdue),
-  );
+  const overdue = Boolean(settingsReady && settings.data?.some(isOverdueRun));
   const color = overdue ? "warning" : statusColor;
-  const emptyMessage = noSettings
-    ? "noSetting"
-    : overdue
-      ? "runOverdue"
-      : settings.data?.some((setting) => setting.enabled)
-        ? "waitingForFirstRun"
-        : "settingsDisabled";
+  const hasEnabledSetting = settings.data?.some((setting) => setting.enabled) ?? false;
+  const emptyMessage = emptyMessageKey(noSettings, overdue, hasEnabledSetting);
+
+  const { emptyNotice, settingsNotice } = buildNotices({
+    settingsError: settings.error,
+    settingsReady,
+    overdue,
+    noSettings,
+    emptyMessage,
+    serviceId: service?.id,
+    settingsResource,
+    createToShow: (serviceId) =>
+      createPath({ resource: "WebMapService", id: serviceId, type: "show" }),
+    message,
+  });
+
+  const body: ReactNode = empty ? emptyNotice : (
+    <>
+      {settingsNotice}
+      {children}
+    </>
+  );
 
   return (
     <SimpleCard
@@ -102,41 +194,7 @@ const RunHistoryCard = ({
         }),
       }}
     >
-      {empty ? (
-        settings.error ? (
-          <Alert severity="error">{message("settingsLoadError")}</Alert>
-        ) : !settingsReady ? (
-          <Loading />
-        ) : (
-          <Stack spacing={2} sx={{ alignItems: "flex-start" }}>
-            {overdue ? (
-              <Alert severity="warning">{message(emptyMessage)}</Alert>
-            ) : (
-              <Typography>{message(emptyMessage)}</Typography>
-            )}
-            {noSettings && service && (
-              <CreateButton
-                resource={settingsResource}
-                label={message("createSetting")}
-                to={`${createPath({ resource: "WebMapService", id: service.id, type: "show" })}/${settingsResource}/create`}
-              />
-            )}
-          </Stack>
-        )
-      ) : (
-        <>
-          {settings.error ? (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {message("settingsLoadError")}
-            </Alert>
-          ) : overdue ? (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              {message("runOverdue")}
-            </Alert>
-          ) : null}
-          {children}
-        </>
-      )}
+      {body}
     </SimpleCard>
   );
 };

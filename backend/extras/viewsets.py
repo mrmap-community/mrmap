@@ -1,23 +1,31 @@
 import uuid
 from collections import OrderedDict
 
-from camel_converter import to_camel, to_snake
+from camel_converter import to_snake
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch, QuerySet
 from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
 from drf_spectacular.utils import extend_schema
-from extras.utils import get_sparse_fields
+from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly,
+                                list_is_permission_filtered,
+                                objects_for_user)
+from extras.utils import get_sparse_fields, parse_sparse_fieldsets
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import BackgroundProcessSerializer
+from simple_history.utils import (get_app_model_primary_key_name,
+                                  get_history_manager_for_model)
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_json_api.utils import (get_included_resources,
+from rest_framework_json_api.utils import (format_field_name,
+                                           get_included_resources,
                                            get_resource_name)
 from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 
@@ -109,7 +117,7 @@ class HistoryInformationViewSetMixin:
 
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
-        # TODO: only needed if sparsefields contains created_by, created_at, updated_by or updated_at. We need to check this to prevent unnecessary prefetching.
+        # FUTURE: only needed if sparsefields contains created_by, created_at, updated_by or updated_at. We need to check this to prevent unnecessary prefetching.
         try:
             sparse_fields = get_sparse_fields(self.request)
             resource_based_sparse_fields = sparse_fields.get(
@@ -120,7 +128,7 @@ class HistoryInformationViewSetMixin:
                 to_snake(include) for include in get_included_resources(
                     self.request, self.get_serializer_class())]
 
-            HistoryModel = apps.get_model(
+            history_model = apps.get_model(
                 self.queryset.model._meta.app_label,
                 f"Historical{self.queryset.model.__name__}"
             )
@@ -137,7 +145,7 @@ class HistoryInformationViewSetMixin:
             if not resource_based_sparse_fields \
                     or any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields)\
                     or "created_by" in include_resources_param:
-                prefetch_qs = HistoryModel.objects.filter(
+                prefetch_qs = history_model.objects.filter(
                     history_type='+').select_related('history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)
@@ -152,7 +160,7 @@ class HistoryInformationViewSetMixin:
                     or any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields)\
                     or "last_modified_by" in include_resources_param:
 
-                prefetch_qs = HistoryModel.objects.all().select_related(
+                prefetch_qs = history_model.objects.all().select_related(
                     'history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)
@@ -170,6 +178,145 @@ class HistoryInformationViewSetMixin:
         except LookupError:
             pass
         return qs
+
+
+class HistoricalViewSetMixin:
+    """The read-only api over the audit trail of one model (#741).
+
+    A changelog is not an ordinary resource: it is written by the flows which
+    change the object, never by a request. ``http_method_names`` therefore
+    carries no write verb at all — #1449 removed ``patch`` for exactly that
+    reason, and #741 keeps it that way for the role tables, whose audit rows
+    are the answer to "who decided this?" and must not be editable by whoever
+    asks.
+
+    The one thing every consumer of a changelog asks beside the row itself is
+    *what changed*: ``diff_against`` needs the row which came before. Reading
+    that per record is one query per row, so the previous row is annotated here
+    and the page's rows are fetched in one ``in_bulk`` — the plan is stated
+    once for every model which keeps history rather than rewritten per screen.
+    """
+
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    # #1449: patch is gone as well. No flow edits an audit row — the frontend only
+    # reads the changelog — and leaving the verb open let any authenticated caller
+    # rewrite the compliance record the history exists to prove (#741).
+    http_method_names = ["get", "head", "options"]
+    # reads stay open the way list_HistoricalWebMapServices.feature pins them;
+    # the gate answers per object, so a write could only ever be answered by an
+    # object grant over the audit row — and since patch left http_method_names,
+    # no request reaches that decision anymore.
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    select_for_includes = {
+        "historyUser": ["history_user"],
+        # "historyRelation": ["history_relation"]
+    }
+    ordering_fields = ["id", 'history_date', 'history_user']
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+
+        # the include is read through the parser of the framework, the same
+        # one the view mixins of extras use - it answers with the names of
+        # python, into which it also turns the name of the api the request
+        # was written with (#1479)
+        included_resources = get_included_resources(
+            self.request, self.get_serializer_class())
+
+        if "history_user" not in included_resources:
+            defer = [
+                f"history_user__{field.name}"
+                for field in get_user_model()._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("history_user").defer(*defer)
+        else:
+            # FUTURE: select_for_includes setup does not work for history records...
+            qs = qs.select_related("history_user")
+
+        # At the end of the existing get_queryset(), before returning qs:
+        original_model = qs.model.instance_type
+        key_name = get_app_model_primary_key_name(original_model)
+
+        previous_records = (
+            get_history_manager_for_model(original_model)
+            .using(qs.db)
+            .filter(
+                **{
+                    key_name: OuterRef(key_name),
+                    "history_date__lt": OuterRef("history_date"),
+                }
+            )
+            .order_by("-history_date")
+        )
+
+        return qs.annotate(
+            prev_record_id=Subquery(
+                previous_records.values("history_id")[:1]
+            )
+        )
+
+    def paginate_queryset(self, queryset):
+        page = super().paginate_queryset(queryset)
+        if page is None:
+            return None
+
+        previous_ids = {
+            record.prev_record_id
+            for record in page
+            if record.prev_record_id is not None
+        }
+
+        previous_by_id = (
+            queryset.model._default_manager
+            .using(queryset.db)
+            .in_bulk(previous_ids)
+            if previous_ids
+            else {}
+        )
+
+        for record in page:
+            record.prev_prefetched_record = previous_by_id.get(
+                record.prev_record_id
+            )
+
+        return page
+
+
+class PermissionVisibilityMixin:
+    """Answers the visibility tri-state of the resources a viewset reads.
+
+    The annotation is applied always: every screen, list and detail alike,
+    learns whether a resource is public, organization-internal or restricted
+    from one derived value, without a query per object (#739).
+
+    Whether the list itself is filtered by that value is a rollout decision
+    per model, taken in `PERMISSION_FILTERED_LIST_MODELS`: while a model is
+    not named there, the list keeps answering what it answers today and only
+    the detail route is held to the permission boundary. Models whose rows
+    carry an `owner` org are the ones the org-axis of `objects_for_user`
+    understands; `accounts.checks` refuses naming anything else.
+    """
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+        if getattr(self, "swagger_fake_view", False):
+            # drf-spectacular builds a throw-away view to read the schema;
+            # it has no user and must not hit the database
+            return qs
+        model = qs.model
+        if list_is_permission_filtered(model):
+            # narrowed first, on the plain queryset: the facade OR-composes
+            # its axes and every axis starts from the queryset it was handed,
+            # which is the shape its own callers pass
+            qs = objects_for_user(
+                self.request.user,
+                f"{model._meta.app_label}.view_{model._meta.model_name}",
+                qs)
+        # annotated last: the answer belongs to the rows which survived, and
+        # it costs no query of its own
+        return qs.with_visibility()
 
 
 class SerializerClassesMixin:
@@ -238,7 +385,7 @@ class AsyncCreateMixin:
         task_function.apply_async(
             kwargs=task_kwargs, task_id=str(task_id))
 
-        # TODO: add auth information and other headers we need here
+        # FUTURE: add auth information and other headers we need here
         dummy_request = APIRequestFactory().get(
             path=request.build_absolute_uri(
                 reverse("notify:backgroundprocess-detail",
@@ -364,17 +511,26 @@ class PreloadNotIncludesMixin:
 
 
 class SparseFieldMixin:
+    """Endpoints whose expensive answers are asked with a sparse fieldset.
+
+    The parsing is the one of the project: `parse_sparse_fieldsets` of
+    `extras.utils` turns the names of the api into the names of python, and
+    the answers of this mixin name the fields with `format_field_name` back
+    in the names of the api, so the very same fieldset is answered whether a
+    request wrote its fields with camel or with snake names (#1479). The
+    callers ask with the names of the api (`check_sparse_fields_contains`),
+    and a request without a fieldset renders all of the answers.
+    """
+
     def initial(self, *args, **kwargs):
-        # todo: get all sparsefield parameters
-        fields_snake = self.request.GET.get(
-            f"fields[{self.queryset.model.__name__}]", "").split(',')
         self.sparse_fields = {
-            self.queryset.model.__name__: [
-                to_camel(field) for field in fields_snake if field.strip()]
+            resource: [format_field_name(field) for field in fields]
+            for resource, fields in parse_sparse_fieldsets(self.request).items()
         }
         super().initial(*args, **kwargs)
 
     def get_sparse_fields(self, resource):
+        """The fieldset of one resource, named with the names of the api."""
         return self.sparse_fields.get(resource, [])
 
     def check_sparse_fields_contains(self, fieldname):

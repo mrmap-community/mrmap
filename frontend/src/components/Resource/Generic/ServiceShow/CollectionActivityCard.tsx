@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import {
   DateField,
   Link,
@@ -207,12 +208,10 @@ const CollectionRun = ({
           _: process.phase,
         })
       : undefined;
-  const reason =
-    isFailed && process.errorSummary
-      ? process.errorSummary
-      : phase === undefined
-        ? kind
-        : `${kind} · ${phase}`;
+  let reason: string;
+  if (isFailed && process.errorSummary) reason = process.errorSummary;
+  else if (phase === undefined) reason = kind;
+  else reason = `${kind} · ${phase}`;
   const planned = process.referencesTotal;
   const outcomes = OUTCOMES.filter(
     (outcome) => process[outcome.source] != null,
@@ -222,17 +221,89 @@ const CollectionRun = ({
     Number(process.referencesSkipped ?? 0);
   const elements = describedElements(rows, process.id, createPath);
   const shownElements = elements.slice(0, SHOWN_ELEMENTS);
+
+  let borderColor = "divider";
+  if (isFailed) borderColor = "error.main";
+  else if (running) borderColor = "info.main";
+
+  let planSummary: ReactNode;
+  if (planned == null) {
+    // no plan was ever sealed: while the run works it has not read its
+    // references yet, and a decided run of this kind never collected any
+    // - the honest counterpart of a registration whose references of this
+    // kind were dropped (#1257). Neither answer claims a number.
+    planSummary = (
+      <Typography variant="body2" color="text.secondary">
+        {translate(
+          running
+            ? "collectionActivity.notPlanned"
+            : "collectionActivity.notCollected",
+        )}
+      </Typography>
+    );
+  } else if (planned === 0) {
+    planSummary = (
+      <Typography variant="body2" color="text.secondary">
+        {translate("collectionActivity.nothingReferenced")}
+      </Typography>
+    );
+  } else {
+    planSummary = (
+      <Grid container spacing={2} sx={{ mt: 1 }}>
+        {outcomes.map((outcome) => {
+          const count = Number(process[outcome.source]);
+          const filter =
+            decided && linksAllowed && outcome.filter
+              ? outcome.filter(process.id)
+              : undefined;
+          const content = (
+            <>
+              <Typography variant="body2" color="text.secondary">
+                {translate(`collectionActivity.${outcome.key}`)}
+              </Typography>
+              <Typography
+                variant="h5"
+                color={
+                  count > 0 &&
+                  outcome.key !== "planned" &&
+                  outcome.key !== "stored"
+                    ? "warning.main"
+                    : "text.primary"
+                }
+              >
+                {count}
+              </Typography>
+            </>
+          );
+          return (
+            <Grid key={outcome.key} size={{ xs: 6, md: 3 }}>
+              <Card variant="outlined">
+                {filter === undefined ? (
+                  <Box sx={{ p: 2 }}>{content}</Box>
+                ) : (
+                  <CardActionArea
+                    component={Link}
+                    to={referencesPath(filter)}
+                    sx={{ p: 2 }}
+                  >
+                    {content}
+                  </CardActionArea>
+                )}
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+    );
+  }
+
   return (
     <RecordContextProvider value={process}>
       <Box
         sx={{
           p: 2,
           border: 1,
-          borderColor: isFailed
-            ? "error.main"
-            : running
-              ? "info.main"
-              : "divider",
+          borderColor: borderColor,
           borderRadius: 1,
         }}
       >
@@ -271,69 +342,7 @@ const CollectionRun = ({
             })}
           </Typography>
         )}
-        {planned == null ? (
-          // no plan was ever sealed: while the run works it has not read its
-          // references yet, and a decided run of this kind never collected any
-          // - the honest counterpart of a registration whose references of this
-          // kind were dropped (#1257). Neither answer claims a number.
-          <Typography variant="body2" color="text.secondary">
-            {translate(
-              running
-                ? "collectionActivity.notPlanned"
-                : "collectionActivity.notCollected",
-            )}
-          </Typography>
-        ) : planned === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            {translate("collectionActivity.nothingReferenced")}
-          </Typography>
-        ) : (
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            {outcomes.map((outcome) => {
-              const count = Number(process[outcome.source]);
-              const filter =
-                decided && linksAllowed && outcome.filter
-                  ? outcome.filter(process.id)
-                  : undefined;
-              const content = (
-                <>
-                  <Typography variant="body2" color="text.secondary">
-                    {translate(`collectionActivity.${outcome.key}`)}
-                  </Typography>
-                  <Typography
-                    variant="h5"
-                    color={
-                      count > 0 &&
-                      outcome.key !== "planned" &&
-                      outcome.key !== "stored"
-                        ? "warning.main"
-                        : "text.primary"
-                    }
-                  >
-                    {count}
-                  </Typography>
-                </>
-              );
-              return (
-                <Grid key={outcome.key} size={{ xs: 6, md: 3 }}>
-                  <Card variant="outlined">
-                    {filter === undefined ? (
-                      <Box sx={{ p: 2 }}>{content}</Box>
-                    ) : (
-                      <CardActionArea
-                        component={Link}
-                        to={referencesPath(filter)}
-                        sx={{ p: 2 }}
-                      >
-                        {content}
-                      </CardActionArea>
-                    )}
-                  </Card>
-                </Grid>
-              );
-            })}
-          </Grid>
-        )}
+        {planSummary}
         {decided && unresolved > 0 && (
           <Alert severity="warning" sx={{ mt: 1 }}>
             {translate("collectionActivity.unresolved", { count: unresolved })}

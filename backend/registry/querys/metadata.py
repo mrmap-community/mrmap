@@ -91,3 +91,44 @@ class MetadataRelationQuerySet(models.QuerySet):
             origin=MetadataOriginEnum.EDITOR.value,
             dataset_metadata__isnull=False,
         )
+
+
+class MetadataContactQuerySet(models.QuerySet):
+
+    def with_usage_count(self):
+        """Annotate how many rows already reference each contact.
+
+        The contact chooser of the metadata editor (#1246) shows this number
+        next to every candidate: a curator who sees that a contact is carried
+        by a dozen records picks it instead of creating another copy of the
+        same address. Every FOREIGN KEY into this model is counted - records
+        answer it as metadata, dataset or application contact, services and
+        layers as service or metadata contact - summed into one number per
+        row. The references are read from the model meta, so a reference
+        added tomorrow is counted tomorrow: there is no list of tables here
+        to forget.
+        """
+        from django.db.models import Count, IntegerField, OuterRef, Subquery
+        from django.db.models.functions import Coalesce
+
+        total = Value(0, output_field=IntegerField())
+        for relation in self.model._meta.related_objects:
+            # the reverse accessor of a FOREIGN KEY ONTO this model; its
+            # `.field` is that key. A GenericForeignKey registers here too
+            # but names no single column to match on - skip it.
+            field = getattr(relation, "field", None)
+            if field is None:  # pragma: no cover - no generic FKs today
+                continue
+            counted = (
+                relation.related_model._default_manager
+                .filter(**{field.name: OuterRef("pk")})
+                .order_by()
+                .values(field.name)
+                .annotate(count=Count("pk"))
+                .values("count")
+            )
+            total = total + Coalesce(
+                Subquery(counted),
+                Value(0, output_field=IntegerField()),
+                output_field=IntegerField())
+        return self.annotate(_usage_count=total)

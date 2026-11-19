@@ -47,6 +47,12 @@ describe('parseWms resolving inherited layer settings', () => {
         expect(timeDimensionStartYear(inheriting)).toBe(2020)
     })
 
+    it('reads the resolution of a stated time dimension as the duration between its observations', () => {
+        // the root advertises a daily range, the child states a single observation without a step
+        expect((root.dimension?.[0] as TimeDimension).resolution).toEqual({ months: 0, ms: 86400000 })
+        expect((childOf(root, 'tests:overriding').dimension?.[0] as TimeDimension).resolution).toBeUndefined()
+    })
+
     it('lets a child override inherited settings, including stated false and zero values', () => {
         const overriding = childOf(root, 'tests:overriding')
 

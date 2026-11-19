@@ -11,6 +11,21 @@ import WmsViewerButtons from '../../Button/ListActions';
 import WmsTreeView from '../../TreeView/WmsTreeView';
 
 
+/** the buttons read their service from the record context, so the record they
+ *  open is named here rather than taken from whatever screen renders this tab */
+const layerViewerActions = (service?: RaRecord) => {
+  const viewerActions = (layer?: RaRecord) => (
+      <RecordContextProvider value={service}>
+        <WmsViewerButtons key={String(layer?.id)} element={layer} size='small' />
+      </RecordContextProvider>
+  );
+  return viewerActions;
+};
+
+const layerHistory = (layer?: RaRecord) => (
+  <ElementHistory resource='Layer' record={layer}/>
+);
+
 export const WmsLayers = () => {
 
   const record = useRecordContext();
@@ -28,7 +43,7 @@ export const WmsLayers = () => {
         }
         jsonApiParams['fields[Layer]'] = 'mptt_lft,mptt_rgt,mptt_depth,title,string_representation,is_active,is_searchable'
         return _meta
-    },[])
+    },[record?.id])
 
 
   const {data, refetch} = useGetMany("Layer", {ids:record?.layers.map((layer: RaRecord) => layer.id), meta: meta});
@@ -61,18 +76,8 @@ export const WmsLayers = () => {
           id={selectedLayer ?? undefined}
           serviceResource='WebMapService'
           serviceId={record?.id}
-          viewerActions={(layer) => (
-              // the buttons read their service from the record context, so the record they open is
-              // named here rather than taken from whatever screen renders this tab
-              <RecordContextProvider value={record}>
-                  <WmsViewerButtons
-                      key={String(layer?.id)}
-                      element={layer}
-                      size='small'
-                  />
-              </RecordContextProvider>
-          )}
-          history={(layer) => <ElementHistory resource='Layer' record={layer}/>}
+          viewerActions={layerViewerActions(record)}
+          history={layerHistory}
       />
       if (selectedLayer !== null && selectedLayer !== undefined) {
             return <Stack spacing={2}>
@@ -87,7 +92,7 @@ export const WmsLayers = () => {
             </Stack>
       }
       return <Container>{inspection}</Container>
-  }, [selectedLayer])
+  }, [selectedLayer, onSuccess, record])
     
   return (
     <Grid container spacing={2} sx={{ justifyContent: 'space-between' }} >

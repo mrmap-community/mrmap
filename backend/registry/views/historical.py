@@ -1,7 +1,9 @@
-from django.contrib.auth import get_user_model
-from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch
-from extras.viewsets import PreloadNotIncludesMixin, SerializerClassesMixin
+# HistoricalViewSetMixin moved to extras/viewsets.py with #741: it is the same
+# read plan for every model which keeps history, and ``accounts`` needs it for
+# its role tables without importing the registry's api
+from extras.viewsets import (HistoricalViewSetMixin, PreloadNotIncludesMixin,
+                             SerializerClassesMixin)
 from mptt2.models import Tree
 from registry.filters.historical import (
     CatalogueServiceHistoricalFilterSet, FeatureTypeHistoricalFilterSet,
@@ -23,83 +25,6 @@ from registry.serializers.historical import (
     WebMapServiceHistorySerializer, DatasetMetadataRecordHistorySerializer,
     ServiceMetadataRecordHistorySerializer)
 from rest_framework_json_api.views import ModelViewSet
-from simple_history.utils import (get_app_model_primary_key_name,
-                                  get_history_manager_for_model)
-
-
-class HistoricalViewSetMixin:
-    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
-    # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    http_method_names = ["get", "patch", "head", "options"]
-    select_for_includes = {
-        "historyUser": ["history_user"],
-        # "historyRelation": ["history_relation"]
-    }
-    ordering_fields = ["id", 'history_date', 'history_user']
-
-    def get_queryset(self, *args, **kwargs):
-        qs = super().get_queryset(*args, **kwargs)
-
-        include = self.request.GET.get("include", None)
-
-        if not include or "historyUser" not in include:
-            defer = [
-                f"history_user__{field.name}"
-                for field in get_user_model()._meta.get_fields()
-                if field.name not in ["id", "pk"]
-            ]
-            qs = qs.select_related("history_user").defer(*defer)
-        elif include and "historyUser" in include:
-            # TODO: select_for_includes setup does not work for history records...
-            qs = qs.select_related("history_user")
-
-        # At the end of the existing get_queryset(), before returning qs:
-        original_model = qs.model.instance_type
-        key_name = get_app_model_primary_key_name(original_model)
-
-        previous_records = (
-            get_history_manager_for_model(original_model)
-            .using(qs.db)
-            .filter(
-                **{
-                    key_name: OuterRef(key_name),
-                    "history_date__lt": OuterRef("history_date"),
-                }
-            )
-            .order_by("-history_date")
-        )
-
-        return qs.annotate(
-            prev_record_id=Subquery(
-                previous_records.values("history_id")[:1]
-            )
-        )
-
-    def paginate_queryset(self, queryset):
-        page = super().paginate_queryset(queryset)
-        if page is None:
-            return None
-
-        previous_ids = {
-            record.prev_record_id
-            for record in page
-            if record.prev_record_id is not None
-        }
-
-        previous_by_id = (
-            queryset.model._default_manager
-            .using(queryset.db)
-            .in_bulk(previous_ids)
-            if previous_ids
-            else {}
-        )
-
-        for record in page:
-            record.prev_prefetched_record = previous_by_id.get(
-                record.prev_record_id
-            )
-
-        return page
 
 
 class OGCServiceHistoricalViewSetMixin(
@@ -138,6 +63,9 @@ class OGCServiceHistoricalViewSetMixin(
                                                                     "service_contact").defer(*defer_metadata_contact, *defer_service_contact)
 
 
+HISTORY_OPERATION_URLS = "history_relation.operation_urls"
+
+
 class WebMapServiceHistoricalViewSet(
     OGCServiceHistoricalViewSetMixin,
     ModelViewSet
@@ -167,7 +95,7 @@ class WebMapServiceHistoricalViewSet(
                     "id", "secured_service__id")
             )
         ],
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebMapServiceOperationUrl.objects.only(
@@ -263,7 +191,7 @@ class WebFeatureServiceHistoricalViewSet(
                     "id", "secured_service__id")
             )
         ],
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=WebFeatureServiceOperationUrl.objects.only(
@@ -312,7 +240,7 @@ class CatalogueServiceHistoricalViewSet(
     }
     prefetch_for_not_includes = {
 
-        "history_relation.operation_urls": [
+        HISTORY_OPERATION_URLS: [
             Prefetch(
                 "history_relation__operation_urls",
                 queryset=CatalogueServiceOperationUrl.objects.only(
@@ -330,7 +258,6 @@ class DatasetMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSe
         "history_type": ["exact", "in"],
         "history_date": ["gte", "lte"],
     }
-    http_method_names = ["get", "head", "options"]
 
 
 class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSet):
@@ -341,4 +268,3 @@ class ServiceMetadataRecordHistoricalViewSet(HistoricalViewSetMixin, ModelViewSe
         "history_type": ["exact", "in"],
         "history_date": ["gte", "lte"],
     }
-    http_method_names = ["get", "head", "options"]

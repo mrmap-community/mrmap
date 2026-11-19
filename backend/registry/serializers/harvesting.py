@@ -11,6 +11,8 @@ from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
                                      HarvestingLog, PeriodicHarvestingJob,
                                      TemporaryMdMetadataFile)
 from registry.models.service import CatalogueService
+from registry.serializers.schedule_warnings import (SCHEDULE_WARNING_ATTRIBUTES,
+                                                    ScheduleWarningsSerializerMixin)
 from registry.serializers.service import CatalogueServiceSerializer
 from rest_framework_json_api.relations import ResourceRelatedField
 from rest_framework_json_api.serializers import (BooleanField, CharField,
@@ -33,6 +35,7 @@ def validate_harvestable_service(service):
 
 
 class PeriodicHarvestingJobSerializer(
+    ScheduleWarningsSerializerMixin,
     StringRepresentationSerializer,
     SystemInfoSerializerMixin,
     TimeUntilNextRunMixin,
@@ -72,7 +75,8 @@ class PeriodicHarvestingJobSerializer(
         model = PeriodicHarvestingJob
         fields = ('url', 'service', 'scheduling',
                   'time_until_next_run', 'next_run_at',
-                  'enabled', 'last_run_at', 'total_run_count')
+                  'enabled', 'last_run_at', 'total_run_count',
+                  *SCHEDULE_WARNING_ATTRIBUTES)
 
     def validate_service(self, value):
         return validate_harvestable_service(value)
@@ -300,35 +304,6 @@ class HarvestingJobSerializer(
         HyperlinkedModelSerializer):
     url = HyperlinkedIdentityField(
         view_name='registry:harvestingjob-detail')
-    # background_process = ResourceRelatedField(
-    #     model=BackgroundProcess,
-    #     label=_("Background Process"),
-    #     help_text=_("the parent of this node"),
-    #     read_only=True,)
-    # temporary_md_metadata_files = HyperlinkedRelatedField(
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-temporarymdmetadatafiles-list',
-    #    related_link_url_kwarg='parent_lookup_job',
-    #    label=_("Temporary Md Metadata File"),
-    #    help_text=_("collected records"),
-    #    read_only=True,)
-    # harvested_dataset_metadata = HyperlinkedRelatedField(
-    #    many=True,
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-harvesteddatasetmetadatarelations-list',
-    #    related_link_url_kwarg='parent_lookup_harvesting_job',
-    #    label=_("harvested dataset metadata"),
-    #    help_text=_(
-    #       "all harvested dataset metadata records with collecting state"),
-    #   read_only=True,)
-    # harvested_service_metadata = HyperlinkedRelatedField(
-    #    many=True,
-    #    related_link_view_name='registry:harvestingjob-harvestedservicemetadatarelations-list',
-    #    related_link_url_kwarg='parent_lookup_harvesting_job',
-    #    label=_("harvested service metadata"),
-    #    help_text=_(
-    #        "all harvested service metadata records with collecting state"),
-    #    read_only=True,)
 
     new_dataset_metadata_count = IntegerField(read_only=True)
     updated_dataset_metadata_count = IntegerField(read_only=True)
@@ -410,7 +385,7 @@ class HarvestingJobSerializer(
 
     phase_label = CharField(source="get_phase_display", read_only=True)
     phase = IntegerField(required=False)
-    # TODO: use IntegerChoices instead
+    # FUTURE: use IntegerChoices instead
     log_level = ChoiceField(default=LogLevelEnum.INFO,
                             choices=LogLevelEnum.choices)
 

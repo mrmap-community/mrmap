@@ -17,8 +17,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from epsg_cache.registry import Registry
-from extras.managers import (ChoiceManager, DefaultHistoryManager,
-                             UniqueConstraintDefaultValueManager)
+from extras.managers import (ChoiceManager, DefaultHistoryManager)
 from extras.models import (AdditionalTimeFieldsHistoricalModel, ChoiceModel,
                            DeltaSizeHistoricalModel)
 from registry.enums.iso import (CategoryChoices, LanguageChoices,
@@ -34,6 +33,7 @@ from registry.expressions.search import MetadataRecordSearchVector
 from registry.managers.metadata import (ApplicationMetadataRecordManager,
                                         DatasetMetadataRecordManager,
                                         KeywordManager,
+                                        MetadataContactManager,
                                         MetadataRelationManager,
                                         ServiceMetadataRecordManager,
                                         TimeExtentManager)
@@ -261,8 +261,11 @@ class Language(ChoiceModel):
     objects = ChoiceManager()
 
 
+FK_TARGET_LAYER = "registry.Layer"
+
+
 class Style(models.Model):
-    layer = models.ForeignKey(to="registry.Layer",
+    layer = models.ForeignKey(to=FK_TARGET_LAYER,
                               on_delete=models.CASCADE,
                               editable=False,
                               verbose_name=_("related layer"),
@@ -424,7 +427,7 @@ class MetadataContact(models.Model):
                                default='',
                                verbose_name=_("Country"))
 
-    objects = UniqueConstraintDefaultValueManager()
+    objects = MetadataContactManager()
 
     class Meta:
         ordering = ["name"]
@@ -474,9 +477,10 @@ class Keyword(models.Model):
 
     class Meta:
         ordering = ["keyword"]
-        indexes = [
-            models.Index(fields=["keyword"])
-        ]
+        # no plain index over the column: the UNIQUE constraint below is a
+        # btree index over exactly it, and a second, non-unique twin on a
+        # Text column only doubled the insert cost of every new keyword
+        # (#1481)
         constraints = [
             models.UniqueConstraint(
                 name="%(app_label)s_%(class)s_unique_keywords",
@@ -531,10 +535,9 @@ def fetch_metadata_document(link, reference="the reference"):
         backoff_factor=0.1
     )
     session.mount(link, HTTPAdapter(max_retries=retries))
-    # FIXME: Re add authentication
+    # FUTURE: Re add authentication
     request = Request(method="GET",
                       url=link,
-                      # auth=auth,
                       )
 
     try:
@@ -586,13 +589,13 @@ class RemoteMetadata(models.Model):
 
 
     """
-    # TODO: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
+    # FUTURE: set link unique. IF we found one RemoteMetadata object with the same link, we can copy it and update the
     #  service fk to the service which was registered. Additional: we need to refactor the GenericForeignKey... We need
     #  then m2m relations to layers, featuretypes and services
     link = models.URLField(max_length=4094,
                            verbose_name=_("download link"),
                            help_text=_("the url where the metadata could be downloaded from."))
-    remote_content = models.TextField(null=True,
+    remote_content = models.TextField(blank=True,
                                       verbose_name=_("remote content"),
                                       help_text=_("the fetched content of the download url."))
 
@@ -658,36 +661,44 @@ def couple_document(content, link, describes):
         record, never a fabricated one (#1261)
     """
     mappers = MDMetadataXmlMapper.from_xml(content)
-    data = mappers[0].xml_to_django()
-    parsed_instance = data[0]
-    handler = PersistenceHandler(
-        mapper=mappers[0],
-        defaults={
-            "dataset": {
-                "origin": MetadataOriginEnum.CAPABILITIES.value,
-                "origin_url": link
+    try:
+        data = mappers[0].xml_to_django()
+        parsed_instance = data[0]
+        handler = PersistenceHandler(
+            mapper=mappers[0],
+            defaults={
+                "dataset": {
+                    "origin": MetadataOriginEnum.CAPABILITIES.value,
+                    "origin_url": link
+                }
             }
-        }
-    )
-    created_instances = handler.persist_all()
-    # search by unique file_identifier to get the created record.
-    created_instance = next(
-        (
-            v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
-            if parsed_instance.file_identifier in k
-        ),
-        None
-    )
+        )
+        created_instances = handler.persist_all()
+        # search by unique file_identifier to get the created record.
+        created_instance = next(
+            (
+                v for k, v in created_instances.get(parsed_instance.__class__, {}).items()
+                if parsed_instance.file_identifier in k
+            ),
+            None
+        )
 
-    if not created_instance:
-        logging.warning(
-            f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
-        return None
+        if not created_instance:
+            logging.warning(
+                f"can not create record with fileIdentifier: {parsed_instance.file_identifier}")
+            return None
 
-    drop_superseded_relations_for_link(link, describes, created_instance)
-    created_instance.add_metadata_relation(
-        related_object=describes)
-    return created_instance
+        drop_superseded_relations_for_link(link, describes, created_instance)
+        created_instance.add_metadata_relation(
+            related_object=describes)
+        return created_instance
+    finally:
+        # one coupling reads the mapping of its own document and nobody reads
+        # it again: a registration which couples a hundred references to one
+        # document would otherwise leave a parsed copy of it in the
+        # process-global cache until the TTL (#1415)
+        for mapper in mappers:
+            mapper.release_cache()
 
 
 def drop_superseded_relations_for_link(link, describes, created_instance):
@@ -713,82 +724,114 @@ def drop_superseded_relations_for_link(link, describes, created_instance):
     the work row's own url, so the registration keeps closing stale
     couplings after its consumer moved from ``RemoteMetadata`` to the work
     queue.
+
+    The loop this shape replaced loaded every superseded record whole and
+    DELETEd one relation-set per roundtrip; every superseded record shares
+    the class of ``created_instance``, so the relation columns are the same
+    for all of them and one aggregate delete answers the whole pair (#1482).
     """
-    superseded = created_instance.__class__.objects.filter(
-        origin_url=link).exclude(pk=created_instance.pk)
-    for stale_record in superseded:
-        stale_record.remove_metadata_relation(
-            related_object=describes,
-            internal=False,
-            origin=MetadataOriginEnum.CAPABILITIES.value)
+    superseded_ids = list(
+        created_instance.__class__.objects.filter(
+            origin_url=link).exclude(pk=created_instance.pk)
+        .values_list('pk', flat=True))
+    if not superseded_ids:
+        # nothing is taken back here, so nothing can fail either: the loud
+        # answer for a described class without a column stays bound to an
+        # actual removal, exactly as per-record it did
+        return
+    described_field, record_field = MetadataRelation.relation_columns(
+        describes, created_instance)
+    if described_field is None:
+        raise ValueError(
+            "remove_metadata_relation must be cited the described "
+            "element whose coupling is taken back.")
+    kwargs = {
+        described_field: describes,
+        f'{record_field}__in': superseded_ids,
+    }
+    MetadataRelation.objects.select_for_update().filter(
+        is_internal=False,
+        origin=MetadataOriginEnum.CAPABILITIES.value,
+        **kwargs
+    ).delete()
+
+
+FK_TARGET_WMS = "registry.WebMapService"
+
+
+REMOTE_METADATA_SERVICE_HELP_TEXT = _("the service where this remote metadata is related to. This remote metadata was found in the GetCapabilites document of the related service.")
 
 
 class WebMapServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.WebMapService",
+    describes = models.ForeignKey(to=FK_TARGET_WMS,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("web map service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 class LayerRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.Layer",
+    describes = models.ForeignKey(to=FK_TARGET_LAYER,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("layer"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
+
+
+FK_TARGET_WFS = "registry.WebFeatureService"
 
 
 class WebFeatureServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.WebFeatureService",
+    describes = models.ForeignKey(to=FK_TARGET_WFS,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("web feature service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
+
+
+FK_TARGET_FEATURE_TYPE = "registry.FeatureType"
 
 
 class FeatureTypeRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.FeatureType",
+    describes = models.ForeignKey(to=FK_TARGET_FEATURE_TYPE,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("featuretype"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
+
+
+FK_TARGET_CSW = "registry.CatalogueService"
 
 
 class CatalogueServiceRemoteMetadata(RemoteMetadata):
-    describes = models.ForeignKey(to="registry.CatalogueService",
+    describes = models.ForeignKey(to=FK_TARGET_CSW,
                                   on_delete=models.CASCADE,
                                   related_name="remote_metadata",
                                   related_query_name="remote_metadata",
                                   verbose_name=_("catalogue service"),
-                                  help_text=_("the service where this remote metadata is related to. This remote metadata"
-                                              " was found in the GetCapabilites document of the related service."))
+                                  help_text=REMOTE_METADATA_SERVICE_HELP_TEXT)
 
 
 class MetadataTermsOfUse(models.Model):
     """ Abstract model class to define some fields which describes the terms of use for an metadata
 
     """
-    access_constraints = models.TextField(null=True,
-                                          blank=True,
-                                          verbose_name=_("access constraints"),
-                                          help_text=_("access constraints for the given resource."))
-    fees = models.TextField(null=True,
-                            blank=True,
-                            verbose_name=_("fees"),
-                            help_text=_("Costs and of terms of use for the given resource."))
-    use_limitation = models.TextField(null=True,
-                                      blank=True)
-    license_source_note = models.TextField(null=True,
-                                           blank=True, )
+    access_constraints = models.TextField(
+        blank=True,
+        verbose_name=_("access constraints"),
+        help_text=_("access constraints for the given resource."))
+    fees = models.TextField(
+        blank=True,
+        verbose_name=_("fees"),
+        help_text=_("Costs and of terms of use for the given resource."))
+    use_limitation = models.TextField(
+        blank=True)
+    license_source_note = models.TextField(
+        blank=True)
     licence = models.ForeignKey(to=Licence,
                                 on_delete=models.RESTRICT,
                                 blank=True,
@@ -866,6 +909,12 @@ class MetadataProfile(models.Model):
         return cls.objects.filter(pk=GENERIC_ISO19139_PROFILE_PK).first()
 
 
+RELATED_METADATA = "%(class)s_metadata"
+
+
+KEYWORDS_HELP_TEXT = _("all keywords which are related to the content of this metadata.")
+
+
 class AbstractMetadata(MetadataDocumentModelMixin):
     """ Abstract model class to define general fields for all concrete metadata models. """
     id = models.UUIDField(primary_key=True,
@@ -938,15 +987,15 @@ class AbstractMetadata(MetadataDocumentModelMixin):
                                        editable=False, )
     keywords = models.ManyToManyField(to=Keyword,
                                       blank=True,
-                                      related_name="%(class)s_metadata",
-                                      related_query_name="%(class)s_metadata",
+                                      related_name=RELATED_METADATA,
+                                      related_query_name=RELATED_METADATA,
                                       verbose_name=_("keywords"),
-                                      help_text=_("all keywords which are related to the content of this metadata."))
+                                      help_text=KEYWORDS_HELP_TEXT)
 
     languages = models.ManyToManyField(to=Language,
                                        blank=True,
-                                       related_name="%(class)s_metadata",
-                                       related_query_name="%(class)s_metadata",
+                                       related_name=RELATED_METADATA,
+                                       related_query_name=RELATED_METADATA,
                                        verbose_name=_("languages"),
                                        help_text=_("languages used for documenting metadata"))
 
@@ -1113,17 +1162,6 @@ class LayerMetadata(AbstractMetadata):
     class Meta:
         abstract = True
 
-    # def save(self, *args, **kwargs):
-    #    adding = self._state.adding
-    #    super().save()
-    #    if adding:
-    #        xml = MdMetadata.from_field_dict(self.__dict__)
-    #        xml_string = xml.serializeDocument()
-    #        # FIXME: documents are created on the fly by registry.models.DocumentModelMixin
-    #        Document.objects.create(layer_metadata=self,
-    #                               xml=xml_string,
-    #                              xml_backup=xml_string)
-
 
 class FeatureTypeMetadata(AbstractMetadata):
 
@@ -1152,31 +1190,31 @@ class MetadataRelation(models.Model):
 
     """
     # resource relations
-    layer = models.ForeignKey(to="registry.Layer",
+    layer = models.ForeignKey(to=FK_TARGET_LAYER,
                               on_delete=models.CASCADE,
                               null=True,  # nullable to support polymorph using in MetadataRecord model
                               blank=True,
                               related_name="metadata_relations",
                               related_query_name="metadata_relation")
-    feature_type = models.ForeignKey(to="registry.FeatureType",
+    feature_type = models.ForeignKey(to=FK_TARGET_FEATURE_TYPE,
                                      on_delete=models.CASCADE,
                                      null=True,  # nullable to support polymorph using in MetadataRecord model
                                      blank=True,
                                      related_name="metadata_relations",
                                      related_query_name="metadata_relation")
-    csw = models.ForeignKey(to="registry.CatalogueService",
+    csw = models.ForeignKey(to=FK_TARGET_CSW,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
                             related_name="metadata_relations",
                             related_query_name="metadata_relation")
-    wms = models.ForeignKey(to="registry.WebMapService",
+    wms = models.ForeignKey(to=FK_TARGET_WMS,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
                             related_name="metadata_relations",
                             related_query_name="metadata_relation")
-    wfs = models.ForeignKey(to="registry.WebFeatureService",
+    wfs = models.ForeignKey(to=FK_TARGET_WFS,
                             on_delete=models.CASCADE,
                             null=True,  # nullable to support polymorph using in MetadataRecord model
                             blank=True,
@@ -1294,6 +1332,30 @@ class MetadataRelation(models.Model):
             models.UniqueConstraint(
                 name="unique_service_metadata_representation_for_wfs",
                 fields=["service_metadata", "wfs"]
+            ),
+            # a coupling of a dataset record to one element is stored once per
+            # kind of coupling (#1483). The key is the one
+            # :meth:`MetadataRecord.add_metadata_relation` re-asserts on - the
+            # filled columns plus `is_internal`, and `origin` is a filled
+            # column - because the table holds rows of one pair on purpose:
+            # the imported evidence of a document, the coupling a curator
+            # maintains (`publication_kind`) and the EDITOR coupling a
+            # collection finds already standing beside its own are separate
+            # rows, which `tests/django/registry/tasks/
+            # tests_reference_work_queue.py` pins for the collection. A key
+            # without `origin` would refuse what that flow writes.
+            # Only the layer and the feature type are named: the check
+            # constraint `one_related_object_selected` allows a dataset record
+            # beside no other element. The service block above is narrower
+            # than this and predates it; these two mirror their own write path.
+            models.UniqueConstraint(
+                name="unique_dataset_metadata_representation_for_layer",
+                fields=["is_internal", "origin", "dataset_metadata", "layer"]
+            ),
+            models.UniqueConstraint(
+                name="unique_dataset_metadata_representation_for_feature_type",
+                fields=["is_internal", "origin", "dataset_metadata",
+                        "feature_type"]
             )
         ]
 
@@ -1360,6 +1422,11 @@ class MetadataRelation(models.Model):
         return blockers
 
 
+RELATED_METADATA_RECORD = "%(app_label)s_%(class)s_metadata_record"
+
+RELATED_METADATA_RECORDS = "%(app_label)s_%(class)s_metadata_records"
+
+
 class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
 
     # the authoring profile of the record (#1240). It sits on the record and
@@ -1377,13 +1444,13 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                                             "records created by an import or through the api answer the seeded "
                                             "iso19139-generic profile, see MetadataProfile.generic()"))
 
-    # TODO: check if this is calculate able
+    # FUTURE: check if this is calculate able
     inspire_interoperability = models.BooleanField(default=False,
                                                    help_text=_("flag to signal if this "))
 
-    harvested_through = models.ManyToManyField(to="registry.CatalogueService",
-                                               related_name="%(app_label)s_%(class)s_metadata_records",
-                                               related_query_name="%(app_label)s_%(class)s_metadata_record",
+    harvested_through = models.ManyToManyField(to=FK_TARGET_CSW,
+                                               related_name=RELATED_METADATA_RECORDS,
+                                               related_query_name=RELATED_METADATA_RECORD,
                                                editable=False,
                                                blank=True,
                                                verbose_name=_("services"),
@@ -1429,7 +1496,7 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
     time_extents = models.ManyToManyField(
         to=TimeExtent,
         blank=True,
-        editable=False,
+        editable=True,
         related_name="%(app_label)s_%(class)s",
         related_query_name="%(app_label)s_%(class)s",
         verbose_name=_("time extent"),
@@ -1513,6 +1580,12 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
         relation which is already there instead of stacking a second row
         beside it. A class without a column of its own raises instead of
         writing an unrenderable half row (#1261).
+
+        The lock is not what makes this idempotent: `select_for_update` locks a
+        row which is already there and nothing at all for a missing one, so two
+        writers of the same pair both see no row and both insert. What refuses
+        the second one is the unique constraint of the pair in
+        :class:`MetadataRelation.Meta` (#1483).
         """
         kwargs = {}
         described_field, record_field = MetadataRelation.relation_columns(
@@ -1588,25 +1661,25 @@ class DatasetMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.DatasetMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
-    self_pointing_layers = models.ManyToManyField(to="registry.Layer",
+    self_pointing_layers = models.ManyToManyField(to=FK_TARGET_LAYER,
                                                   through=MetadataRelation,
                                                   editable=False,
-                                                  related_name="%(app_label)s_%(class)s_metadata_records",
-                                                  related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                  related_name=RELATED_METADATA_RECORDS,
+                                                  related_query_name=RELATED_METADATA_RECORD,
                                                   blank=True,
                                                   verbose_name=_("layers"),
                                                   help_text=_("all layers which are linking to this dataset metadata in"
                                                               " there capabilities."))
-    self_pointing_feature_types = models.ManyToManyField(to="registry.FeatureType",
+    self_pointing_feature_types = models.ManyToManyField(to=FK_TARGET_FEATURE_TYPE,
                                                          through=MetadataRelation,
                                                          editable=False,
-                                                         related_name="%(app_label)s_%(class)s_metadata_records",
-                                                         related_query_name="%(app_label)s_%(class)s_metadata_record",
+                                                         related_name=RELATED_METADATA_RECORDS,
+                                                         related_query_name=RELATED_METADATA_RECORD,
                                                          blank=True,
                                                          verbose_name=_(
                                                              "feature types"),
@@ -1636,8 +1709,8 @@ class DatasetMetadataRecord(MetadataRecord):
                                          default="")
     categories = models.ManyToManyField(to=IsoCategory,
                                         blank=True,
-                                        related_name="%(class)s_metadata",
-                                        related_query_name="%(class)s_metadata",
+                                        related_name=RELATED_METADATA,
+                                        related_query_name=RELATED_METADATA,
                                         verbose_name=_("categories"),
                                         help_text=_("the topic categories of the dataset"))
 
@@ -1648,7 +1721,7 @@ class DatasetMetadataRecord(MetadataRecord):
     )
 
     objects = DatasetMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("dataset metadata")
@@ -1663,6 +1736,9 @@ class DatasetMetadataRecord(MetadataRecord):
         ] + AbstractMetadata.Meta.indexes
 
 
+RELATED_SERVICE_METADATA = "%(app_label)s_%(class)s_service_metadata"
+
+
 class ServiceMetadataRecord(MetadataRecord):
     """ Concrete model class for service metadata records, which are parsed from iso metadata xml.
 
@@ -1672,41 +1748,35 @@ class ServiceMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.ServiceMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
-    self_pointing_wms = models.ManyToManyField(to="registry.WebMapService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "web map services"),
-                                                  help_text=_("all wms which are linking to this service metadata in"
-                                                              " there capabilities."))
-    self_pointing_wfs = models.ManyToManyField(to="registry.WebFeatureService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "web feature services"),
-                                                  help_text=_("all wfs which are linking to this service metadata in"
-                                                              " there capabilities."))
-    self_pointing_csw = models.ManyToManyField(to="registry.CatalogueService",
-                                                  through=MetadataRelation,
-                                                  editable=False,
-                                                  related_name="%(app_label)s_%(class)s_service_metadata",
-                                                  related_query_name="%(app_label)s_%(class)s_service_metadata",
-                                                  blank=True,
-                                                  verbose_name=_(
-                                                      "catalogue services"),
-                                                  help_text=_("all csw which are linking to this service metadata in"
-                                                              " there capabilities."))
+    self_pointing_wms = models.ManyToManyField(to=FK_TARGET_WMS,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("web map services"),
+                                               help_text=_("all wms which are linking to this service metadata in there capabilities."))
+    self_pointing_wfs = models.ManyToManyField(to=FK_TARGET_WFS,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("web feature services"),
+                                               help_text=_("all wfs which are linking to this service metadata in there capabilities."))
+    self_pointing_csw = models.ManyToManyField(to=FK_TARGET_CSW,
+                                               through=MetadataRelation,
+                                               editable=False,
+                                               related_name=RELATED_SERVICE_METADATA,
+                                               related_query_name=RELATED_SERVICE_METADATA,
+                                               blank=True,
+                                               verbose_name=_("catalogue services"),
+                                               help_text=_("all csw which are linking to this service metadata in there capabilities."))
 
     objects = ServiceMetadataRecordManager()
     change_log = HistoricalRecords(
@@ -1714,7 +1784,7 @@ class ServiceMetadataRecord(MetadataRecord):
         excluded_fields=("keywords_list", "search_vector",),
         bases=[AdditionalTimeFieldsHistoricalModel, DeltaSizeHistoricalModel],
     )
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         indexes = [
@@ -1743,10 +1813,10 @@ class ApplicationMetadataRecord(MetadataRecord):
         to=Keyword,
         through="registry.ApplicationMetadataRecordKeywordsLink",
         blank=True,
-        related_name="%(class)s_metadata",
-        related_query_name="%(class)s_metadata",
+        related_name=RELATED_METADATA,
+        related_query_name=RELATED_METADATA,
         verbose_name=_("keywords"),
-        help_text=_("all keywords which are related to the content of this metadata."))
+        help_text=KEYWORDS_HELP_TEXT)
 
     application_contact = models.ForeignKey(to=MetadataContact,
                                             on_delete=models.RESTRICT,
@@ -1759,8 +1829,8 @@ class ApplicationMetadataRecord(MetadataRecord):
                                                              blank=True)
     categories = models.ManyToManyField(to=IsoCategory,
                                         blank=True,
-                                        related_name="%(class)s_metadata",
-                                        related_query_name="%(class)s_metadata",
+                                        related_name=RELATED_METADATA,
+                                        related_query_name=RELATED_METADATA,
                                         verbose_name=_("categories"),
                                         help_text=_("the topic categories of the application"))
 
@@ -1771,7 +1841,7 @@ class ApplicationMetadataRecord(MetadataRecord):
     )
 
     objects = ApplicationMetadataRecordManager()
-    history = DefaultHistoryManager()
+    change_stats = DefaultHistoryManager()
 
     class Meta:
         verbose_name = _("application metadata")
@@ -1808,7 +1878,11 @@ class DatasetMetadataRecordKeywordsLink(models.Model):
         # the first release. Then remove these db_table overrides to use
         # Django's default through-model table names.
         db_table = "registry_datasetmetadatarecord_keywords"
-        unique_together = (("datasetmetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("datasetmetadatarecord", "keyword"),
+                name="unique_keyword_per_dataset_metadata_record"),
+        ]
 
 
 class ServiceMetadataRecordKeywordsLink(models.Model):
@@ -1827,7 +1901,11 @@ class ServiceMetadataRecordKeywordsLink(models.Model):
     class Meta:
         # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_servicemetadatarecord_keywords"
-        unique_together = (("servicemetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("servicemetadatarecord", "keyword"),
+                name="unique_keyword_per_service_metadata_record"),
+        ]
 
 
 class ApplicationMetadataRecordKeywordsLink(models.Model):
@@ -1846,4 +1924,8 @@ class ApplicationMetadataRecordKeywordsLink(models.Model):
     class Meta:
         # Remove at the first-release migration reset to use Django's default name.
         db_table = "registry_applicationmetadatarecord_keywords"
-        unique_together = (("applicationmetadatarecord", "keyword"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("applicationmetadatarecord", "keyword"),
+                name="unique_keyword_per_application_metadata_record"),
+        ]

@@ -22,66 +22,59 @@ def _get_request_uri_has_no_request_parameter(value):
         )
 
 
+# currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
+# supported versions for wfs are only 2.0.2 and 2.0.0: the mapper ships a
+# capabilities config for 2.0.0 (#1210), which also maps a 2.0.2 document
+# because both share the /wfs/2.0 namespace. A 1.x document carries the
+# older namespace, maps to nothing and must be refused here, not as a
+# crashed registration task.
+# FUTURE: append all versions
+SUPPORTED_WMS_VERSIONS = ["1.3.0", "1.1.1", "1.1.0", "1.0.0"]
+SUPPORTED_WFS_VERSIONS = ["2.0.2", "2.0.0"]
+SUPPORTED_CSW_VERSIONS = [
+    "2.0.2",
+]
+
+#: the SERVICE spellings the validator answers for, each with the service
+#: name and the versions Mr.Map ships a capabilities mapping for
+_SUPPORTED_SERVICE_VERSIONS = {
+    spelling: (service, versions)
+    for service, versions in (
+        (OGCServiceEnum.WMS.value, SUPPORTED_WMS_VERSIONS),
+        (OGCServiceEnum.WFS.value, SUPPORTED_WFS_VERSIONS),
+        (OGCServiceEnum.CSW.value, SUPPORTED_CSW_VERSIONS),
+    )
+    for spelling in (service.lower(), service.upper())
+}
+
+
 def _get_request_uri_has_no_version_parameter(value):
     parsed_url = urlparse(value)
     query_params = parse_qs(parsed_url.query)
     query_params = {k.lower(): v for k, v in query_params.items()}
-    # currently supported version for wms 1.3.0, 1.1.1, 1.1.0, 1.0.0
-    # supported versions for wfs are only 2.0.2 and 2.0.0: the mapper ships a
-    # capabilities config for 2.0.0 (#1210), which also maps a 2.0.2 document
-    # because both share the /wfs/2.0 namespace. A 1.x document carries the
-    # older namespace, maps to nothing and must be refused here, not as a
-    # crashed registration task.
-    supported_wms_versions = ["1.3.0", "1.1.1", "1.1.0", "1.0.0"]
-    supported_wfs_versions = ["2.0.2", "2.0.0"]
-    # Todo: append all versions
-    supported_csw_versions = [
-        "2.0.2",
-    ]
-
-    if "version" in query_params and query_params["version"][0] is not None:
-        if "service" in query_params or query_params["service"][0] is not None:
-            if query_params["service"][0] in [
-                OGCServiceEnum.WMS.value.lower(),
-                OGCServiceEnum.WMS.value.upper(),
-            ]:
-                service_type = OGCServiceEnum.WMS.value
-                supported_versions = supported_wms_versions
-            elif query_params["service"][0] in [
-                OGCServiceEnum.WFS.value.lower(),
-                OGCServiceEnum.WFS.value.upper(),
-            ]:
-                service_type = OGCServiceEnum.WFS.value
-                supported_versions = supported_wfs_versions
-            elif query_params["service"][0] in [
-                OGCServiceEnum.CSW.value.lower(),
-                OGCServiceEnum.CSW.value.upper(),
-            ]:
-                service_type = OGCServiceEnum.CSW.value
-                supported_versions = supported_csw_versions
-            else:
-                return ValidationError(
-                    _("The given service typ is not supported from Mr. Map."),
-                )
-
-            is_supported = False
-            for version in supported_versions:
-                if query_params["version"][0] == version:
-                    is_supported = True
-
-            if not is_supported:
-                return ValidationError(
-                    _(
-                        "The given {} version {} is not supported from Mr. Map.".format(
-                            service_type, query_params["version"][0]
-                        )
-                    ),
-                )
-
-    else:
+    if "version" not in query_params or query_params["version"][0] is None:
         return ValidationError(
             _("The given uri is not valid cause there is no version parameter.")
         )
+
+    if "service" in query_params or query_params["service"][0] is not None:
+        supported = _SUPPORTED_SERVICE_VERSIONS.get(
+            query_params["service"][0])
+        if supported is None:
+            return ValidationError(
+                _("The given service typ is not supported from Mr. Map."),
+            )
+
+        service_type, supported_versions = supported
+        version = query_params["version"][0]
+        if version not in supported_versions:
+            return ValidationError(
+                _(
+                    "The given {} version {} is not supported from Mr. Map.".format(
+                        service_type, version
+                    )
+                ),
+            )
 
 
 def _get_request_uri_has_no_service_parameter(value):

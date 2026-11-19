@@ -33,10 +33,10 @@ const ProgressField = (
   
   const color = useMemo(()=> {
     if (record !== undefined){
-      return (getColor && getColor(record)) ?? 'info'
+      return getColor?.(record) ?? 'info'
     }
     return 'info'
-  },[record])
+  },[record, getColor])
 
   if (indeterminate) {
     return (

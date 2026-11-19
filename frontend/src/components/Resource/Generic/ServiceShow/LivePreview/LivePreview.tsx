@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import type { OWSContext } from "../../../../../ows-lib/OwsContext/core";
+
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   type RaRecord,
   useGetList,
@@ -28,16 +37,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { v4 as uuidv4 } from "uuid";
 
 import { API_BASE_URL } from "../../../../../context/HttpClientContext";
-import { getAuthToken } from "../../../../../providers/authProvider";
 import {
   OwsContextBase,
   useOwsContextBase,
 } from "../../../../../react-ows-lib/ContextProvider/OwsContextBase";
 import { validExtent } from "../../../../MapViewer/utils";
 import PreviewMap, { type Viewport } from "./PreviewMap";
+import { propertyText } from "./propertyText";
 import {
   PreviewFailure,
   serviceResource,
@@ -122,10 +130,12 @@ const readIdentifyHtml = (text: string) => {
       "script, style, template, noscript, iframe, object, embed, svg, math, form",
     )
     .forEach((node) => node.remove());
-  const tables = Array.from(document.querySelectorAll("table"), (table) => ({
+  const tables = Array.from(document.querySelectorAll("table"), (table, tableIndex) => ({
+    id: `t${tableIndex}`,
     caption: table.caption?.textContent?.trim(),
-    rows: Array.from(table.rows, (row) =>
-      Array.from(row.cells, (cell) => ({
+    rows: Array.from(table.rows, (row, rowIndex) =>
+      Array.from(row.cells, (cell, cellIndex) => ({
+        id: `t${tableIndex}r${rowIndex}c${cellIndex}`,
         text: cell.textContent?.trim() ?? "",
         header: cell.tagName === "TH",
       })),
@@ -170,164 +180,167 @@ export const FeatureInfoResult = ({
       ? parseIdentify(text)
       : undefined;
   const features = parsed === undefined ? undefined : identifyFeatures(parsed);
-  return (
-    <Stack spacing={1} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-      {html ? (
-        <>
-          {!html.tables.length && !html.text && (
-            <Typography variant="body2" color="text.secondary">
-              {translate("livePreview.noFeatures")}
-            </Typography>
-          )}
-          {html.text && (
-            <Typography
-              variant="body2"
-              sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-            >
-              {html.text}
-            </Typography>
-          )}
-          {html.tables.map((table, index) => (
-            <TableContainer key={index} sx={{ maxHeight: 300 }}>
-              <Table
-                size="small"
-                sx={{
-                  "& td, & th": {
-                    verticalAlign: "top",
-                    minWidth: 100,
-                    maxWidth: 280,
-                    overflowWrap: "anywhere",
-                  },
-                }}
-              >
-                {table.caption && (
-                  <caption style={{ captionSide: "top" }}>
-                    {table.caption}
-                  </caption>
-                )}
-                <TableBody>
-                  {table.rows.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {row.map((cell, cellIndex) => (
-                        <TableCell
-                          key={cellIndex}
-                          component={cell.header ? "th" : "td"}
-                          sx={
-                            cell.header
-                              ? { fontWeight: "bold", bgcolor: "action.hover" }
-                              : undefined
-                          }
-                        >
-                          {cell.text}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          ))}
-        </>
-      ) : features ? (
-        features.length === 0 ? (
+
+  let result: ReactNode;
+  if (html) {
+    result = (
+      <>
+        {!html.tables.length && !html.text && (
           <Typography variant="body2" color="text.secondary">
             {translate("livePreview.noFeatures")}
           </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {paginate && (
-              <Stack direction="row" sx={{ alignItems: "center" }} spacing={1}>
-                <Typography variant="caption" sx={{ flex: 1 }}>
-                  {translate("viewerFeatureInfo.featurePage", {
-                    current: Math.min(featureIndex + 1, features.length),
-                    total: features.length,
-                  })}
-                </Typography>
-                <Button
-                  size="small"
-                  disabled={featureIndex === 0}
-                  onClick={() => setFeatureIndex((index) => index - 1)}
-                  aria-label={translate("ra.navigation.previous")}
-                >
-                  ‹
-                </Button>
-                <Button
-                  size="small"
-                  disabled={featureIndex >= features.length - 1}
-                  onClick={() => setFeatureIndex((index) => index + 1)}
-                  aria-label={translate("ra.navigation.next")}
-                >
-                  ›
-                </Button>
-              </Stack>
-            )}
-            {(paginate
-              ? features.slice(featureIndex, featureIndex + 1)
-              : features
-            ).map((feature, index) => (
-              <Stack
-                key={index}
-                sx={{
-                  border: paginate ? 0 : 1,
-                  borderColor: "divider",
-                  p: paginate ? 0 : 1,
-                }}
-              >
-                {(entries((feature as { properties?: unknown })?.properties)
-                  .length
-                  ? entries((feature as { properties?: unknown }).properties)
-                  : entries(feature)
-                ).map(([key, value]) => (
-                  <Typography
-                    key={key}
-                    component="div"
-                    variant="body2"
-                    sx={
-                      paginate
-                        ? {
-                            display: "grid",
-                            gridTemplateColumns:
-                              "minmax(90px, .8fr) minmax(0, 1.2fr)",
-                            gap: 1,
-                            py: 1,
-                            borderTop: 1,
-                            borderColor: "divider",
-                            overflowWrap: "anywhere",
-                          }
-                        : undefined
-                    }
-                  >
-                    {paginate ? (
-                      <>
-                        <span>{key}</span>
-                        <span>
-                          {typeof value === "object"
-                            ? JSON.stringify(value)
-                            : String(value ?? "")}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        {key}:{" "}
-                        {typeof value === "object"
-                          ? JSON.stringify(value)
-                          : String(value ?? "")}
-                      </>
-                    )}
-                  </Typography>
+        )}
+        {html.text && (
+          <Typography
+            variant="body2"
+            sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+          >
+            {html.text}
+          </Typography>
+        )}
+        {html.tables.map((table) => (
+          <TableContainer key={table.id} sx={{ maxHeight: 300 }}>
+            <Table
+              size="small"
+              sx={{
+                "& td, & th": {
+                  verticalAlign: "top",
+                  minWidth: 100,
+                  maxWidth: 280,
+                  overflowWrap: "anywhere",
+                },
+              }}
+            >
+              {table.caption && (
+                <caption style={{ captionSide: "top" }}>
+                  {table.caption}
+                </caption>
+              )}
+              <TableBody>
+                {table.rows.map((row) => (
+                  <TableRow key={row[0].id}>
+                    {row.map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        component={cell.header ? "th" : "td"}
+                        sx={
+                          cell.header
+                            ? { fontWeight: "bold", bgcolor: "action.hover" }
+                            : undefined
+                        }
+                      >
+                        {cell.text}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </Stack>
-            ))}
-          </Stack>
-        )
-      ) : (
-        <Typography
-          component="pre"
-          sx={{ whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}
-        >
-          {parsed === undefined ? text : JSON.stringify(parsed, null, 2)}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        ))}
+      </>
+    );
+  } else if (features) {
+    result =
+      features.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          {translate("livePreview.noFeatures")}
         </Typography>
-      )}
+      ) : (
+        <Stack spacing={1}>
+          {paginate && (
+            <Stack direction="row" sx={{ alignItems: "center" }} spacing={1}>
+              <Typography variant="caption" sx={{ flex: 1 }}>
+                {translate("viewerFeatureInfo.featurePage", {
+                  current: Math.min(featureIndex + 1, features.length),
+                  total: features.length,
+                })}
+              </Typography>
+              <Button
+                size="small"
+                disabled={featureIndex === 0}
+                onClick={() => setFeatureIndex((index) => index - 1)}
+                aria-label={translate("ra.navigation.previous")}
+              >
+                ‹
+              </Button>
+              <Button
+                size="small"
+                disabled={featureIndex >= features.length - 1}
+                onClick={() => setFeatureIndex((index) => index + 1)}
+                aria-label={translate("ra.navigation.next")}
+              >
+                ›
+              </Button>
+            </Stack>
+          )}
+          {(paginate
+            ? features.slice(featureIndex, featureIndex + 1)
+            : features
+          ).map((feature) => (
+            <Stack
+              key={features.indexOf(feature)}
+              sx={{
+                border: paginate ? 0 : 1,
+                borderColor: "divider",
+                p: paginate ? 0 : 1,
+              }}
+            >
+              {(entries((feature as { properties?: unknown })?.properties)
+                .length
+                ? entries((feature as { properties?: unknown }).properties)
+                : entries(feature)
+              ).map(([key, value]) => (
+                <Typography
+                  key={key}
+                  component="div"
+                  variant="body2"
+                  sx={
+                    paginate
+                      ? {
+                          display: "grid",
+                          gridTemplateColumns:
+                            "minmax(90px, .8fr) minmax(0, 1.2fr)",
+                          gap: 1,
+                          py: 1,
+                          borderTop: 1,
+                          borderColor: "divider",
+                          overflowWrap: "anywhere",
+                        }
+                      : undefined
+                  }
+                >
+                  {paginate ? (
+                    <>
+                      <span>{key}</span>
+                      <span>{propertyText(value)}</span>
+                    </>
+                  ) : (
+                    <>
+                      {key}:{" "}
+                      {propertyText(value)}
+                    </>
+                  )}
+                </Typography>
+              ))}
+            </Stack>
+          ))}
+        </Stack>
+      );
+  } else {
+    result = (
+      <Typography
+        component="pre"
+        sx={{ whiteSpace: "pre-wrap", maxHeight: 200, overflow: "auto" }}
+      >
+        {parsed === undefined ? text : JSON.stringify(parsed, null, 2)}
+      </Typography>
+    );
+  }
+
+  return (
+    <Stack spacing={1} sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+      {result}
       <Accordion
         slotProps={{ transition: { unmountOnExit: true } }}
         disableGutters
@@ -425,12 +438,14 @@ const DataPreview = ({
     );
     setIdentify(undefined);
   }, []);
-  const namedChoices =
-    choices.data?.filter((record) => record.identifier) ?? [];
+  const namedChoices = useMemo(
+    () => choices.data?.filter((record) => record.identifier) ?? [],
+    [choices.data],
+  );
   useEffect(() => {
     if (!selection && namedChoices[0])
       setSelection(String(namedChoices[0].identifier));
-  }, [choices.data]);
+  }, [namedChoices, selection]);
   return (
     <Stack spacing={2}>
       {!discovery.supported && (
@@ -669,8 +684,8 @@ const CataloguePreview = ({ serviceId }: { serviceId: string }) => {
           {record.previews.length === 0 && (
             <Typography>{translate("livePreview.noRegistered")}</Typography>
           )}
-          {record.previews.map((link, index) => (
-            <Button key={index} onClick={() => setLinked(link)}>
+          {record.previews.map((link) => (
+            <Button key={`${link.protocol}:${link.serviceId}:${link.selection}`} onClick={() => setLinked(link)}>
               {translate("livePreview.previewLinked", { title: link.title })}
             </Button>
           ))}
@@ -698,6 +713,50 @@ const CataloguePreview = ({ serviceId }: { serviceId: string }) => {
   );
 };
 
+/**
+ * Marks the operations of the features below the new tree that serve exactly
+ * the previewed layer as active.
+ *
+ * Nothing stamps an authentication id any more (#835): the operations of a
+ * previewed service are delivered by this origin's security proxy, and a
+ * request to this origin carries the browser session's cookie by itself. A
+ * credential the viewer would have to attach by hand does not exist, and
+ * advertising one which is absent would only make the viewer report the
+ * operations as lacking credentials.
+ */
+const activateSelectedLayer = ({
+  features,
+  treeId,
+  selection,
+  wms,
+}: {
+  features: OWSContext["features"];
+  treeId: number;
+  selection: string;
+  wms: boolean;
+}) => {
+  features
+    .filter((feature) => feature.properties.folder?.startsWith(`/${treeId}`))
+    .forEach((feature) => {
+      const operation = wms
+        ? feature.getWmsOperationByCode("GetMap")
+        : feature.getWfsOperationByCode("GetFeature");
+      if (!operation) return;
+      const request = new URL(operation.href);
+      const requested = [...request.searchParams.entries()].find(
+        ([key]) => key.toLowerCase() === (wms ? "layers" : "typename"),
+      )?.[1];
+      const active = requested === selection;
+      operation.active = active;
+      feature.properties.active = active;
+      feature.properties.offerings?.forEach((offering) =>
+        offering.operations?.forEach((item) => {
+          item.active = active;
+        }),
+      );
+    });
+};
+
 const LivePreview = ({ protocol }: { protocol: Protocol }) => {
   const record = useRecordContext();
   const translate = useTranslate();
@@ -710,7 +769,7 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
   // operations of the delivered capabilities point back to this origin and the viewer will ask
   // the proxy, which bounds the requests, instead of the upstream service
   const transfer = useCallback(
-    async (selection: string, viewport: Viewport) => {
+    (selection: string, viewport: Viewport) => {
       const wms = protocol === "WMS";
       const url = new URL(
         `/mrmap-proxy/${wms ? "wms" : "wfs"}/${record?.id}`,
@@ -719,66 +778,27 @@ const LivePreview = ({ protocol }: { protocol: Protocol }) => {
       url.search = wms
         ? "SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0"
         : "SERVICE=WFS&REQUEST=GetCapabilities&VERSION=2.0.0";
-      const token = getAuthToken()?.token;
-      const authenticationId = uuidv4();
+      // The proxy answers on this very origin, so the viewer's requests carry
+      // the browser session's cookie on their own (#835): no credential is
+      // handed over, because there is none to hand over any more.
       const appendService = wms
         ? globalContext.addWMSByUrl
         : globalContext.addWFSByUrl;
-      await appendService(
-        url.href,
-        token ? new Headers({ Authorization: `Token ${token}` }) : undefined,
-        (context, treeId) => {
-          const authenticationHeaders = Array.isArray(
-            context.authenticationHeaders,
-          )
-            ? context.authenticationHeaders
-            : [];
-          if (token)
-            context.authenticationHeaders = [
-              ...authenticationHeaders,
-              {
-                id: authenticationId,
-                type: "header",
-                name: "Authorization",
-                value: `Token ${token}`,
-                origin: url.origin,
-              },
-            ];
-          context.features
-            .filter((feature) =>
-              feature.properties.folder?.startsWith(`/${treeId}`),
-            )
-            .forEach((feature) => {
-              const operation = wms
-                ? feature.getWmsOperationByCode("GetMap")
-                : feature.getWfsOperationByCode("GetFeature");
-              if (operation) {
-                const request = new URL(operation.href);
-                const requested = [...request.searchParams.entries()].find(
-                  ([key]) =>
-                    key.toLowerCase() === (wms ? "layers" : "typename"),
-                )?.[1];
-                const active = requested === selection;
-                operation.active = active;
-                feature.properties.active = active;
-                feature.properties.offerings?.forEach((offering) =>
-                  offering.operations?.forEach((item) => {
-                    item.active = active;
-                    if (token && new URL(item.href).origin === url.origin)
-                      item["x-authentication-id"] = authenticationId;
-                  }),
-                );
-              }
-            });
-          context.bbox = viewport.bbox.split(",").map(Number) as [
-            number,
-            number,
-            number,
-            number,
-          ];
-          return context;
-        },
-      );
+      appendService(url.href, undefined, (context, treeId) => {
+        activateSelectedLayer({
+          features: context.features,
+          treeId,
+          selection,
+          wms,
+        });
+        context.bbox = viewport.bbox.split(",").map(Number) as [
+          number,
+          number,
+          number,
+          number,
+        ];
+        return context;
+      });
       navigate("/viewer", {
         state: { previewExtent: viewport.bbox.split(",").map(Number) },
       });

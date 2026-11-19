@@ -1,9 +1,12 @@
 from datetime import datetime
 
 from accounts.models.groups import Organization
+from accounts.serializers.groups import OrganizationSerializer
 from accounts.serializers.users import UserSerializer
+from accounts.utils import organizations_of
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
+from extras.permissions import Visibility
 from extras.serializers import (HistoryInformationSerializer,
                                 ObjectPermissionCheckerSerializer,
                                 StringRepresentationSerializer,
@@ -39,8 +42,10 @@ from registry.serializers.metadata import (KeywordSerializer,
                                            StyleSerializer,
                                            TimeExtentSerializer)
 from registry.serializers.security import WebFeatureServiceOperationSerializer
-from rest_framework.fields import (BooleanField, DateTimeField, IntegerField,
-                                   SerializerMethodField, URLField)
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.fields import (BooleanField, ChoiceField, DateTimeField,
+                                   IntegerField, SerializerMethodField,
+                                   URLField)
 from rest_framework.reverse import reverse
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import (
@@ -49,12 +54,15 @@ from rest_framework_json_api.serializers import (HyperlinkedIdentityField,
                                                  ModelSerializer)
 
 
+#: the read-only answer of the stored owner of #733, one text for the three
+#: service serializers that expose it
+OWNER_HELP_TEXT = _(
+    "the organization which owns this service; empty on services "
+    "registered before ownership was stored")
+
+
 class WebMapServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("web map service"),
         help_text=_(
@@ -74,6 +82,11 @@ class ServiceElementHistoryInformationSerializer(HistoryInformationSerializer):
         # registration date is an estimate; do not manufacture historical rows.
         created_at = super().get_created_at(instance)
         return created_at if created_at is not None else getattr(instance, 'service_created_at', None)
+
+
+IS_SECURED_LABEL = _("is secured")
+
+IS_SPATIAL_SECURED_LABEL = _("is spatial secured")
 
 
 class LayerSerializer(
@@ -161,13 +174,6 @@ class LayerSerializer(
         label=_("maximum scale"),
         read_only=True,
         help_text=_("the maximum scale value."))
-    styles = SerializerMethodResourceRelatedField(
-        label=_("styles"),
-        help_text=_("related styles of this layer."),
-        many=True,  # necessary for M2M fields & reverse FK fields
-        related_link_view_name="registry:layer-styles-list",
-        related_link_url_kwarg="parent_lookup_layer",
-    )
     reference_systems = SerializerMethodResourceRelatedField(
         label=_("reference systems"),
         help_text=_("available reference systems of this layer."),
@@ -189,9 +195,9 @@ class LayerSerializer(
         many=True,
         read_only=True,
     )
-    is_secured = BooleanField(label=_("is secured"), read_only=True)
+    is_secured = BooleanField(label=IS_SECURED_LABEL, read_only=True)
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true is the layer is spatial secured by a allowed operation object."),
         read_only=True
@@ -219,9 +225,9 @@ class LayerSerializer(
         model = Layer
         fields = "__all__"
 
-    def _convert_dict_to_object(self, objs, Model, defaults={}):
+    def _convert_dict_to_object(self, objs, model_cls, defaults={}):
         if objs and isinstance(objs, list) and isinstance(objs[0], dict):
-            return [Model(**defaults, **obj) for obj in objs]
+            return [model_cls(**defaults, **obj) for obj in objs]
         return objs
 
     def get_reference_systems(self, instance):
@@ -379,6 +385,136 @@ class ServiceAlertSerializerMixin(ModelSerializer):
         abstract = True
 
 
+class VisibilityField(ChoiceField):
+    """The tri-state answer of #739, read from the queryset's annotation.
+
+    The list annotates ``visibility`` over guardian's tables in its own SELECT,
+    so a page answers the field without a query per row. A serializer which
+    gets an object of a queryset that did not annotate it - an included service
+    of a layer list, a future relation - omits the attribute, exactly like
+    :class:`ServiceAlertSerializerMixin` omits an alert state it was not given:
+    the answer belongs to the query which decided to answer it, and a field
+    which asked one query per row there is the growth
+    ``tests/django/registry/tests_query_performance.py`` refuses.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('choices', Visibility.choices)
+        # the answer is derived from the grants of the resource, so a client
+        # never has to know it: only a PATCH which deliberately moves the
+        # resource across the public axis names the field at all
+        kwargs.setdefault('required', False)
+        super().__init__(**kwargs)
+
+
+class VisibilitySerializerMixin(ModelSerializer):
+    """Answers and writes the visibility tri-state of a service (#739).
+
+    The read is the annotation; the write is one axis only: a PATCH which
+    names ``public`` gives the anonymous view grant to the anonymous viewer
+    role group and a PATCH which names ``organization-internal`` takes it
+    back. Publishing is the act of the ``publish_resource`` permission;
+    withdrawing from the public is the same act reversed and additionally
+    allowed for whoever manages the resource's access rules.
+
+    ``restricted`` is never writable: it is the absence of both the public
+    grant and the organization-wide one, and shaping it deliberately is the
+    sharing surface of #740, not a detail of this endpoint.
+
+    The base is ``ModelSerializer`` and not ``object``, like
+    :class:`ServiceAlertSerializerMixin`: DRF collects the declared fields of a
+    class through its metaclass, so a field declared on a plain mixin is never
+    seen - the same lesson #1267 records for the ownership field.
+    """
+
+    visibility = VisibilityField(
+        label=_("visibility"),
+        help_text=_(
+            "who may see this resource: public means anonymous visitors "
+            "hold the view permission, organization-internal means a role of "
+            "the owning organization does - the state every new resource "
+            "starts in - and restricted means neither; only public and "
+            "organization-internal are writable"))
+
+    def update(self, instance, validated_data):
+        """Writes the asked visibility, or nothing at all.
+
+        The request is decided before the first write: the endpoint answers
+        400 or 403 without touching the resource, because there is no
+        transaction around a PATCH which would undo the other attributes of
+        the very same request after the visibility was refused.
+        """
+        requested = validated_data.pop('visibility', None)
+        if requested is not None:
+            self.check_visibility_write(instance, requested)
+        instance = super().update(instance, validated_data)
+        if requested is not None:
+            self.apply_visibility(instance, requested)
+        return instance
+
+    @staticmethod
+    def current_visibility(instance):
+        """The answered state of one resource, asked with the list's own SQL.
+
+        The write path needs the state which is, and the representation of the
+        object it just changed needs the state which now is. Both ask the very
+        expression the list annotates, for exactly one row, so a decision and
+        the answer about it cannot disagree.
+        """
+        return instance.__class__.objects.filter(
+            pk=instance.pk).with_visibility().values_list(
+                'visibility', flat=True).first()
+
+    def check_visibility_write(self, instance, requested):
+        """Refuse a visibility a caller may not write, before anything is sent.
+
+        Raises:
+            ValidationError: ``restricted`` (never writable) or the withdrawal
+                of a resource which is not public
+            PermissionDenied: the caller holds neither the publish permission
+                nor, for the way back, the management of the access rules
+        """
+        from extras.permissions import allowed
+
+        app = instance._meta.app_label
+        user = getattr(self.context.get('request'), 'user', None)
+
+        if requested == Visibility.PUBLIC:
+            if not allowed(user, f'{app}.publish_resource', instance):
+                raise PermissionDenied(
+                    _('The publish permission of this resource is required '
+                      'to make it public.'))
+        elif requested == Visibility.ORGANIZATION_INTERNAL:
+            if self.current_visibility(instance) != Visibility.PUBLIC.value:
+                raise ValidationError({
+                    'visibility': _(
+                        'Only a public resource can be withdrawn from the '
+                        'public; the remaining grants of a resource are '
+                        'managed by the sharing of access rules.')})
+            if not (allowed(user, f'{app}.publish_resource', instance)
+                    or allowed(user, f'{app}.manage_access_rules',
+                               instance)):
+                raise PermissionDenied(
+                    _('The publish permission or the management of the '
+                      'access rules of this resource is required to withdraw '
+                      'it from the public.'))
+        else:
+            raise ValidationError({
+                'visibility': _(
+                    'restricted is answered by the grants a resource does '
+                    'not carry; it is not writable here.')})
+
+    def apply_visibility(self, instance, requested):
+        """Move the resource across the public axis, the request being decided."""
+        from extras.permissions import set_public
+
+        set_public(instance, requested == Visibility.PUBLIC.value)
+        # the annotation the request read is as old as the request; the
+        # representation of the resource which just moved asks its own answer,
+        # so the payload names the new state and not the one before it
+        instance.visibility = self.current_visibility(instance)
+
+
 @extend_schema_field({
     'type': 'object',
     'format': 'geojson',
@@ -396,13 +532,6 @@ class ServiceExtentField(GeometryField):
 class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
     extent = ServiceExtentField(read_only=True)
     element_count = IntegerField(read_only=True)
-    can_edit = SerializerMethodField(read_only=True)
-
-    def get_fields(self):
-        fields = super().get_fields()
-        if self.Meta.model is not WebMapService:
-            fields.pop('is_accessible', None)
-        return fields
 
     def explorer_fields(self):
         request = self.context.get('request')
@@ -410,27 +539,65 @@ class ExplorerAttributesSerializer(ObjectPermissionCheckerSerializer):
         return [undo_format_field_name(name.strip()) for name in
                 request.GET.get(f'fields[{self.Meta.model.__name__}]', '').split(',')] if request else []
 
+    def answers_allowed_actions(self) -> bool:
+        """Whether ``allowed_actions`` belongs to this representation.
+
+        A request that narrows this resource type with a sparse fieldset
+        gets the hint exactly when it names it - the opt-in rule of
+        ``extent`` and ``element_count``, kept for the permission hint by
+        #738, which also short-circuits ``get_allowed_actions`` so the value
+        is not computed for a renderer that would drop it. A request without
+        any fieldset for this type answers the hint unasked on the detail
+        endpoint and not on a list: a list of a deployment's services is not
+        paid for by screens that do not read the hint.
+        """
+        request = self.context.get('request')
+        if request is None:
+            return False
+        key = f'fields[{self.Meta.model.__name__}]'
+        if key in request.GET:
+            return 'allowed_actions' in self.explorer_fields()
+        return getattr(self.context.get('view'), 'action', None) != 'list'
+
     def to_representation(self, instance):
         result = super().to_representation(instance)
         requested = self.explorer_fields()
-        for name in ('extent', 'element_count', 'can_edit'):
+        for name in ('extent', 'element_count'):
             if name not in requested:
                 result.pop(name, None)
+        if not self.answers_allowed_actions():
+            result.pop('allowed_actions', None)
         return result
 
-    def get_can_edit(self, obj) -> bool:
-        if 'can_edit' not in self.explorer_fields():
-            return False
-        request = self.context.get('request')
-        user = getattr(request, 'user', None)
-        permission = f'change_{obj._meta.model_name}'
-        return bool(user and user.is_authenticated and
-                    (user.has_perm(f'{obj._meta.app_label}.{permission}') and
-                     self.get_perm_checker().has_perm(permission, obj)))
+    def get_allowed_actions(self, obj) -> list:
+        if not self.answers_allowed_actions():
+            return []
+        # the facade answers the whole action batch with the checker of the
+        # request: the role axes once per request and app, the object axis
+        # from the page the viewset already prefetched (#734, #738)
+        return super().get_allowed_actions(obj)
 
 
+MONITORING_SETTINGS_HELP_TEXT = _("This are the configured monitoring settings.")
+
+MONITORING_SETTINGS_LABEL = _("monitoring settings")
+
+OPERATION_URLS_HELP_TEXT = _("this are the urls to use for the ogc operations.")
+
+OPERATION_URLS_LABEL = _("operation urls")
+
+
+#: The WMS answers the fields that its list and its detail share from this
+#: base, which is the convention of the project: a field is declared once on
+#: the list serializer and the detail inherits it. The serializers of the WFS
+#: and of the CSW answer list and detail with one class, so they have no
+#: common base to split off and a ListSerializer of their own is not needed -
+#: the asymmetry is which class carries the shared fields, not which fields
+#: are answered (#1479). A list screen of a different shape for one of them
+#: is the point at which it gets a ListSerializer like this one.
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
+    VisibilitySerializerMixin,
     ExplorerAttributesSerializer,
     StringRepresentationSerializer,
     HistoryInformationSerializer,
@@ -472,8 +639,8 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebMapServiceOperationUrl,
         many=True,
         read_only=True,
@@ -497,13 +664,13 @@ class WebMapServiceListSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -516,8 +683,8 @@ class WebMapServiceListSerializer(
     )
     web_map_service_monitoring_settings = ResourceRelatedField(
         source="web_map_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebMapServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -534,6 +701,14 @@ class WebMapServiceListSerializer(
         help_text=_("the url to the preview image of the service."),
         read_only=True,
     )
+    # the stored owner of #733, answered read-only: the relation is decided
+    # at creation by the create serializer's validation and is not writable
+    # through the update of a service
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         # we disable including layers on this serializer for now. This will result in slow sql lookups...
@@ -546,6 +721,7 @@ class WebMapServiceListSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
     class Meta:
@@ -557,7 +733,7 @@ class WebMapServiceListSerializer(
         return instance.get_secured_capabilities_url(request=request)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         # The preview image is asked by the details of a service and by the details
         # panel beside the list of the services, so both serializers answer it. It is
         # read from the stored capabilities only: a preview never needs more than the
@@ -591,27 +767,115 @@ class WebMapServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebMapServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
 
+class OrganizationOwnerCreateSerializerMixin:
+    """The `owner` relation of a create, validated against the creating user.
+
+    Before #733 this relation was answered and thrown away: the create
+    serializers declared it, the task which persists the resource never saw
+    it, and a client could name any organization as the owner of a service
+    while the service stayed ownerless. The accepted shape of #727 (Q3=A)
+    stores the owner as a typed foreign key, so this mixin decides - at
+    creation time and server-side - which organization the stored owner is:
+
+    * a client which names an owner may name only an organization the
+      creating user is a member of; a superuser may name any organization,
+      as the superuser holds every permission of every organization,
+    * a client which names no owner gets the creating user's only
+      organization - and a user with no membership or with more than one
+      gets a validation error instead of a guess, because defaulting to the
+      first membership or to an unrelated organization is exactly what
+      Q3=A forbids.
+
+    The decided owner travels to the task through the viewset's
+    `get_task_kwargs` and is written by the task, which is where the
+    resource row comes into the world.
+
+    A serializer using this mixin must declare its own `owner` field from
+    `OWNERSHIP_FIELD_KWARGS`: DRF collects declared fields from the
+    serializer's own body and from serializer bases, not from plain
+    mixins - without its own declaration the name falls through to the
+    model field, which is `editable=False` and therefore generates
+    read-only.
+    """
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        organizations = organizations_of(user)
+
+        owner = attrs.get("owner")
+        if owner is not None:
+            if user is not None and user.is_superuser:
+                return attrs
+            if not organizations.filter(pk=owner.pk).exists():
+                raise ValidationError({
+                    "owner": _(
+                        "The creating user is not a member of the selected "
+                        "organization. A resource can only be registered "
+                        "for an organization the creating user is a member "
+                        "of.")})
+            return attrs
+
+        # no owner named: only an unambiguous single membership may decide
+        if user is not None and user.is_superuser:
+            raise ValidationError({
+                "owner": _(
+                    "The owner relation is required: the creating user's "
+                    "memberships do not answer one owning organization.")})
+        memberships = list(organizations[:2])
+        if len(memberships) == 1:
+            attrs["owner"] = memberships[0]
+            return attrs
+        if not memberships:
+            raise ValidationError({
+                "owner": _(
+                    "The creating user is not member of any organization. "
+                    "The owner relation must name the organization which "
+                    "shall own the registered service.")})
+        raise ValidationError({
+            "owner": _(
+                "The creating user is member of more than one organization. "
+                "The owner relation must name the organization which shall "
+                "own the registered service.")})
+
+
+#: the client-facing words of the create relation, one answer for the three
+#: resource kinds so that schema and dialog name the concept identically
+#: (#1267) - unpacked into each create serializer's own `owner` declaration
+OWNERSHIP_FIELD_KWARGS = {
+    "queryset": Organization.objects,
+    "required": False,
+    "label": _("owner"),
+    "help_text": _(
+        "The organization which owns the registered service and grants all "
+        "rights on it. Required when the creating user belongs to more than "
+        "one organization; the creating user must be a member of an "
+        "organization named here."),
+}
+
+
 class WebMapServiceCreateSerializer(
+    OrganizationOwnerCreateSerializerMixin,
     SystemInfoSerializerMixin,
         ModelSerializer):
 
     get_capabilities_url = URLField(
         label=_("get capabilities url"),
         help_text=_("a valid get capabilities url."),
-        # example="http://example.com/SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities",
         validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebMapServiceAuthentication.objects,
         required=False,
         label=_("authentication credentials"),
         help_text=_("Optional authentication credentials to request the remote service."))
-    owner = ResourceRelatedField(
-        queryset=Organization.objects,
-        label=_("owner"),
-        help_text=_("The selected organization grants all rights on the registered service."))
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
     # default True is kept on purpose (#1264): turning it off would change
     # registration behaviour for every existing client
     collect_metadata_records = BooleanField(
@@ -635,14 +899,9 @@ class WebMapServiceCreateSerializer(
 
 class WebFeatureServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = SerializerMethodField()
-
     class Meta:
         model = WebFeatureServiceOperationUrl
         fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
 
 
 class FeatureTypeSerializer(
@@ -732,13 +991,13 @@ class FeatureTypeSerializer(
         read_only=True
     )
     is_secured = BooleanField(
-        label=_("is secured"),
+        label=IS_SECURED_LABEL,
         help_text=_(
             "true means the service is secured by a allowed operation object."),
         read_only=True
     )
     is_spatial_secured = BooleanField(
-        label=_("is spatial secured"),
+        label=IS_SPATIAL_SECURED_LABEL,
         help_text=_(
             "true means the service is spatial secured by a allowed operation object."),
         read_only=True
@@ -766,6 +1025,7 @@ class FeatureTypeSerializer(
 
 class WebFeatureServiceSerializer(
         ServiceAlertSerializerMixin,
+        VisibilitySerializerMixin,
         ExplorerAttributesSerializer,
         StringRepresentationSerializer,
         HistoryInformationSerializer,
@@ -779,7 +1039,7 @@ class WebFeatureServiceSerializer(
         label=_("preview image"), read_only=True)
 
     @extend_schema_field({"type": "string", "format": "uri"})
-    def get_preview_url(self, instance) -> str:
+    def get_preview_url(self, instance) -> str | None:
         return reverse("registry:wfs-preview-image", kwargs={"pk": instance.pk},
                        request=self.context.get("request"))
 
@@ -808,17 +1068,23 @@ class WebFeatureServiceSerializer(
     )
 
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=WebFeatureServiceOperationUrl,
         many=True,
         read_only=True,
     )
+    # the stored owner of #733; decided at creation, not writable here
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     web_feature_service_monitoring_settings = ResourceRelatedField(
         source="web_feature_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=WebFeatureServiceMonitoringSetting,
         many=True,
         read_only=True,
@@ -832,6 +1098,7 @@ class WebFeatureServiceSerializer(
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
         "operation_urls": WebFeatureServiceOperationUrlSerializer,
+        "owner": OrganizationSerializer,
     }
 
     class Meta:
@@ -840,13 +1107,17 @@ class WebFeatureServiceSerializer(
 
 
 class WebFeatureServiceCreateSerializer(
-    SystemInfoSerializerMixin,
+        OrganizationOwnerCreateSerializerMixin,
+        SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
     )
-    owner = ResourceRelatedField(queryset=Organization.objects)
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body -
+    # with the WMS' words, one word per concept (#1267)
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
 
     # the same option the WMS create offers: one word per concept means the
     # very same msgids here, so both languages name it identically (#1267);
@@ -871,26 +1142,17 @@ class WebFeatureServiceCreateSerializer(
         )
 
 
-class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
-
-    # url = SerializerMethodField()
-
-    class Meta:
-        model = CatalogueServiceOperationUrl
-        fields = "__all__"
-
-    # def get_url(self, instance):
-    #     return instance.get_url(request=self.context["request"])
-
-
 class CatalogueServiceCreateSerializer(
+        OrganizationOwnerCreateSerializerMixin,
         SystemInfoSerializerMixin,
         ModelSerializer):
     get_capabilities_url = URLField(validators=[validate_get_capablities_uri])
     service_auth = ResourceRelatedField(
         queryset=WebFeatureServiceAuthentication.objects, required=False
     )
-    owner = ResourceRelatedField(queryset=Organization.objects)
+    # the validation of this relation is the mixin's; the declaration lives
+    # here because DRF only collects fields of the serializer's own body
+    owner = ResourceRelatedField(**OWNERSHIP_FIELD_KWARGS)
 
     class Meta:
         model = CatalogueService
@@ -943,15 +1205,13 @@ class CatalogueServiceSerializer(
             "attention"),
         model=HarvestingJob,
         read_only=True)
-    # TODO: deprecated;
+    # FUTURE: deprecated;
     # use distinct query over harvesting_jobs__registry_harvesteddatasetmetadatarelations__dataset_metadata_record.distinct()
     # registry_datasetmetadatarecord
     harvesting_jobs = ResourceRelatedField(
         model=HarvestingJob,
         many=True,
         read_only=True,
-        # related_link_view_name="registry:csw-datasetmetadata-list",
-        # related_link_url_kwarg="parent_lookup_harvested_through",
     )
     running_harvesting_job = SerializerMethodResourceRelatedField(
         model=HarvestingJob,
@@ -974,8 +1234,8 @@ class CatalogueServiceSerializer(
         related_link_url_kwarg="parent_lookup_catalogueservice_metadata",
     )
     operation_urls = ResourceRelatedField(
-        label=_("operation urls"),
-        help_text=_("this are the urls to use for the ogc operations."),
+        label=OPERATION_URLS_LABEL,
+        help_text=OPERATION_URLS_HELP_TEXT,
         model=CatalogueServiceOperationUrl,
         many=True,
         read_only=True,
@@ -989,12 +1249,18 @@ class CatalogueServiceSerializer(
     )
     catalogue_service_monitoring_settings = ResourceRelatedField(
         source="catalogue_service_monitorings",
-        label=_("monitoring settings"),
-        help_text=_("This are the configured monitoring settings."),
+        label=MONITORING_SETTINGS_LABEL,
+        help_text=MONITORING_SETTINGS_HELP_TEXT,
         model=CatalogueServiceMonitoringSetting,
         many=True,
         read_only=True,
     )
+    # the stored owner of #733; decided at creation, not writable here
+    owner = ResourceRelatedField(
+        model=Organization,
+        read_only=True,
+        label=_("owner"),
+        help_text=OWNER_HELP_TEXT)
 
     included_serializers = {
         "harvesting_jobs": 'registry.serializers.harvesting.HarvestingJobSerializer',
@@ -1003,7 +1269,11 @@ class CatalogueServiceSerializer(
         "keywords": KeywordSerializer,
         "created_by": UserSerializer,
         "last_modified_by": UserSerializer,
-        "operation_urls": CatalogueServiceOperationUrlSerializer,
+        # declared below this serializer, so named by path as every other
+        # forward reference here is: one class answers both this include and
+        # the operation-urls endpoint (#1475)
+        "operation_urls": "registry.serializers.service.CatalogueServiceOperationUrlSerializer",
+        "owner": OrganizationSerializer,
     }
 
     class Meta:
@@ -1021,10 +1291,6 @@ class CatalogueServiceSerializer(
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):
 
-    # url = HyperlinkedIdentityField(
-    #    view_name="registry:wms-operationurls-detail",
-    #    read_only=True,
-    # )
     service = ResourceRelatedField(
         label=_("catalogue service"),
         help_text=_(
@@ -1035,5 +1301,4 @@ class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSer
 
     class Meta:
         model = CatalogueServiceOperationUrl
-        fields = "__all__"
         fields = "__all__"

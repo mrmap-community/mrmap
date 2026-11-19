@@ -80,7 +80,8 @@ describe("manual service updates", () => {
     expect(notify).toHaveBeenCalledWith("manualUpdate.queued", {
       type: "success",
     });
-    expect(refresh).toHaveBeenCalled();
+    // the create invalidates its own resource queries; no global refresh (#1464)
+    expect(refresh).not.toHaveBeenCalled();
     expect(useGetList).toHaveBeenCalledWith(
       resource,
       expect.objectContaining({
@@ -109,14 +110,16 @@ describe("manual service updates", () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  it("reports failures and refreshes to discover concurrent jobs", () => {
+  it("reports failures while the kept interval discovers concurrent jobs", () => {
     renderButton();
     fireEvent.click(screen.getByRole("button"));
     create.mock.calls[0][2].onError();
     expect(notify).toHaveBeenCalledWith("manualUpdate.failed", {
       type: "error",
     });
-    expect(refresh).toHaveBeenCalled();
+    // nothing was written, and a global refresh would not answer a job the
+    // api created concurrently - the kept interval of the job query does
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("blocks creation when the unfinished-job query fails", () => {

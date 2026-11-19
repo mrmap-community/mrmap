@@ -9,13 +9,29 @@ from types import SimpleNamespace
 
 from django.apps import apps
 from django.core.management import get_commands, load_command_class
-from django.db import connection
+from django.db import connection, models
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.state import ProjectState
 from django.test import SimpleTestCase
 from pgtrigger import Insert, Protect
 from pgtrigger.migrations import AddTrigger, MigrationAutodetectorMixin
 from pgtrigger.registry import registered
+
+
+def unique_pairs(model):
+    """The pair uniqueness of a model, however it declares it.
+
+    An automatic through model of a M2M relation gets ``unique_together`` from
+    Django itself; the explicit through models of the metadata records name a
+    ``UniqueConstraint`` of their own now (#1483). The rule is the same one, so
+    the comparison of table definitions which follows reads both ways.
+    """
+    pairs = {tuple(fields) for fields in model._meta.unique_together}
+    pairs |= {
+        tuple(constraint.fields)
+        for constraint in model._meta.constraints
+        if isinstance(constraint, models.UniqueConstraint)}
+    return pairs
 
 
 class CommandLookupTest(SimpleTestCase):
@@ -114,8 +130,8 @@ class KeywordThroughMigrationStateTest(SimpleTestCase):
                 self.assertTrue(reversed_model._meta.auto_created)
                 for link in (managed, reversed_model):
                     self.assertEqual(link._meta.db_table, automatic._meta.db_table)
-                    self.assertEqual(set(link._meta.unique_together),
-                                     set(automatic._meta.unique_together))
+                    self.assertEqual(unique_pairs(link),
+                                     unique_pairs(automatic))
                     self.assertEqual(
                         [(field.column, field.get_internal_type(), field.primary_key,
                           field.null) for field in link._meta.fields],

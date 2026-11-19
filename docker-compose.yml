@@ -214,9 +214,13 @@ services:
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
       SQL_PASSWORD: "${DB_PASSWORD:?Please configure DB_PASSWORD in the .env file}"
-      # deployer knob for the worker slots (#1040); empty keeps celery's
-      # own default, see docs/source/development/environment.rst
-      CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-}"
+      # deployer knob for the worker slots (#1040); unset or empty now
+      # defaults the worker to 4 slots (#1454) instead of handing celery
+      # its own default of one slot per host core - against the container's
+      # memory limit that pool was the OOM path behind stuck jobs. "auto"
+      # sizes by the container's cgroup quota; see
+      # docs/source/development/environment.rst
+      CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-4}"
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:
@@ -294,6 +298,10 @@ services:
         - VITE_API_BASE_URL=${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}
         - VITE_API_PORT=${EXTERNAL_PORT:?Please configure EXTERNAL_PORT in the .env file}
         - VITE_API_SCHEMA=${EXTERNAL_SCHEME:?Please configure EXTERNAL_SCHEME in the .env file}
+        # the exact revision this bundle was built from (#1579); leave it
+        # empty and the About display marks the build as a development
+        # revision instead of naming a revision it cannot prove
+        - MRMAP_BUILD_REVISION=${MRMAP_BUILD_REVISION:-}
     # nginx logs are symlinked to stdout/stderr, ship them into victoria-logs
     logging:
       driver: syslog

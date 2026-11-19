@@ -14,6 +14,8 @@ Feature: ApplicationMetadataRecord Change Permissions
             """
 
     Scenario: May not change an application record without any permission
+        # authentication opens the endpoint; the facade answers nothing for
+        # this user and refuses on the object (#734)
         Given a user "app-no-perm" without any service permissions exists
         Given I am logged in as app-no-perm with password app-no-perm
         When I send the request with PATCH method
@@ -21,18 +23,19 @@ Feature: ApplicationMetadataRecord Change Permissions
         Then I expect that response json has an attribute "errors.[0].code" with value "permission_denied"
         Then the application record title in the database is "Anwendung Niederschlag"
 
-    Scenario: May not change an application record granted to the user's group only
-        # the same split answer as on the WMS above (#727): the object grant alone
-        # does not pass has_permission
+    Scenario: May change an application record granted to the user's group only
+        # the grant flips with #734, as on the WMS: the object-grant axis of
+        # the facade answers the group grant without any global permission
         Given a user "app-object-only" without any service permissions exists
         Given the user "app-object-only" is member of a group granted the application metadata record
         Given I am logged in as app-object-only with password app-object-only
         When I send the request with PATCH method
-        Then I expect the response status is 403
-        Then I expect that response json has an attribute "errors.[0].code" with value "permission_denied"
-        Then the application record title in the database is "Anwendung Niederschlag"
+        Then I expect the response status is 200
+        Then the application record title in the database is "Pinned Title"
+        Then the application record title change is reverted
 
     Scenario: May not change an application record with the global permission alone
+        # the retired global permission (Q5=B) is no ask of the facade
         Given a user "app-global-only" without any service permissions exists
         Given the user "app-global-only" holds the global permission to change application metadata records
         Given I am logged in as app-global-only with password app-global-only
@@ -42,8 +45,9 @@ Feature: ApplicationMetadataRecord Change Permissions
         Then the application record title in the database is "Anwendung Niederschlag"
 
     Scenario: May change an application record with the global and the group object permission
-        # the pair is what works, as it does on the service records - the grant shape
-        # accounts/signals.py writes for an owning organization
+        # unchanged from the pin: it is the group-object grant alone which
+        # passes the facade now; the pair pins that a legacy user carrying
+        # both is not punished while #741 retires the global side
         Given a user "app-both" without any service permissions exists
         Given the user "app-both" holds the global permission to change application metadata records
         Given the user "app-both" is member of a group granted the application metadata record
@@ -55,16 +59,18 @@ Feature: ApplicationMetadataRecord Change Permissions
 
     # Read visibility parity with the dataset record: an application record is seen
     # exactly as far as a dataset record is seen by the same actor - an anonymous
-    # client reads both, and canEdit says false for both until the pair of grants
-    # above is handed out. One scenario asks both endpoints so the comparison itself
-    # is what fails when the new record type drifts from the old ones.
+    # client reads both, and the action hint of #738 answers the empty list for
+    # both until an object grant reaches the record (issue #734: the facade answers
+    # the hint and the endpoint alike). One scenario asks both endpoints so the
+    # comparison itself is what fails when the new record type drifts from the old
+    # ones.
     Scenario: Anonymous reads of an application record answer like the dataset record
         Given I am an anonymous user
         Given I use the endpoint http://localhost:8000/api/registry/application-metadata/a11c0000-0000-4000-8000-000000000001
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.canEdit" with value "False"
+        Then I expect that response json has an attribute "data.attributes.allowedActions" with value "[]"
         Given I use the endpoint http://localhost:8000/api/registry/dataset-metadata/d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4
         When I send the request with GET method
         Then I expect the response status is 200
-        Then I expect that response json has an attribute "data.attributes.canEdit" with value "False"
+        Then I expect that response json has an attribute "data.attributes.allowedActions" with value "[]"

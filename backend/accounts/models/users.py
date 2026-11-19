@@ -10,7 +10,6 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from guardian.shortcuts import assign_perm
 
 
 def get_settings_default():
@@ -29,7 +28,7 @@ class User(AbstractUser):
         default=False,
         verbose_name=_("I want to participate in surveys"))
     confirmed_dsgvo = models.DateTimeField(
-        # FIXME: auto_now_add results in auto accepting dsgvo... this is not a good practice.
+        # FUTURE: auto_now_add results in auto accepting dsgvo... this is not a good practice.
         auto_now_add=True,
         help_text=_("I understand and accept that my data will be automatically "
                     "processed and securely stored, as it is stated in the "
@@ -52,17 +51,6 @@ class User(AbstractUser):
 
     def natural_key(self):
         return (self.username,)
-
-    def assign_object_perms(self):
-        assign_perm(perm='view_user',
-                    user_or_group=self,
-                    obj=self)
-        assign_perm(perm='change_user',
-                    user_or_group=self,
-                    obj=self)
-        assign_perm(perm='delete_user',
-                    user_or_group=self,
-                    obj=self)
 
     def create_activation(self):
         """ Create an activation object

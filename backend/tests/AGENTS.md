@@ -107,6 +107,17 @@ self.assertNoSlowObjectPermissions('/api/registry/layers')
   prefetch of the same relation name that overrides the wide one, fails there and not only in a
   query count.
 
+### Task-side guards (#1395)
+
+Celery tasks are measured by `tests/django/sql_guard.py` (`SqlGuardMixin`:
+`assertQueryCountIndependent`, `assertNoNPlusOne`, `assertRowsReadBound`,
+`assertPlanUsesIndex`) and the family modules it names; the coverage matrix, the
+green/red baselines and the plan assumptions are documented in
+`docs/source/development/celery-task-sql-regression.rst`. Per-record work is
+allowed only where the guard names the allowance (`per_row`, `sanctioned`); a
+new task captures its baseline the day it ships - green if the shape is right,
+a documented red baseline with the tightening issue named if it is not.
+
 ## Rules
 
 - Do not add a migration or edit an existing one to make a test pass; CI fails on model and

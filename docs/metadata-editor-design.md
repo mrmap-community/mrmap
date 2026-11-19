@@ -4,6 +4,12 @@ Reference material for the epic **metadata-editor** (issue numbers are linked be
 The mockups are proposals, not implemented UI; the evidence grades say what was
 actually verified.
 
+This document stays the research and gap-analysis record. The implemented
+editing design — write path, profiles, validation contract, save/publish
+lifecycle and the v1 exclusions with their deciding review comments — is
+documented in [metadata-editing.md](metadata-editing.md) (#1250); where §5 here
+says "proposed", that document says what was built.
+
 ## 1. Method and evidence grade
 
 Every statement below carries one of these grades:

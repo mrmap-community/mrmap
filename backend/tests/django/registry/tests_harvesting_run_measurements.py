@@ -105,7 +105,7 @@ class HarvestingRunMeasurementsTest(TestCase):
         # the green suite failed on a loaded runner. Same clock, same reason as
         # `tests.django.notify.test_harvesting_signals` (#1133).
         self.instant = now()
-        patcher = patch('registry.managers.havesting.now',
+        patcher = patch('registry.managers.harvesting.now',
                         return_value=self.instant)
         patcher.start()
         self.addCleanup(patcher.stop)

@@ -25,6 +25,9 @@ export interface FieldSchema {
   schema: OpenAPIV3.SchemaObject
   isRequired: boolean
   isReadOnly: boolean
+  /** The ISO 19139 element path the backend stamps on writable mapped fields
+   *  (#1240); present only on the fields the write mapper can actually write. */
+  isoPath?: string
   kind: 'attribute' | 'relationship' |'array-relationship'
 }
 
@@ -42,6 +45,28 @@ export interface FieldDefinition {
 }
 
 
+/** json:api linkage for one relationship taken out of the record: a to-many
+ *  relation links all of its records, a single one links none when absent */
+const relationshipLinkage = (
+  relationName: string,
+  resourceLinkageSchema: OpenAPIV3.NonArraySchemaObject,
+  attributes: Record<string, unknown>
+): ResourceLinkage | undefined => {
+  // need to capsulate data of relationship as well
+  const data = resourceLinkageSchema.properties?.data as OpenAPIV3.NonArraySchemaObject & { items?: OpenAPIV3.NonArraySchemaObject }
+  const isList = Object.hasOwn(data, 'items')
+  const relationSchema = (isList ? data.items : data) as OpenAPIV3.NonArraySchemaObject
+  const relationResourceType = relationSchema?.properties?.type as OpenAPIV3.NonArraySchemaObject
+
+  if (isList) {
+    const relationData: RaRecord[] = attributes[relationName] as RaRecord[]
+    return { data: relationData.map((record: RaRecord) => ({ id: record.id, type: relationResourceType?.enum?.[0] })) }
+  }
+  const relationData: RaRecord = attributes[relationName] as RaRecord
+  if (relationData === undefined || relationData === null) return undefined
+  return { data: { id: relationData.id, type: relationResourceType?.enum?.[0] } }
+}
+
 export const capsulateJsonApiPrimaryData = (data: Partial<RaRecord>, type: string, operation: Operation): JsonApiPrimaryData => {
   /** helper to transform react admin data to json:api conform primary data object
      *
@@ -54,24 +79,11 @@ export const capsulateJsonApiPrimaryData = (data: Partial<RaRecord>, type: strin
   const jsonApiPrimaryDataProperties = resourceSchema?.properties as Record<string, OpenAPIV3.NonArraySchemaObject>
   const jsonApiResourceRelationships = jsonApiPrimaryDataProperties?.relationships?.properties as OpenAPIV3.NonArraySchemaObject
   for (const [relationName, resourceLinkageSchema] of Object.entries(jsonApiResourceRelationships ?? {})) {
-    if (relationName in attributes) {
-      // need to capsulate data of relationship as well
-      const isList = Object.hasOwn(resourceLinkageSchema.properties.data, 'items')
-      const relationSchema = isList ? resourceLinkageSchema?.properties?.data?.items as OpenAPIV3.NonArraySchemaObject : resourceLinkageSchema.properties.data as OpenAPIV3.NonArraySchemaObject
-      const relationResourceType = relationSchema?.properties?.type as OpenAPIV3.NonArraySchemaObject
-
-      if (isList) {
-        const relationData: RaRecord[] = attributes[relationName]
-        relationships[relationName] = { data: relationData.map((record: RaRecord) => ({ id: record.id, type: relationResourceType?.enum?.[0] })) }
-      } else {
-        const relationData: RaRecord = attributes[relationName]
-        if (relationData !== undefined && relationData !== null) {
-          relationships[relationName] = { data: { id: relationData.id, type: relationResourceType?.enum?.[0] } }
-        }
-      }
-      // TODO: delete attributes.relationName does not work (no-dynamic-delete)
-      delete attributes[relationName]  
-    }
+    if (!(relationName in attributes)) continue
+    const linkage = relationshipLinkage(relationName, resourceLinkageSchema, attributes)
+    if (linkage) relationships[relationName] = linkage
+    // FUTURE: delete attributes.relationName does not work (no-dynamic-delete)
+    delete attributes[relationName]  
   }
 
   const primaryData: JsonApiPrimaryData = {
@@ -96,7 +108,7 @@ export const encapsulateJsonApiRelationship = (
   const mergeRecord = (id: string | number, type: string) => {
     const key = linkId(type, id)
     allRecords[key] = {
-      ...(allRecords[key] || {}),
+      ...allRecords[key],
       id
     }
     return allRecords[key]
@@ -160,18 +172,6 @@ export const getIncludeOptions = (operation: Operation): string[] => {
   return []
 }
 
-// deprecated
-// different ResourceTypes are possible; This function does not extract sparse fields for different ResourceTypes!
-export const getSparseFieldOptions = (operation: Operation): string[] => {
-  if (operation !== undefined) {
-    const parameters = operation.parameters as ParameterObject[]
-    const sparseFieldParameterSchema = parameters?.find((parameter) => parameter.name.includes('fields['))?.schema as OpenAPIV3.ArraySchemaObject
-    const sparseFieldParameterArraySchema = sparseFieldParameterSchema.items as OpenAPIV3.SchemaObject
-    return sparseFieldParameterArraySchema.enum ?? []
-  }
-  return []
-}
-
 export const getSparseFieldOptionsPerResourceType = (operation?: Operation): {[key: string]: string[]} => {
   const sparseFieldParametersPerType: {[key: string]: string[]} = {}
 
@@ -219,7 +219,7 @@ export const getSortOptions = (operation?: Operation): SortPayload[] => {
 }
 
 
-export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).find(([name]) => name !== 'id') != null)
+export const hasIncludedData = (record: RaRecord): boolean => (Object.entries(record).some(([name]) => name !== 'id'))
 
 
 export const encapsulateFields = (schema: OpenAPIV3.NonArraySchemaObject) => {
@@ -236,6 +236,15 @@ export const encapsulateFields = (schema: OpenAPIV3.NonArraySchemaObject) => {
   ]
 
 };
+
+/** The OpenAPI extension (#1240) carrying the ISO 19139 element path of a
+ *  writable mapped field, stamped by the backend's postprocessing hook. */
+export const ISO_PATH_EXTENSION = 'x-iso-path'
+
+export const getIsoPath = (property: OpenAPIV3.SchemaObject | undefined): string | undefined => {
+  const value = property?.[ISO_PATH_EXTENSION as keyof OpenAPIV3.SchemaObject]
+  return typeof value === 'string' ? value : undefined
+}
 
 export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObject): FieldSchema | undefined => {
   const jsonApiPrimaryDataProperties = schema?.properties as Record<string, OpenAPIV3.NonArraySchemaObject>
@@ -270,6 +279,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
         schema: s, 
         isRequired: isRequired,
         isReadOnly: s?.readOnly ?? false,
+        isoPath: getIsoPath(s),
         kind: 'attribute'
       }
     }
@@ -288,6 +298,7 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           schema: _relationSchema,
           isRequired: isRequired,
           isReadOnly: relationSchema.readOnly ?? false,
+          isoPath: getIsoPath(relationSchema),
           kind: 'array-relationship'
         }
       } else {
@@ -300,12 +311,24 @@ export const getFieldSchema = (name: string, schema: OpenAPIV3.NonArraySchemaObj
           schema: relationSchema as OpenAPIV3.NonArraySchemaObject,
           isRequired: isRequired, 
           isReadOnly: relationSchema.readOnly ?? false,
+          isoPath: getIsoPath(relationSchema),
           kind: 'relationship'
         }
       }
         
     }
 };
+
+/** the choices a simple enum array offers to an input that can pick from them */
+const nestedArrayChoices = (
+  nestedSchema: OpenAPIV3.SchemaObject,
+  forInput: boolean
+) => {
+  const enumValues = nestedSchema.enum
+  if (!forInput || !Array.isArray(enumValues)) return undefined
+  const choices = enumValues.map(choice => ({ id: choice, name: choice }))
+  return choices.length > 0 ? choices : undefined
+}
 
 export const getArrayInput = (
   source: string, 
@@ -329,26 +352,27 @@ export const getArrayInput = (
 
   const nestedSchema = schema.items as OpenAPIV3.SchemaObject
 
-  if (forInput && nestedSchema.enum !== undefined && Array.isArray(nestedSchema.enum) && nestedSchema.enum.length > 0){
+  const choices = nestedArrayChoices(nestedSchema, forInput)
+
+  if (choices){
     // simple choice input
     definition.component = AutocompleteArrayInput;
-    definition.props.choices = nestedSchema.enum.map(choice => ({id: choice, name: choice}));
+    definition.props.choices = choices;
   } else if (nestedSchema.type === 'object') {
-    // TODO: nested resource
+    // FUTURE: nested resource
     // 1. get all nested fields of this object...
     // 2. create all nested fields...
     // 3. set children prop
-    definition.component = forInput ? TextField: TextInput;
+    definition.component = forInput ? TextInput : TextField;
     console.debug(`nested resoruces are not supported for now. Source: ${source}`);
-  } else {
+  } else if (!forInput) {
     // single array of simple typed field
-    if (!forInput){
-      definition.props.children = (
-        <SingleFieldList linkType={false}>
-          <ChipField source={source} size="small" />
-        </SingleFieldList>
-      ) 
-    } else {
+    definition.props.children = (
+      <SingleFieldList linkType={false}>
+        <ChipField source={source} size="small" />
+      </SingleFieldList>
+    ) 
+  } else {
       // this results in form field states like 
       /**
        * { source: [
@@ -367,11 +391,62 @@ export const getArrayInput = (
           {createElement(field.component, field.props)}
         </SimpleFormIterator>
       ) */
-      definition.component = forInput ? TextField: TextInput;
+      definition.component = forInput ? TextInput : TextField;
 
-    }
   }
   return definition;
+}
+
+/** the text field a schema maps to before its format or type say more about it */
+const textFieldDefinition = (
+  source: string,
+  schema: OpenAPIV3.SchemaObject,
+  isRequired: boolean,
+  isReadOnly: boolean,
+  forInput: boolean
+): FieldDefinition => {
+  const validate = [
+    ... schema.maxLength ? [maxLength(schema.maxLength)] : [],
+    ... schema.minLength ? [minLength(schema.minLength)] : [],
+    ... schema.pattern ? [regex(new RegExp(schema.pattern))] : []
+  ]
+
+  return {
+    component: forInput ? TextInput : TextField,
+    props: {
+      source: source,
+      label: schema.title ?? source,
+      disabled: isReadOnly ?? false,
+      ...(schema.default && {defaultValue: schema.default}),
+      ...(validate.length > 0 && {validate: validate}),
+      ...(forInput && {required: isRequired}),
+      ...(forInput && schema.description && {helperText: schema.description}),
+    }
+  }
+}
+
+/** what each schema format adds to the default text field: the components it
+ *  calls for, whether they show a time and which validators they bring. The
+ *  components and validators are named behind calls so that a field of another
+ *  format never builds one it does not ask for.
+ *  FUTURE: is there a duration input? https://mui.com/x/react-date-pickers/ */
+const formatFields: Record<string, {
+  input: () => import("react").ElementType,
+  display: () => import("react").ElementType,
+  showTime?: boolean,
+  validators?: () => import("react-admin").Validator[]
+}> = {
+  'date-time': { input: () => DateTimeInput, display: () => DateField, showTime: true },
+  'date': { input: () => DateInput, display: () => DateField },
+  'time': { input: () => TimeInput, display: () => DateField, showTime: true },
+  'duration': { input: () => TextInput, display: () => TextInput },
+  'uri': {
+    input: () => TextInput,
+    display: () => UrlField,
+    validators: () => [regex(/^(http(s?):\/\/.)[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&/=]*)$/)]
+  },
+  'email': { input: () => TextInput, display: () => EmailField, validators: () => [email()] },
+  'geojson': { input: () => GeoJsonInput, display: () => GeoJsonField },
 }
 
 export const getFieldForFormat = (
@@ -381,65 +456,19 @@ export const getFieldForFormat = (
   isReadOnly: boolean = false, 
   forInput: boolean = true
 ): FieldDefinition => {
-  const validate = [
-    ... schema.maxLength ? [maxLength(schema.maxLength)] : [],
-    ... schema.minLength ? [minLength(schema.minLength)] : [],
-    ... schema.pattern ? [regex(new RegExp(schema.pattern))] : []
-  ]
-
-  const definition: FieldDefinition = {
-      component: forInput ? TextInput: TextField,
-
-      props: {
-        source: source,
-        label: schema.title ?? source,
-        disabled: isReadOnly?? false,
-        ...(schema.default && {defaultValue: schema.default}),
-        ...(validate.length > 0 && {validate: validate}),
-        ...(forInput && {required: isRequired}),
-        ...(forInput && schema.description && {helperText: schema.description}),
-        }
-    }
-
+  const definition = textFieldDefinition(source, schema, isRequired, isReadOnly, forInput)
 
   // See https://datatracker.ietf.org/doc/html/draft-bhutton-json-schema-validation-01#name-defined-formats for valid schema.format strings
-  switch(schema.format){
-    case 'date-time':
-      definition.component = forInput ? DateTimeInput: DateField;
-      definition.props.showTime = true;
-      break;
-    case 'date':
-      definition.component = forInput ? DateInput: DateField;
-      break;
-    case 'time':
-      definition.component = forInput ? TimeInput: DateField;
-      definition.props.showTime = true;
-      break;
-    case 'duration':
-      // TODO: is there a durationinput?
-      // https://mui.com/x/react-date-pickers/
-      definition.component = TextInput;
-      break;
-    case 'uri':
-      definition.component = forInput ? TextInput: UrlField;
-      definition.props.validate = [
-        ...(definition.props.validate ?? []),
-        regex(/^(http(s?):\/\/.)[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_+.~#?&//=]*)$/)
-      ]
-      break;
-    case 'email':
-      definition.component = forInput ? TextInput: EmailField;
-      definition.props.validate = [
-        ...(definition.props.validate ?? []),
-        email()
-      ]
-      break;
-    case 'geojson':
-      definition.component = forInput ? GeoJsonInput: GeoJsonField;
-      break;
-  }
+  const format = schema.format === undefined ? undefined : formatFields[schema.format]
+  if (format === undefined) return definition
 
-  return definition;
+  definition.component = forInput ? format.input() : format.display()
+  if (format.showTime) definition.props.showTime = true
+  if (format.validators !== undefined) definition.props.validate = [
+    ...(definition.props.validate ?? []),
+    ...format.validators()
+  ]
+  return definition
 }
 
 
@@ -450,25 +479,7 @@ export const getFieldForType = (
   isReadOnly: boolean = false, 
   forInput: boolean = true): FieldDefinition => {
   
-  const validate = [
-    ... schema.maxLength ? [maxLength(schema.maxLength)] : [],
-    ... schema.minLength ? [minLength(schema.minLength)] : [],
-    ... schema.pattern ? [regex(new RegExp(schema.pattern))] : []
-  ]
-
-  const definition: FieldDefinition = {
-      component: forInput ? TextInput: TextField,
-
-      props: {
-        source: source,
-        label: schema.title ?? source,
-        disabled: isReadOnly?? false,
-        ...(schema.default && {defaultValue: schema.default}),
-        ...(validate.length > 0 && {validate: validate}),
-        ...(forInput && {required: isRequired}),
-        ...(forInput && schema.description && {helperText: schema.description}),
-        }
-    }
+  const definition = textFieldDefinition(source, schema, isRequired, isReadOnly, forInput)
 
   if (schema.enum !== undefined) {
     const choices = buildChoices(schema)
@@ -509,8 +520,65 @@ export const getFieldForType = (
   return definition;
 }
 
+/** the field of a single relation: an autocomplete that may offer to create
+ *  the related record, a plain reference otherwise */
+const relationshipFieldDefinition = (
+  api: OpenAPIClientAxios,
+  fieldSchema: FieldSchema,
+  commonProps: FieldDefinition['props'],
+  forInput: boolean
+): FieldDefinition => {
+  const hasCreate = api.getOperation(`create_${fieldSchema.reference}`) !== undefined
+  return {
+    component: forInput ? SchemaAutocompleteInput: JsonApiReferenceField, 
+    props: {
+      ...commonProps, 
+      ...(forInput ? 
+        {
+          target: fieldSchema.name, 
+          link: 'edit', 
+          ...(hasCreate && {
+            create: <CreateSuggestionDialog guesserProps={{
+              resource: fieldSchema.reference
+            }}/>,
+            createLabel: 'type something to create a new object', // FUTURE: use translate
+            sort:{ field: 'name', order: 'ASC' }
+          })
+        }: 
+        {
+          reference: fieldSchema.reference, 
+          target: fieldSchema.resource,
+        })
+    }
+  }
+}
+
+/** the field of a to-many relation: a multiple autocomplete on input, a
+ *  reference list otherwise */
+const arrayRelationshipFieldDefinition = (
+  fieldSchema: FieldSchema,
+  commonProps: FieldDefinition['props'],
+  forInput: boolean
+): FieldDefinition => {
+  const props: FieldDefinition['props'] = {
+    ...commonProps,
+    ...(forInput ? {multiple: true}: {reference: fieldSchema.reference, target: fieldSchema.resource,})
+  }
+
+  return {
+    component: forInput ? SchemaAutocompleteInput: JsonApiReferenceManyField, 
+    props: {
+      ...props,
+      // an absent defaultValue would answer null values and TypeErrors on => undefined.map()
+      defaultValue: props.defaultValue ?? [],
+      reference: fieldSchema.reference,
+      target: fieldSchema.resource,
+    }
+  }
+}
+
 export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSchema, forInput: boolean = true): FieldDefinition | undefined => {
-  const commonProps = {
+  const commonProps: FieldDefinition['props'] = {
     source: fieldSchema.name,
     label: fieldSchema.schema.title ?? fieldSchema.name,
     disabled: fieldSchema.isReadOnly?? false,
@@ -529,47 +597,9 @@ export const getFieldDefinition = (api: OpenAPIClientAxios, fieldSchema: FieldSc
       forInput
     )
   } else if (fieldSchema?.kind === 'relationship' ) {
-    const hasCreate = api.getOperation(`create_${fieldSchema.reference}`) !== undefined
-    return {
-      component: forInput ? SchemaAutocompleteInput: JsonApiReferenceField, 
-      props: {
-        ...commonProps, 
-        ...(forInput ? 
-          {
-            target: fieldSchema.name, 
-            link: 'edit', 
-            ...(hasCreate && {
-              create: <CreateSuggestionDialog guesserProps={{
-                resource: fieldSchema.reference
-              }}/>,
-              createLabel: 'type something to create a new object', // TODO: use translate
-              sort:{ field: 'name', order: 'ASC' }
-            })
-          }: 
-          {
-            reference: fieldSchema.reference, 
-            target: fieldSchema.resource,
-          })
-      }
-    }
-    
+    return relationshipFieldDefinition(api, fieldSchema, commonProps, forInput)
   } else if (fieldSchema?.kind === 'array-relationship') {   
-    const props = {
-      ...commonProps,
-      ...(forInput ? {multiple: true}: {reference: fieldSchema.reference, target: fieldSchema.resource,})
-    }
-
-    return {
-      component: forInput ? SchemaAutocompleteInput: JsonApiReferenceManyField, 
-      props: {
-        ...props,
-        ...(props.defaultValue ?? {defaultValue: []}), // define an empty array as defaultValue. Otherwise it can results in to null values for this field as values, which causes TypeErrors on => undefined.map()
-        ...{
-            reference: fieldSchema.reference, 
-            target: fieldSchema.resource,
-          }
-      }
-    }
+    return arrayRelationshipFieldDefinition(fieldSchema, commonProps, forInput)
   }
 
   // default fallback

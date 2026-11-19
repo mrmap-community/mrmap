@@ -1,7 +1,7 @@
+import type { OperationalIncidentRecord } from "../incidentContract";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { OperationalIncidentRecord } from "../incidentContract";
 
 import IncidentCenterIndicator from "./IncidentCenterIndicator";
 
@@ -46,15 +46,16 @@ vi.mock("react-admin", () => ({
 const incident = (
   overrides: Partial<OperationalIncidentRecord>,
 ): OperationalIncidentRecord => ({
-  id: 1,
-  code: "harvest.chord_stalled",
-  sourceType: "harvesting",
+  id: "1",
+  code: "harvesting_harvest_all_records",
+  source: "harvesting",
   severity: "warning",
-  state: "retrying",
+  status: "active",
+  scope: "resource",
   summary: "CSW endpoint did not respond",
   occurrenceCount: 1,
-  firstOccurrence: "2026-11-14T10:00:00Z",
-  lastOccurrence: "2026-11-14T10:00:00Z",
+  firstOccurredAt: "2026-11-14T10:00:00Z",
+  lastOccurredAt: "2026-11-14T10:00:00Z",
   ...overrides,
 });
 
@@ -96,10 +97,10 @@ describe("IncidentCenterIndicator", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 
     state.active.isPending = false;
-    state.active.error = new Error("list_OperationalIncident not found");
+    state.active.error = new Error("Service Unavailable");
     rerender(<IncidentCenterIndicator />);
-    // the endpoint of #1319 may simply not exist - an error is silence, not
-    // a hint that incidents could be there
+    // a failing read is silence, not a hint that incidents could be there -
+    // an error must never become an alert the permitted data does not back
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
 
     state.active.error = null;
@@ -120,8 +121,8 @@ describe("IncidentCenterIndicator", () => {
   it("gives way to a badge over the icon on narrow screens", () => {
     state.wide = false;
     state.active.data = [
-      incident({ id: 1, severity: "error" }),
-      incident({ id: 2, severity: "warning" }),
+      incident({ id: "1", severity: "error" }),
+      incident({ id: "2", severity: "warning" }),
     ];
     state.active.total = 2;
     render(<IncidentCenterIndicator />);

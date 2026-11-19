@@ -1,4 +1,4 @@
-import { createContext, type Dispatch, type ReactNode, type SetStateAction, useContext, useState, type PropsWithChildren } from 'react'
+import { createContext, type Dispatch, type ReactNode, type SetStateAction, useContext, useMemo, useState, type PropsWithChildren } from 'react'
 
 import { type TabPanelProps } from '@mui/lab/TabPanel/TabPanel'
 import { type TabProps } from '@mui/material/Tab/Tab'
@@ -24,15 +24,10 @@ export const TabsListContext = createContext<TabsContextType | undefined>(undefi
 
 export const TabListBase = ({ children }: PropsWithChildren): ReactNode => {
   const [tabList, setTabList] = useState<TabListState>({ activeTab: '', tabs: [] })
+  const value = useMemo(() => ({ tabList, setTabList }), [tabList])
 
   return (
-    <TabsListContext.Provider
-      value={
-        {
-          tabList,
-          setTabList
-        }
-      }>
+    <TabsListContext.Provider value={value}>
       {children}
     </TabsListContext.Provider>
   )

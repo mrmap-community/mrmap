@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import {
   DateField,
   type RaRecord,
@@ -39,43 +40,54 @@ const OutcomeLine = ({
   failed,
 }: OutcomeProps) => {
   const translate = useTranslate();
-  const state =
-    outcome?.success !== undefined
-      ? translate(
-          `serviceShow.outcome.${outcome.success ? "passed" : "failed"}`,
-        )
-      : outcome?.status;
+  let state: string | undefined = outcome?.status;
+  if (outcome?.success !== undefined) {
+    state = translate(
+      `serviceShow.outcome.${outcome.success ? "passed" : "failed"}`,
+    );
+  }
+  let outcomeView: ReactNode;
+  if (failed) {
+    outcomeView = (
+      <Typography variant="body2">
+        {translate("serviceShow.outcome.unavailable")}
+      </Typography>
+    );
+  } else if (pending) {
+    outcomeView = (
+      <Typography variant="body2">
+        {translate("serviceShow.outcome.asking")}
+      </Typography>
+    );
+  } else if (outcome?.[dateSource]) {
+    outcomeView = (
+      <RecordContextProvider value={outcome}>
+        <DateField
+          source={dateSource}
+          showTime
+          sx={{ variant: "body2", overflowWrap: "anywhere" }}
+        />
+        {state && (
+          <Typography variant="body2" color="text.secondary">
+            {`· ${state}`}
+          </Typography>
+        )}
+      </RecordContextProvider>
+    );
+  } else {
+    outcomeView = (
+      <Typography variant="body2">
+        {translate("serviceShow.outcome.none")}
+      </Typography>
+    );
+  }
+
   return (
     <Stack direction="row" spacing={0.5} sx={{ alignItems: "baseline" }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      {failed ? (
-        <Typography variant="body2">
-          {translate("serviceShow.outcome.unavailable")}
-        </Typography>
-      ) : pending ? (
-        <Typography variant="body2">
-          {translate("serviceShow.outcome.asking")}
-        </Typography>
-      ) : outcome?.[dateSource] ? (
-        <RecordContextProvider value={outcome}>
-          <DateField
-            source={dateSource}
-            showTime
-            sx={{ variant: "body2", overflowWrap: "anywhere" }}
-          />
-          {state && (
-            <Typography variant="body2" color="text.secondary">
-              {`· ${state}`}
-            </Typography>
-          )}
-        </RecordContextProvider>
-      ) : (
-        <Typography variant="body2">
-          {translate("serviceShow.outcome.none")}
-        </Typography>
-      )}
+      {outcomeView}
     </Stack>
   );
 };

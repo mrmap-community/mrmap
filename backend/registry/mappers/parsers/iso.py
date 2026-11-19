@@ -1,5 +1,6 @@
 from datetime import UTC, timedelta
 from logging import Logger
+from uuid import uuid4
 
 import isodate
 from dateutil.parser import isoparse
@@ -12,7 +13,7 @@ from registry.models.metadata import IsoCategory, ReferenceSystem, TimeExtent
 logger: Logger = settings.ROOT_LOGGER
 
 
-def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeResult):
+def parse_reference_system(_mapper, el: etree._Element | etree._ElementUnicodeResult):
 
     # An element without character content is a missing value, not an import
     # error: lxml answers None for the text of an empty
@@ -37,11 +38,11 @@ def parse_reference_system(mapper, el: etree._Element | etree._ElementUnicodeRes
     return ReferenceSystem(prefix=prefix, code=code)
 
 
-def serialize_reference_system(mapper, instance: ReferenceSystem):
+def serialize_reference_system(_mapper, instance: ReferenceSystem):
     return f"http://www.opengis.net/def/crs/EPSG/0/{instance.code}"
 
 
-def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResult):
+def parse_topic_category(_mapper, el: etree._Element | etree._ElementUnicodeResult):
     # An element without character content is a missing value, not an import
     # error: lxml answers None for the text of an empty
     # <gmd:MD_TopicCategoryCode/>, which is the ordinary shape of an optional
@@ -56,7 +57,7 @@ def parse_topic_category(mapper, el: etree._Element | etree._ElementUnicodeResul
         return IsoCategory(value=value)
 
 
-def serialize_topic_category(mapper, instance: IsoCategory):
+def serialize_topic_category(_mapper, instance: IsoCategory):
     return CategoryChoices(instance.value).label
 
 
@@ -79,53 +80,13 @@ def parse_timeextent(mapper, time_extent_element):
         "./gml:TimePeriod/gml:timeInterval/text()", namespaces=nsmap)
     interval_unit = time_extent_element.xpath(
         "./gml:TimePeriod/gml:timeInterval/@unit", namespaces=nsmap)
-    resolution = timedelta(0)
-    if duration_str:
-        duration = isodate.parse_duration(duration_str)
-
-        # isodate may return datetime.timedelta or isodate.Duration
-        if isinstance(duration, timedelta):
-            resolution = duration
-        else:
-            # Convert Duration (years/months not supported by timedelta)
-            resolution = duration.tdelta
-
-    elif interval_value and interval_unit:
-        """
-        Parse a time interval expressed as a decimal number (e.g., '1.0') and a unit (e.g., 'hour')
-        into a timedelta object that Django's DurationField can accept.
-        """
-        if interval_unit == "hour":
-            resolution = timedelta(hours=float(interval_value))
-        elif interval_unit == "minute":
-            resolution = timedelta(minutes=float(interval_value))
-        elif interval_unit == "second":
-            resolution = timedelta(seconds=float(interval_value))
-        else:
-            raise ValueError(f"Unsupported unit: {interval_value}")
+    resolution = _resolution_of(duration_str, interval_value, interval_unit)
 
     if begin_position and end_position:
-        dt_start = isoparse(begin_position)
-        dt_end = isoparse(end_position)
-        if timezone.is_naive(dt_start):
-            dt_start = timezone.make_aware(dt_start, timezone=UTC)
-        if timezone.is_naive(dt_end):
-            dt_end = timezone.make_aware(dt_end, timezone=UTC)
-        if dt_start > dt_end:
-            mapper.warnings.append(
-                f"Skipped temporal extent because begin {begin_position} is after end {end_position}."
-            )
-            return None
-        if dt_start and dt_end:
-            return TimeExtent(
-                begin=dt_start,
-                end=dt_end,
-                resolution=resolution
-            )
+        return _extent_between(
+            mapper, begin_position, end_position, resolution)
     if begin_position and not end_position:
-        dt = isoparse(begin_position)
-        if timezone.is_naive(dt):
-            dt = timezone.make_aware(dt, timezone=UTC)
+        dt = _utc_aware(isoparse(begin_position))
         if dt:
             return TimeExtent(
                 begin=dt,
@@ -141,5 +102,119 @@ def parse_timeextent(mapper, time_extent_element):
             is_relative=True
         )
 
+    if not any((begin_position, end_position, duration_str,
+                interval_value, interval_unit)):
+        # an EMPTY placeholder element carries nothing - that is the state
+        # the write mapper of #1246 fills, not a value it failed to read
+        return None
+
     logger.warning(
         f"Unable to parse TimeExtent from values: {begin_position} {end_position} {duration_str} {interval_value} {interval_unit}")
+
+
+def _resolution_of(duration_str, interval_value, interval_unit):
+    """The resolution the duration or the timeInterval spelling of the
+    element carries, or zero."""
+    if duration_str:
+        duration = isodate.parse_duration(duration_str)
+
+        # isodate may return datetime.timedelta or isodate.Duration
+        if isinstance(duration, timedelta):
+            return duration
+        # Convert Duration (years/months not supported by timedelta)
+        return duration.tdelta
+
+    if interval_value and interval_unit:
+        return _resolution_of_interval(interval_value, interval_unit)
+
+    return timedelta(0)
+
+
+def _resolution_of_interval(interval_value, interval_unit):
+    """
+    Parse a time interval expressed as a decimal number (e.g., '1.0') and a
+    unit (e.g., 'hour') into a timedelta object that Django's DurationField
+    can accept.
+    """
+    if interval_unit == "hour":
+        return timedelta(hours=float(interval_value))
+    if interval_unit == "minute":
+        return timedelta(minutes=float(interval_value))
+    if interval_unit == "second":
+        return timedelta(seconds=float(interval_value))
+    raise ValueError(f"Unsupported unit: {interval_value}")
+
+
+def _utc_aware(dt):
+    """The datetime aware in UTC, left alone when it already is aware."""
+    if timezone.is_naive(dt):
+        return timezone.make_aware(dt, timezone=UTC)
+    return dt
+
+
+def _extent_between(mapper, begin_position, end_position, resolution):
+    """The extent between two positions; skipped when they are inverted."""
+    dt_start = _utc_aware(isoparse(begin_position))
+    dt_end = _utc_aware(isoparse(end_position))
+    if dt_start > dt_end:
+        mapper.warnings.append(
+            f"Skipped temporal extent because begin {begin_position} is after end {end_position}."
+        )
+        return None
+    return TimeExtent(
+        begin=dt_start,
+        end=dt_end,
+        resolution=resolution
+    )
+
+
+def _time_position_text(value):
+    """The gml position text for an aware or naive datetime.
+
+    Naive UTC without an offset: :func:`parse_timeextent` localizes a naive
+    position to UTC, so this text reads back as the very same instant on every
+    deployment - unlike the localtime text of ``datetime_to_string``, whose
+    reader assumes the deployment timezone. An offset here would round-trip
+    too, but the repository's own documents carry none.
+    """
+    if timezone.is_aware(value):
+        value = value.astimezone(UTC)
+    return value.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def serialize_timeextent_fragment(mapper, instance):
+    """The gml:TimePeriod fragment for one TimeExtent row (#1246).
+
+    The inverse of :func:`parse_timeextent`: both positions as naive UTC text,
+    the resolution as an ISO 8601 duration when the row carries one. A row
+    with neither position is a rolling window or a relative extent - shapes
+    the editor of #1246 does not offer to write - and answers None, which
+    makes the write mapper leave whatever the document carries for that row
+    untouched rather than guess a GML shape for it.
+    """
+    begin = getattr(instance, "begin", None)
+    end = getattr(instance, "end", None)
+    if begin is None and end is None:
+        return None
+
+    nsmap = mapper.mapping.get("_namespaces", {})
+    gml = nsmap.get("gml")
+    if not gml:  # pragma: no cover - config carries all
+        return None
+
+    period = etree.Element(f"{{{gml}}}TimePeriod")
+    # gml:id is an NCName and unique per document; the row's pk is neither
+    # guaranteed present nor document-unique, so a fresh id per fragment -
+    # two fragments of one document never share one
+    period.set(f"{{{gml}}}id", f"mrmap-{uuid4().hex}")
+    if begin is not None:
+        position = etree.SubElement(period, f"{{{gml}}}beginPosition")
+        position.text = _time_position_text(begin)
+    if end is not None:
+        position = etree.SubElement(period, f"{{{gml}}}endPosition")
+        position.text = _time_position_text(end)
+    resolution = getattr(instance, "resolution", None)
+    if resolution and isinstance(resolution, timedelta) and resolution > timedelta(0):
+        duration = etree.SubElement(period, f"{{{gml}}}duration")
+        duration.text = isodate.duration_isoformat(resolution)
+    return period

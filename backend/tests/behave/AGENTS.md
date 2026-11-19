@@ -20,6 +20,7 @@ Paths below are relative to `backend/tests/behave/`, commands run from the repos
 | `steps/statistical.py` | Service-specific feature type history for daily statistics assertions |
 | `steps/harvesting.py` | Two runs of one catalogue with known starts, for the ordering and the time range of the harvesting job list; rolled back like `statistical.py` does |
 | `steps/wfs_preview_image.py` | Automatic WFS thumbnail setup, PNG response and bounded read assertions |
+| `steps/shares.py` | Registry shares of #740: organizations, role memberships and owned services as setup, share/revoke/list requests of one service, publish-request acceptance and the grant-row assertions |
 | `environment.py` | fixture loading from the `@fixtures:` tags of a feature (`before_all`, `before_feature`), teardown of the mixed `/csw` set and of the #1080 harvesting set (`after_feature`), a fresh API client per scenario (`before_scenario`), refusal of a run whose runner truncates the seeded rows (`assert_seeded_users`), failure dump (`after_step`) |
 | `../../../docker-compose.dev.yml` (`behave` service) | how the suite is executed, incl. the coverage wrapper |
 | `../../../.github/workflows/quality-assurance.yml` (`acceptance-tests`) | the CI gate that runs all features except `@skip` and uploads `backend/acceptance-tests-coverage-report.xml`, which the service writes into its bind mount `/opt/mrmap` |
@@ -89,6 +90,15 @@ Rules that these commands encode:
 
   The T3 command has no `--keepdb` and destroys the test database itself, which is why CI can not see
   any of this.
+- **The suite authenticates as `mrmap` with the password `mrmap`.** The step `I am logged in as …` and
+  `login.feature` both use that pair, and the superuser behind it is seeded by `accounts/apps.py`
+  from `MRMAP_USER` and `MRMAP_PASSWORD`, which `docker-compose.dev.yml` fills from
+  `DJANGO_ADMIN_USER` and `DJANGO_ADMIN_PASSWORD` of the `.env`. A checkout carrying any other admin
+  password answers `403` on `login.feature:12` and raises `can't log in user mrmap with password
+  mrmap` wherever a scenario grants permissions first — measured as 9 red scenarios on an otherwise
+  green checkout, while the tiers of #1640 were being verified. Export the password named above as
+  `DJANGO_ADMIN_PASSWORD` for the run — that is what CI's `.env` carries — before reading such a run
+  as a regression.
 - **`--dry-run` runs without a test database.** behave-django switches to
   `ExistingDatabaseTestRunner`, and behave skips all environment hooks during a dry run — that is why
   no fixture is loaded there. Keep every hook free of writes you would not want in the development
@@ -256,7 +266,7 @@ hand written method**, not one row per parameter:
 | GIS lookups `contains`, `covers`, `intersects`, `equals` | `registry/service/wms/layer/list_layers.feature`, `registry/service/wms/list_webmapservices.feature` | one whole-world polygon and one small rectangle is what separates the four; the counts differ per lookup |
 | choice and relation filters | `registry/security/list_related_allowedwebmapserviceoperations.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | a filter whose model field has choices answers `invalid_choice`, not an empty list |
 | hand written `method=` filters | `registry/service/wms/list_historical_webmapservices.feature` (`delta`, `delta_size__gt`, `changed_or_created`, `changed_or_deleted`), `registry/harvesting/list_harvestingjobs.feature` (`is_unready`), `registry/harvesting/filter_harvestingjobs.feature` (`is_running`, `has_import_error`, `unhandled_records`), `registry/security/list_related_allowedwebmapserviceoperations.feature` (`access_group`, `access_user`) | these carry logic of their own, so each gets its own scenario and asserts a count instead of a `200` |
-| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/sort_harvestingjobs.feature` (`±progress`), `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist |
+| `sort` | `registry/security/list_webmapserviceoperations.feature`, `registry/security/list_related_allowedwebmapserviceoperations.feature`, `registry/service/wms/list_historical_webmapservices.feature`, `registry/service/wms/layer/list_layers.feature`, `registry/harvesting/list_harvestingjobs.feature`, `registry/harvesting/sort_harvestingjobs.feature` (`±progress`), `registry/harvesting/list_harvestinglogs.feature` (`±timestamp`), `registry/harvesting/list_temporarymdmetadatafiles.feature` (`±request_id`), `registry/harvesting/list_periodicharvestingjobs.feature` (`id`, `±service`, and the refusal of `name`), `registry/metadata/list_datasetmetadata.feature`, `registry/metadata/list_keywords.feature` (`±stringRepresentation`), `notify/backgroundprocess/list_backgroundprocesses.feature` | asserts `data.[0].id`, so the order and not only the answer, plus one scenario with a field that does not exist; the keyword list names the **display string** instead, because a keyword's `id` is the surrogate whichever loaddata created first and shifts with the fixtures the run loads (#1640) |
 
 Three rules make such a table worth having:
 

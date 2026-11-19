@@ -10,7 +10,7 @@ export interface FieldsForOperationProps {
   operationId: string
   ignoreId?: boolean
   forInput?: boolean
-  overwrites?: FieldDefinition[] | undefined
+  overwrites?: FieldDefinition[]
 }
 
 export const useFieldsForOperation = (

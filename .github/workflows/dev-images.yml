@@ -29,8 +29,8 @@ permissions:
   contents: read
 
 env:
-  BACKEND_DEV_IMAGE: ghcr.io/mrmap-community/mrmap-backend-dev
-  FRONTEND_DEV_IMAGE: ghcr.io/mrmap-community/mrmap-frontend-dev
+  BACKEND_DEV_IMAGE: ghcr.io/${{ github.repository_owner }}/mrmap-backend-dev
+  FRONTEND_DEV_IMAGE: ghcr.io/${{ github.repository_owner }}/mrmap-frontend-dev
 
 jobs:
   backend-dev-build:

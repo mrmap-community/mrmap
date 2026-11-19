@@ -4,6 +4,54 @@ import englishMessages from 'ra-language-english';
 const en = lodashMerge(
   englishMessages,
   {
+    // the session states of #834: why a login page appeared and what a
+    // refused action means for a session that stays valid
+    auth: {
+      sessionExpired: "Your session has expired. Please log in again.",
+      sessionRevoked:
+        "Your login was revoked by the server. Please log in again.",
+      forbidden: "You no longer have the rights for this action.",
+    },
+    // the organization administration area of #737: the members and the roles
+    // of one selected organization, gated by the permission snapshot of #836
+    administration: {
+      organization: {
+        label: "Organization",
+        placeholder: "Select an organization",
+        noneForUser: "You do not administrate any organization.",
+      },
+      members: {
+        title: "Members",
+        roles: "Roles",
+        noRoles: "No role in this organization",
+        add: "Add member",
+        addTitle: "Add a member to the organization",
+        user: "User",
+        added: "%{user} was added to the organization",
+        addFailed: "The member could not be added.",
+        assign: "Assign role",
+        assignTitle: "Assign a role to %{user}",
+        role: "Role",
+        assigned: "The role %{role} was assigned.",
+        assignFailed: "The role could not be assigned.",
+        revoke: "Revoke %{role}",
+        revoked: "The role %{role} was revoked.",
+        revokeFailed: "The role could not be revoked.",
+        selfRevoked:
+          "You revoked your own administration role; the administration screens are no longer yours.",
+      },
+      audit: {
+        roles: "Role catalogue history",
+        memberships: "Membership history",
+      },
+      roles: {
+        title: "Roles",
+        members: "Members in organization",
+        permissions: "Permissions",
+        permissionCount:
+          "%{smart_count} permission |||| %{smart_count} permissions",
+      },
+    },
     cronInput: {
       openEditor: "Click to edit the cron schedule.",
       minuteHint: "Use minute 0 to run once at each selected hour. * runs every minute.",
@@ -29,6 +77,34 @@ const en = lodashMerge(
       weekly: "Every %{days} at %{time}",
       monthly: "Every month on day %{day} at %{time}",
       yearly: "Every year on %{month} %{day} at %{time}",
+    },
+    // the pre-save answer of the schedule forms (#1327); the warning
+    // messages themselves come translated from the preview endpoint
+    schedulePreview: {
+      title: "Schedule preview",
+      description:
+        "What this schedule would mean, answered before anything is saved.",
+      button: "Preview schedule",
+      loading: "Checking…",
+      missingService:
+        "This form is not bound to a service, so its schedule cannot be previewed.",
+      nextRuns: "First runs",
+      interval: "Interval between runs",
+      p50: "Median run duration",
+      p95: "95th percentile run duration",
+      samples: "Comparable completed runs",
+      unknown: "unknown",
+      warnings: "Warnings",
+      capacity: "Worker capacity",
+      suggestions: "Cadence-preserving alternatives",
+      suggestionApply: "Use",
+      suggestionFirings: "Firings in the checked horizon",
+      suggestionOccupancy: "Expected queue occupancy",
+      suggestionSamples: "Measured task samples (queue)",
+      noSuggestions: "No alternative suggested",
+      stale:
+        "The form changed since this answer; run the preview again.",
+      error: "The preview could not be answered: %{detail}",
     },
     viewerAdd: {
       title: "Add map service",
@@ -84,6 +160,8 @@ const en = lodashMerge(
       selectLayer: "Select a layer in the tree to edit its opacity, style and dimensions.",
       edit: "Edit %{layer}",
       title: "Layer settings",
+      mapSettings: "Map Settings",
+      wmsList: "WMS List",
       opacity: "Opacity",
       opacityValue: "%{percent}%",
       pin: "Pin timeline",
@@ -281,6 +359,72 @@ const en = lodashMerge(
       spatialSecured: "Spatial access rules configured",
       rules: "Access rules",
     },
+    metadataEditor: {
+      "sections": "Sections",
+      "completeness": "Profile completeness",
+      "completenessCount": "%{filled} of %{total} mandatory fields filled",
+      "validation": "Validation",
+      "errorCount": "%{smart_count} error |||| %{smart_count} errors",
+      "warningCount": "%{smart_count} warning |||| %{smart_count} warnings",
+      "validationClean": "No findings so far.",
+      "jumpToField": "Jump to %{field}",
+      "writtenTo": "written to %{path}",
+      "isoToggle": "ISO paths",
+      "unsavedChanges": "%{smart_count} unsaved change |||| %{smart_count} unsaved changes",
+      "allSaved": "All changes saved",
+      "saveAndPublish": "Save & publish",
+      "saved": "The record was saved.",
+      "saveFailed": "The record could not be saved.",
+      "noPermission": "You are not allowed to edit this record.",
+      "simple": "Simple",
+      "advanced": "Advanced",
+      "modeHint": "Simple shows the profile's mandatory and recommended fields; Advanced adds the optional ones.",
+      "otherElements": "Other elements",
+      "fieldsSection": "Fields",
+      "sourceCard": "Origin",
+      "customizedHint": "This record was written by mrmap and may differ from its harvested source.",
+      "relationsReadonly": "Relations are managed on the record's own page; the editor shows them read-only.",
+      "keywords": {
+        "createHint": "Type to create a new keyword",
+        "preview": "Written as"
+      },
+      "contacts": {
+        "reused": "%{smart_count} record uses this contact |||| %{smart_count} records use this contact"
+      },
+      "extent": {
+        "bbox": "Bounding box",
+        "polygon": "Polygon",
+        "wgs84Hint": "Coordinates are WGS84 (EPSG:4326); the extent is stored exactly as drawn."
+      },
+      "timeExtents": {
+        "none": "No temporal extents attached.",
+        "begin": "Begin",
+        "end": "End",
+        "add": "Add time",
+        "added": "The time was created and attached to the record.",
+        "addFailed": "The time could not be created.",
+        "remove": "Detach this time from the record",
+        "orderError": "The begin must not be after the end.",
+        "hintUtc": "Entered as UTC."
+      }
+    },
+    recordCreate: {
+      startTitle: "Start point",
+      profileHint: "The profile decides which fields the form asks for and which ISO sections are created with content right away.",
+      templateTitle: "Template",
+      templateChoice: "Blank record",
+      templateComingSoon: "Templates are coming later",
+      templateHint: "Starting from an existing record or a template is the next step of this workflow and not part of this version yet.",
+      getTitle: "What you get",
+      getCreated: "Created with content now:",
+      getAddedLater: "Added later in Advanced mode:",
+      getIdentity: "The identifier is generated for you, but you can set one yourself - it must not exist yet.",
+      getMarked: "The record is marked as saved by the editor; a harvest that later delivers the same identifier with a newer date can still update it.",
+      fileIdentifier: "File identifier",
+      fileIdentifierHint: "Optional. Leave empty to get a generated UUID.",
+      noProfiles: "No metadata profile could be loaded. Refresh the page or check the profiles.",
+      profileLoading: "Loading profiles...",
+    },
     recordShow: {
       "catalogue": "Catalogue",
       "linkOrigin": "Link origin",
@@ -295,6 +439,14 @@ const en = lodashMerge(
       "storedXml": "Download stored XML",
       "storedXmlHint": "The xml document the harvest import stored beside this record.",
       "noStoredXml": "No xml document stored for this record.",
+      "xmlSource": "XML source",
+      "sourceHint": "The ISO document served for this record. Edits are validated before they commit; a refused write changes nothing. The fields the form maps are re-extracted from this document on save — the next form save regenerates the mapped elements from these values.",
+      "sourceSave": "Save document",
+      "sourceDiscard": "Discard changes",
+      "sourceSaved": "The source document was saved.",
+      "sourceReadOnly": "The document is read-only without edit permission.",
+      "sourceLoadFailed": "The stored document could not be loaded.",
+      "sourceChangedLines": "Changed lines: %{count}",
       "identity": "Identity",
       "quality": "Classification, quality & provenance",
       "time": "Temporal extent",
@@ -305,7 +457,7 @@ const en = lodashMerge(
       "usage": "Usage & licensing",
       "searchable": "Published to search",
       "unpublished": "Not published to search",
-      "writtenAgain": "Written more than once",
+      "editorSaved": "Saved by the editor",
       "broken": "Broken record",
       "openData": "Open data",
       "copyId": "Copy UUID",
@@ -396,6 +548,44 @@ const en = lodashMerge(
       "map": "Map",
       "hasCoverage": "Geographic coverage",
       "missingCoverage": "No extent recorded"
+    },
+    batchEdit: {
+      action: "Batch edit",
+      selectRow: "Select this record",
+      title: "Batch edit one element of %{smart_count} selected record |||| Batch edit one element of %{smart_count} selected records",
+      description: "Set one metadata element for all selected records at once. Each record is saved with its own request and validated as usual - a record which fails validation keeps its previous value.",
+      stepSelection: "Selection",
+      stepChange: "Change",
+      stepPreview: "Review",
+      element: "Element",
+      elementPlaceholder: "Choose the element to change",
+      isoPath: "Mapped to %{path}",
+      info: "Every selected record is written the same way as a single edit: the ordinary save path with its validation and publishing rules. Which elements can be changed depends on the schemas of the records.",
+      preview: "Preview",
+      back: "Back",
+      apply: "Apply to %{smart_count} record |||| Apply to %{smart_count} records",
+      record: "Record",
+      now: "Current value",
+      after: "New value",
+      status: "Status",
+      outcome: {
+        pending: "Waiting",
+        applying: "Saving ...",
+        applied: "Saved",
+        rejected: "Rejected",
+        skipped: "Skipped",
+      },
+      notEditable: "not editable",
+      unchanged: "unchanged",
+      noValue: "no value",
+      yes: "yes",
+      no: "no",
+      capGuidance: "This run would write more than %{max} records. Batch editing is limited to %{max} records at a time - filter the list further and select a smaller set.",
+      progress: "%{done} of %{total} records processed",
+      result: "%{applied} records saved, %{rejected} refused",
+      staleSelection: "Some of the selected records were not found and are left untouched.",
+      loadError: "The current values of the selected records could not be loaded.",
+      httpError: "The record could not be saved (HTTP status %{status}).",
     },
     datasetExplorer: {
       searchArea: "Search this area",
@@ -608,6 +798,27 @@ const en = lodashMerge(
       neverRan: "Never ran",
       noNextRun: "No next run",
       attentionTitle: "Schedules which need attention",
+    },
+    scheduleWarnings: {
+      columnLabel: "Schedule warnings",
+      codes: {
+        schedule_overdue: "Schedule overdue",
+        schedule_too_tight: "Interval shorter than observed runtime",
+        insufficient_evidence: "Insufficient data",
+        schedule_expired: "Schedule expired",
+      },
+      reasons: {
+        no_completed_runs: "No completed run has measured this schedule yet",
+        too_few_samples: "Too few completed runs to judge by",
+      },
+      interval: "Interval: %{value}",
+      observed: "Observed duration: %{value}",
+      samples: "%{smart_count} completed run measured |||| %{smart_count} completed runs measured",
+      lastDone: "Last run:",
+      expectedAt: "Expected since:",
+      expiredAt: "Expired since:",
+      computedAt: "Computed:",
+      checkSchedule: "Review schedule",
     },
     harvestingStats: {
       records: "Records",
@@ -875,9 +1086,8 @@ const en = lodashMerge(
       occurrenceBadge: "%{count}×",
       firstSeen: "First seen",
       resolvedAt: "Resolved",
-      retryAttempt: "Attempt %{attempt}",
-      retryOfTotal: "of %{total}",
-      nextAttempt: "next attempt at %{time}",
+      retryCount: "%{smart_count} retry told |||| %{smart_count} retries told",
+      nextAttempt: "next attempt by %{time}",
       openTarget: "Open affected resource",
       loadError: "Unable to load the incidents you are allowed to see.",
       emptyActive: "Nothing asks for your attention right now.",
@@ -914,6 +1124,31 @@ const en = lodashMerge(
         updateReviewRequired: "An update of this service waits for a decision about it.",
         harvestAborted: "The last harvesting of this catalogue ended before it was done.",
         harvestIncomplete: "The last harvesting of this catalogue could not import all records.",
+      },
+    },
+    contextualIncidents: {
+      activeLabel: "Active incidents about this resource",
+      viewDetails: "Show details",
+      retry:
+        "%{smart_count} retry told |||| %{smart_count} retries told",
+      nextAttempt: "next attempt",
+      occurrences: "%{smart_count} occurrence in total |||| %{smart_count} occurrences in total",
+      moreActive: "%{smart_count} further active incident |||| %{smart_count} further active incidents",
+      historyTitle: "Resolved incidents",
+      historyLabel: "History of resolved incidents about this resource",
+      resolvedAgo: "Resolved",
+      lastSeen: "Last seen",
+      states: {
+        retrying: "retrying",
+        stalled: "stalled",
+        failed: "failed",
+        resolved: "resolved",
+      },
+      sources: {
+        harvesting: "harvesting",
+        update: "update",
+        monitoring: "monitoring",
+        system: "system",
       },
     },
     monitoringRun: {
@@ -1126,6 +1361,29 @@ const en = lodashMerge(
       },
       metadata: "Metadata",
       capabilities: "GetCapabilities URL",
+      // the three answers the backend derives from the guardian grants of the
+      // service itself (#739); a service which answers none of them, a
+      // catalogue for instance, shows no visibility at all
+      visibility: "Visibility",
+      visibilityValues: {
+        public: "Public",
+        "organization-internal": "Organization internal",
+        restricted: "Restricted",
+      },
+      visibilityHints: {
+        public: "Anyone may view this service, also without signing in.",
+        "organization-internal":
+          "Only the roles of the organization which owns the service may view it.",
+        restricted:
+          "Only individually named groups or users may view this service.",
+      },
+      // the organization which owns the service (#733); the relation is answered
+      // read-only, so a service of before ownership was stored names none, and a
+      // caller who is not a member of the owner cannot read it at all
+      owner: "Owning organization",
+      ownerNone:
+        "No owning organization is stored. This service was registered before ownership was stored.",
+      ownerUnavailable: "not readable",
       operationUrls: "Operation URLs",
       layers: "Layers",
       featureTypes: "Feature types",
@@ -1156,6 +1414,11 @@ const en = lodashMerge(
       bbox_lat_lon__contains: "Bounding box is contained by",
       bbox_lat_lon__covers: "Bounding box covers",
       bbox_lat_lon__equals: "Bounding box equals",
+    },
+    footer: {
+      "appVersion": "MrMap application version %{version}",
+      "versionMismatch": "The frontend is %{frontend} but the backend answers %{backend} - this deployment mixes two builds",
+      "devRevision": "development revision"
     },
     systemInfo: {
       "title": "System information",
@@ -1200,6 +1463,14 @@ const en = lodashMerge(
       },
       list: {
         actions: "Actions"
+      },
+      page: {
+        // #833: the standard forbidden state an anonymous deep link into a
+        // private screen lands on; the keys mirror the de catalog
+        access_denied: "Access denied",
+      },
+      message: {
+        access_denied: "You do not have permission for this page.",
       },
       notification: {
         updated_with_errors: "Element updated, but some related items could not be saved |||| %{smart_count} elements updated, but some related items could not be saved",

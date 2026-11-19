@@ -11,7 +11,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from accounts.views.auth import LoginView, LogoutView
+from accounts.views.auth import LoginView, LogoutView, SessionView
 from csw.views import CswServiceView
 from django.conf import settings
 from django.conf.urls import include
@@ -27,8 +27,8 @@ from registry.proxy.resource_capabilities import \
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
 from registry.views_ows.mapcontext import OwsContextView
-from system.logging.formatter import SLOW_REQUEST_DUMP_SUBDIR
-from system.views import MediaDumpNotFoundView, ProtectedServeView
+from system.views import (MEDIA_PRIVATE_URL_PATTERN,
+                          PrivateMediaNotFoundView, ProtectedServeView)
 
 urlpatterns = [
     path("django-admin/", admin.site.urls),
@@ -66,8 +66,13 @@ urlpatterns = [
     path("mrmap-proxy/ows/<int:pk>",
          OwsContextView.as_view(),
          name="ows-context-detail"),
+    # the machine/API token path (#835): Basic credentials in, a token the
+    # caller keeps itself out; the browser uses the session endpoint below
     path('api/auth/login', LoginView.as_view()),
     path('api/auth/logout', LogoutView.as_view()),
+    # the browser session of the SPA (#835, accepted decision Q8=B): POST opens
+    # it, GET asks whether this browser has one, DELETE closes it server-side
+    path('api/auth/session', SessionView.as_view()),
 
     path("csw",
          CswServiceView.as_view(),
@@ -79,13 +84,15 @@ urlpatterns = [
 
 ]
 
-# the dumps are refused by a rule of their own and before the media route below, so
-# that the development route which static() adds answers them the same way
+# the private subpaths of the media root are refused by a rule of their own and
+# before the media route below, so that the development route which static()
+# adds answers them the same way; the pattern is built from the policy in
+# system.views so route and view can never name different sets (#888, #1447)
 urlpatterns.append(
     re_path(
-        rf'^media/{SLOW_REQUEST_DUMP_SUBDIR}/.+$',
-        MediaDumpNotFoundView.as_view(),
-        name="media-dump-not-served",
+        MEDIA_PRIVATE_URL_PATTERN,
+        PrivateMediaNotFoundView.as_view(),
+        name="media-private-not-served",
     )
 )
 

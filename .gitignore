@@ -96,3 +96,7 @@ lerna-debug.log*
 
 /backend/media
 /.env
+# local per-host OpenCode MCP overrides (dev-only DSN) - never commit;
+# the project skills in .opencode/skills are tracked deliverables
+/.opencode/*
+!/.opencode/skills/

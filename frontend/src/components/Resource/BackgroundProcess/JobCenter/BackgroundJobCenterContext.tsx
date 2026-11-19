@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  useAuthState,
   useDataProvider,
   useGetList,
   useNotify,
@@ -36,6 +37,13 @@ import {
  *  bounded store after a reload, newest first */
 const HYDRATE_PAGE_SIZE = Math.ceil(MAX_TRACKED_JOBS / 2);
 
+/** the resource wide topic carries the created and deleted messages */
+export const RESOURCE_TOPIC = "resource/BackgroundProcess";
+
+/** the per process topic carries every progress update */
+export const processTopic = (id: string | number): string =>
+  `resource/BackgroundProcess/${id}`;
+
 /** the newest active processes which get a per-id topic of their own; older
  *  active ones stay visible but only refresh with a page of the api */
 const MAX_ID_TOPICS = 100;
@@ -56,6 +64,14 @@ export interface BackgroundJobCenterContextValue {
   setOpen: (open: boolean) => void;
   /** drops the completed processes from the view; the server keeps them */
   clearCompleted: () => void;
+  /**
+   * registers a listener for the processes which moved into `failed` through
+   * a live bus event - never through a hydration or reconnect replay, which
+   * is history the user did not watch happen; returns the unregistration.
+   * This is the seam the notification bridge of #1205 subscribes to (#1461):
+   * the store owns the subscriptions, a subscriber only reads its transitions.
+   */
+  subscribeFailed: (listener: (records: BackgroundJobRecord[]) => void) => () => void;
 }
 
 const BackgroundJobCenterContext = createContext<
@@ -95,19 +111,41 @@ export const BackgroundJobCenterProvider = ({
   notifications = true,
 }: {
   children: ReactNode;
-  /** whether this provider speaks its transitions through `useNotify`; a
-   *  deployment which mounts another notification bridge for the same
-   *  processes (the `BackgroundJobBridge` of #1205 in the Layout) passes
-   *  false, so one failure never becomes two toasts */
+  /** whether this provider speaks its transitions through `useNotify`; the
+   *  layout mounts the thin notification bridge of #1205 on the store's
+   *  failure seam below and passes false, so one failure never becomes two
+   *  toasts (the bridge aggregates them; #1461 converged the old second
+   *  store, which had its own subscriptions and its own toasts) */
   notifications?: boolean;
 }): ReactNode => {
   const dataProvider = useDataProvider();
   const notify = useNotify();
   const translate = useTranslate();
   const { realtimeIsReady } = useHttpClientContext();
+  // #833: the job center is an operator screen - its processes stay behind
+  // the session. An anonymous visitor must never fire these reads, because a
+  // 401 from any mounted query runs the authProvider's checkError and would
+  // log out a visitor who never logged in.
+  const { authenticated } = useAuthState();
 
   const [state, setState] = useState<JobStoreState>(initialJobStoreState);
   const [open, setOpen] = useState(false);
+
+  // the live transitions a notification subscriber is told about; a Set
+  // behind a stable callback so a subscriber's identity never rebuilds the
+  // provider (the pattern documented below `commit`)
+  const failedListeners = useRef(
+    new Set<(records: BackgroundJobRecord[]) => void>(),
+  );
+  const subscribeFailed = useCallback(
+    (listener: (records: BackgroundJobRecord[]) => void) => {
+      failedListeners.current.add(listener);
+      return () => {
+        failedListeners.current.delete(listener);
+      };
+    },
+    [],
+  );
 
   // the completions which wait for their aggregated announcement
   const pendingCompletions = useRef(0);
@@ -122,12 +160,16 @@ export const BackgroundJobCenterProvider = ({
     filter: { status: "pending,running" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
   const recentTerminal = useGetList<BackgroundJobRecord>("BackgroundProcess", {
     filter: { status: "failed,aborted,completed" },
     sort: { field: "dateCreated", order: "DESC" },
     pagination: { page: 1, perPage: HYDRATE_PAGE_SIZE },
-  });
+  }, { enabled: !!authenticated });
+  // react-query rebuilds its result wrapper every render, so the effects
+  // below name the refetch functions instead of calling through the wrapper
+  const { refetch: refetchActiveProcesses } = activeProcesses;
+  const { refetch: refetchRecentTerminal } = recentTerminal;
 
   // the store is mirrored in a ref so that the announcements of a batch are
   // made next to the state write and never inside a state updater, which
@@ -147,6 +189,15 @@ export const BackgroundJobCenterProvider = ({
         stateRef.current,
         records,
       );
+      // a live failure is reported to the subscribers whether or not this
+      // provider speaks with its own voice - the mounted notification path
+      // of the layout is the thin bridge on this seam (#1461); a hydration
+      // replay (announce false) is history and stays silent
+      if (announce && transitions.failed.length > 0) {
+        failedListeners.current.forEach((listener) =>
+          listener(transitions.failed),
+        );
+      }
       if (announce && notifications) {
         transitions.failed.forEach((record) => {
           // once per process: the terminal state is written once and the
@@ -198,14 +249,14 @@ export const BackgroundJobCenterProvider = ({
   useEffect(() => {
     const isUp = realtimeIsReady === ReadyState.OPEN;
     if (isUp && !wasOpen.current) {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }
     wasOpen.current = isUp;
   }, [
     realtimeIsReady,
-    activeProcesses.refetch,
-    recentTerminal.refetch,
+    refetchActiveProcesses,
+    refetchRecentTerminal,
   ]);
 
   // fallback: while the bus is not up, the pages are read periodically
@@ -214,11 +265,11 @@ export const BackgroundJobCenterProvider = ({
       return;
     }
     const interval = setInterval(() => {
-      void activeProcesses.refetch();
-      void recentTerminal.refetch();
+      void refetchActiveProcesses();
+      void refetchRecentTerminal();
     }, FALLBACK_POLL_MILLISECONDS);
     return () => clearInterval(interval);
-  }, [realtimeIsReady, activeProcesses.refetch, recentTerminal.refetch]);
+  }, [realtimeIsReady, refetchActiveProcesses, refetchRecentTerminal]);
 
   // the resource-wide topic: creates arrive with their record, deletes ask
   // for the row to disappear from the view
@@ -234,15 +285,9 @@ export const BackgroundJobCenterProvider = ({
         );
       }
     };
-    void dataProvider.subscribe(
-      "resource/BackgroundProcess",
-      handleResourceEvent,
-    );
+    void dataProvider.subscribe(RESOURCE_TOPIC, handleResourceEvent);
     return () => {
-      void dataProvider.unsubscribe(
-        "resource/BackgroundProcess",
-        handleResourceEvent,
-      );
+      void dataProvider.unsubscribe(RESOURCE_TOPIC, handleResourceEvent);
     };
   }, [dataProvider, ingest, commit]);
 
@@ -251,33 +296,79 @@ export const BackgroundJobCenterProvider = ({
   // active processes it tracks (bounded: thousands of active processes must
   // not mean thousands of subscription frames; the counts of the app bar are
   // answered by the api regardless)
-  const idTopics = useMemo(() => {
-    const active = Object.values(state.jobs)
-      .filter(isActive)
-      .sort((a, b) =>
-        String(b.dateCreated ?? "").localeCompare(
-          String(a.dateCreated ?? ""),
-        ),
-      )
-      .slice(0, MAX_ID_TOPICS)
-      .map(jobId);
-    return active;
-  }, [state.jobs]);
+  // the watched ids as one joined key: a progress event rewrites the content
+  // of a job but not the set of active ones, and the string stays equal -
+  // the subscription effect must not re-run for it (one progress message
+  // used to resubscribe every watched topic, one websocket frame each:
+  // #1462)
+  const watchKey = useMemo(
+    () =>
+      Object.values(state.jobs)
+        .filter(isActive)
+        .sort((a, b) =>
+          String(b.dateCreated ?? "").localeCompare(
+            String(a.dateCreated ?? ""),
+          ),
+        )
+        .slice(0, MAX_ID_TOPICS)
+        .map(jobId)
+        .join(","),
+    [state.jobs],
+  );
+
+  // `ingest` is mirrored in a ref (the pattern documented above `commit`):
+  // the handler of the per-id topics keeps one identity for the lifetime of
+  // the provider, because the dataProvider pairs an unsubscribe with the
+  // callback it was subscribed with and the delta below only works while
+  // that identity holds
+  const ingestRef = useRef(ingest);
+  useEffect(() => {
+    ingestRef.current = ingest;
+  }, [ingest]);
+
+  const handleIdUpdate = useCallback((event: CrudEvent): void => {
+    if (event.type === "updated") {
+      ingestRef.current(
+        (event.payload.records ?? []) as BackgroundJobRecord[],
+        true,
+      );
+    }
+  }, []);
+
+  // the topics whose subscription is currently mirrored to the server; the
+  // ref survives the effect runs, so a changed watch set sends only its
+  // delta and the topics which stay watched keep their subscription
+  const watchedTopics = useRef(new Set<string>());
 
   useEffect(() => {
-    const handleUpdate = (event: CrudEvent): void => {
-      if (event.type === "updated") {
-        ingest((event.payload.records ?? []) as BackgroundJobRecord[], true);
+    const wanted = new Set(
+      watchKey === ""
+        ? []
+        : watchKey.split(",").map((id) => processTopic(id)),
+    );
+    wanted.forEach((topic) => {
+      if (!watchedTopics.current.has(topic)) {
+        void dataProvider.subscribe(topic, handleIdUpdate);
       }
-    };
-    const topics = idTopics.map((id) => `resource/BackgroundProcess/${id}`);
-    topics.forEach((topic) => void dataProvider.subscribe(topic, handleUpdate));
-    return () => {
-      topics.forEach((topic) =>
-        void dataProvider.unsubscribe(topic, handleUpdate),
+    });
+    watchedTopics.current.forEach((topic) => {
+      if (!wanted.has(topic)) {
+        void dataProvider.unsubscribe(topic, handleIdUpdate);
+      }
+    });
+    watchedTopics.current = wanted;
+  }, [dataProvider, watchKey, handleIdUpdate]);
+
+  // on unmount every topic still watched goes away with the provider
+  useEffect(
+    () => () => {
+      watchedTopics.current.forEach((topic) =>
+        void dataProvider.unsubscribe(topic, handleIdUpdate),
       );
-    };
-  }, [dataProvider, idTopics, ingest]);
+      watchedTopics.current = new Set();
+    },
+    [dataProvider, handleIdUpdate],
+  );
 
   // a burst of created events cannot grow the store unboundedly - and a
   // created event for a process which already moved on is answered by the
@@ -307,8 +398,9 @@ export const BackgroundJobCenterProvider = ({
       open,
       setOpen,
       clearCompleted,
+      subscribeFailed,
     }),
-    [state, open, clearCompleted],
+    [state, open, clearCompleted, subscribeFailed],
   );
 
   return (

@@ -36,7 +36,11 @@ const UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
 
 /** the moment a record answers, or nothing when it answers none */
 const asDate = (value: unknown): Date | undefined => {
-  const date = value instanceof Date ? value : new Date(String(value ?? ""));
+  let date: Date;
+  if (value instanceof Date) date = value;
+  else if (typeof value === "string" || typeof value === "number")
+    date = new Date(String(value));
+  else date = new Date(Number.NaN);
   return Number.isNaN(date.getTime()) ? undefined : date;
 };
 
@@ -46,7 +50,7 @@ const distanceToNow = (date: Date, locales?: string): string => {
   const [unit, held] =
     UNITS.find(([, millisecondsOfUnit]) =>
       Math.abs(milliseconds) >= millisecondsOfUnit,
-    ) ?? UNITS[UNITS.length - 1];
+    ) ?? UNITS.at(-1) as [Intl.RelativeTimeFormatUnit, number];
   return new Intl.RelativeTimeFormat(locales, { numeric: "auto" }).format(
     Math.round(milliseconds / held),
     unit,

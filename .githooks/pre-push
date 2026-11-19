@@ -1,0 +1,9 @@
+#!/bin/sh
+# MrMap managed hook; checks live in scripts/git_checks.py.
+set -eu
+cd "$(git rev-parse --show-toplevel)"
+if [ ! -f scripts/git_checks.py ]; then
+  echo "MrMap hooks are unavailable on this branch; skipping local checks." >&2
+  exit 0
+fi
+exec python3 scripts/git_checks.py push "$@"

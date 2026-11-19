@@ -95,6 +95,8 @@ Beside these required variables ``.env`` accepts the optional ``DJANGO_ALLOWED_H
 
 Open a terminal and change working directory to the path you unzipped the project to. You can start all configured services with the command ``docker compose -f docker-compose.yml up --build frontend``. After that, MrMap should be reachable under http://localhost
 
+That command is the deployment contract, and it is what this file documents: every service of ``docker-compose.yml`` starts, including the log store, its dashboard and the two operator UIs. A host which is short of memory instead of disk can leave that tier out - see :ref:`compose-profiles` for the opt-in ``docker-compose.lightweight.yml``, which services belong to which tier and what stops working when a tier is off. Nothing about the command above changes by adding that file, and nothing about it works without adding that file.
+
 
 Docker health reporting
 =======================

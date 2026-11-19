@@ -91,6 +91,6 @@ def clean_up_operation_urls(mapper):
         )
 
     cache = mapper.read_all_from_cache()
-    for key, inst in list(cache.items()):
+    for key, inst in cache.items():
         if inst is None or isinstance(inst, OperationUrl) and is_invalid_operation_url(inst):
             mapper.cache.delete(key)

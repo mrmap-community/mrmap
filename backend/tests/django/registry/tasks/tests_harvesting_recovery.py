@@ -11,6 +11,7 @@ from django.db import OperationalError, connection, transaction
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils.timezone import now
 from lxml import etree
+from MrMap import celery_queues
 from registry.enums.harvesting import (HarvestingPhaseEnum as Phase,
                                        LogKindEnum, LogLevelEnum)
 from registry.models.harvest import (HarvestingJob, HarvestingJobTaskId,
@@ -271,9 +272,14 @@ class HarvestingRecoveryTest(TestCase):
         republish.assert_called_once_with(harvesting_job_id=self.job.pk)
 
     def test_worker_startup_queues_recovery(self):
+        # the call addresses the task by name: it is a remote call, and for
+        # a remote call the queue is part of the call - it must name the
+        # queue the task declares, not leave the router to the default (#1455)
         worker = Mock()
         recover_harvests_after_restart(worker)
-        worker.app.send_task.assert_called_once_with('registry.tasks.harvest.recover_harvesting_jobs')
+        worker.app.send_task.assert_called_once_with(
+            'registry.tasks.harvest.recover_harvesting_jobs',
+            queue=celery_queues.DEFAULT)
 
     def test_import_chord_records_real_task_ids_and_publishes_after_commit(self):
         with patch.object(HarvestingJob, '_http_request', return_value=None), patch('registry.tasks.harvest.chord') as chord:

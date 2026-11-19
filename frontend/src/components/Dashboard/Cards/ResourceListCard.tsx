@@ -34,7 +34,7 @@ const ResourceListCard = (
         sparefields[`fields[${resource}]`] = 'id'
         meta["jsonApiParams"] = sparefields
         return meta
-      },[withList])
+      },[withList, resource])
 
   return (
       <ListBase
@@ -59,7 +59,7 @@ const ResourceListCard = (
             {children}
             {
                 hasCreate ?
-                <Fragment><Divider /><CreateButton/></Fragment>: <Fragment></Fragment>
+                <Fragment><Divider /><CreateButton/></Fragment>: null
             }
             
             <ChangeLogList/>

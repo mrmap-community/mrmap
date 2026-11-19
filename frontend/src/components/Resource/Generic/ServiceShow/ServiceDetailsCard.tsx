@@ -9,7 +9,7 @@ import {
   useTranslate
 } from "react-admin";
 
-import { Stack, Typography } from "@mui/material";
+import { Chip, Stack, Typography } from "@mui/material";
 
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { prepareGetCapabilititesUrl } from "../../../../ows-lib/OwsContext/utils";
@@ -19,9 +19,37 @@ import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import ActivateServiceButton from "./ActivateServiceButton";
 import ServiceAlertChips from "./ServiceAlertChips";
 import ServiceOutcomes from "./ServiceOutcomes";
+import ServiceOwnerField from "./ServiceOwnerField";
 import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
+
+/**
+ * The three answers of the `visibility` attribute of a service, with the color
+ * the chip shows each in: the widest access first, the narrowest last.
+ *
+ * The words are the backend's, derived from the guardian grants of the service
+ * (#739) and never stored beside it, so what the chip says is what the api
+ * decided - and a record which does not answer the attribute, a catalogue for
+ * instance, says nothing about visibility at all.
+ */
+const VISIBILITY_CHIP_COLORS = {
+  public: "success",
+  "organization-internal": "info",
+  restricted: "warning",
+} as const;
+
+type ServiceVisibility = keyof typeof VISIBILITY_CHIP_COLORS;
+
+const visibilityOf = (
+  record: Record<string, unknown> | undefined,
+): ServiceVisibility | undefined => {
+  const visibility = record?.visibility;
+  return typeof visibility === "string" &&
+    Object.hasOwn(VISIBILITY_CHIP_COLORS, visibility)
+    ? (visibility as ServiceVisibility)
+    : undefined;
+};
 
 export function capabilitiesUrl(
   record: Record<string, unknown> | undefined,
@@ -45,6 +73,7 @@ const ServiceDetailsCard = ({
   protocol,
   attention,
   openDetails,
+  ownerHint,
 }: {
   protocol: ServiceProtocol;
   /** the states of the service which need attention and the outcome of its last
@@ -54,6 +83,11 @@ const ServiceDetailsCard = ({
   /** the way to the screen of the service, which the card of a service which is
    *  only selected cannot show by itself */
   openDetails?: boolean;
+  /** Whether the card speaks of a service whose own record answers the owning
+   *  organization. Only such a record can tell an ownerless service - one of
+   *  before #733 stored ownership - from a service the request did not ask that
+   *  question about, which is what the screen showing the service itself does. */
+  ownerHint?: boolean;
 }) => {
   const resource = useResourceContext();
   const record = useRecordContext();
@@ -70,6 +104,7 @@ const ServiceDetailsCard = ({
     (choice) => choice.id === record?.version,
   )?.name;
   const url = capabilitiesUrl(record, protocol, version);
+  const visibility = visibilityOf(record);
   return (
     <SimpleCard
       title={translate("serviceShow.details")}
@@ -144,6 +179,21 @@ const ServiceDetailsCard = ({
               <UrlField source="url" record={{ id: record?.id, url }} />
             </Labeled>
           )}
+          {visibility && (
+            /* the label of the row and the chip of its answer: the answer is the
+               attribute of the service, the hint tells what the word means */
+            <Labeled label={translate("serviceShow.visibility")}>
+              <Chip
+                size="small"
+                color={VISIBILITY_CHIP_COLORS[visibility]}
+                label={translate(`serviceShow.visibilityValues.${visibility}`)}
+                title={translate(`serviceShow.visibilityHints.${visibility}`)}
+              />
+            </Labeled>
+          )}
+          {/* the organization the service belongs to, and who may therefore see
+              it: the answer of the `owner` relation of #733 */}
+          <ServiceOwnerField hintWhenAbsent={ownerHint} />
           {attention && (
             <Stack spacing={0.5} sx={{ pt: 1, minWidth: 0 }}>
               <Stack

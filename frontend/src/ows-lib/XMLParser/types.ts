@@ -1,4 +1,4 @@
-import { Duration } from 'moment';
+import type { IsoDuration } from '../iso8601';
 
 
 export interface Metadata {
@@ -36,7 +36,8 @@ export interface TimeDimension {
     start: Date
     stop?: Date
     default?: Date
-    resolution?: Duration
+    /** the step between the advertised observations, as far as the ISO 8601 grammar of a WMS duration reads it */
+    resolution?: IsoDuration
 }
 
 
@@ -80,7 +81,7 @@ export interface WmsLayer {
 export interface InheritableProperties {
     referenceSystems: string[]          // 1+; add
     styles: Style[]                     // 0+; add
-    bbox?: WmsLayer["bbox"]             // 1+; replace
+    bbox?: NonNullable<WmsLayer["bbox"]> // 1+; replace
     dimension?: (TimeDimension | TempDimension | ElevationDimension)[] // 0+; replace
     advertisedDimension?: AdvertisedDimension[] // 0+; replace by name
     minScaleDenominator?: number        // 0/1; replace

@@ -1,13 +1,16 @@
 import { DateField, FunctionField, TextField, useTranslate } from "react-admin";
+import { ReadyState } from "react-use-websocket";
 
 import { Chip, Stack, Typography } from "@mui/material";
 
+import { useHttpClientContext } from "../../../context/HttpClientContext";
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { useFilterInputForOperation } from "../../../jsonapi/hooks/useFilterInputForOperation";
 import { ALERT_REFETCH_INTERVAL } from "./useServiceAlerts";
 
 const ListServiceAlert = () => {
   const translate = useTranslate();
+  const { realtimeIsReady } = useHttpClientContext();
   const filters = useFilterInputForOperation("list_ServiceAlert").map(
     (definition) => ({
       ...definition,
@@ -21,7 +24,7 @@ const ListServiceAlert = () => {
     <ListGuesser
       realtime
       additionalFilters={filters}
-      refetchInterval={ALERT_REFETCH_INTERVAL}
+      refetchInterval={realtimeIsReady === ReadyState.OPEN ? false : ALERT_REFETCH_INTERVAL}
       sort={{ field: "severity,-occurredAt", order: "ASC" }}
       rowActions={<></>}
       dataGridProps={{

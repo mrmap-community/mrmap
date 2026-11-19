@@ -8,11 +8,12 @@ from guardian.core import ObjectPermissionChecker
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import JSONRenderer
-from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly, allowed)
 from extras.viewsets import (AsyncCreateMixin, ExtendedPreloadIncludesMixin,
                              HistoryInformationViewSetMixin,
                              NestedModelViewSet,
                              ObjectPermissionCheckerViewSetMixin,
+                             PermissionVisibilityMixin,
                              PreloadNotIncludesMixin, SerializerClassesMixin,
                              SparseFieldMixin)
 from notify.models import BackgroundProcess, ProcessNameEnum
@@ -42,7 +43,9 @@ from registry.models.service import (CatalogueService,
                                      WebMapServiceOperationUrl)
 from registry.models.update import WebMapServiceUpdateSetting
 from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
-                                    alerts_requested, has_alert_annotations)
+                                    alerts_requested, answer_page_alerts,
+                                    defer_alert_annotations,
+                                    has_alert_annotations)
 from registry.querys.service import LayerPrefetch
 from registry.querys.explorer import ServiceExplorerMixin, catalogue_records
 from registry.serializers.service import (
@@ -51,6 +54,7 @@ from registry.serializers.service import (
     WebFeatureServiceCreateSerializer, WebFeatureServiceSerializer,
     WebMapServiceCreateSerializer, WebMapServiceListSerializer,
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
+from registry.views.shares import ServiceShareViewSetMixin
 from registry.tasks.service import build_ogc_service
 from registry.helper.preview import PreviewError, feature_preview_image, preview
 from rest_framework_json_api.views import ModelViewSet
@@ -157,15 +161,31 @@ class ServiceAlertAnnotationMixin:
         return super().filter_queryset(queryset)
 
     def paginate_queryset(self, queryset, *args, **kwargs):
-        """Read the rows behind the references of the alerts of a page.
+        """Answer the alerts for the rows of the page alone (#1424).
 
-        The references of the alerts name rows of other resources, and a page
-        of services shares nothing of them with any other page: they are read
-        once for the page, so that no request asks the database per service or
-        per alert it answers.
+        The pagination answers a list with a COUNT and the slice of the
+        page, and both read more rows than the page shows - while the
+        alerts answer a subquery per attribute of every row a statement
+        reads. A page annotated through the whole table therefore paid its
+        derivation for rows the answer never shows, which turned a
+        `page[size]=1` answer into a full-table scan on the live rig. The
+        page is read without the alerts in its SELECT
+        (`defer_alert_annotations` keeps them where they still decide the
+        request: in the filters and the sort), and the attention is
+        answered on exactly the rows of the page afterwards
+        (`answer_page_alerts`), one statement bounded by the page size.
+
+        The rows behind the references of the alerts are read with it: a
+        page of services shares nothing of them with any other page, so
+        they are read once for the page, and no request asks the database
+        per service or per alert it answers.
         """
+        alerts = has_alert_annotations(queryset)
+        if alerts:
+            queryset = defer_alert_annotations(queryset)
         page = super().paginate_queryset(queryset, *args, **kwargs)
-        if page and has_alert_annotations(queryset):
+        if page and alerts:
+            answer_page_alerts(page)
             self.alert_records = alert_records(page)
         return page
 
@@ -205,9 +225,11 @@ class ServicePreviewMixin:
     def preview(self, request, *args, **kwargs):
         service = self.get_object()
         # DRF's default read-only object permission map is empty; previews also
-        # explicitly require view permission on the registered service.
-        if not ObjectPermissionChecker(request.user).has_perm(
-                f"view_{service.__class__.__name__.lower()}", service):
+        # explicitly require view permission on the registered service -
+        # answered by the facade of #734, the checker is only the loader.
+        if not allowed(request.user,
+                       f"registry.view_{service.__class__.__name__.lower()}",
+                       service, checker=ObjectPermissionChecker(request.user)):
             raise PermissionDenied
         try:
             result = preview(service, request, request.query_params)
@@ -229,8 +251,12 @@ class PreviewImageRenderer(JSONRenderer):
         return super().render(data, accepted_media_type, renderer_context)
 
 
-@extend_schema_view(preview=extend_schema(operation_id="preview_WebMapService"))
+@extend_schema_view(
+    preview=extend_schema(operation_id="preview_WebMapService"),
+    share=extend_schema(operation_id="share_WebMapService"),
+    revoke_share=extend_schema(operation_id="revoke_share_WebMapService"))
 class WebMapServiceViewSet(
+    PermissionVisibilityMixin,
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
@@ -240,6 +266,7 @@ class WebMapServiceViewSet(
     ExtendedPreloadIncludesMixin,
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
+    ServiceShareViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebMapService`
@@ -353,6 +380,10 @@ class WebMapServiceViewSet(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,
@@ -416,6 +447,9 @@ class ServiceElementHistoryInformationViewSetMixin(HistoryInformationViewSetMixi
         ))
 
 
+OPERATION_URLS = "service.operation_urls"
+
+
 class LayerViewSetMixin(
     PreloadNotIncludesMixin,
     ServiceElementHistoryInformationViewSetMixin,
@@ -426,14 +460,14 @@ class LayerViewSetMixin(
     search_fields = ("id", "title", "abstract", "keywords__keyword")
     select_for_includes = {
         "service": ["service", "service__service_contact", "service__metadata_contact"],
-        "service.operation_urls": ["service", "service__service_contact",
-                                   "service__metadata_contact"]
+        OPERATION_URLS: ["service", "service__service_contact",
+                         "service__metadata_contact"]
     }
     prefetch_for_includes = {
         # the service of a layer is serialized, all relations of that service are
         # only answered as related resources
         "service": [*WMS_SERVICE_RELATIONS, WMS_OPERATION_URLS_AS_RELATION],
-        "service.operation_urls": [
+        OPERATION_URLS: [
             # only the operation urls are serialized, their mime types and the other
             # relations of the service are answered as related resources
             Prefetch(
@@ -451,7 +485,7 @@ class LayerViewSetMixin(
     }
     prefetch_for_not_includes = {
         "mptt_parent": [
-            # TODO optimize queryset with defer
+            # FUTURE: optimize queryset with defer
             Prefetch(
                 "mptt_parent",
                 queryset=Layer.objects.select_related(
@@ -559,8 +593,12 @@ class NestedWebMapServiceOperationUrlViewSet(
     """
 
 
-@extend_schema_view(preview=extend_schema(operation_id="preview_WebFeatureService"))
+@extend_schema_view(
+    preview=extend_schema(operation_id="preview_WebFeatureService"),
+    share=extend_schema(operation_id="share_WebFeatureService"),
+    revoke_share=extend_schema(operation_id="revoke_share_WebFeatureService"))
 class WebFeatureServiceViewSet(
+    PermissionVisibilityMixin,
     ServicePreviewMixin,
     ServiceAlertAnnotationMixin,
     ServiceExplorerMixin,
@@ -569,6 +607,7 @@ class WebFeatureServiceViewSet(
     ObjectPermissionCheckerViewSetMixin,
     PreloadNotIncludesMixin,
     HistoryInformationViewSetMixin,
+    ServiceShareViewSetMixin,
     ModelViewSet,
 ):
     """ Endpoints for resource `WebFeatureService`
@@ -609,7 +648,9 @@ class WebFeatureServiceViewSet(
             renderer_classes=[PreviewImageRenderer, JSONRenderer], filter_backends=[])
     def preview_image(self, request, *args, **kwargs):
         service = self.get_object()
-        if not ObjectPermissionChecker(request.user).has_perm("view_webfeatureservice", service):
+        if not allowed(request.user, "registry.view_webfeatureservice",
+                       service,
+                       checker=ObjectPermissionChecker(request.user)):
             raise PermissionDenied
         try:
             content = feature_preview_image(service, request, request.query_params)
@@ -722,6 +763,10 @@ class WebFeatureServiceViewSet(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": serializer.validated_data["collect_metadata_records"],
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,
@@ -785,14 +830,14 @@ class FeatureTypeViewSetMixin(
 
     select_for_includes = {
         "service": ["service", "service__service_contact", "service__metadata_contact"],
-        "service.operation_urls": ["service", "service__service_contact",
-                                   "service__metadata_contact"]
+        OPERATION_URLS: ["service", "service__service_contact",
+                         "service__metadata_contact"]
     }
     prefetch_for_includes = {
         # the service of a feature type is serialized, all relations of that service
         # are only answered as related resources
         "service": [*WFS_SERVICE_RELATIONS, WFS_OPERATION_URLS_AS_RELATION],
-        "service.operation_urls": [
+        OPERATION_URLS: [
             # only the operation urls are serialized, their mime types and the other
             # relations of the service are answered as related resources
             Prefetch(
@@ -1033,6 +1078,10 @@ class CatalogueServiceViewSetMixin(
         return background_process, {
             "get_capabilities_url": serializer.validated_data["get_capabilities_url"],
             "collect_metadata_records": False,  # CSW has no remote metadata records
+            # the owner decided by the create serializer's validation of
+            # #733: the task is where the service row comes into the world,
+            # so the ownership travels with the task which writes it
+            "owner_pk": serializer.validated_data["owner"].pk,
             "service_auth_pk": serializer.service_auth.id if hasattr(serializer, "service_auth") else None,
             "http_request": {
                 "path": request.path,

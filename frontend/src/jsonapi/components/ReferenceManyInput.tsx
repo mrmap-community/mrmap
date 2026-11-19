@@ -1,8 +1,8 @@
-import { createElement, Fragment, useCallback, useEffect, useMemo, useRef } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef } from 'react';
 import { AddItemButton, ArrayInput, Loading, RemoveItemButton, SimpleFormIterator, useSimpleFormIterator, useSimpleFormIteratorItem } from 'react-admin';
 import { FormProvider, useForm, useFormContext, useWatch } from 'react-hook-form';
 
-import _ from 'lodash';
+import isEqual from 'lodash/isEqual';
 import {
   HttpError,
   type CreateParams,
@@ -13,7 +13,6 @@ import {
   type UpdateResult,
   useInfiniteGetList,
   useLocation,
-  useNavigate,
   useRecordContext, useRegisterMutationMiddleware,
   useResourceContext,
   useUpdate
@@ -59,14 +58,14 @@ export const RemoveButton = () => {
     } else {
       remove();
     }
-  },[remove, resource, getValues])
+  },[remove, resource, getValues, deleteOne, index, source])
 
   useEffect(()=>{
     if (isSuccess) {
       // delete on serverside is done successfully
       remove()
     }
-  }, [isSuccess])
+  }, [isSuccess, remove])
 
   return (
     <RemoveItemButton 
@@ -74,7 +73,7 @@ export const RemoveButton = () => {
       onClick={() => onClick()}  
       disabled={isPending}
     >
-      {isPending ? <Loading/>: <Fragment></Fragment>}
+      {isPending ? <Loading/>: null}
     </RemoveItemButton>
   )
 }
@@ -120,7 +119,7 @@ export const ReferenceManyInput = (
   const includedObjects = useMemo<RaRecord[]>(() => {
       if (currentRecordValues === undefined) return []
       return currentRecordValues.map((value: RaRecord) => {
-          // FIXME: check if all needed field values are contained
+          // FUTURE: check if all needed field values are contained
           if (typeof value === 'object' && value.id && value.stringRepresentation) {
             return value; // already has completed data
           }
@@ -163,7 +162,6 @@ export const ReferenceManyInput = (
   const {setError, setValue, clearErrors} = formMethods;
   const values = useWatch({control: formMethods.control, name: source});
   const valuesRef = useRef(values)
-  const navigate = useNavigate();
   const location = useLocation();
   
   const [ create ] = useCreate();
@@ -290,12 +288,12 @@ export const ReferenceManyInput = (
 
       // Always return the result
       return result
-    }, [navigate, location, create,  reference, target, update, values, record]);
+    }, [create, reference, target, update, values, addErrors, setError, source]);
   
   useRegisterMutationMiddleware(memoizedMiddleWare);
 
   if (
-    (fieldDefinitions.length > 0 && !fieldDefinitions.find(def => def.props.source === target))
+    (fieldDefinitions.length > 0 && !fieldDefinitions.some(def => def.props.source === target))
   ) {
     throw new Error(
         `Wrong configured ReferenceManyInput: ${target} is not a field of ${reference}`
@@ -307,7 +305,7 @@ export const ReferenceManyInput = (
           return;
       }
 
-      if (!_.isEqual(values, valuesRef.current)) {
+      if (!isEqual(values, valuesRef.current)) {
           clearErrors(source);
           parentForm.clearErrors();
           valuesRef.current = values;

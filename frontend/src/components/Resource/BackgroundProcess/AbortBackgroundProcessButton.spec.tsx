@@ -65,7 +65,9 @@ describe("AbortBackgroundProcessButton", () => {
         { type: "info" },
       ),
     );
-    expect(state.refresh).toHaveBeenCalled();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
 
   it("tells the user when the api refused the abort", async () => {

@@ -9,7 +9,6 @@ import {
   useGetMany,
   useListContext,
   useNotify,
-  useRefresh,
   useResourceDefinition,
   useTranslate,
   useUnselect,
@@ -39,7 +38,6 @@ const BulkCreateHarvestingSchedulesButton = () => {
   const [create] = useCreate();
   const unselect = useUnselect("CatalogueService");
   const notify = useNotify();
-  const refresh = useRefresh();
   const translate = useTranslate();
   const formId = useId();
   const [open, setOpen] = useState(false);
@@ -59,23 +57,26 @@ const BulkCreateHarvestingSchedulesButton = () => {
   const submit = async (values: Record<string, unknown>) => {
     if (!source || saving || !ready || !harvestableIds.length) return;
     setSaving(true);
-    const succeeded: Identifier[] = [];
-    const failed: Identifier[] = [];
-    for (const id of harvestableIds) {
-      try {
-        await create(
-          "PeriodicHarvestingJob",
-          { data: { ...values, [source]: { id } } },
-          { returnPromise: true },
-        );
-        succeeded.push(id);
-      } catch {
-        failed.push(id);
-      }
-    }
+    // every schedule stands on its own, so the creations run at once; the map
+    // keeps the order of the ids within both outcome lists
+    const outcomes = await Promise.all(
+      harvestableIds.map(async (id) => {
+        try {
+          await create(
+            "PeriodicHarvestingJob",
+            { data: { ...values, [source]: { id } } },
+            { returnPromise: true },
+          );
+          return { id, created: true };
+        } catch {
+          return { id, created: false };
+        }
+      }),
+    );
+    const succeeded = outcomes.filter((outcome) => outcome.created).map((outcome) => outcome.id);
+    const failed = outcomes.filter((outcome) => !outcome.created).map((outcome) => outcome.id);
     setSaving(false);
     unselect([...succeeded, ...excludedIds]);
-    refresh();
     notify("harvestingSchedules.bulkResult", {
       type: failed.length ? "warning" : "success",
       messageArgs: { created: succeeded.length, failed: failed.length },

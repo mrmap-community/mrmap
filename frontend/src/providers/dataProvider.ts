@@ -1,16 +1,12 @@
-import type { JsonApiQueryParams } from '../jsonapi/types/jsonapi';
-
-import { CreateResult, GetListResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
-import { WebSocketLike } from 'react-use-websocket/dist/lib/types';
+import { CreateResult, GetListResult, GetManyResult, GetOneResult, HttpError, type CreateParams, type DataProvider, type DeleteManyParams, type DeleteParams, type DeleteResult, type GetListParams, type GetManyParams, type GetManyReferenceParams, type GetOneParams, type Identifier, type Options, type RaRecord, type UpdateManyParams, type UpdateParams, type UpdateResult } from 'react-admin';
 
 import axios, { AxiosError } from 'axios';
 import jsonpointer from 'jsonpointer';
 import { isEqual } from 'lodash';
 import OpenAPIClientAxios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, Operation, type ParamsArray } from 'openapi-client-axios';
 
-import { type JsonApiDocument, type JsonApiPrimaryData } from '../jsonapi/types/jsonapi';
+import { type JsonApiDocument, type JsonApiPrimaryData, type JsonApiQueryParams } from '../jsonapi/types/jsonapi';
 import { capsulateJsonApiPrimaryData, encapsulateJsonApiDocumentData, encapsulateJsonApiPrimaryData } from '../jsonapi/utils';
-import { getAuthToken } from './authProvider';
 import i18nProvider from './i18nProvider';
 import { updateSystemTime } from './systemTimeProvider';
 
@@ -40,6 +36,28 @@ export interface RelatedResource {
   id: Identifier
 }
 
+/** Answer of a `custom` call: this react-admin version types the data
+ * provider with an open index signature instead of a `custom` member, so
+ * the project names the contract of its own implementation here. */
+export interface CustomResult<T = unknown> {
+  data: T
+  meta?: unknown
+}
+
+/** Options of a `custom` call; `body` is the request document, which
+ * react-admin's own Options type reserves for transport bodies. */
+export interface CustomCallOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  body?: unknown
+  headers?: Record<string, string>
+  signal?: AbortSignal
+  [key: string]: unknown
+}
+
+/** The signature of the provider's `custom`: `path` is the OpenAPI
+ * operation id of the call. */
+export type CustomMethod = <T = unknown>(path: string, options?: CustomCallOptions, b?: unknown) => Promise<CustomResult<T>>
+
 export interface GetListJsonApiParams extends GetListParams {
   meta?: {
     relatedResource?: RelatedResource
@@ -47,11 +65,24 @@ export interface GetListJsonApiParams extends GetListParams {
   }
 }
 
+export interface CreateJsonApiParams extends CreateParams {
+  meta?: {
+    /** Post into the related collection, e.g. `POST /organizations/{id}/members`. */
+    relatedResource?: RelatedResource
+  }
+}
+
+/** The socket surface a realtime bus must offer this provider. Owns the
+ * declaration instead of deep-importing `react-use-websocket/dist/lib/types`
+ * (#1466): that path is internal to the package, and the provider only ever
+ * reads `readyState`, sends frames and attaches `onmessage` on it. */
+export type RealtimeBus = Pick<WebSocket, 'readyState' | 'send' | 'onmessage'>
+
 export interface JsonApiDataProviderOptions extends Options {
   httpClient: OpenAPIClientAxios
   total?: string
   systemTime?: string
-  realtimeBus?: WebSocketLike
+  realtimeBus?: RealtimeBus
 }
 
 // 'delete' is what the backend's post_delete signal puts into the event, the
@@ -108,10 +139,6 @@ const sendSubscriptionFrame = (topic: string, action: 'subscribe' | 'unsubscribe
   }
 }
 
-
-const handleOperationNotFoundError = (): void => {
-
-}
 
 const buildQueryParams = (params: GetListParams | GetManyParams | GetManyReferenceParams) => {
   const parameters: ParamsArray = []
@@ -223,8 +250,15 @@ const handleBadRequest = (error: AxiosError) => {
     const jsonApiResponse = error.response.data as JsonApiDocument
     const jsonApiErrors = jsonApiResponse.errors
     
-    const raErrorPayload: { errors: Record<string, string | { serverError: string }> } = {
-      errors: {}
+    // the mapped `errors` object feeds react-admin's per-field messages; the
+    // untouched json:api error objects ride along so the record editor's
+    // findings rail can show rule id, severity and ISO family (#1245)
+    const raErrorPayload: {
+      errors: Record<string, string | { serverError: string }>
+      jsonApiErrors?: unknown[]
+    } = {
+      errors: {},
+      jsonApiErrors: jsonApiErrors as unknown[] | undefined,
     }
 
     jsonApiErrors?.forEach(jsonApiError => {
@@ -253,14 +287,6 @@ const handleBadRequest = (error: AxiosError) => {
 }
 
 
-const attachAuthenticationIfExists = (config: AxiosRequestConfig): AxiosRequestConfig => {
-  const storedAuthToken = getAuthToken();
-  if (storedAuthToken?.token && config.headers){
-    config.headers = { ...config.headers, Authorization: `Token ${storedAuthToken?.token}` }
-  }
-  return config
-}
-
 const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
   if (config.headers){
     config.headers = { ...config.headers, "Accept-Language": i18nProvider.getLocale() }
@@ -268,10 +294,26 @@ const attachLocalHeader = (config: AxiosRequestConfig): AxiosRequestConfig => {
   return config
 }
 
-const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig => {
-  const cfg = attachAuthenticationIfExists(config)
-  return attachLocalHeader(cfg)
-}
+/**
+ * The request headers of a data call (#835).
+ *
+ * Authentication is not one of them any more: the browser session's cookie
+ * travels with the request on its own (`withCredentials` in
+ * `HttpClientContext`), and the CSRF header of the state-changing ones comes
+ * from axios' own `xsrfCookieName`/`xsrfHeaderName` defaults, which read the
+ * cookie Django answers. Nothing here may put a credential into a header: what
+ * JavaScript can write, JavaScript - or a script injected into this page - can
+ * also read.
+ */
+const attachHeaders = (config: AxiosRequestConfig): AxiosRequestConfig =>
+  attachLocalHeader(config)
+
+/** The page size `getMany` never asks for less than. It is a floor and not a
+ *  ceiling: the related route inside `getMany` drops `ids` and pages through the
+ *  whole related collection, so a page as small as the few ids one screen asked
+ *  for would walk that collection in steps of a handful. The records a page
+ *  answers that were not asked for are dropped from its result. */
+const GET_MANY_MIN_PAGE_SIZE = 1000
 
 const dataProvider = ({
   total = '/meta/pagination/count',
@@ -358,8 +400,10 @@ const dataProvider = ({
       try {
         conf = httpClient.getAxiosConfigForOperation(`retrieve_${resource}`, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
       } catch {
-        handleOperationNotFoundError();
-        return  { data: [], }
+        // a resource without a retrieve operation has no record to answer; the
+        // 404 is the answer react-admin knows what to do with, while an array
+        // in place of the record made the screen render as an empty one (#1463)
+        throw new HttpError(`Operation 'retrieve_${resource}' not found.`, 404)
       }
 
       return await httpClient.client.request(conf).then((response: AxiosResponse) => {
@@ -389,12 +433,13 @@ const dataProvider = ({
 
       checkOperationExists(httpClient, operationId)
       
-      let page = 1
-      let hasNextPage = true
-      const pageSize = Math.max(params.ids.length, 1000)
-      const gathered = []
+      const pageSize = Math.max(params.ids.length, GET_MANY_MIN_PAGE_SIZE)
+      const gathered: RaRecord[] = []
 
-      while(hasNextPage){
+      // the pages must arrive one after the other, because the next one is only
+      // asked for once the last one answered that there is one, so the paging
+      // runs as a chain of requests rather than a loop with awaits
+      const gatherPage = async (page: number): Promise<void> => {
         // create a mutable copy and remove `ids` when using related routes
         const queryParams: Partial<GetManyParams> & GetListParams = {
           ...params,
@@ -412,16 +457,18 @@ const dataProvider = ({
           operationId, 
           [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)]
         )
-        
+
         const result = await handleListRequest(httpClient.client, conf, total, systemTime)
         gathered.push(...result.data)
-        hasNextPage = result.pageInfo?.hasNextPage ?? false
-        page += 1
+        if (result.pageInfo?.hasNextPage ?? false) {
+          await gatherPage(page + 1)
+        }
       }
+      await gatherPage(1)
       
-      return  {
-        data: gathered.filter(record => params.ids.includes(record.id))
-      }
+      return {
+        data: gathered.filter(record => params.ids.includes(record.id)),
+      } as GetManyResult
     },
 
     getManyReference: async (resource: string, params: GetManyReferenceParams) => {
@@ -449,18 +496,36 @@ const dataProvider = ({
       return await handleListRequest(httpClient.client, conf, total, systemTime)
     },
 
-    create: async (resource: string, params: CreateParams): Promise<CreateResult> => {
-      const operationId = `create_${resource}`
+    create: async (resource: string, params: CreateJsonApiParams): Promise<CreateResult> => {
+      const relatedResource = params.meta?.relatedResource
+      if (relatedResource !== undefined && relatedResource.id === undefined) {
+        // a create into a related collection without its parent would post to
+        // a malformed path - unlike a list, which can answer empty while the
+        // parent is unknown, a write has no safe degraded form
+        throw new Error(`create '${resource}' with an unresolved '${relatedResource.resource}' parent`)
+      }
+      const operationId = relatedResource === undefined
+        ? `create_${resource}`
+        : `create_related_${resource}_of_${relatedResource.resource}`
       const operation = checkOperationExists(httpClient, operationId)
 
-      const conf = httpClient.getAxiosConfigForOperation(operationId, [undefined, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
+      // the parent of a nested create travels as the path parameter
+      // drf-spectacular-jsonapi names `${Related}Id` for the collection
+      const parameters = relatedResource === undefined
+        ? undefined
+        : { [`${relatedResource.resource}Id`]: relatedResource.id }
+      const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, { data: capsulateJsonApiPrimaryData(params.data, resource, operation) }, attachHeaders(httpClient.axiosConfigDefaults)])
 
       return await httpClient.client.request(conf).then((response) => {
         const jsonApiDocument = response.data as JsonApiDocument
         const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
         return { data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) }
       }).catch(error => {
-        if (error.response.status === 400) {
+        // only an answered 400 carries the json:api errors to map; a request
+        // which never got an answer - a network error, a timeout - has no
+        // response to read and travels on as it is, like update and custom
+        // already do (#1463)
+        if (axios.isAxiosError(error) && error.status === 400) {
           handleBadRequest(error)
         }
         throw error
@@ -470,38 +535,73 @@ const dataProvider = ({
       await updateResource(resource, params, systemTime),
 
     updateMany: async (resource: string, params: UpdateManyParams) => {
-      // Hacky many update via for loop. JSON:API does not support many update in a single transaction.
+      // JSON:API does not support many update in a single transaction, so the
+      // updates run one after the other and stop at the first failure; the
+      // chained promises keep that order without awaiting in a loop
       const results: Identifier[] = []
 
-      for (const id of params.ids) {
-        await updateResource(
-          resource,
-          {
-            id,
-            data: params.data,
-            previousData: {}
-          },
-          systemTime
-        ).then((data) => {
-          results.push(data.data.id)
-        })
-      }
+      await params.ids.reduce(
+        (chain, id) => chain.then(async () => {
+          const updated = await updateResource(
+            resource,
+            {
+              id,
+              data: params.data,
+              previousData: {}
+            },
+            systemTime
+          )
+          results.push(updated.data.id)
+        }),
+        Promise.resolve()
+      )
 
-      return await Promise.resolve({ data: results })
+      return { data: results }
     },
 
     delete: async (resource: string, params: DeleteParams) =>
       await deleteResource(resource, params),
     deleteMany: async (resource: string, params: DeleteManyParams) => {
+      // the deletes run one after the other and stop at the first failure, like
+      // the updates; the chained promises keep that order without a loop
       const results: Identifier[] = []
-      for (const id of params.ids) {
-        await deleteResource(
-          resource, { id }
-        ).then((data) => {
-          results.push(data.data.id)
-        })
-      }
-      return await Promise.resolve({ data: results })
+
+      await params.ids.reduce(
+        (chain, id) => chain.then(async () => {
+          const deleted = await deleteResource(resource, { id })
+          results.push(deleted.data.id)
+        }),
+        Promise.resolve()
+      )
+
+      return { data: results }
+    },
+
+    // react-admin's escape hatch for POSTs which are not CRUD: `path` is the
+    // OpenAPI operation id of the call, so a non-CRUD endpoint such as the
+    // schedule draft preview (#1327) still goes through the schema instead
+    // of a hand-rolled fetch. `options.body` is the json:api document the
+    // caller built; the answer arrives as the encapsulated primary resource.
+    custom: async <T = unknown>(path: string, options: CustomCallOptions = {}): Promise<CustomResult<T>> => {
+      checkOperationExists(httpClient, path)
+
+      const conf = httpClient.getAxiosConfigForOperation(path, [undefined, options.body === undefined ? undefined : { data: options.body }, attachHeaders(httpClient.axiosConfigDefaults)])
+
+      return await httpClient.client.request(conf).then((response: AxiosResponse) => {
+        const jsonApiDocument = response.data as JsonApiDocument
+        const jsonApiResource = jsonApiDocument.data as JsonApiPrimaryData
+        return {
+          data: encapsulateJsonApiPrimaryData(jsonApiDocument, jsonApiResource) as unknown as T,
+          meta: {
+            systemTime: getSystemTime(jsonApiDocument, systemTime)
+          }
+        }
+      }).catch(error => {
+        if (axios.isAxiosError(error) && error.status === 400) {
+          handleBadRequest(error)
+        }
+        throw error
+      })
     },
 
     // async realtime features
@@ -545,7 +645,7 @@ const dataProvider = ({
     attachRealtimeOnMessage: async (realtimeBus: WebSocket | undefined) => {
       realtimeSocket = realtimeBus
       if (!realtimeBus) {
-        return await Promise.reject()
+        throw new Error('no realtime socket to attach the message handler to')
       }
       realtimeBus.onmessage = realtimeOnMessage
       // the server does not know the topics of a former or still connecting
@@ -561,7 +661,9 @@ const dataProvider = ({
         total: 0
       }
       
-      for (const target of targets) {
+      // the searches are read-only, so the targets are asked at once; the map
+      // keeps the order of the targets within the results
+      const found = await Promise.all(targets.map(async (target) => {
         const operationId = `list_${target}` 
 
         checkOperationExists(httpClient, operationId)
@@ -569,24 +671,23 @@ const dataProvider = ({
         const parameters = buildQueryParams({filter: {search: query}})
         const conf = httpClient.getAxiosConfigForOperation(operationId, [parameters, undefined, attachHeaders(httpClient.axiosConfigDefaults)])
         
-        await handleListRequest(httpClient.client, conf, total, systemTime).then((data) => {
-          searchResults.data.push(...data.data.map(record => ({
-            id: `${target}-${record.id}`,
-            type: target,
-            url: `/${target}/${record.id}`,
-            content: {
-              id: record.id,
-              label: record.stringRepresentation,
-              description: ''
-            }
+        const data = await handleListRequest(httpClient.client, conf, total, systemTime)
+        return data.data.map(record => ({
+          id: `${target}-${record.id}`,
+          type: target,
+          url: `/${target}/${record.id}`,
+          content: {
+            id: record.id,
+            label: record.stringRepresentation,
+            description: ''
           }
-          )))
-        })
-      }
+        }))
+      }))
 
+      searchResults.data = found.flat()
       searchResults.total = searchResults.data.length
 
-      return await Promise.resolve(searchResults)
+      return searchResults
     }
   }
 }

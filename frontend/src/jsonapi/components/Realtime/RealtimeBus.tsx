@@ -1,9 +1,8 @@
-import { Fragment, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuthState, useDataProvider } from "react-admin";
 import useWebSocket, { ReadyState } from "react-use-websocket";
 
 import { useHttpClientContext } from "../../../context/HttpClientContext";
-import { getAuthToken } from "../../../providers/authProvider";
 
 
 const { VITE_API_SCHEMA, VITE_API_BASE_URL, VITE_API_PORT } = import.meta.env;
@@ -14,14 +13,15 @@ const RealtimeBus = () => {
   const dataProvider = useDataProvider();
   const  {setRealtimeIsReady} = useHttpClientContext();
 
+  // No credential in this URL (#835): the WebSocket handshake is same-origin,
+  // so the browser attaches the session cookie and
+  // `channels.auth.AuthMiddlewareStack` resolves the user from it. A token in
+  // the query string would have put the live credential into access logs, the
+  // browser history and every referer the page hands on - the path the backend
+  // still accepts for old clients only, and deprecates in `notify/auth.py`.
   const websocketUrl = useMemo(()=>{
-      if (authenticated){
-        const storedAuthToken = getAuthToken();
-        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}:${VITE_API_PORT}/ws/default/?token=${storedAuthToken?.token}`
-      } else {
-        return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}:${VITE_API_PORT}/ws/default/`
-      }
-    },[authenticated])
+      return `${VITE_API_SCHEMA === "https" ? "wss": "ws"}://${VITE_API_BASE_URL}:${VITE_API_PORT}/ws/default/`
+    },[])
 
   const { readyState, getWebSocket } = useWebSocket(
       websocketUrl,
@@ -40,11 +40,9 @@ const RealtimeBus = () => {
       dataProvider.attachRealtimeOnMessage(websocket)
     }
     setRealtimeIsReady(readyState)
-  },[readyState])
+  },[readyState, dataProvider, getWebSocket, setRealtimeIsReady])
 
-  return (
-    <Fragment></Fragment>
-  )
+  return null
 };
 
 export default RealtimeBus;

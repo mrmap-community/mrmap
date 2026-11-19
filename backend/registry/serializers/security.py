@@ -36,7 +36,13 @@ class WebMapServiceAuthenticationSerializer(SystemInfoSerializerMixin, ModelSeri
 
     class Meta:
         model = WebMapServiceAuthentication
-        fields = '__all__'
+        # `key_file` points at the stored Fernet key which decrypts the
+        # credentials, and a write answers the stored ciphertext of `password`
+        # — neither is an answer to give, both belong to the write side only
+        # (#1446). `exclude` instead of `fields = '__all__'`: DRF refuses the
+        # two together.
+        exclude = ('key_file',)
+        extra_kwargs = {'password': {'write_only': True}}
 
 
 class WebMapServiceOperationSerializer(
@@ -60,7 +66,10 @@ class WebFeatureServiceAuthenticationSerializer(SystemInfoSerializerMixin, Model
 
     class Meta:
         model = WebFeatureServiceAuthentication
-        fields = '__all__'
+        # see WebMapServiceAuthenticationSerializer on why `password` is
+        # write-only and `key_file` is not serialized (#1446)
+        exclude = ('key_file',)
+        extra_kwargs = {'password': {'write_only': True}}
 
 
 class WebFeatureServiceOperationSerializer(
@@ -129,14 +138,14 @@ class AllowedWebMapServiceOperationSerializer(
             _secured_layers = Layer.objects.filter(
                 pk__in=secured_layer_pks).prefetch_related(prefetch_children)
 
-            secured_layers_pk = set(
-                [secured_layer.pk for secured_layer in _secured_layers])
+            secured_layers_pk = {
+                secured_layer.pk for secured_layer in _secured_layers}
             for secured_layer in _secured_layers:
                 if secured_layer.service_id != secured_service.pk:
                     raise ValidationError(
                         {"secured_layers": "Missmatching layer for selected service."})
-                descendant_pks = set(
-                    [descendant.pk for descendant in secured_layer.descendant_pks])
+                descendant_pks = {
+                    descendant.pk for descendant in secured_layer.descendant_pks}
                 if not descendant_pks.issubset(secured_layers_pk):
                     raise ValidationError(
                         {"secured_layers": "Incomplete subtree selection is not allowed."})
@@ -191,10 +200,9 @@ class WebFeatureServiceProxySettingSerializer(
         CheckConstraintSerializerMixin,
         ModelSerializer):
     url = HyperlinkedIdentityField(
-        view_name='registry:webmapserviceproxysetting-detail',
+        view_name='registry:webfeatureserviceproxysetting-detail',
     )
 
     class Meta:
         model = WebFeatureServiceProxySetting
-        fields = '__all__'
         fields = '__all__'

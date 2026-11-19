@@ -95,7 +95,9 @@ describe("stopping a harvesting run from its row", () => {
     expect(state.notify).toHaveBeenCalledWith("harvestRun.list.stopAsked", {
       type: "info",
     });
-    expect(state.refresh).toHaveBeenCalledOnce();
+        // the mutation invalidates the queries of its own resource itself - a
+    // global refresh of every query is not wanted (#1464)
+    expect(state.refresh).not.toHaveBeenCalled();
   });
 
   it("tells a stop the api refused", async () => {

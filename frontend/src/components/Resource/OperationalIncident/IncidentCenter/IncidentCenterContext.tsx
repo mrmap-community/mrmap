@@ -68,9 +68,10 @@ export const useIncidentCenter = (): IncidentCenterContextValue => {
  * INCIDENT_POLL_MILLISECONDS and react-query owns its lifecycle - unmounting
  * stops it, which is the cleanup #1321 asks for - while a message on the
  * resource-wide topic shortens the distance to zero for that one moment.
- * Until #1319 merged, every read ends in an error; the consumers treat that
- * as silence, so the app bar gains an invisible no-op instead of a broken
- * widget.
+ * The publishers of #1320 do not announce on that topic yet, so the poll is
+ * the whole route until they do. A failing read stays silence to the
+ * consumers either way: a transient error must not become a hint the
+ * permitted data does not back.
  *
  * Deliberately absent: any `useNotify`. An incident announces itself through
  * this center; a snackbar per incident is the flooding #1321 forbids, and
@@ -103,19 +104,25 @@ export const IncidentCenterProvider = ({
     { refetchInterval: INCIDENT_POLL_MILLISECONDS, retry: false },
   );
 
+  // react-query rebuilds its result wrapper every render, so the effect below
+  // names the refetch functions instead of calling through the wrapper - the
+  // same reading the Job Center store applies
+  const { refetch: refetchActive } = active;
+  const { refetch: refetchResolved } = resolved;
+
   // the optional push (#1321): the bus only says that something moved, the
   // windows are rebuilt by the api - the same recovery the Job Center
   // practices, with the poll as the floor when nothing pushes
   useEffect(() => {
     const refresh = () => {
-      void active.refetch();
-      void resolved.refetch();
+      void refetchActive();
+      void refetchResolved();
     };
     void dataProvider.subscribe(INCIDENT_REALTIME_TOPIC, refresh);
     return () => {
       void dataProvider.unsubscribe(INCIDENT_REALTIME_TOPIC, refresh);
     };
-  }, [dataProvider, active.refetch, resolved.refetch]);
+  }, [dataProvider, refetchActive, refetchResolved]);
 
   const value = useMemo<IncidentCenterContextValue>(
     () => ({ active, resolved, open, setOpen }),

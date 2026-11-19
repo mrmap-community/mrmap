@@ -34,10 +34,10 @@
 #     blocks compose idempotently. Service names, hostnames, volumes and
 #     networks stay per project as always: the isolation is for state, the
 #     prebuilt tag is shared work.
-#     Pins not covered here (frontend 8000, flower 5655, inspire-validator
-#     5557, victoria-logs 5514, pgadmin, grafana, the frontend-tests container
-#     name) only matter when a check brings those services up; extend a
-#     job-local override for them, as AGENTS.md describes.
+#     Pins not covered here (frontend 8000, flower 5655, victoria-logs 5514,
+#     pgadmin, grafana, the frontend-tests container name) only matter when a
+#     check brings those services up; extend a job-local override for them, as
+#     AGENTS.md describes.
 #
 # Fingerprint
 #   <fp> = first 12 hex of sha256 over the canonical manifest of the dependency

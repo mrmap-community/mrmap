@@ -1,17 +1,18 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   BasenameContextProvider,
   type RaRecord,
   DateField,
   ShowButton,
   useRecordContext,
-  useRefresh,
   useResourceContext,
   useResourceDefinitions,
   useTranslate,
 } from "react-admin";
 
 import { Alert, Stack, Typography } from "@mui/material";
+
+import ContextualIncidents from "../../OperationalIncident/Context/ContextualIncidents";
 
 /** the interval the attention of a service is asked for again, in milliseconds */
 export const ATTENTION_REFETCH_INTERVAL = 60000;
@@ -157,32 +158,27 @@ const ServiceAlertRecord = ({
  * annotations of the services and not by a resource of their own, which means
  * that this tab reads the record of the service it is shown for. An alert
  * disappears as soon as the state behind it is fixed, and nothing is pushed
- * about a state which no row stores - so this tab asks for the service again
- * from time to time.
+ * about a state which no row stores - the show screen of the service re-reads
+ * its record from time to time (`ATTENTION_REFETCH_INTERVAL`), which is what
+ * refreshes the alerts shown here.
  */
 export const ServiceAttentionTab = (): ReactNode => {
   const record = useRecordContext();
   const service = useResourceContext();
   const translate = useTranslate();
-  const refresh = useRefresh();
-
-  useEffect(() => {
-    const interval = setInterval(refresh, ATTENTION_REFETCH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [refresh]);
 
   const alerts = SERVICE_ALERTS.filter((alert) =>
     Boolean((record as RaRecord | undefined)?.[alert.flag]),
   );
 
-  if (alerts.length === 0) {
-    return (
+  // the operational incidents about this service are shown above the states
+  // the service itself flags: the two are different authorities (#1322) - the
+  // alerts below stay authoritative, the banner adds the incident api's view
+  const attention =
+    alerts.length === 0 ? (
       <Alert severity="success">{translate("serviceAttention.none")}</Alert>
-    );
-  }
-
-  return (
-    <Stack spacing={1.5}>
+    ) : (
+      <Stack spacing={1.5}>
       {alerts.map((alert) => {
         // a date is only shown with the state it belongs to, and only when the
         // service answered the point in time of that state - and it is named by
@@ -213,6 +209,13 @@ export const ServiceAttentionTab = (): ReactNode => {
           </Alert>
         );
       })}
+      </Stack>
+    );
+
+  return (
+    <Stack spacing={2}>
+      <ContextualIncidents />
+      {attention}
     </Stack>
   );
 };

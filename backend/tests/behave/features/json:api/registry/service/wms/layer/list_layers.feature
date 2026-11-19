@@ -97,7 +97,10 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "WebMapService"
-        Then I expect that "23" queries where made
+        # 23 before #738: every included service answered is_accessible and paid
+        # its permission lookups even though no reader asked; the one hint is now
+        # opt-in on a list and an unasked list resolves no permissions at all
+        Then I expect that "18" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"

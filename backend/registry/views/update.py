@@ -26,11 +26,12 @@ from registry.serializers.update import (
     WebFeatureServiceUpdateSettingSerializer, WebMapServiceUpdateJobSerializer,
     WebMapServiceUpdateSettingSerializer)
 from rest_framework.response import Response
+from registry.views.schedule_warnings import ScheduleWarningsViewsetMixin
 from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import get_history_manager_for_model
 
 
-class WebMapServiceUpdateSettingViewSetMixing:
+class WebMapServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = WebMapServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebMapServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -39,13 +40,13 @@ class WebMapServiceUpdateSettingViewSetMixing:
 
 
 class WebMapServiceUpdateSettingViewSet(
-        WebMapServiceUpdateSettingViewSetMixing,
+        WebMapServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `WebMapServiceUpdateSetting`"""
 
 
 class NestedWebMapServiceUpdateSettingViewSet(
-        WebMapServiceUpdateSettingViewSetMixing,
+        WebMapServiceUpdateSettingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `WebMapServiceUpdateSetting` """
 
@@ -248,7 +249,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
                 "deleted_layers": totals.get("deleted_layers") or 0,
             }
 
-    def list(self, request, *args, **kwargs):
+    def list(self, _request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -260,7 +261,7 @@ class WebMapServiceUpdateJobViewSetMixin(PreloadNotIncludesMixin):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, _request, *args, **kwargs):
         instance = self.get_object()
         self._prefill_layer_change_aggregates([instance])
         serializer = self.get_serializer(instance)
@@ -289,7 +290,10 @@ class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
     select_for_includes = {
         "job": ["job"],
     }
-    http_method_names = ["get", "patch"]  # disable PUT
+    # PUT is refused; HEAD and OPTIONS are the verbs of the request itself -
+    # HEAD answers the headers of the GET (drf delegates it in setup) and
+    # OPTIONS answers the Allow header the api declares (#1479)
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class LayerMappingViewSet(
@@ -304,7 +308,7 @@ class NestedLayerMappingViewSet(
     """ Nested list endpoint for resource `LayerMapping` """
 
 
-class WebFeatureServiceUpdateSettingViewSetMixing:
+class WebFeatureServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = WebFeatureServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebFeatureServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -313,13 +317,13 @@ class WebFeatureServiceUpdateSettingViewSetMixing:
 
 
 class WebFeatureServiceUpdateSettingViewSet(
-        WebFeatureServiceUpdateSettingViewSetMixing,
+        WebFeatureServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `WebFeatureServiceUpdateSetting`"""
 
 
 class NestedWebFeatureServiceUpdateSettingViewSet(
-        WebFeatureServiceUpdateSettingViewSetMixing,
+        WebFeatureServiceUpdateSettingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `WebFeatureServiceUpdateSetting` """
 
@@ -379,7 +383,10 @@ class FeatureTypeMappingViewSetMixin(PreloadNotIncludesMixin):
     select_for_includes = {
         "job": ["job"],
     }
-    http_method_names = ["get", "patch"]  # disable PUT
+    # PUT is refused; HEAD and OPTIONS are the verbs of the request itself -
+    # HEAD answers the headers of the GET (drf delegates it in setup) and
+    # OPTIONS answers the Allow header the api declares (#1479)
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class FeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, ModelViewSet):
@@ -390,7 +397,7 @@ class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedMode
     """Nested list endpoint for resource `FeatureTypeMapping`"""
 
 
-class CatalogueServiceUpdateSettingViewSetMixing:
+class CatalogueServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = CatalogueServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = CatalogueServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -399,7 +406,7 @@ class CatalogueServiceUpdateSettingViewSetMixing:
 
 
 class CatalogueServiceUpdateSettingViewSet(
-        CatalogueServiceUpdateSettingViewSetMixing,
+        CatalogueServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `CatalogueServiceUpdateSetting`"""
 

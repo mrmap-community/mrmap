@@ -12,6 +12,7 @@ import os
 import re
 import socket
 import sys
+from datetime import timedelta
 from glob import glob
 from warnings import warn
 
@@ -57,7 +58,10 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ################################################################
 # Logger settings
 ################################################################
-ROOT_LOGGER: logging.Logger = logging.getLogger("MrMap.root")
+
+ROOT_LOGGER_NAME = "MrMap.root"
+
+ROOT_LOGGER: logging.Logger = logging.getLogger(ROOT_LOGGER_NAME)
 
 
 MEDIA_URL = "/media/"
@@ -162,9 +166,12 @@ TEMPLATES = [
 # -------------------------------
 # Debug Toolbar nur aktiv, wenn DEBUG und nicht beim Testen
 # -------------------------------
+
+DEBUG_TOOLBAR_MIDDLEWARE = "debug_toolbar.middleware.DebugToolbarMiddleware"
+
 if DEBUG and not TESTING:
     INSTALLED_APPS.append("debug_toolbar")
-    MIDDLEWARE.append("debug_toolbar.middleware.DebugToolbarMiddleware")
+    MIDDLEWARE.append(DEBUG_TOOLBAR_MIDDLEWARE)
 
     DEBUG_TOOLBAR_CONFIG = {
         # Alle Panels standardmäßig deaktivieren
@@ -194,8 +201,8 @@ else:
     # Wenn DEBUG=0 oder Tests laufen, Toolbar komplett deaktivieren
     if "debug_toolbar" in INSTALLED_APPS:
         INSTALLED_APPS.remove("debug_toolbar")
-    if "debug_toolbar.middleware.DebugToolbarMiddleware" in MIDDLEWARE:
-        MIDDLEWARE.remove("debug_toolbar.middleware.DebugToolbarMiddleware")
+    if DEBUG_TOOLBAR_MIDDLEWARE in MIDDLEWARE:
+        MIDDLEWARE.remove(DEBUG_TOOLBAR_MIDDLEWARE)
 
 # Password hashes
 PASSWORD_HASHERS = [
@@ -213,9 +220,6 @@ METADATA_URL = [
     "request=GetMetadata&",
 ]
 
-BASE_URL_FOR_ETF = os.environ.get(
-    "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
-)
 # Host allow-list for Django's host validation (#949). Three sources are
 # merged, every one of them optional and ";" and/or "," separated:
 #  * DJANGO_ALLOWED_HOSTS: the deployer knob documented in
@@ -223,10 +227,10 @@ BASE_URL_FOR_ETF = os.environ.get(
 #    through to backend, celery-worker and celery-beat.
 #  * DJANGO_ALLOWED_HOST_DEFAULTS: replaces the internal preset, which keeps
 #    the callers that reach the backend without a browser Host working: the
-#    ETF validator answers to MRMAP_BASE_URL_FOR_ETF (mrmap-appserver:8001),
-#    the dev stack publishes 8001 on localhost, deployments reached over the
-#    docker bridge still answer to 172.17.0.1, and Django's test client
-#    sends "testserver".
+#    deployment's own service address (mrmap-appserver is the name older
+#    deployments gave the app server), the dev stack publishing the backend
+#    on localhost, deployments reached over the docker bridge still answer
+#    to 172.17.0.1, and Django's test client sends "testserver".
 #  * EXTERNAL_BASE_URL: the name the deployment is served under stays
 #    auto-allowed; it may be written as a host, a host:port or a full URL
 #    and contributes its bare hostname.
@@ -270,12 +274,18 @@ ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in list(ALLOWED_HOSTS)])
+        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS]
+        + ([] if MRMAP_PRODUCTION else ["http://localhost:5173", "http://127.0.0.1:5173"]))
 ).split(";")
 
+# The Vite development frontend authenticates with the backend's session cookie.
+# Keep credentialed development requests restricted to the local frontend origins.
+CORS_ALLOW_CREDENTIALS = not MRMAP_PRODUCTION
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get(
         "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+elif not MRMAP_PRODUCTION:
+    CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 else:
     warn("all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
     CORS_ALLOW_ALL_ORIGINS = True
@@ -321,6 +331,30 @@ AUTHENTICATION_BACKENDS = (
 )
 
 GUARDIAN_RAISE_403 = True
+
+#: The models whose list endpoints answer permission-filtered (#739), as
+#: ``"<app_label>.<ModelName>"`` names - the same spelling as
+#: ``accounts.settings.ROLE_MANAGED_MODELS``. An entry makes every list,
+#: detail and search over that resource answer exactly the rows which
+#: ``extras.permissions.objects_for_user`` passes: an anonymous visitor
+#: lists only the resources with an explicit grant to the anonymous viewer
+#: role group, a member lists within their roles - in SQL, before the page
+#: and its count are decided. Empty is today's behaviour kept: the list
+#: answers everything and only the detail endpoint decides.
+#:
+#: The rollout is deliberately per model and opt-in (decision Q5=B of #727):
+#: a deployment enables a resource only after it has inventoried which of
+#: its resources were publicly listed under the unfiltered list and has run
+#: the audited legacy-grant migration of #740, because enabling narrows
+#: what anonymous visitors and foreign members see and that transition has
+#: to be reviewed, never an upgrade side effect. Enabling an entry whose
+#: model is not equipped is refused by the system check of
+#: ``accounts/checks.py``; the reading is in
+#: ``docs/source/administration/permissions.md``.
+PERMISSION_FILTERED_LIST_MODELS = [
+    name.strip() for name in
+    os.getenv("MRMAP_PERMISSION_FILTERED_LIST_MODELS", "").split(",")
+    if name.strip()]
 
 ################################################################
 # Database settings
@@ -437,20 +471,50 @@ CELERY_RESULT_EXTENDED = True
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
-CELERY_DEFAULT_COUNTDOWN = 5  # custom setting
 CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
 CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
 CELERY_MAX_TASKS_PER_CHILD = 1000
 # default is only 50000; is not enough for harvesting jobs for example
 CELERY_WORKER_REVOKES_MAX = 2000000
+# One un-acked message per slot at any time (#1454). The long work of this
+# fleet runs with acks_late (HarvestingTask of registry/tasks/harvest.py,
+# the WMS update job of registry/tasks/update.py): its message stays
+# un-acked while the task works, and celery's default prefetch of four per
+# slot lets a worker reserve three further messages beside the one it runs.
+# On every roll or restart those reserved, never-started messages are
+# requeued and their side effects run again from the start - for the
+# harvesting, registration and update tasks that is a second download and
+# import of work nobody had begun. Celery's own configuration docs
+# prescribe 1 for a worker running tasks with side effects; the broker
+# round trip it costs per message is the price of not re-executing work.
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# Global bounds of one task attempt (#1454). The longest single request the
+# deployment runs on purpose is a harvesting GetRecords, bounded by
+# HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS (900 s, registry/settings.py); the
+# soft limit at three times that ceiling leaves room for the parse and the
+# persist around a healthy request and cuts the CPU-bound parse/import and
+# mapping recursion which would otherwise pin a slot forever. On the soft
+# limit celery raises SoftTimeLimitExceeded inside the task, so the body's
+# cleanup and the failure paths of its base class still run and a bounded
+# wait like the lease wait of registry/tasks/service.py ends decided; the
+# hard limit SIGKILLs the slot a further five minutes later and the prefork
+# pool replaces it. A hard-killed attempt leaves an open row in the attempt
+# samples of #1330, which the sweep flags abandoned only after
+# CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS. Time limits belong to the prefork
+# pool, which is what the celery-worker of docker-compose.yml runs.
+CELERY_TASK_SOFT_TIME_LIMIT = 2700
+CELERY_TASK_TIME_LIMIT = 3000
 # the number of slots a celery worker process runs; docker-compose.yml hands
 # the variable of the same name from the .env of the deployment to
-# celery-worker. Unset keeps celery's own default of one slot per core;
-# "auto" lets celery size the prefork pool by the cgroup quota of the
-# container. It is the knob for a bigger worker, so that changing worker
-# concurrency never makes a deployment restate the queue list of the
-# release and thereby half-install it (#1040).
+# celery-worker. Unset, the compose file of a release now defaults the worker
+# to 4 slots (#1454): an inherited one-slot-per-host-core prefork pool
+# against the memory limit of the container was the OOM path behind stuck
+# jobs. "auto" lets celery size the prefork pool by the cgroup quota of the
+# container; a deployment which really wants celery's own default can still
+# pass an empty value with its own override. It is the knob for a bigger
+# worker, so that changing worker concurrency never makes a deployment
+# restate the queue list of the release and thereby half-install it (#1040).
 _CELERY_WORKER_CONCURRENCY = os.environ.get("CELERY_WORKER_CONCURRENCY", "").strip()
 if _CELERY_WORKER_CONCURRENCY == "auto":
     CELERY_WORKER_CONCURRENCY = "auto"
@@ -502,6 +566,81 @@ CELERY_TASK_QUEUES = (
 )
 
 ################################################################
+# Celery capacity telemetry (#1330)
+################################################################
+# The bounded attempt samples the capacity snapshots of #1326 read: every
+# worker records per attempt how long it really occupied a slot and, when the
+# message carried the publish stamp, how long it had waited in the broker.
+# The collector never blocks the task it observes: it buffers in the worker
+# process, writes in batches of at most FLUSH_THRESHOLD attempts, and goes
+# quiet for a cooldown when the database does not answer. The limits below
+# bound the buffer, the table and the retention; what they cost in honesty is
+# stated openly - dropped or abandoned attempts are missing samples, never
+# invented ones (docs/source/development/celery-capacity-telemetry.rst).
+# "off" turns the whole collection and the publish stamping off; on is the
+# default because the measurement is what #1326 needs to become truthful.
+CAPACITY_TELEMETRY_ENABLED = os.environ.get(
+    "MRMAP_CAPACITY_TELEMETRY", "").strip().lower() not in (
+    "off", "0", "false")
+# tests which drive the celery signals by hand set this to record outside of
+# real worker processes; a deployment must leave it False
+CAPACITY_TELEMETRY_COLLECT_ANY_PROCESS = False
+# attempts a worker process keeps before its buffer starts dropping open
+# observations under overload (drops are counted and logged, #1330)
+CAPACITY_TELEMETRY_BUFFER_LIMIT = 1000
+# buffered attempts that trigger a batched write, and the maximum age of a
+# buffered attempt before the next signal flushes - one INSERT per batch
+CAPACITY_TELEMETRY_FLUSH_THRESHOLD = 100
+CAPACITY_TELEMETRY_FLUSH_SECONDS = 30
+# how long a failed flush silences the collector instead of retrying per task
+CAPACITY_TELEMETRY_RETRY_COOLDOWN_SECONDS = 60
+# the sweep of system.tasks keeps the table bounded by these two bounds; the
+# grace must stay above the longest task this deployment runs on purpose,
+# because an attempt without an end within the grace is declared abandoned
+CAPACITY_TELEMETRY_RETENTION_DAYS = 14
+CAPACITY_TELEMETRY_MAX_ATTEMPTS = 200_000
+CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
+# the broker round trip of the topology inspect and how long its answer is
+# shared, so a snapshot request never pays for a broadcast
+CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
+CAPACITY_TOPOLOGY_TIMEOUT_SECONDS = 1.0
+# the capacity snapshot of #1326 is a materialized answer, not a per-request
+# scan: it is built at most once per interval and served from the cache until
+# its TTL expires or the schedules it counted have demonstrably changed
+# (schedule fingerprint below). The walk budgets are the worst case of one
+# build; a deployment that outruns them gets a labeled lower bound, never a
+# silently truncated number.
+CAPACITY_SNAPSHOT_TTL_SECONDS = 900
+CAPACITY_SNAPSHOT_HORIZON_DAYS = 7
+CAPACITY_SNAPSHOT_MAX_HORIZON_DAYS = 31
+# the shared verdict of "a build is running" and the shortest distance two
+# builds may have, so a busy fleet of readers cannot stack refreshes
+CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS = 300
+CAPACITY_SNAPSHOT_MIN_REBUILD_SECONDS = 60
+# how often the schedule fingerprint may be re-read: one bounded aggregate
+# statement per this interval, shared by every reader of the endpoint
+CAPACITY_FINGERPRINT_CACHE_SECONDS = 30
+# the horizon histogram: bucket width and the resulting bucket cap
+# (horizon 7 d at 3600 s = 168 buckets; the cap bounds 31 d horizons)
+CAPACITY_SNAPSHOT_BUCKET_SECONDS = 3600
+CAPACITY_SNAPSHOT_MAX_BUCKETS = 744
+# walk budgets of one build; over them the walk stops and the affected
+# schedules are reported as truncated, keeping the build cost bounded
+CAPACITY_SNAPSHOT_MAX_SCHEDULES = 100_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES = 2_000_000
+CAPACITY_SNAPSHOT_MAX_OCCURRENCES_PER_SETTING = 20_000
+# the window the per-occurrence costs are measured from, and how few terminal
+# samples a name may answer a mean cost from; fewer answer no cost, which
+# keeps the demand a labeled lower bound instead of a guess
+CAPACITY_COST_LOOKBACK_DAYS = 7
+CAPACITY_COST_MIN_SAMPLES = 3
+# the groups one grouped cost query may return before it reports truncation
+CAPACITY_COST_GROUP_LIMIT = 5_000
+# a purely advisory line a deployment may draw under rho to ask for attention
+# - a tunable threshold, not a statement that capacity above it is safe
+CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
+
+################################################################
 # django channels settings
 ################################################################
 CHANNEL_LAYERS = {
@@ -522,7 +661,7 @@ CHANNEL_LAYERS = {
 # Session settings and password validation
 # https://docs.djangoproject.com/en/2.1/ref/settings/#auth-password-validators
 MIN_PASSWORD_LENGTH = 9
-MIN_USERNAME_LENGTH = 5  # ToDo: For production use another, more appropriate length!
+MIN_USERNAME_LENGTH = 5  # FUTURE: For production use another, more appropriate length!
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -565,6 +704,58 @@ SESSION_COOKIE_AGE = 30 * 60
 
 # Whether the session age will be refreshed on every request or only if data has been modified
 SESSION_SAVE_EVERY_REQUEST = True
+
+# Cookie policy of the browser session (#835, accepted decision Q8=B). The SPA
+# authenticates with the session cookie ``api/auth/session`` opens; it is
+# deliberately not readable by JavaScript (``HttpOnly``), so an injected script
+# cannot copy it the way it could copy the knox token out of ``localStorage``.
+# ``SameSite=Lax`` is enough here and is what the same-origin topology allows:
+# nginx serves the SPA and proxies ``/api``, ``/csw`` and ``/ws`` on the very
+# host and port the SPA is loaded from (``docker/nginx/mrmap.conf``), so every
+# request which has to carry the credential is a same-site one anyway. A
+# cross-site subresource which Lax blocks is therefore not a request which
+# needs the session.
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+# The CSRF cookie is the one cookie the browser *must* hand to JavaScript: the
+# SPA reads it and repeats its value in the ``X-CSRFToken`` header of every
+# state-changing request, which is what DRF's ``SessionAuthentication`` demands
+# for a request it authenticates through the session (see the contract in
+# docs/source/administration/authentication.md). That value grants nothing on
+# its own - without the session cookie it identifies no caller - so ``HttpOnly``
+# stays off for it on purpose, and ``SameSite=Lax`` matches the session cookie.
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Both cookies are only sent (and only stored) over TLS when the deployment is
+# served over HTTPS. The default follows ``MRMAP_PRODUCTION`` because that is
+# the deployment this repository ships behind nginx and TLS
+# (``SECURE_PROXY_SSL_HEADER`` above reads the proxy's protocol); an http-only
+# deployment must set ``DJANGO_COOKIE_SECURE=False``, or the browser refuses to
+# store the session and no login ever sticks. Conversely an omitted flag would
+# let the session cross the wire in clear text on a https deployment, which is
+# why this is not left to the framework default of ``False``. Both cookies move
+# together on purpose: a session stored over http without its CSRF partner, or
+# the other way round, is not a working arrangement.
+
+
+def _cookie_secure_from_env(environ, production: bool) -> bool:
+    """Whether the session and CSRF cookies are TLS-only for one environment.
+
+    The explicit ``DJANGO_COOKIE_SECURE`` wins over the deployment-mode default,
+    so an http-only deployment can opt out and a https staging deployment which
+    is not flagged as production can opt in.
+    """
+    override = environ.get("DJANGO_COOKIE_SECURE")
+    if override is not None:
+        return override == "True"
+    return production
+
+
+COOKIE_SECURE = _cookie_secure_from_env(os.environ, MRMAP_PRODUCTION)
+SESSION_COOKIE_SECURE = COOKIE_SECURE
+CSRF_COOKIE_SECURE = COOKIE_SECURE
 
 ################################################################
 # DJANGO DEBUG TOOLBAR
@@ -676,7 +867,7 @@ LOGGING = {
         },
     },
     "loggers": {
-        "MrMap.root": {
+        ROOT_LOGGER_NAME: {
             "handlers": ["console"],
             "level": "DEBUG" if DEBUG else "INFO",
             "disabled": False,
@@ -712,7 +903,7 @@ try:
             "address": (SYSLOG_HOST, SYSLOG_PORT),
         },
     })
-    LOGGING["loggers"]["MrMap.root"]["handlers"].append("syslog")
+    LOGGING["loggers"][ROOT_LOGGER_NAME]["handlers"].append("syslog")
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
     print("syslog logging handler configured.")
@@ -762,6 +953,16 @@ MONITORING_PROBE_RESPONSE_RETENTION_DAYS = int(
 # touched. 0 keeps every process until an operator removes it
 BACKGROUND_PROCESS_RETENTION_DAYS = int(
     os.getenv("MRMAP_BACKGROUND_PROCESS_RETENTION_DAYS", "90"))
+
+# how many days a resolved operational incident stays inspectable; the sweep
+# which notify/tasks.py names deletes the incidents which were resolved
+# before this many days (#1319). The incidents which still stand are never
+# touched - an active incident is the open problem itself - and the
+# authoritative history of the reported operation is the job history of
+# #1208 with its own retention. 0 keeps every resolved incident until an
+# operator removes it
+OPERATIONAL_INCIDENT_RETENTION_DAYS = int(
+    os.getenv("MRMAP_OPERATIONAL_INCIDENT_RETENTION_DAYS", "90"))
 
 # how many stored metadata files a single import task takes. The fan-out which
 # writes harvested records to the database is one task per chunk instead of one per
@@ -831,19 +1032,31 @@ HARVEST_TEMP_FILE_CLEANUP_RETENTION_DAYS = int(
 HARVEST_TEMP_FILE_RETENTION_DAYS = int(
     os.getenv("MRMAP_HARVEST_TEMP_FILE_RETENTION_DAYS", "0"))
 
-# The activation gate of the metadata editor's record writes (#1241).
-# The create/update endpoints of the metadata records answer the default
-# json:api CRUD contract, but until the XML write-back (#1242), the profile
-# validation rules (#1243) and the atomic publishing/harvest overwrite gate
-# (#1244) are integrated, a committed model field would leave the ISO
-# document served by the CSW stale or invalid behind it. The readiness
-# clarification of #1241 (2026-11-12) therefore makes POST/PUT/PATCH on the
-# record resources answer 403 while this gate is off; DELETE stays at its
-# today behaviour. Only the final gate of #1244 - round-trip and rejection
-# tests green - may flip this default to True for public editing; an operator
-# who enables it before that accepts inconsistent CSW documents deliberately.
+# How many hours an unfinished service-update job may stand undriven before the
+# sweep of ``registry/tasks/update.py`` fails it (#1460). The guards of #1453
+# redeliver a lost message, but a delivery which is gone for good - a broker
+# recreated with the database kept, a purge, a discard - or a run whose retries
+# died without the job deciding leaves it unfinished, and the constraint of one
+# unfinished job per service then blocks every later update of that service.
+# The sweep only fails unfinished jobs aged beyond this horizon; no legitimate
+# update run takes so long, which is what makes the horizon the line that
+# protects a job which still works. It fires hourly (see registry/apps.py).
+# A horizon below one hour is raised to one: a busy queue is #1320's verdict,
+# not this sweep's work
+UPDATE_JOB_STALE_HORIZON_HOURS = int(
+    os.getenv("MRMAP_UPDATE_JOB_STALE_HORIZON_HOURS", "24"))
+
+# The activation gate of the metadata editor's record writes (#1241, opened
+# by #1244). The create/update endpoints of the metadata records answer the
+# default json:api CRUD contract; a committed write regenerates the ISO
+# document served by the CSW through the publish seam of
+# registry.mappers.publish, inside the same transaction as the fields
+# (atomic publishing, decision 1 of the #1238 review). The round-trip and
+# rejection tests of #1244's readiness clarification are what allowed this
+# default to flip to True; an operator who sets it to False deliberately
+# answers the record writes with 403 and keeps the editor read-only.
 MRMAP_METADATA_EDITOR_WRITES_ENABLED = os.environ.get(
-    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "False") == "True"
+    "MRMAP_METADATA_EDITOR_WRITES_ENABLED", "True") == "True"
 
 
 SIMPLE_HISTORY_HISTORY_ID_USE_UUID = True
@@ -873,15 +1086,75 @@ def default_renderer_classes(production: bool):
     return renderers
 
 
+# Machine / API token lifetime (#835, accepted decision Q8=B). Since the browser
+# authenticates with the Django session ``api/auth/session`` opens, the knox
+# token this endpoint still issues is a *machine* credential only: scripts and
+# CLI clients which authenticate with HTTP Basic and keep the answer. Its
+# validity stays an explicit deployment decision instead of a package default:
+# one working day, enforced server-side on every request against the
+# ``AuthToken.expires`` row - not a client-side notion. ``AUTO_REFRESH`` stays
+# off: a rolling extension would make the lifetime unpredictable and the token
+# model has no refresh concept. Revocation is per token (#832). A dedicated
+# machine-token policy - longer or unbounded lifetime, per-purpose scopes,
+# admin-issued tokens - is the open decision documented in
+# docs/source/administration/authentication.md and is deliberately not decided
+# by this block; the browser session's own lifetime is ``SESSION_COOKIE_AGE``
+# above and shares nothing with this one.
+REST_KNOX = {
+    "TOKEN_TTL": timedelta(hours=10),
+    "AUTO_REFRESH": False,
+    # Concurrency cap, not a lifetime (#1450): knox's stock default is None —
+    # unlimited parallel tokens per user — so one credential seen by an
+    # attacker could farm tokens without bound while a refusal to *issue* one
+    # never leaks anything about the account. The login endpoint refuses with
+    # 403 once the user already holds this many not-yet-expired rows; a logout
+    # (or expiry) frees a slot, guessing at passwords cannot. Five covers the
+    # scripts and CLI clients of one user across a working day; the browser
+    # path of #835 logs in through ``api/auth/session`` and occupies no knox
+    # row (see ``docs/source/administration/authentication.md``).
+    "TOKEN_LIMIT_PER_USER": 5,
+}
+
 REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "MAX_PAGE_SIZE": 100,
     "EXCEPTION_HANDLER": "rest_framework_json_api.exceptions.exception_handler",
+    # The stack every view authenticates with unless it names its own. Basic
+    # is deliberately NOT in it (#1450): Basic carries the account password,
+    # and with this stack global, every endpoint of the API silently accepted
+    # the password in place of the credential it documents - the machine token
+    # of #835 exists exactly so that a caller does not hand out the password to
+    # each request. The two endpoints the password is documented for,
+    # ``api/auth/session`` and ``api/auth/login``, declare Basic on the view
+    # now (``accounts/views/auth.py``), and they are the only ones.
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
-        "rest_framework.authentication.BasicAuthentication",
         "knox.auth.TokenAuthentication",
     ),
+    # DRF 3.15 ships this empty, which throttles nothing: a scope only exists
+    # once a rate is named here. The one scope is the login attempt budget of
+    # #1450 - the POSTs of ``api/auth/session`` and ``api/auth/login``, the
+    # two endpoints which read a password, counted per client address before
+    # the credential is looked at (``accounts/throttling.py``).
+    # ``30/min`` is sized from what the application itself does on one address:
+    # the whole unit suite logs in about 25 times and the acceptance features
+    # about 8, spread over minutes, and a browser or a script with a 10-hour
+    # token re-logs in when a person types a password - nobody reaches 30 in a
+    # minute by hand. A credential guessing tool loses over 99% of its rate.
+    # A deployment whose machine clients all share one NAT address and log in
+    # more often than this raises the number there.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "30/min",
+    },
+    # DRF's own default is an empty list, which asks nothing of anybody: a view
+    # class naming no permission of its own answered writes to anonymous clients.
+    # This is the floor such a view falls back to -- reading stays open, a write
+    # needs an identity (#1444). Endpoints deciding access per object still name
+    # their own classes, and the security proxy names none on purpose: OGC's XML
+    # POST binding carries a GetFeature, which is a read, over HTTP POST.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
+    ],
     "DEFAULT_PAGINATION_CLASS": "drf_spectacular_jsonapi.schemas.pagination.JsonApiPageNumberPagination",
     "DEFAULT_PARSER_CLASSES": (
         "rest_framework_json_api.parsers.JSONParser",
@@ -912,10 +1185,6 @@ REST_FRAMEWORK = {
     "TEST_REQUEST_DEFAULT_FORMAT": "vnd.api+json",
 }
 
-# REST_KNOX = {
-#     'TOKEN_TTL': timedelta(hours=1),
-#     'AUTO_REFRESH': True,
-# }
 SPECTACULAR_SETTINGS = {
     'TITLE': 'MrMap json:api',
     'DESCRIPTION': 'spatial registry solution',
@@ -929,11 +1198,13 @@ SPECTACULAR_SETTINGS = {
     # endpoint documentation; see extras.schema.get_lib_doc_excludes
     "GET_LIB_DOC_EXCLUDES": "extras.schema.get_lib_doc_excludes",
     # the enum hook is spectacular's own default and must be named again
-    # once the setting is overridden; the second hook stamps the ISO 19139
-    # element paths of the writable record fields into the schema, read
-    # from the mapper configs (#1240)
+    # once the setting is overridden; the second hook moves the structured
+    # enum labels (#1487) into the enum components the first hook extracts;
+    # the last stamps the ISO 19139 element paths of the writable record
+    # fields into the schema, read from the mapper configs (#1240)
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
+        "extras.schema.inject_enum_labels",
         "registry.schema.inject_iso_paths",
     ],
 }

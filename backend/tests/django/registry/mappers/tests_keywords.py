@@ -6,6 +6,15 @@ from registry.models.metadata import Keyword
 
 
 class KeywordMappingTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        # every assertion of this class compares the WHOLE keyword table, so
+        # only this class' rows may be on it - the isolation of
+        # tests_shared_lookup_persistence and tests_history_delta_size, for
+        # the same reason (#1638); the class transaction rolls the deleted
+        # foreign rows back at class end
+        Keyword.objects.all().delete()
+
     def keyword_specs(self, mapping):
         for value in mapping.values():
             if isinstance(value, dict):

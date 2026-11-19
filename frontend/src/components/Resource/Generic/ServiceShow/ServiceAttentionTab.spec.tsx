@@ -12,6 +12,12 @@ import ServiceAttentionTab from "./ServiceAttentionTab";
 
 import "@testing-library/jest-dom/vitest";
 
+// the contextual incident slot reads a live resource and provider; it is
+// covered by its own specs and kept out of this host spec (#1322)
+vi.mock("../../OperationalIncident/Context/ContextualIncidents", () => ({
+  default: () => null,
+}));
+
 vi.mock("react-admin", () => ({
   BasenameContextProvider: ({ children }: { children: ReactNode }) => (
     <>{children}</>
@@ -31,7 +37,6 @@ vi.mock("react-admin", () => ({
     </a>
   ),
   useRecordContext: vi.fn(),
-  useRefresh: () => () => undefined,
   useResourceContext: vi.fn(),
   useResourceDefinitions: vi.fn(),
   useTranslate: () => (key: string) => key.split(".").pop() ?? key,

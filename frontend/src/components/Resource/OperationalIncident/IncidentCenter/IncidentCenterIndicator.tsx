@@ -21,9 +21,9 @@ import { useIncidentCenter } from "./IncidentCenterContext";
  *
  * It appears and disappears with its message, like the alert chip of
  * AttentionIndicator does: while nothing has been answered, while the read
- * is pending, while nothing is active - and while the api is not there yet
- * (the endpoint of #1319 may not exist at all) - the app bar says nothing.
- * Silence is also the privacy answer: an error never becomes a hint.
+ * is pending, while nothing is active - and while the read failed, which it
+ * may for a transient reason and never becomes a hint: silence is also the
+ * privacy answer.
  *
  * On narrow screens the words give way to a badge over the icon, the split
  * JobCenterIndicator established.

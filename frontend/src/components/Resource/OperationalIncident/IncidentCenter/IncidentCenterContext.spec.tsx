@@ -1,7 +1,7 @@
+import { useGetList } from "react-admin";
+
 import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { useGetList } from "react-admin";
 
 import IncidentCenterProvider, {
   INCIDENT_REALTIME_TOPIC,
@@ -69,8 +69,11 @@ beforeEach(() => {
   state.resolvedRefetch = vi.fn();
   mockedUseGetList.mockReset();
   // first call answers the active window, second the resolved one - the
-  // provider's useGetList order is what the query assertions read
+  // provider's useGetList order is what the query assertions read; later
+  // calls answer a valid window as react-query would on a re-render, so
+  // specs which toggle the open state don't destructure an undefined result
   mockedUseGetList
+    .mockReturnValue(windowOf(state.resolvedRefetch) as never)
     .mockReturnValueOnce(windowOf(state.activeRefetch) as never)
     .mockReturnValueOnce(windowOf(state.resolvedRefetch) as never);
 });
@@ -80,22 +83,22 @@ describe("IncidentCenterProvider", () => {
     render(providerTree);
     const calls = mockedUseGetList.mock.calls;
     expect(calls).toHaveLength(2);
-    // the active window asks for the attention-demanding states in one read,
+    // the active window asks for the api's own lifecycle answer in one read,
     // so the badge and the drawer rows can never disagree (#1321); the
     // totals are the permitted ones, the client never counts
     expect(calls[0][0]).toBe("OperationalIncident");
     expect(calls[0][1]).toMatchObject({
-      filter: { state: "retrying,stalled,failed" },
-      sort: { field: "lastOccurrence", order: "DESC" },
+      filter: { status: "active" },
+      sort: { field: "lastOccurredAt", order: "DESC" },
       pagination: { page: 1, perPage: 25 },
     });
     // the resolved window answers the recoveries which left the active count
     expect(calls[1][0]).toBe("OperationalIncident");
     expect(calls[1][1]).toMatchObject({
-      filter: { state: "resolved" },
+      filter: { status: "resolved" },
     });
-    // both read at the bounded distance and without retry storms on an api
-    // which may not exist yet (#1319) - react-query ends the poll on unmount
+    // both read at the bounded distance and without retry storms on a failing
+    // api - react-query ends the poll on unmount
     for (const call of calls) {
       expect(call[2]).toEqual({ refetchInterval: 20000, retry: false });
     }

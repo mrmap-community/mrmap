@@ -284,9 +284,9 @@ const LoadingOpenApi = ({
               mt: 2,
             }}
           >
-            {current.frames.map((_, index) => (
+            {current.frames.map((frame, index) => (
               <Box
-                key={index}
+                key={frame}
                 sx={{
                   width: index === frameIndex ? 18 : 6,
                   height: 6,

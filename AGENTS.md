@@ -59,7 +59,7 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   config` and starts nothing). A mount at, above or inside `/var/www/mrmap` is the failure #922
   removed and #1027 re-reported: a named volume there wins over the image, and rebuilds silently
   stop reaching the browser.
-  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ master) still
+  `scripts/migration_graph_smoke.py` asserts that the migration graph of (branch ∪ develop) still
   has one leaf per app (`python3 scripts/migration_graph_smoke.py`; host Python plus the `git`
   CLI, no docker, no `gh`, no network, a fifth of a second). Two branches which each add a
   `0038` are green alone and red in the merge queue, because two leaf nodes of one app is what
@@ -73,6 +73,13 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
   GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
   hand when touching either tool.
+  `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
+  #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
+  `docker/` surfaces for the validator's name and — where docker is present, probing for it
+  and skipping the affected checks out loud where it is not — resolves every committed
+  Compose variant and fails when a validator service, its build context or its old host
+  port 5557 appears, or when the shared networks no longer survive the resolution
+  (`python3 scripts/test_validator_retirement.py`).
 
 ### Asking for human decisions
 
@@ -178,7 +185,7 @@ satisfies most of it.
   With that in the environment, the `-f docker-compose.yml -f docker-compose.dev.yml` of the
   examples elsewhere can be dropped. Run all Compose commands from the repository root: the
   `COMPOSE_FILE` paths are relative to it. Other services pin host ports as well (`frontend` 8000,
-  `flower` 5655, `inspire-validator` 5557, `victoria-logs` 5514, plus pgadmin and grafana) and
+  `flower` 5655, `victoria-logs` 5514, plus pgadmin and grafana) and
   `frontend-tests` pins its container name; add them to the override when a check needs them.
 
   This override file belongs to the local-build flow; the preferred prebuilt startup below carries
@@ -223,6 +230,14 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   The job-local override is needed here: `docker-compose.prebuilt-frontend.yml` does not reset the
   `container_name` pinned by `docker-compose.dev.yml`, so add
   `frontend-tests: { container_name: ${COMPOSE_PROJECT_NAME}-frontend-tests }` to it.
+
+- A host short of memory can layer `docker-compose.lightweight.yml` LAST to run a stack without the
+  observability (VictoriaLogs, Grafana) and admin (pgAdmin, Flower) tier, and with the four check
+  containers profiled so a plain `up -d` cannot boot whole suites as background services (#1614). It
+  changes nothing that already runs and nothing CI does: `docker compose run <service>` starts a named
+  service regardless of its profile, so every command above is unaffected. Validate a combination
+  before starting it with `python3 scripts/compose_profiles_smoke.py` (config only, starts nothing);
+  `docs/source/development/compose-profiles.rst` is the service matrix and says what each tier is worth.
 
 - Never combine `run --build` with the prebuilt files. Their `build:` sections are `!reset`, so
   `--build` is a **silent no-op** that keeps running the pinned image — compose reports no error,
@@ -394,6 +409,11 @@ After modifications:
 
 ### SonarCloud findings
 
+Agent pre-push Sonar setup is documented in `docs/source/development/code-quality.rst` under
+"Agent Sonar setup": the external launcher injects `SONAR_TOKEN`, and
+`python3 scripts/git_checks.py install --sonar` enables the required static preflight. Credentials
+stay in the process environment; the full CI coverage gate still applies.
+
 SonarCloud scans the new code of a change and answers the pull request with its findings. Solve a
 reported finding where it was reported: fix the flagged code or resolve the finding in the report.
 Do not push new code around a finding to work around it — new code is scanned as new code too, the
@@ -406,26 +426,37 @@ identifier itself is not an option — it breaks document matching against upstr
 
 ## Git conventions
 
-- Branch names are `<type>/<short-topic>`, for example `feature/service-update` or
-  `housekeeping/cleanup-frontend-src`.
-- Base every new branch and worktree on current `origin/master` after a `git fetch origin`; create
-  worktrees with `git worktree add <dir> -b <type>/issue-<N>-<topic> origin/master`. Being current
-  matters exactly here: once the branch exists, the merge queue is what tests it together with
-  master.
-- Do not merge `origin/master` into a branch before opening the pull request, and not before every
-  push while it is under review. Bring master in only when the branch actually needs it — a real
-  conflict, a change from master this branch depends on to build or test, or a stated
-  compatibility reason — and name which one in the merge commit. An unconditional pre-push merge
-  re-runs the entire CI set for a commit that changes nothing about the change, and the merge
-  queue already tests the integration of this head with master on a merge commit it builds itself.
-- Never force-push or rebase a branch that is open for review: review comments and inline findings
-  are anchored to commits, and a rewritten branch loses the diff a reviewer is reading. Rebase
-  freely while a branch is still private. When master moves under a reviewed branch, push the new
-  work as ordinary commits on top; if there is a genuine conflict, resolve it with a merge commit
-  and let the queue re-test the combination.
-- Commit messages are short lowercase summaries of the change, for example "adds ...", "fixes ...",
-  "implements ...".
-- Keep unrelated formatting or refactoring out of a change.
+- Branch names are `<type>/<short-topic>`.
+- `develop` is the default development and integration branch.
+- `master` is reserved for stable releases.
+- Base new branches and worktrees on current `origin/develop`.
+- For epic sub-issues, use the designated epic integration
+  branch if applicable.
+- Always explicitly specify the pull request base.
+- Feature, bugfix and housekeeping PRs target `develop`
+  or their designated epic integration branch.
+- Epic integration PRs target `develop`.
+- Only the same repository's `develop` branch may target
+  `master` in a pull request.
+- Maintainer-directed synchronization from `master` back
+  to `develop` is allowed.
+- Use merge commits when synchronizing permanent branches.
+- Never directly push to `master` or `develop`.
+- Never delete, rename or force-push permanent branches.
+- Never delete permanent branches during PR cleanup.
+- Never force-push or rebase a branch open for review.
+- Merge the integration target into a task branch only
+  when needed to resolve conflicts or dependencies.
+- Human approval and merge requirements remain mandatory.
+- These rules also apply to agent skills and orchestration.
+- Commit messages are short lowercase summaries. The *pull request title* is
+  what carries the change class, and CI checks it: write
+  `<type>[(<scope>)][!]: <summary>` there, with a type from
+  `python3 scripts/pr_classify types`. A merge keeps only the title, so a class
+  or a `!` written into a commit message never reaches `develop`
+  (`docs/source/development/commit-classification.rst`).
+- Keep unrelated formatting or refactoring out of a change; a pull request
+  whose commits name a different class than its title is usually two changes.
 
 ### Filing issues
 

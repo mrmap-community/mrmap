@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.plumbing import get_view_model
 from drf_spectacular_jsonapi.schemas.openapi import JsonApiAutoSchema
 from rest_framework.filters import OrderingFilter as DRFOrderingFilter
+from rest_framework.serializers import ChoiceField
 from rest_framework_gis.fields import GeometryField
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_json_api.utils import (format_field_name,
@@ -32,6 +33,13 @@ LOOKUP_LABELS = {
     "regex": _("matches regex"),
     "iregex": _("matches regex (case-insensitive)"),
 }
+
+#: the OpenAPI extension carrying the display label of every enum value of a
+#: choices field, as ``[{"value": <enum value>, "label": <display>}]``.
+#: drf-spectacular documents the labels only inside the description PROSE
+#: (``* `0` - Fatal``); the wording belongs to the library, and a consumer
+#: parsing it silently loses the choices on an upstream change (#1487).
+ENUM_LABELS_EXTENSION = "x-enum-labels"
 
 
 # ``solve_lookup_type`` is a pure function of (model, lookup) and the
@@ -95,7 +103,7 @@ class CustomOperationId(JsonApiAutoSchema):
             related_base_resource_path = self.path.split("{")[0]
             if related_base_resource_path.endswith("/"):
                 # remove trailing slash
-                # TODO: only needed if trailing_slash=False option was used
+                # FUTURE: only needed if trailing_slash=False option was used
                 related_base_resource_path = related_base_resource_path[:-1]
             try:
                 match = resolve(related_base_resource_path)
@@ -134,7 +142,36 @@ class CustomOperationId(JsonApiAutoSchema):
                 "enum" in schema and default not in schema["enum"]
             ):
                 del schema["default"]
+
+        self._emit_enum_labels(field, schema)
         return schema
+
+    def _emit_enum_labels(self, field, schema):
+        """Answer the labels of a choices field beside its documented enum.
+
+        A choices field documents its value space as the enum of values; the
+        label each value shows under lives only in the description PROSE
+        drf-spectacular generates ("* `0` - Fatal"). That wording is the
+        library's, and a consumer parsing choices back out of it loses them
+        silently on an upstream rewording - which is exactly what the
+        frontend did until #1487. Emit the same data structured: every
+        documented enum of a choices field answers its labels next to it.
+        Blank and null members are excluded: they are no choice a consumer
+        looks a label up by (spectacular hashes them out of its enum identity
+        too, and reconstructs them structurally, not as choices).
+        """
+        if not isinstance(field, ChoiceField):
+            return
+        # multiple choice: the labels belong to the child node
+        enum_schema = schema if "enum" in schema else (schema.get("items") or {})
+        if "enum" not in enum_schema:
+            return
+        labels = [
+            {"value": value, "label": str(label)}
+            for value, label in field.choices.items()
+            if value not in ("", None)]
+        if labels:
+            enum_schema[ENUM_LABELS_EXTENSION] = labels
 
     def _get_related_fields_of_model(self, model):
         related_fields = _RELATED_FIELDS_MEMO.get(model)
@@ -153,56 +190,63 @@ class CustomOperationId(JsonApiAutoSchema):
 
     def _patch_extend_filter_parameter(self, field, parameter):
         model = get_view_model(self.view)
-        # lookup_parts is an array of parts but it is limited to only one possible lookup expression
+        # the lookup of the filter is limited to one possible lookup expression
         try:
             fields_lookup = _fields_lookup_of_model(model)
-            lookup_parts, field_parts, expression = _solve_filter_lookup(
+            _, field_parts, _ = _solve_filter_lookup(
                 model, field.field_name)
 
-            if field_parts[0] in fields_lookup:
+            if field_parts[0] not in fields_lookup:
+                return
 
-                model_field = fields_lookup[field_parts[0]]
-                if hasattr(model_field, "related_model") and model_field.related_model:
-                    last_seen_model = model_field.related_model
+            model_field = fields_lookup[field_parts[0]]
+            if hasattr(model_field, "related_model") and model_field.related_model:
+                self._patch_related_resource_fields(
+                    parameter, field_parts, model_field.related_model)
 
-                    for idx, part in enumerate(field_parts):
-                        # analyze the full path so we get the correct resource type for the filter parameter, in case of nested relationships
-                        if idx == 0:
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                part)
-                            continue
-                        related_fields = self._get_related_fields_of_model(
-                            last_seen_model)
-                        if part in related_fields:
-                            last_seen_model = related_fields[part].related_model
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                related_fields[part].target_field.name)
-                        else:
-                            parameter["x-jsonapi-related-resource-field"] = format_field_name(
-                                part)
-                            break
+            if hasattr(field, "lookup_expr"):
+                parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
 
-                    parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
-                        last_seen_model)
+            parameter["x-jsonapi-field-parts"] = [
+                format_field_name(part) for part in field_parts]
+            parameter["x-jsonapi-local-resource-field"] = format_field_name(
+                field_parts[0])
 
-                if hasattr(field, "lookup_expr"):
-                    parameter["x-jsonapi-filter-lookup-expression"] = field.lookup_expr
+            parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
+                field.lookup_expr, field.lookup_expr)
 
-                parameter["x-jsonapi-field-parts"] = [
-                    format_field_name(part) for part in field_parts]
-                parameter["x-jsonapi-local-resource-field"] = format_field_name(
-                    field_parts[0])
-
-                parameter["x-jsonapi-filter-lookup-expression-label"] = LOOKUP_LABELS.get(
-                    field.lookup_expr, field.lookup_expr)
-
-                label = field.label or getattr(
-                    model_field, "verbose_name", None)
-                if label:
-                    parameter["x-jsonapi-filter-label"] = label
+            label = field.label or getattr(
+                model_field, "verbose_name", None)
+            if label:
+                parameter["x-jsonapi-filter-label"] = label
 
         except FieldError:
             pass
+
+    def _patch_related_resource_fields(self, parameter, field_parts,
+                                       related_model):
+        """Follow the nested lookup path and name the resource it ends at."""
+        last_seen_model = related_model
+
+        for idx, part in enumerate(field_parts):
+            # analyze the full path so we get the correct resource type for the filter parameter, in case of nested relationships
+            if idx == 0:
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    part)
+                continue
+            related_fields = self._get_related_fields_of_model(
+                last_seen_model)
+            if part in related_fields:
+                last_seen_model = related_fields[part].related_model
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    related_fields[part].target_field.name)
+            else:
+                parameter["x-jsonapi-related-resource-field"] = format_field_name(
+                    part)
+                break
+
+        parameter["x-jsonapi-related-resource-type"] = get_resource_type_from_model(
+            last_seen_model)
 
     def _get_filter_parameters(self):
         """
@@ -228,7 +272,7 @@ class CustomOperationId(JsonApiAutoSchema):
                         schema["format"] = "geojson"
                         openapiparameter["schema"] = schema
         """
-        TODO: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
+        FUTURE: add extension to link resource types, filteroperator, labels and help texts to the filter parameters
          e.g.:
          {
             "in": "query",
@@ -326,6 +370,94 @@ class CustomOperationId(JsonApiAutoSchema):
                 sort_param["explode"] = False
             return
         super()._patch_sort_param_schema(sort_param=sort_param)
+
+
+def inject_enum_labels(result, **kwargs):
+    """Move ``x-enum-labels`` to where the enum lives in the document.
+
+    ``postprocess_schema_enums`` runs first (wired in ``MrMap/settings.py``):
+    it cuts ``type`` + ``enum`` out of every choices property into a shared
+    enum component, leaving the property a ``$ref`` plus its remaining keys.
+    Labels emitted next to the enum would then sit as siblings of that
+    ``$ref`` — dropped twice over: OpenAPI 3.0 ignores ``$ref`` siblings, and
+    the frontend's synchronous dereferencer replaces the whole object at a
+    ``$ref``. This hook moves the labels into the referenced component, so
+    they arrive beside the enum they name.
+
+    A component is only shared when values AND labels are identical — the
+    extraction hashes the (value, label) tuples through ``x-spec-enum-id`` —
+    so stamping it once is exact. Labels left beside a ``oneOf`` (choice sets
+    split into blank/null components) have no single ref to join and stay on
+    the property.
+
+    A second shape arrives from spectacular's ``safe_ref``: a property that
+    keeps sibling keys next to a component reference is wrapped as
+    ``{"allOf": [{"$ref": ...}], "description": ..., "x-enum-labels": ...}``.
+    There the extension is a legal member of the composition — consumers of
+    the property read it — so it is COPIED into the component, not moved:
+    the property keeps its labels and the enum answers them too. Only the
+    illegal shape (the extension as a direct sibling of a ``$ref``) is
+    MOVED away from.
+    """
+    schemas = (result.get("components") or {}).get("schemas") or {}
+    _move_enum_labels_to_refs(result, schemas)
+    return result
+
+
+def _enum_component_of(ref, schemas):
+    """The enum component a ``$ref`` string names, or None."""
+    if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
+        target = schemas.get(ref.rpartition("/")[2])
+        if isinstance(target, dict) and "enum" in target:
+            return target
+    return None
+
+
+def _all_of_ref(node):
+    """The single ``$ref`` an ``allOf`` composition names, or None — a
+    composition of more (or nothing) has no single enum to join."""
+    refs = {
+        item["$ref"] for item in node.get("allOf") or ()
+        if isinstance(item, dict) and isinstance(item.get("$ref"), str)}
+    if len(refs) != 1:
+        return None
+    return next(iter(refs))
+
+
+def _stamp(component, labels):
+    """Give the component the labels, if it exists and has none yet."""
+    if component is not None:
+        component.setdefault(ENUM_LABELS_EXTENSION, labels)
+
+
+def _join_labels(node, schemas):
+    """Join one object member's labels to the enum they belong to."""
+    ref = node.get("$ref")
+    if isinstance(ref, str):
+        # the illegal shape: a sibling of a $ref — OpenAPI ignores it and
+        # the frontend dereferencer drops the whole object at the $ref, so
+        # it is MOVED into the component
+        _stamp(_enum_component_of(ref, schemas),
+               node.pop(ENUM_LABELS_EXTENSION))
+        return
+    composed = _all_of_ref(node)
+    if composed is None:
+        return  # e.g. a oneOf split: no single enum to join, stay put
+    # spectacular's safe_ref composition: the extension beside the allOf is
+    # a legal member of the property schema — consumers of the property read
+    # it, so it is COPIED and the site keeps its labels
+    _stamp(_enum_component_of(composed, schemas), node[ENUM_LABELS_EXTENSION])
+
+
+def _move_enum_labels_to_refs(node, schemas):
+    if isinstance(node, list):
+        for item in node:
+            _move_enum_labels_to_refs(item, schemas)
+    elif isinstance(node, dict):
+        if ENUM_LABELS_EXTENSION in node:
+            _join_labels(node, schemas)
+        for value in node.values():
+            _move_enum_labels_to_refs(value, schemas)
 
 
 def get_lib_doc_excludes():

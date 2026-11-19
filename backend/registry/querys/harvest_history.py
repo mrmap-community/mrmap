@@ -61,11 +61,11 @@ def harvest_durations(service_ids):
 
     Returns:
         dict: the row of every catalogue which finished a harvest, keyed by its
-            id, each naming the average duration of its runs and the end of the
-            newest of them
+            id, each naming the average duration of its runs, the end of the
+            newest of them and the amount of runs which measured it
     """
     from registry.models.harvest import HarvestingJob
-    from registry.querys.havesting import run_created_at
+    from registry.querys.harvesting import run_created_at
     return {
         row['service']: row
         for row in HarvestingJob.objects.filter(
@@ -75,7 +75,10 @@ def harvest_durations(service_ids):
         ).values('service').annotate(
             average=Avg(ExpressionWrapper(
                 F('done_at') - run_created_at(), output_field=DurationField())),
-            last_done=Max('done_at'))
+            last_done=Max('done_at'),
+            # the amount of runs the average was measured by (#1332) - an
+            # additive key: the alerts of #693 keep reading only their two
+            samples=Count('pk'))
     }
 
 

@@ -27,7 +27,8 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
         int: primary key of the created probe result
     """
 
-    probe = apps.get_model(probe_model).objects.get(pk=probe_pk)
+    probe = apps.get_model(probe_model).objects.for_probe_execution().get(
+        pk=probe_pk)
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     try:
         result = probe.run_checks(run=run).pk
@@ -45,7 +46,9 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
 def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kwargs):
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     run.date_done = timezone.now()
-    run.save()
+    # only date_done changes here; a narrower update_fields keeps the terminal
+    # save from rewriting the whole row (#1393)
+    run.save(update_fields=["date_done"])
     run.report_process(ProcessStatusEnum.COMPLETED)
     invalidate_service_alerts()
     return run.pk
@@ -84,15 +87,20 @@ def start_run(run, probes, task):
 def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import WebMapServiceMonitoringRun
 
-    run = WebMapServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = WebMapServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_getcapabilitiesprobes.all()) + \
         list(run.setting.registry_getmapprobes.all())
 
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+# the create_* tasks are what beat fires: the monitoring settings write the
+# "monitoring" queue into their PeriodicTask rows, and since #1455 the task
+# declarations carry the same queue - a beat row and an api-triggered run
+# of one task must not ride two different queues (the tasks of the run
+# itself keep their declarations as they are)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_wms_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (WebMapServiceMonitoringRun,
                                             WebMapServiceMonitoringSetting)
@@ -106,15 +114,15 @@ def create_wms_monitoring_run(self, name, *args, **kwargs):
 def run_wfs_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import WebFeatureServiceMonitoringRun
 
-    run = WebFeatureServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = WebFeatureServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_webfeatureservicegetcapabilitiesprobes.all()) + \
         list(run.setting.registry_webfeatureservicegetfeatureprobes.all())
 
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_wfs_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (WebFeatureServiceMonitoringRun,
                                             WebFeatureServiceMonitoringSetting)
@@ -128,15 +136,15 @@ def create_wfs_monitoring_run(self, name, *args, **kwargs):
 def run_csw_monitoring(self, run_pk=None, *args, **kwargs):
     from registry.models.monitoring import CatalogueServiceMonitoringRun
 
-    run = CatalogueServiceMonitoringRun.objects.select_related(
-        "setting").get(pk=run_pk)
+    run = CatalogueServiceMonitoringRun.objects.for_monitoring_task().get(
+        pk=run_pk)
     probes = list(run.setting.registry_catalogueservicegetcapabilitiesprobes.all()) + \
         list(run.setting.registry_catalogueservicegetrecordsprobes.all())
 
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_csw_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (CatalogueServiceMonitoringRun,
                                             CatalogueServiceMonitoringSetting)

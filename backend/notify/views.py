@@ -1,9 +1,13 @@
 from extras.viewsets import NestedModelViewSet
-from notify.filters import BackgroundProcessFilterSet
-from notify.models import BackgroundProcess, BackgroundProcessLog
+from notify.filters import (BackgroundProcessFilterSet,
+                            OperationalIncidentFilterSet)
+from notify.models import (BackgroundProcess, BackgroundProcessLog,
+                           OperationalIncident)
 from notify.permissions import CanChangeRelatedResource
-from notify.serializers import (BackgroundProcessLogSerializer,
-                                BackgroundProcessSerializer)
+from notify.serializers import (
+    BackgroundProcessLogSerializer, BackgroundProcessSerializer,
+    OperationalIncidentSerializer)
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
@@ -98,3 +102,55 @@ class NestedBackgroundProcessLogViewSet(
     NestedModelViewSet
 ):
     pass
+
+
+class OperationalIncidentViewSet(
+    ReadOnlyModelViewSet
+):
+    """The incidents of the deployment which the caller may view (#1319).
+
+    Read-only for regular clients: an incident is the persisted report of
+    what its publishers decided, and those publishers are the watchdogs and
+    task reporters of #1320, never a client of this api. The endpoint is no
+    second status engine - the background process, the job and the service
+    alerts behind an incident stay authoritative for the state of the work.
+
+    The one permission rule is the narrowing of ``visible_for_user``, which
+    every read of this viewset runs over: an incident of a resource the
+    caller may view, and system incidents for a superuser alone. Anonymous
+    clients are refused the endpoint entirely, so neither a list, nor a
+    count, nor a filter, nor the answer behind a detail url can tell an
+    unauthorized caller about an incident he may not see.
+    """
+
+    queryset = OperationalIncident.objects.all()
+    serializer_class = OperationalIncidentSerializer
+    filterset_class = OperationalIncidentFilterSet
+    permission_classes = [IsAuthenticated]
+    # the list of the notification center orders its rows by the moment of
+    # the last report; the history asks the resolved ones by theirs
+    ordering_fields = [
+        "id",
+        "severity",
+        "occurrence_count",
+        "first_occurred_at",
+        "last_occurred_at",
+        "resolved_at",
+    ]
+    # reading only: an incident is decided by its publishers, never by a
+    # client of this endpoint
+    http_method_names = ["get", "head", "options"]
+
+    def get_queryset(self):
+        """Answer only the incidents which the caller may view.
+
+        The narrowing of ``visible_for_user`` is the single rule behind list,
+        detail, every filter and every count of this endpoint; a superuser
+        needs no lookup and an anonymous request never reaches this point,
+        the permission class refuses it before.
+        """
+        queryset = super().get_queryset()
+        if getattr(self, 'swagger_fake_view', False):
+            return queryset
+        return OperationalIncident.objects.visible_for_user(
+            getattr(self.request, 'user', None), queryset=queryset)

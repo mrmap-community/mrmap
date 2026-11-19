@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.base import ContentFile
 from django.db import models
 from django.db.models import Q
 from django.db.models.deletion import Collector
@@ -12,11 +13,17 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from extras.scheduling import next_run_expected_at
+from MrMap import celery_queues
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
+from registry.managers.service import configured_relation_fields
 from registry.managers.update import LayerMappingManager
 from registry.mappers.factory import OGCServiceXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
+from registry.models.metadata import (FeatureTypeRemoteMetadata,
+                                      LayerRemoteMetadata,
+                                      WebFeatureServiceRemoteMetadata,
+                                      WebMapServiceRemoteMetadata)
 from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
@@ -49,7 +56,7 @@ def default_wms_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
             "keywords": UpdateModeEnum.OVERWRITE,
             "reference_systems": UpdateModeEnum.OVERWRITE,
             "time_extents": UpdateModeEnum.OVERWRITE,
-            # TODO: datasetmetadata overwrite
+            # FUTURE: datasetmetadata overwrite
         },
     }
 
@@ -85,6 +92,9 @@ def default_csw_update_config() -> dict[str, dict[str, UpdateModeEnum]]:
     }
 
 
+UPDATED_SERVICE_HELP_TEXT = _("this is the service which shall be updated")
+
+
 class WebMapServiceUpdateSetting(PeriodicTask):
     @property
     def next_run_expected_at(self):
@@ -96,7 +106,7 @@ class WebMapServiceUpdateSetting(PeriodicTask):
         related_name="web_map_service_update_settings",
         related_query_name="web_map_service_update_setting",
         verbose_name=_("web map service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -104,7 +114,10 @@ class WebMapServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_wms_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -139,7 +152,7 @@ class WebFeatureServiceUpdateSetting(PeriodicTask):
         related_name="web_feature_service_update_settings",
         related_query_name="web_feature_service_update_setting",
         verbose_name=_("web feature service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -147,7 +160,10 @@ class WebFeatureServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_wfs_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -182,7 +198,7 @@ class CatalogueServiceUpdateSetting(PeriodicTask):
         related_name="catalogue_service_update_settings",
         related_query_name="catalogue_service_update_setting",
         verbose_name=_("catalogue service"),
-        help_text=_("this is the service which shall be updated"))
+        help_text=UPDATED_SERVICE_HELP_TEXT)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -190,7 +206,10 @@ class CatalogueServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_csw_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -478,28 +497,46 @@ class ServiceUpdateJob(models.Model):
             rel.get_accessor_name() for rel in instance_a._meta.related_objects
         }
         if field_name in m2m_fields or field_name in reverse_fields:
-            target = getattr(instance_a, field_name)
-            source = getattr(instance_b, field_name)
-            old_ids = set(target.all().values_list("pk", flat=True))
-            new_objects = list(source.all())
-            new_ids = {obj.pk for obj in new_objects}
-            if mode == UpdateModeEnum.OVERWRITE:
-                if old_ids == new_ids:
-                    return False
-                if field_name in reverse_fields:
-                    # Preserve the original ownership-transfer semantics. Materialize
-                    # the source first, before deleting the old owned objects.
-                    target.exclude(pk__in=new_ids).delete()
-                target.set(new_objects)
-                return True
-            if mode == UpdateModeEnum.MERGE and field_name in m2m_fields:
-                additions = [
-                    obj for obj in new_objects if obj.pk not in old_ids]
-                if additions:
-                    target.add(*additions)
-                    return True
-            return False
+            return self._update_relation_field(
+                field_name, instance_a, instance_b, mode,
+                field_name in reverse_fields)
 
+        return self._update_scalar_field(
+            field_name, instance_a, instance_b, mode)
+
+    def _update_relation_field(self, field_name, instance_a, instance_b,
+                               mode, is_reverse):
+        """Overwrite or merge a m2m or reverse relation field."""
+        target = getattr(instance_a, field_name)
+        source = getattr(instance_b, field_name)
+        # read both sides through ``all()`` so the per-relation prefetches of
+        # ``update_layers``/``update_featuretypes`` answer them: a
+        # ``values_list`` on the related manager would bypass the cache and
+        # pay one read per element and relation (#1393)
+        old_ids = {obj.pk for obj in target.all()}
+        new_objects = list(source.all())
+        new_ids = {obj.pk for obj in new_objects}
+
+        if mode == UpdateModeEnum.OVERWRITE:
+            if old_ids == new_ids:
+                return False
+            if is_reverse:
+                # Preserve the original ownership-transfer semantics. Materialize
+                # the source first, before deleting the old owned objects.
+                target.exclude(pk__in=new_ids).delete()
+            target.set(new_objects)
+            return True
+
+        if mode == UpdateModeEnum.MERGE:
+            additions = [
+                obj for obj in new_objects if obj.pk not in old_ids]
+            if additions:
+                target.add(*additions)
+                return True
+        return False
+
+    def _update_scalar_field(self, field_name, instance_a, instance_b, mode):
+        """Copy a concrete field's value when the mode says overwrite."""
         if mode != UpdateModeEnum.OVERWRITE:
             return False
         field = instance_a._meta.get_field(field_name)
@@ -557,6 +594,94 @@ class ServiceUpdateJob(models.Model):
             [instance], default_change_reason=self.default_change_reason,
         )
 
+    def adopt_stored_document(self):
+        """Store the capabilities document this update published as the
+        stored document of the service (#1413).
+
+        ``document_equals`` hashes this file against the next answer, #1044
+        reads it network-free and #1150 checks its integrity: all three
+        answer for the service as the update left it only if adoption
+        writes the adopted document. Leaving the backup at the document of
+        the registration made every later cycle of a service which had
+        changed once prove *changed* again - the full candidate was staged,
+        parsed, mapped and thrown away every run, because nothing remembered
+        that the service had settled with the adoption.
+
+        What gets stored is the raw answer this run compared against
+        (``_adopted_capabilities``): ``document_equals`` hashes raw bytes,
+        while the candidate's own backup carries the mapper's serialized
+        edition of them - hashing those against the next raw answer would
+        never prove equal. A resumed review run has no fetched answer in
+        hand and falls back to the candidate's backup; that document is
+        what the adoption published, and one converging cycle later the
+        comparison answers unchanged.
+
+        The file keeps the name it had: the storage renames a colliding
+        write, and a differently named document per cycle would spread
+        copies through the directory and leave the row pointing at a name
+        the operator of #1150 cannot follow. The write therefore goes to the
+        storage directly; the row is only saved when the name really
+        changed, so an adoption which changed nothing else writes no history
+        row either.
+        """
+        document = getattr(self, "_adopted_capabilities", None) \
+            or self.new_service.xml_backup
+        if not document:
+            # nothing was published to adopt; the stored read keeps
+            # answering what it answered before (#1044)
+            return
+        backup = self.service.xml_backup_file
+        name = backup.name
+        base = name.rsplit("/", 1)[-1] if name else "backup.xml"
+        if name:
+            # away first, so the new bytes land under the same name: a
+            # colliding write would be stored under a fresh name
+            backup.delete(save=False)
+        backup.save(base, ContentFile(document), save=False)
+        if self.service.xml_backup_file.name != name:
+            self.service._change_reason = self.default_change_reason
+            self.service.save()
+
+    @staticmethod
+    def _republish_references(service_model, element_model, service,
+                              candidate, re_describe, taken_back=()):
+        """Move the advertised metadata references of an adopted candidate
+        onto the published service (#1413).
+
+        The metadata step of the update (#1274) collects the references
+        which describe the published service and its elements, while the
+        rows a candidate left behind describe the candidate and die with it.
+        Moving them is what makes "this service now advertises these links"
+        durable: after an update the advertised list is exactly what the
+        adopted document advertises - new links come to describe the
+        published elements, links the document dropped are taken back, and
+        an element the adoption newly brings in keeps the rows which already
+        describe it. Records found through a dropped link stay registered;
+        #1261's supersede bookkeeping answers their relations, as it does
+        for every link which resolves elsewhere.
+
+        ``re_describe`` maps each candidate element to the published element
+        which adopts it - mapped pairs only, an adopted new element already
+        describes the live row. ``taken_back`` names the published elements
+        the new document does not carry anymore; their rows go in the same
+        statement as the stale rows of the mapped pairs, before the elements
+        themselves are deleted, so the element deletion's own cascade finds
+        nothing left to take and the whole move costs a constant number of
+        statements - #1393's pair-independent apply phase keeps its shape.
+        """
+        service_model.objects.filter(describes=service).delete()
+        service_model.objects.filter(describes_id=candidate.pk).update(
+            describes=service)
+        element_model.objects.filter(
+            describes__in=[*re_describe.values(), *taken_back]).delete()
+        references = list(
+            element_model.objects.filter(describes__in=list(re_describe)))
+        if references:
+            for reference in references:
+                reference.describes_id = re_describe[reference.describes_id]
+            element_model.objects.bulk_update(
+                references, ["describes_id"], batch_size=500)
+
     def delete_with_reason(self, queryset, model):
         collector = Collector(using=queryset.db, origin=queryset)
         collector.collect(queryset)
@@ -604,6 +729,9 @@ def update_job_for_process(background_process_pk):
         if job is not None:
             return job
     return None
+
+
+RESUME_REVIEW_REQUIRED_MSG = _("Can only resume a job with status REVIEW_REQUIRED")
 
 
 class WebMapServiceUpdateJob(ServiceUpdateJob):
@@ -698,6 +826,9 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "WebMapService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )
@@ -705,11 +836,13 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return WebMapService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return WebMapService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return WebMapService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return WebMapService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def are_all_layers_updateable(self) -> bool:
         """checks if ther are no update conflicts
@@ -737,6 +870,50 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         return self.old_service.layers.exclude(pk__in=mapped_old_layer_ids)
 
+    @staticmethod
+    def _layer_target(mapping, targets):
+        """The layer of the published service this mapping writes onto."""
+        return targets[mapping.new_layer_id]
+
+    @staticmethod
+    def _layer_parent(new_layer, targets):
+        """The already resolved parent of a candidate layer, if it has one."""
+        if not new_layer.mptt_parent_id:
+            return None
+        return targets[new_layer.mptt_parent_id]
+
+    def _bulk_adopt_layers(self, adopted_layers):
+        """Move newly adopted layers in bulk, keeping their own tree coords.
+
+        Update directly to retain the candidate's supplied tree coordinates;
+        Node.save() may otherwise recalculate them during adoption.
+        """
+        if not adopted_layers:
+            return
+        for layer in adopted_layers:
+            layer._change_reason = self.default_change_reason
+        Layer.objects.bulk_update(
+            adopted_layers, ["service", "mptt_parent", "mptt_tree"],
+            batch_size=500,
+        )
+        Layer.change_log.bulk_history_create(
+            adopted_layers, default_change_reason=self.default_change_reason,
+            batch_size=500,
+        )
+
+    def _republish_advertised_references(self, mappings, taken_back):
+        """The adopted document's references, told for a WMS: the service
+        and its layers, answered by
+        :meth:`ServiceUpdateJob._republish_references` (#1413).
+        """
+        self._republish_references(
+            WebMapServiceRemoteMetadata, LayerRemoteMetadata,
+            self.service, self.new_service,
+            {mapping.new_layer_id: mapping.old_layer_id
+             for mapping in mappings
+             if mapping.old_layer_id is not None},
+            taken_back)
+
     @atomic
     def update_layers(self):
         if not self.are_all_layers_updateable():
@@ -744,9 +921,18 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
 
         deleteable_layers = list(
             self.deleteable_layers().values_list("id", flat=True))
+        # the M2M and reverse fields the config names for a Layer are
+        # prefetched per relation onto the mapped elements, so the per-field
+        # comparison below reads them once per relation instead of once per
+        # layer and relation (#1393); the rows only answer for the mapped
+        # elements of this run
+        relations = configured_relation_fields(
+            Layer, self.update_config.get("Layer", {}))
         mappings = list(self.mappings.filter(
             is_confirmed=True, new_layer__isnull=False,
-        ).select_related("new_layer", "old_layer"))
+        ).select_related("new_layer", "old_layer").prefetch_related(
+            *[f"new_layer__{relation}" for relation in relations],
+            *[f"old_layer__{relation}" for relation in relations]))
         # Resolve by candidate ID, so renamed and newly adopted parents both work.
         targets = {
             mapping.new_layer_id: (
@@ -758,9 +944,8 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
         adopted_layers = []
         tree = self.service.root_layer.mptt_tree
         for mapping in mappings:
-            new_layer = mapping.new_layer
-            target = targets[mapping.new_layer_id]
-            parent = targets[new_layer.mptt_parent_id] if new_layer.mptt_parent_id else None
+            target = self._layer_target(mapping, targets)
+            parent = self._layer_parent(mapping.new_layer, targets)
             if mapping.old_layer_id is None:
                 target.service = self.service
                 target.mptt_parent = parent
@@ -772,26 +957,26 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
             changed = target.mptt_parent_id != (parent.pk if parent else None)
             target.mptt_parent = parent
             for field_name in fields:
-                changed |= self.update_field(field_name, target, new_layer)
+                changed |= self.update_field(
+                    field_name, target, mapping.new_layer)
             if changed:
                 updateable_layers.append(target)
 
         self.bulk_update_changed(
             updateable_layers, Layer, fields, ("mptt_parent",))
-        # Update directly to retain the candidate's supplied tree coordinates;
-        # Node.save() may otherwise recalculate them during adoption.
-        if adopted_layers:
-            for layer in adopted_layers:
-                layer._change_reason = self.default_change_reason
-            Layer.objects.bulk_update(
-                adopted_layers, ["service", "mptt_parent", "mptt_tree"], batch_size=500,
-            )
-            Layer.change_log.bulk_history_create(
-                adopted_layers, default_change_reason=self.default_change_reason,
-                batch_size=500,
-            )
+        self._bulk_adopt_layers(adopted_layers)
+        # first the references: the adopted document's rows come onto the
+        # published layers and every stale row of the old state - mapped
+        # pairs as well as layers the new document drops - goes in one
+        # statement, so the deletion below cascades over an empty table and
+        # the apply phase keeps its constant shape (#1413, #1393)
+        self._republish_advertised_references(mappings, deleteable_layers)
         self.delete_with_reason(Layer.objects.filter(
             id__in=deleteable_layers), Layer)
+        # the published service stores what this update published as its own
+        # document (#1413) - while the candidate is still there to hand its
+        # bytes over
+        self.adopt_stored_document()
         # Monitoring settings are user configuration of the service, not of the
         # temporary candidate. They must survive the candidate deletion and
         # continue to point at the published service, but stay disabled until
@@ -829,6 +1014,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
                 self.finish_after_metadata_step()
                 return
 
+            self._adopted_capabilities = remote_capabilities
             self.create_new_service(remote_capabilities)
             self.create_initial_layer_mappings()
 
@@ -846,7 +1032,7 @@ class WebMapServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_layers_updateable():
             raise ValueError(
                 _(
@@ -936,6 +1122,9 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "WebFeatureService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )
@@ -943,11 +1132,13 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return WebFeatureService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return WebFeatureService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return WebFeatureService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return WebFeatureService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def are_all_featuretypes_updateable(self) -> bool:
         """checks if ther are no update conflicts
@@ -985,9 +1176,18 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
         )
         fields = self.get_fields_by_model(FeatureType)
         updateable_featuretypes = []
+        # the configured FeatureType relations ride the mapping read, so the
+        # per-field comparison does not read them per element (#1393)
+        relations = configured_relation_fields(
+            FeatureType, self.update_config.get("FeatureType", {}))
+        prefetches = [
+            f"{side}__{relation}"
+            for relation in relations
+            for side in ("new_featuretype", "old_featuretype")
+        ]
         for mapping in self.mappings.filter(
             is_confirmed=True, new_featuretype__isnull=False,
-        ).select_related("new_featuretype", "old_featuretype"):
+        ).select_related("new_featuretype", "old_featuretype").prefetch_related(*prefetches):
             if mapping.old_featuretype_id is None:
                 mapping.new_featuretype.service = self.service
                 self.adopt_candidate(mapping.new_featuretype)
@@ -1001,14 +1201,41 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
             if changed:
                 updateable_featuretypes.append(target)
         self.bulk_update_changed(updateable_featuretypes, FeatureType, fields)
+        # first the references: the adopted document's rows come onto the
+        # published feature types and every stale row of the old state -
+        # mapped pairs as well as feature types the new document drops -
+        # goes in one statement, so the deletion below cascades over an
+        # empty table and the apply phase keeps its constant shape (#1413,
+        # #1393)
+        self._republish_advertised_references(
+            self.mappings.filter(
+                is_confirmed=True, new_featuretype__isnull=False),
+            deleteable_featuretypes)
         self.delete_with_reason(
             FeatureType.objects.filter(
                 id__in=deleteable_featuretypes), FeatureType,
         )
+        # the published service stores what this update published as its own
+        # document (#1413) - while the candidate is still there to hand its
+        # bytes over
+        self.adopt_stored_document()
         WebFeatureService.objects.filter(
             update_candidate_of=self.service).delete()
         self.mappings.all().delete()
         return UpdateJobStatusEnum.UPDATED
+
+    def _republish_advertised_references(self, mappings, taken_back):
+        """The adopted document's references, told for a WFS: the service
+        and its feature types, answered by
+        :meth:`ServiceUpdateJob._republish_references` (#1413).
+        """
+        self._republish_references(
+            WebFeatureServiceRemoteMetadata, FeatureTypeRemoteMetadata,
+            self.service, self.new_service,
+            {mapping.new_featuretype_id: mapping.old_featuretype_id
+             for mapping in mappings
+             if mapping.old_featuretype_id is not None},
+            taken_back)
 
     def update_service(self):
         return self.update_metadata(WebFeatureService)
@@ -1035,6 +1262,7 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
                 self.finish_after_metadata_step()
                 return
 
+            self._adopted_capabilities = remote_capabilities
             self.create_new_service(remote_capabilities)
             self.create_initial_featuretype_mappings()
 
@@ -1052,7 +1280,7 @@ class WebFeatureServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         if not self.are_all_featuretypes_updateable():
             raise ValueError(
                 _(
@@ -1108,6 +1336,9 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
             defaults={
                 "CatalogueService": {
                     "update_candidate_of": self.service,
+                    # a candidate is the same service under update: it is
+                    # owned by the same organization (#733)
+                    "owner": self.service.owner,
                 },
             },
         )
@@ -1115,11 +1346,13 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
 
     @cached_property
     def old_service(self):
-        return CatalogueService.objects.prefetch_whole_service().get(pk=self.service.pk)
+        return CatalogueService.objects.for_update_diff(
+            self.update_config).get(pk=self.service.pk)
 
     @cached_property
     def new_service(self):
-        return CatalogueService.objects.prefetch_whole_service().get(update_candidate_of=self.service)
+        return CatalogueService.objects.for_update_diff(
+            self.update_config).get(update_candidate_of=self.service)
 
     def update_service(self):
         return self.update_metadata(CatalogueService)
@@ -1148,7 +1381,7 @@ class CatalogueServiceUpdateJob(ServiceUpdateJob):
     def resume(self):
         if self.status != UpdateJobStatusEnum.REVIEW_REQUIRED.value:
             raise ValueError(
-                _("Can only resume a job with status REVIEW_REQUIRED"))
+                RESUME_REVIEW_REQUIRED_MSG)
         on_commit(lambda: run_csw_update.apply_async(
             kwargs={"update_job_id": self.pk}))
 

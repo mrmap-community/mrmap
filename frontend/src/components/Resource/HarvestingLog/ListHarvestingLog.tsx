@@ -21,7 +21,7 @@ import {
 import ListGuesser from "../../../jsonapi/components/ListGuesser";
 import { type RelatedResource } from "../../../providers/dataProvider";
 import TruncatedTextField from "../../Field/TruncatedTextField";
-import ListActions from "../../Lists/CustomListActions";
+import PlainListActions from "../../Lists/PlainListActions";
 
 export interface ListHarvestingLogProps {
   /** the run whose log lines are listed, which is the parent of the nested route */
@@ -42,6 +42,13 @@ const LEVEL_WORDS = ["fatal", "error", "warning", "info", "debug"];
  * The narrowings the header offers, each one the filter it sets: the scale
  * counts down to the loudest, so "and above" is a `level__lte` (#1080).
  */
+/** the chip colour a log level word is shown in */
+const levelColor = (word: string): "error" | "warning" | "default" => {
+  if (word === "fatal" || word === "error") return "error";
+  if (word === "warning") return "warning";
+  return "default";
+};
+
 const FACETS: Array<{ key: string; filter?: Record<string, number> }> = [
   { key: "all" },
   { key: "infoAndAbove", filter: { level__lte: 3 } },
@@ -63,14 +70,13 @@ const LogLevelHeader = (): ReactElement => {
   const chosen =
     FACETS.find(
       (facet) =>
-        facet.filter !== undefined &&
-        Number(filterValues?.level__lte) === facet.filter.level__lte,
+        Number(filterValues?.level__lte) === facet.filter?.level__lte,
     )?.key ?? "all";
   const choose = (key: string) => {
     const rest = { ...filterValues };
     delete rest.level__lte;
     const facet = FACETS.find((candidate) => candidate.key === key);
-    setFilters({ ...rest, ...(facet?.filter ?? {}) }, displayedFilters);
+    setFilters({ ...rest, ...facet?.filter }, displayedFilters);
   };
   const runLevel = levelWord(run?.logLevel);
   return (
@@ -130,9 +136,7 @@ const ListHarvestingLog = ({
           <ShowButton />
         </WrapperField>
       }
-      ActionsComponent={(props) => (
-        <ListActions {...props} isConfigureable={false} isExportable={false} />
-      )}
+ActionsComponent={PlainListActions}
       columns={[
         <DateField
           key="timestamp"
@@ -150,13 +154,7 @@ const ListHarvestingLog = ({
             return (
               <Chip
                 size="small"
-                color={
-                  word === "fatal" || word === "error"
-                    ? "error"
-                    : word === "warning"
-                      ? "warning"
-                      : "default"
-                }
+                color={levelColor(word)}
                 label={translate(`harvestRun.logLevels.${word}`)}
               />
             );
@@ -167,13 +165,11 @@ const ListHarvestingLog = ({
           source="kind"
           sortable={false}
           label="harvestRun.logKind"
-          render={(record) =>
-            record?.kind == null
-              ? null
-              : translate(
-                  `harvestRun.logKinds.${record.kind === 1 ? "countMismatch" : "remoteError"}`,
-                )
-          }
+          render={(record) => {
+            if (record?.kind == null) return null;
+            const kindKey = record.kind === 1 ? "countMismatch" : "remoteError";
+            return translate(`harvestRun.logKinds.${kindKey}`);
+          }}
         />,
         <TruncatedTextField
           key="description"

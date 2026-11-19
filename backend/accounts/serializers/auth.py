@@ -11,10 +11,9 @@ class PermissionSerializer(
         ModelSerializer):
 
     url = HyperlinkedIdentityField(
-        view_name='accounts:user-detail',
+        view_name='accounts:permission-detail',
     )
 
     class Meta:
         model = Permission
-        fields = "__all__"
         fields = "__all__"

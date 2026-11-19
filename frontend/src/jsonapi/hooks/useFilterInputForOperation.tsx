@@ -75,7 +75,7 @@ export const getFilterInputDefinitions = (schema: OpenAPIV3.ParameterObject, res
     }
   }
 
-  // TODO: date, date-time, time, geojson
+  // FUTURE: date, date-time, time, geojson
   else if (filterSchema.type === 'string'){
     if ((filterSchema.enum ?? []).length > 0) {
       return {

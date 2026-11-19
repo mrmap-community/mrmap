@@ -41,3 +41,4 @@ Feature: OpenApi Schema
         Then I expect the openapi schema operation "get" on "/api/registry/update/webmapservice-update-jobs" documents a sort enum
         Then I expect the openapi schema operation "get" on "/api/registry/service-alerts" documents a sort enum
         Then I expect the openapi schema operation "get" on "/api/registry/languages" documents a sort enum
+        Then I expect the openapi schema operation "get" on "/api/notify/operational-incidents" documents a sort enum

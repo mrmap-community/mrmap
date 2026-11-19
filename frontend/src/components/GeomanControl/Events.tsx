@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMap } from "react-leaflet";
 
 interface EventProps {
@@ -15,17 +15,24 @@ const Events = ({
 }: EventProps) => {
   const map = useMap();
 
+  // the pm:create listener is registered once per map, so it must not close
+  // over the handlers of one render - it dispatches through this ref instead
+  const handlers = useRef({ onCreate, onUpdate, onRemove });
+  useEffect(() => {
+    handlers.current = { onCreate, onUpdate, onRemove };
+  }, [onCreate, onUpdate, onRemove]);
+
   useEffect(() => {
     if (map) {
        !map.hasEventListeners("pm:create") && map.on("pm:create", (e) => {
-        onCreate && onCreate(e)
+        handlers.current.onCreate?.(e)
         
-        onUpdate && !e.layer.hasEventListeners("pm:update") && e.layer.on("pm:update", () => {
-           onUpdate(e)
+        handlers.current.onUpdate && !e.layer.hasEventListeners("pm:update") && e.layer.on("pm:update", () => {
+           handlers.current.onUpdate?.(e)
         });
 
-        onRemove && !e.layer.hasEventListeners("pm:remove") && e.layer.on("pm:remove", () => {
-           onRemove(e)
+        handlers.current.onRemove && !e.layer.hasEventListeners("pm:remove") && e.layer.on("pm:remove", () => {
+           handlers.current.onRemove?.(e)
         });
       });
     }

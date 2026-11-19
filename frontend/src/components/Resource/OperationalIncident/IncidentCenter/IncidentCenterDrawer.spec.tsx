@@ -48,11 +48,15 @@ vi.mock("react-admin", async () => {
     RecordContext,
     useRecordContext: () => React.useContext(RecordContext),
     // the `_` option answers a value which is no translation key - a raw
-    // sourceType of the api stays readable, as JobCenterDrawer practices it
+    // source of the api stays readable, as JobCenterDrawer practices it
     useTranslate: () => (key: string, options?: Record<string, unknown>) =>
       options !== undefined && options._ !== undefined
         ? String(options._)
         : key,
+    // the same show-view path react-admin builds, so the href pins what the
+    // link of the row really is
+    useCreatePath: () => (params: { resource: string; id: string }) =>
+      `/${params.resource}/${params.id}/show`,
     Link: ({
       to,
       children,
@@ -68,15 +72,16 @@ vi.mock("react-admin", async () => {
 const incident = (
   overrides: Partial<OperationalIncidentRecord>,
 ): OperationalIncidentRecord => ({
-  id: 1,
-  code: "harvest.chord_stalled",
-  sourceType: "harvesting",
+  id: "1",
+  code: "harvesting_harvest_all_records",
+  source: "harvesting",
   severity: "warning",
-  state: "retrying",
+  status: "active",
+  scope: "resource",
   summary: "CSW endpoint did not respond",
   occurrenceCount: 1,
-  firstOccurrence: "2026-11-14T10:00:00Z",
-  lastOccurrence: "2026-11-14T11:00:00Z",
+  firstOccurredAt: "2026-11-14T10:00:00Z",
+  lastOccurredAt: "2026-11-14T11:00:00Z",
   ...overrides,
 });
 
@@ -132,11 +137,10 @@ describe("IncidentCenterDrawer", () => {
     // invent rows per retry - the record is keyed by its stable id (#1321)
     state.active.data = [
       incident({
-        id: 1,
+        id: "1",
         occurrenceCount: 10,
-        retryAttempt: 4,
-        retryTotal: 10,
-        nextRetryAt: "2026-11-14T14:37:00Z",
+        retryCount: 4,
+        retryScheduledUntil: "2026-11-14T14:37:00Z",
       }),
     ];
     state.active.total = 1;
@@ -148,21 +152,33 @@ describe("IncidentCenterDrawer", () => {
     expect(
       rows.getByLabelText("incidentCenter.occurrences"),
     ).toBeInTheDocument();
-    // the epic's sentence: retry 4/10, next attempt ... (#1104)
+    // the retries the reported operation told, and until when the next
+    // attempt is due - only what the api answers (#1104)
     expect(
       rows.getByText(
-        "incidentCenter.retryAttempt · incidentCenter.retryOfTotal · incidentCenter.nextAttempt",
+        "incidentCenter.retryCount · incidentCenter.nextAttempt",
       ),
     ).toBeInTheDocument();
     // first and last occurrence are both there, as relative moments
-    expect(rows.getByText("date:firstOccurrence")).toBeInTheDocument();
-    expect(rows.getByText("date:lastOccurrence")).toBeInTheDocument();
+    expect(rows.getByText("date:firstOccurredAt")).toBeInTheDocument();
+    expect(rows.getByText("date:lastOccurredAt")).toBeInTheDocument();
   });
 
-  it("links only to the destination the server permitted", () => {
+  it("links the resource the api named and gives a system incident no destination", () => {
+    // permission is the list's own (#1319): whatever row is here may be
+    // opened, so the row links to exactly the type-and-id the answer names -
+    // and a system incident, which names no resource, gets no link
     state.active.data = [
-      incident({ id: 1, targetPath: "/HarvestingJob/7/show" }),
-      incident({ id: 2, summary: "Private catalogue trouble", targetPath: null }),
+      incident({
+        id: "1",
+        affectedResource: { type: "HarvestingJob", id: "7" },
+      }),
+      incident({
+        id: "2",
+        summary: "Queue without a consumer",
+        scope: "system",
+        affectedResource: null,
+      }),
     ];
     state.active.total = 2;
     render(<IncidentCenterDrawer />);
@@ -173,18 +189,18 @@ describe("IncidentCenterDrawer", () => {
     fireEvent.click(link);
     // navigating to the permitted resource leaves the drawer
     expect(state.setOpen).toHaveBeenCalledWith(false);
-    // the row whose target the client may not see offers no destination and
-    // derives none - no path, no resource name, no guess
+    // the system incident shows its summary and derives no destination from
+    // the code, the source or the id - nothing to click
     expect(
-      panel().getByText("Private catalogue trouble"),
+      panel().getByText("Queue without a consumer"),
     ).toBeInTheDocument();
     expect(panel().getAllByRole("link")).toHaveLength(1);
   });
 
   it("narrows the window through the facet chips and says so when none match", () => {
     state.active.data = [
-      incident({ id: 1, severity: "error", summary: "Update failed hard" }),
-      incident({ id: 2, severity: "warning", sourceType: "monitoring" }),
+      incident({ id: "1", severity: "error", summary: "Update failed hard" }),
+      incident({ id: "2", severity: "warning", source: "monitoring" }),
     ];
     state.active.total = 2;
     render(<IncidentCenterDrawer />);
@@ -215,11 +231,22 @@ describe("IncidentCenterDrawer", () => {
     ).toBeInTheDocument();
   });
 
-  it("distinguishes retrying, suspected stalled and failed by state", () => {
+  it("distinguishes retrying, suspected stalled and failed from the answered fields", () => {
+    // no lifecycle field of four exists on the api - the reading comes from
+    // the watchdog code family, the severity and the status (#1104)
     state.active.data = [
-      incident({ id: 1, state: "retrying" }),
-      incident({ id: 2, state: "stalled" }),
-      incident({ id: 3, state: "failed", severity: "error" }),
+      incident({ id: "1", summary: "harvest waits for its next page" }),
+      incident({
+        id: "2",
+        summary: "Retry window of the run expired",
+        code: "operational_retry_window_expired",
+        severity: "warning",
+      }),
+      incident({
+        id: "3",
+        summary: "Update exhausted its retry budget",
+        severity: "error",
+      }),
     ];
     state.active.total = 3;
     render(<IncidentCenterDrawer />);
@@ -238,13 +265,13 @@ describe("IncidentCenterDrawer", () => {
   });
 
   it("keeps recovery out of the active tab and visible in the resolved one", () => {
-    state.active.data = [incident({ id: 1 })];
+    state.active.data = [incident({ id: "1" })];
     state.active.total = 1;
     state.resolved.data = [
       incident({
-        id: 2,
+        id: "2",
         summary: "CSW endpoint answered again",
-        state: "resolved",
+        status: "resolved",
         severity: "warning",
         resolvedAt: "2026-11-14T12:00:00Z",
       }),
@@ -283,16 +310,16 @@ describe("IncidentCenterDrawer", () => {
   });
 
   it("tells a failing read and offers the retry of it", () => {
-    state.active.error = new Error("list_OperationalIncident not found");
-    state.resolved.error = new Error("list_OperationalIncident not found");
+    state.active.error = new Error("Service Unavailable");
+    state.resolved.error = new Error("Service Unavailable");
     render(<IncidentCenterDrawer />);
     expect(
       panel().getByText("incidentCenter.loadError"),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "ra.action.refresh" }));
     expect(state.active.refetch).toHaveBeenCalledTimes(1);
-    // while the api of #1319 is not there at all, the resolved window fails
-    // too and the other tab says its own silence - not a crash
+    // a failing endpoint fails both windows and the other tab says its own
+    // silence - not a crash
     fireEvent.click(screen.getByRole("tab", { name: /tabs.resolved/ }));
     expect(
       panel().getByText("incidentCenter.loadError"),
@@ -300,7 +327,7 @@ describe("IncidentCenterDrawer", () => {
   });
 
   it("names rows beyond the bounded window instead of hiding them", () => {
-    state.active.data = [incident({ id: 1 }), incident({ id: 2 })];
+    state.active.data = [incident({ id: "1" }), incident({ id: "2" })];
     state.active.total = 25 + 7;
     render(<IncidentCenterDrawer />);
     expect(

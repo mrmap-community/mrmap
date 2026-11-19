@@ -11,6 +11,7 @@ list decides on the wire - a foreign Host gets a 400, a listed one is served.
 
 import os
 
+from django.contrib.auth import get_user_model
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 
 from MrMap import settings
@@ -75,17 +76,26 @@ class AllowedHostsEnvTests(SimpleTestCase):
 
     def test_settings_keep_the_internal_callers(self):
         # the stack itself must stay reachable: dev server and health probes
-        # on localhost, the ETF validator callback, the django test client
+        # on localhost, the backend's own service address, the django test
+        # client
         for host in ('localhost', 'mrmap-appserver', 'testserver'):
             self.assertIn(host, settings.ALLOWED_HOSTS)
 
 
 class AllowedHostsRequestTests(TestCase):
-    """The merged list decides on the wire: foreign Host 400, listed host served."""
+    """The merged list decides on the wire: foreign Host 400, listed host served.
+
+    The probe endpoint is ``/api/system/info``, which is admin only since
+    #1445 - a refusal would prove nothing about the host list, so the
+    served-answer assertions ride an admin session while the host check
+    itself still decides before any view runs.
+    """
 
     def setUp(self):
         # the client must hand back the 400 response instead of raising
         self.client = Client(raise_request_exception=False)
+        self.client.force_login(get_user_model().objects.create_user(
+            username="host-probe-admin", password="x", is_staff=True))
 
     def test_foreign_host_is_answered_400(self):
         with override_settings(ALLOWED_HOSTS=['localhost']):

@@ -4,6 +4,8 @@ import {
   MenuItemLink,
   type ResourceDefinition,
   MenuProps,
+  useAuthState,
+  useCanAccessResources,
   useResourceDefinitions,
   useSidebarState,
   useTranslate,
@@ -47,8 +49,78 @@ const menuLabel = (resource: ResourceDefinition, translate: (key: string, option
     return translate(`resources.${resource.name}.plural`, { _: resource.name });
 };
 
+interface AuthorizedSubMenuProps {
+    group: string;
+    resources: ResourceDefinition[];
+    isOpen: boolean;
+    onToggle: () => void;
+    dense: boolean;
+}
+
+/**
+ * One sidebar group, gated by #836's `canAccess`: hidden while the check
+ * runs and, once it answered, only over the resources whose `list` action
+ * it granted - a group whose every entry was denied would otherwise be an
+ * empty submenu advertising screens this user may not open. At module scope
+ * on purpose: a component defined inside `CustomMenu` would remount this
+ * subtree - and its access check - on every sidebar toggle.
+ */
+const AuthorizedSubMenu = ({
+    group,
+    resources,
+    isOpen,
+    onToggle,
+    dense,
+}: AuthorizedSubMenuProps) => {
+    const translate = useTranslate();
+    const { canAccess, isPending } = useCanAccessResources({
+        action: 'list',
+        resources: resources.map(resource => resource.name),
+    });
+    if (isPending) {
+        return null;
+    }
+    const granted = resources.filter(
+        resource => canAccess?.[resource.name] === true
+    );
+    if (granted.length === 0) {
+        return null;
+    }
+    return (
+        <SubMenu
+            handleToggle={onToggle}
+            isOpen={isOpen}
+            name={group}
+            icon={groupIcons[group] ?? <FeedIcon />}
+            dense={dense}
+        >
+            {granted
+                .toSorted((first, second) => {
+                    const firstMenu = first.options?.menu as MenuOption;
+                    const secondMenu = second.options?.menu as MenuOption;
+                    return (firstMenu.order ?? 0) - (secondMenu.order ?? 0);
+                })
+                .map(resource => (
+                    <MenuItemLink
+                        key={resource.name}
+                        to={`/${resource.name}`}
+                        state={{ _scrollToTop: true }}
+                        primaryText={menuLabel(resource, translate)}
+                        leftIcon={createElementIfDefined(resource.icon)}
+                        dense={dense}
+                    />
+                ))}
+        </SubMenu>
+    );
+};
+
 const CustomMenu = ({ dense = false }: MenuProps) => {
     const translate = useTranslate();
+    // #833: the resource groups below answer `canAccess` per entry and so
+    // keep the public services of #833 for an anonymous visitor; the three
+    // named screens behind a session - dashboard, explorer and viewer - are
+    // custom routes guarded by <Authenticated> and are not offered without one
+    const { authenticated } = useAuthState();
     const [open] = useSidebarState();
     const resourceDefinitions = useResourceDefinitions();
     const menuResources = Object.values(resourceDefinitions).filter(
@@ -57,7 +129,9 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
     const groups = menuResources.reduce<Record<string, typeof menuResources>>(
         (result, resource) => {
             const menu = resource.options?.menu as MenuOption;
-            (result[menu.group] ??= []).push(resource);
+            const grouped = result[menu.group] ?? [];
+            grouped.push(resource);
+            result[menu.group] = grouped;
             return result;
         },
         {}
@@ -81,47 +155,30 @@ const CustomMenu = ({ dense = false }: MenuProps) => {
             }}
         >
             <MenuList>
-                <DashboardMenuItem />
-                <MenuItemLink to="/service-explorer" primaryText={translate("serviceExplorer.title")} leftIcon={<PublicIcon />} dense={dense} />
+                {!!authenticated && <DashboardMenuItem />}
+                {!!authenticated && <MenuItemLink to="/service-explorer" primaryText={translate("serviceExplorer.title")} leftIcon={<PublicIcon />} dense={dense} />}
                 {groupNames.map(group => (
-                    <SubMenu
+                    <AuthorizedSubMenu
                         key={group}
-                        handleToggle={() =>
+                        group={group}
+                        resources={groups[group]}
+                        isOpen={expanded[group] ?? true}
+                        onToggle={() =>
                             setExpanded(current => ({
                                 ...current,
                                 [group]: !current[group],
                             }))
                         }
-                        isOpen={expanded[group] ?? true}
-                        name={group}
-                        icon={groupIcons[group] ?? <FeedIcon />}
                         dense={dense}
-                    >
-                        {groups[group]
-                            .sort((first, second) => {
-                                const firstMenu = first.options?.menu as MenuOption;
-                                const secondMenu = second.options?.menu as MenuOption;
-                                return (firstMenu.order ?? 0) - (secondMenu.order ?? 0);
-                            })
-                            .map(resource => (
-                                <MenuItemLink
-                                    key={resource.name}
-                                    to={`/${resource.name}`}
-                                    state={{ _scrollToTop: true }}
-                                    primaryText={menuLabel(resource, translate)}
-                                    leftIcon={createElementIfDefined(resource.icon)}
-                                    dense={dense}
-                                />
-                            ))}
-                    </SubMenu>
+                    />
                 ))}
-                <MenuItemLink
+                {!!authenticated && <MenuItemLink
                     to="/viewer"
                     state={{ _scrollToTop: true }}
                     primaryText="MapViewer"
                     leftIcon={<PublicIcon />}
                     dense={dense}
-                />
+                />}
             </MenuList>
         </Box>
     );

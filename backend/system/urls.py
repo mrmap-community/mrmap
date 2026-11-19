@@ -20,4 +20,9 @@ urlpatterns = router.urls + [
         view=views.SystemView.as_view(),
         name='system-info'
     ),
+    path(
+        route=r'capacity',
+        view=views.CapacitySnapshotView.as_view(),
+        name='capacity-snapshot'
+    ),
 ]

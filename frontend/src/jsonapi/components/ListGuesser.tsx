@@ -1,5 +1,5 @@
 import { createElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
-import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useResourceDefinition, useSidebarState, useStore, useTranslate, WrapperField } from 'react-admin'
+import { DatagridConfigurable, DatagridConfigurableProps, EditButton, List, ListBase, ListView, Loading, type ListProps, type RaRecord, ShowButton, useCanAccessResources, useResourceDefinition, useSidebarState, useStore, useTranslate, WrapperField } from 'react-admin'
 import { useParams } from 'react-router-dom'
 
 import { Box, Stack } from '@mui/material'
@@ -126,7 +126,8 @@ const ListGuesserContent = ({
   dataGridProps,
   ...props
 }: ListGuesserProps): ReactElement => {
-  const ListComponent = header != null ? ListWithHeader : realtime ? RealtimeList : List
+  const RealtimeOrPlain = realtime ? RealtimeList : List
+  const ListComponent = header != null ? ListWithHeader : RealtimeOrPlain
   const { name, hasShow, options } = useResourceDefinition(props)
   const translate = useTranslate()
   const listOptions = useMemo(()=>(options?.list),[options])
@@ -138,7 +139,8 @@ const ListGuesserContent = ({
   const { selectedRecord, setSelectedRecord } = useSelectedRecordContext()
 
   const { id } = useParams()
-  const operationId = useMemo(()=> relatedResource !== undefined && relatedResource?.resource !== '' ?`list_related_${name}_of_${relatedResource?.resource}`: `list_${name}`, [relatedResource?.resource, name])
+  const relatedResourceName = relatedResource?.resource
+  const operationId = useMemo(()=> relatedResourceName !== undefined && relatedResourceName !== '' ?`list_related_${name}_of_${relatedResourceName}`: `list_${name}`, [relatedResourceName, name])
   const { operation } = useResourceSchema(operationId)
   const fieldDefinitions = useFieldsForOperation({operationId: operationId, forInput:false, ignoreId:false})
   const fields = useMemo(
@@ -153,7 +155,7 @@ const ListGuesserContent = ({
         }
       )
     })
-  ,[fieldDefinitions])
+  ,[fieldDefinitions, updateFieldDefinitions])
   
   const fieldSchemas = useFilterInputForOperation(operationId)
   const filters = useMemo<ReactElement[]>(() => [
@@ -168,9 +170,19 @@ const ListGuesserContent = ({
   const hasHistoricalEndpoint = useMemo(()=>Boolean(api?.getOperation(`list_Historical${name}`)),[api, name])
 
   // the changelog of the records is the aside every screen of a resource with a historical endpoint
-  // shows, so an aside the resource definition names is shown above it instead of replacing it
+  // shows, so an aside the resource definition names is shown above it instead of replacing it.
+  // #833: the changelog is private even beside a public screen, so it only mounts when
+  // `canAccess` grants the historical resource - an anonymous visitor of a published
+  // service sees its rows and nothing of who changed them.
+  const historyResource = hasHistoricalEndpoint && name !== undefined ? `Historical${name}` : undefined
+  const { canAccess: historyAccess } = useCanAccessResources({
+    action: "list",
+    resources: historyResource !== undefined ? [historyResource] : [],
+  })
+  const showHistory = historyResource !== undefined
+    && historyAccess?.[historyResource] === true
   const aside = useMemo(() => {
-    const history = hasHistoricalEndpoint ? (
+    const history = showHistory && historyResource !== undefined ? (
       <AsideCard
         sx={{
           margin: '1em',
@@ -185,7 +197,7 @@ const ListGuesserContent = ({
         <HistoryList
           key={selectedRecord?.id ?? "all"}
           variant="compact"
-          resource={`Historical${name ?? ''}`}
+          resource={historyResource}
           related={name ?? ''}
         />
       </AsideCard>
@@ -195,7 +207,7 @@ const ListGuesserContent = ({
     return history === undefined
       ? chosen
       : <Stack spacing={2} sx={{ margin: '1em', width: `calc(${open ? '40vw' : '20vw'} - 1em - ${open ? '240px' : '50px'})` }}>{chosen}{history}</Stack>
-  }, [hasHistoricalEndpoint, listOptions?.aside, open, selectedRecord?.id, name])
+  }, [showHistory, historyResource, listOptions?.aside, open, selectedRecord?.id, name])
 
   const preferenceKey = useMemo(()=>(`${operationId}.datagrid`),[operationId])
   const gridPreferenceKey = columns ? `${preferenceKey}.customColumns` : preferenceKey
@@ -256,12 +268,21 @@ const ListGuesserContent = ({
       ),[id, jsonApiQuery, onError, props.queryOptions, refetchInterval, relatedResource])
 
 
+  /** The filter the resource definition declares for its list screens
+   *  (`options.list.filter`) with this screen's own filter on top of it.
+   *  React-admin applies the `filter` prop to every query of the list as a
+   *  permanent filter, so a screen narrows or replaces one term here; it does not
+   *  have to repeat what every screen of the resource already asks for. */
+  const filter = listOptions?.filter === undefined
+    ? props.filter
+    : { ...listOptions.filter, ...props.filter }
+
   useEffect(()=>{
     if(!columns && defaultOmit.length > 0 && !initOmit){
       setOmit(defaultOmit)
       setInitOmit(true)
     }
-  },[defaultOmit, columns])
+  },[defaultOmit, columns, initOmit, setOmit])
 
 
   if (operation === undefined || (columns ?? fields).length === 0) {
@@ -284,9 +305,7 @@ const ListGuesserContent = ({
       aside={aside}
       {...props}
       queryOptions={queryOptions}
-      filter={['WebMapService', 'WebFeatureService', 'Layer', 'FeatureType'].includes(name)
-        ? { is_update_candidate: false, ...props.filter }
-        : props.filter}
+      filter={filter}
     >
       {listContent ?? <DatagridConfigurable
         
@@ -299,7 +318,7 @@ const ListGuesserContent = ({
           },
         } : {}}
         rowClick={(id, resource, record) => {
-          onRowClick && onRowClick(record)
+          onRowClick?.(record)
           if (selectedRecord !== record) {
             setSelectedRecord(record)
           }

@@ -83,7 +83,7 @@ describe('a mixed WMS and WFS document', () => {
         expect(wmsBatches.length).toBeGreaterThan(0)
         expect(wmsBatches.every(batch => batch.features
             .every(feature => feature.getWmsOffering() !== undefined))).toBe(true)
-        expect(wfsRequests.length).toBe(1)
+        expect(wfsRequests).toHaveLength(1)
         expect(wfsRequests[0].feature.getWfsOffering()).not.toBeUndefined()
         expect(wfsRequests[0].feature.getWmsOffering()).toBeUndefined()
     })

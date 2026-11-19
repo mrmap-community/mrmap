@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.db.transaction import atomic
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -23,14 +24,8 @@ class MapContextLayerSerializer(
         help_text=_('an identifying name for this map context layer'),
         required=True
     )
-    # description = CharField(
-    #     label=_("description"),
-    #     help_text=_("a short description for this map context layer")
-    # )
     mptt_tree_id = IntegerField(
-        # queryset=Tree.objects,
         label=_("tree id"),
-        # model=Tree,
         read_only=True
     )
     mptt_parent = ResourceRelatedField(
@@ -85,12 +80,24 @@ class MapContextLayerSerializer(
                     raise ValidationError(_('root node can not be moved'))
                 else:
                     validated_data['mptt_parent'] = parent
+                # NOTE: `chilren` is the related_name typo of mptt2's own
+                # `mptt_parent` foreign key, declared in
+                # registry/migrations/0001_initial.py. Renaming it to
+                # `children` needs a migration, so it is left alone here and
+                # tracked as audit item API-20.
                 child_layers_count = parent.chilren.count()
                 if position > child_layers_count or position < 0:
                     raise ValidationError(
                         {"position": _('position index out of range')})
         return validated_data
 
+    # the reorder of a position is one unit of work: the sibling count asked
+    # below is only meaningful together with the tree update, because mptt2
+    # commits its own update as soon as move_to/insert_at return. Without the
+    # surrounding transaction a parallel reorder can claim the same index in
+    # between, and a save which is refused after the tree update leaves the node
+    # moved while its attributes were never written (#1476).
+    @atomic
     def update(self, instance, validated_data):
         position = validated_data.pop('position', None)
         if isinstance(position, int):
@@ -116,24 +123,26 @@ class MapContextLayerSerializer(
                         position='left')
         return super().update(instance, validated_data)
 
+    # @atomic for the same reason as in update(): the count below and the insert
+    # belong to one another (#1476).
+    @atomic
     def create(self, validated_data):
         position = validated_data.pop('position', None)
         node = MapContextLayer(**validated_data)
         parent = validated_data['mptt_parent']
         if isinstance(position, int):
-            parent = validated_data['mptt_parent']
             child_layers = parent.chilren.all()
             child_layers_count = child_layers.count()
             if position == 0:
                 # first child
-                node.insert_at(parent, 'first-child')
+                return node.insert_at(parent, 'first-child')
             elif position == child_layers_count:
                 # last child
-                node.insert_at(parent, 'last-child')
+                return node.insert_at(parent, 'last-child')
             else:
                 # new child somewhere between
                 target = child_layers[position]
-                node.insert_at(target, 'left')
+                return node.insert_at(target, 'left')
         else:
             return node.insert_at(parent)
 
@@ -196,5 +205,4 @@ class MapContextIncludeSerializer(
 
     class Meta:
         model = MapContext
-        fields = "__all__"
         fields = "__all__"

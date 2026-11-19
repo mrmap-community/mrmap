@@ -41,7 +41,12 @@ vi.mock("../../WebFeatureService/Button/MapViewerButton", () => ({
   ),
 }));
 
-const renderDetails = (version?: number, locale = "en") =>
+const renderDetails = (
+  version?: number,
+  locale = "en",
+  /** the answer of the backend about who may view the service (#739) */
+  visibility?: string,
+) =>
   render(
     <AdminContext
       i18nProvider={polyglotI18nProvider(
@@ -56,6 +61,7 @@ const renderDetails = (version?: number, locale = "en") =>
             title: "Weather WMS",
             abstract: "Weather maps",
             version,
+            ...(visibility ? { visibility } : {}),
           }}
         >
           <ServiceDetailsCard protocol="WMS" />
@@ -129,6 +135,44 @@ describe("ServiceDetailsCard labels", () => {
     renderDetails(undefined, "de");
     expect(screen.getByText("Titel")).toBeInTheDocument();
     expect(screen.getByText("Beschreibung")).toBeInTheDocument();
+  });
+
+  it.each(["public", "organization-internal", "restricted"] as const)(
+    "names the visibility %s the backend answered for the service",
+    (visibility) => {
+      renderDetails(undefined, "en", visibility);
+      expect(screen.getByText("Visibility")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          visibility === "organization-internal"
+            ? "Organization internal"
+            : visibility === "public"
+              ? "Public"
+              : "Restricted",
+        ),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it("tells what the answered visibility means", () => {
+    renderDetails(undefined, "en", "public");
+    // the hint is the title of the chip itself, not of the label span inside
+    // it, so the locator starts at the title and asserts the state it belongs
+    // to
+    expect(screen.getByTitle(/without signing in/)).toHaveTextContent(
+      "Public",
+    );
+  });
+
+  it("translates the answered visibility into German", () => {
+    renderDetails(undefined, "de", "restricted");
+    expect(screen.getByText("Sichtbarkeit")).toBeInTheDocument();
+    expect(screen.getByText("Eingeschränkt")).toBeInTheDocument();
+  });
+
+  it("says nothing about visibility to a service which answers none", () => {
+    renderDetails();
+    expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
   });
 
   it("opens a web feature service in the map viewer from its own screen", () => {
@@ -239,6 +283,24 @@ describe("ServiceDetailsCard of a selected service", () => {
       ),
     );
     expect(await screen.findAllByText("not readable")).toHaveLength(2);
+  });
+
+  it("says nothing about ownership to a service which is only selected", () => {
+    // the record of the list aside never asked for the owner, so the card must
+    // not read its absence as the service having none
+    render(
+      selectedCard(
+        { id: "service-1", title: "Weather WMS" },
+        testDataProvider({
+          getList: vi
+            .fn()
+            .mockImplementation(async () =>
+              answersOutcome("WebMapServiceMonitoringRun"),
+            ),
+        }),
+      ),
+    );
+    expect(screen.queryByText("Owning organization")).not.toBeInTheDocument();
   });
 
   it("asks nothing and shows no outcome of a service which is not selected", () => {

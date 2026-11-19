@@ -44,16 +44,12 @@ const label = (record?: RaRecord) =>
   record?.stringRepresentation ??
   record?.id ??
   "—";
-const changeType = (mapping: RaRecord, config: ServiceUpdateConfig) =>
-  !mapping[config.oldElement]
-    ? "added"
-    : !mapping[config.newElement]
-      ? "removed"
-      : mapping.delta?.length
-        ? "modified"
-        : config.hasTree
-          ? "unchanged"
-          : "mapped";
+const changeType = (mapping: RaRecord, config: ServiceUpdateConfig): string => {
+  if (!mapping[config.oldElement]) return "added";
+  if (!mapping[config.newElement]) return "removed";
+  if (mapping.delta?.length) return "modified";
+  return config.hasTree ? "unchanged" : "mapped";
+};
 const panelSx = {
   p: 2.5,
   border: 1,
@@ -125,6 +121,54 @@ const LayerComparison = ({
   );
 };
 
+/** whether a mapping belongs to the section the review is filtered to */
+const mappingMatchesFilter = (
+  mapping: RaRecord,
+  config: ServiceUpdateConfig,
+  filter: string,
+): boolean => {
+  if (filter === "all") return true;
+  if (filter === "pending") return !mapping.isConfirmed;
+  return changeType(mapping, config) === filter;
+};
+
+/** whether a layer encloses the other in the tree: its interval contains it */
+const containsLayer = (layer: RaRecord, other: RaRecord): boolean =>
+  layer.mpttLft < other.mpttLft && layer.mpttRgt > other.mpttRgt;
+
+/** the mapping the selection names — by the id of its new candidate, else of its
+ *  old layer — or the first visible mapping when nothing is selected */
+const selectedMappingOf = (
+  selectedLayer: string | undefined,
+  mappings: RaRecord[],
+  visibleMappings: RaRecord[],
+  config: ServiceUpdateConfig,
+): RaRecord | undefined => {
+  if (!selectedLayer) return visibleMappings[0];
+  return mappings.find(
+    (mapping) =>
+      String(mapping[config.newElement]?.id ?? mapping[config.oldElement]?.id) === selectedLayer,
+  );
+};
+
+/** the tree nodes that stand open: the root, the selected node's ancestors and
+ *  the ancestors of every search match */
+const expandedAncestorIds = (
+  newLayers: RaRecord[],
+  selectedNode: RaRecord | undefined,
+  matchingLayers: RaRecord[],
+  treeSearch: string,
+): string[] =>
+  newLayers
+    .filter(
+      (layer) =>
+        layer.mpttLft === 1 ||
+        (selectedNode !== undefined && containsLayer(layer, selectedNode)) ||
+        (treeSearch !== "" &&
+          matchingLayers.some((match) => containsLayer(layer, match))),
+    )
+    .map((layer) => String(layer.id));
+
 const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   const job = useRecordContext();
   const { refetch } = useShowContext();
@@ -164,9 +208,12 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
     { id: serviceId, meta },
     { enabled: serviceId != null && !finished },
   );
-  const newLayers: RaRecord[] = candidateQuery.data?.[config.elements] ?? [];
-  const oldLayers: RaRecord[] = currentQuery.data?.[config.elements] ?? [];
-  const mappings: RaRecord[] = job?.mappings ?? [];
+  // memos, not per-render `?? []` fallbacks: these feed the maps and the
+  // tree props below, whose identity must survive renders that changed
+  // nothing about the queried layers
+  const newLayers = useMemo<RaRecord[]>(() => candidateQuery.data?.[config.elements] ?? [], [candidateQuery.data, config.elements]);
+  const oldLayers = useMemo<RaRecord[]>(() => currentQuery.data?.[config.elements] ?? [], [currentQuery.data, config.elements]);
+  const mappings = useMemo<RaRecord[]>(() => job?.mappings ?? [], [job?.mappings]);
   const pending = mappings.filter((mapping) => !mapping.isConfirmed);
   const resolved = mappings.length - pending.length;
   const progress = mappings.length ? (resolved / mappings.length) * 100 : 0;
@@ -188,22 +235,12 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
   };
   const visibleMappings = mappings.filter(
     (mapping) =>
-      (filter === "all" ||
-        (filter === "pending"
-          ? !mapping.isConfirmed
-          : changeType(mapping, config) === filter)) &&
+      mappingMatchesFilter(mapping, config, filter) &&
       String(label(getLayer(mapping, "new") ?? getLayer(mapping, "old")))
         .toLowerCase()
         .includes(search.toLowerCase()),
   );
-  const selectedMapping = selectedLayer
-    ? mappings.find(
-        (mapping) =>
-          String(
-            mapping[config.newElement]?.id ?? mapping[config.oldElement]?.id,
-          ) === selectedLayer,
-      )
-    : visibleMappings[0];
+  const selectedMapping = selectedMappingOf(selectedLayer, mappings, visibleMappings, config);
   const selectedNode = selectedLayer
     ? newById.get(selectedLayer)
     : selectedMapping && getLayer(selectedMapping, "new");
@@ -212,20 +249,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
       String(layer.id) === String(selectedNode?.id) ||
       String(label(layer)).toLowerCase().includes(treeSearch.toLowerCase()),
   );
-  const expandedAncestors = newLayers
-    .filter(
-      (layer) =>
-        layer.mpttLft === 1 ||
-        (selectedNode &&
-          layer.mpttLft < selectedNode.mpttLft &&
-          layer.mpttRgt > selectedNode.mpttRgt) ||
-        (treeSearch &&
-          matchingLayers.some(
-            (match) =>
-              layer.mpttLft < match.mpttLft && layer.mpttRgt > match.mpttRgt,
-          )),
-    )
-    .map((layer) => String(layer.id));
+  const expandedAncestors = expandedAncestorIds(newLayers, selectedNode, matchingLayers, treeSearch);
   const getLayerProps = useCallback(
     (layer: RaRecord) => {
       const mapping = mappings.find(
@@ -234,9 +258,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
       const visible =
         !treeSearch ||
         matchingLayers.some(
-          (match) =>
-            match.id === layer.id ||
-            (layer.mpttLft < match.mpttLft && layer.mpttRgt > match.mpttRgt),
+          (match) => match.id === layer.id || containsLayer(layer, match),
         );
       return {
         itemId: String(layer.id),
@@ -338,9 +360,8 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
         </Stack>
       </Paper>
       {error && <Alert severity="error">{message("loadError")}</Alert>}
-      {loading && !error ? (
-        <Loading />
-      ) : !error ? (
+      {loading && !error && <Loading />}
+      {!loading && !error && (
         <Box
           sx={{
             display: "grid",
@@ -553,7 +574,7 @@ const ServiceUpdateJobCard = ({ config }: { config: ServiceUpdateConfig }) => {
             )}
           </Paper>
         </Box>
-      ) : null}
+      )}
     </Stack>
   );
 };

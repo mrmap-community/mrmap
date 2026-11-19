@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from extras.enums import SmartIntegerChoices
 
 
-# TODO: use IntegerChoices instead
+# FUTURE: use IntegerChoices instead
 class CategoryOriginEnum(TextChoices):
     """ Defines sources for categories
     """
@@ -20,7 +20,7 @@ class CategoryOriginEnum(TextChoices):
 
 
 class MetadataOriginEnum(SmartIntegerChoices):
-    # TODO: check if this is needed... is it calculable based on relation types (MetadataRelation Model)?
+    # FUTURE: check if this is needed... is it calculable based on relation types (MetadataRelation Model)?
     """ Defines origins from where a resource could be coming from
 
     """
@@ -69,6 +69,23 @@ class ReferenceWorkStateEnum(SmartIntegerChoices):
     # named apart from the update job's "failed": the catalog translates the
     # bare word into that flow's sentence and one msgid cannot serve both
     FAILED = 2, _("reference failed")
+
+
+class DocumentAcquisitionStateEnum(SmartIntegerChoices):
+    """The states of one shared document acquisition row (#1410).
+
+    A row of ``RegistrationDocumentAcquisition`` is a disposable acquisition
+    work item beside the reference rows which share it: the delivery which
+    fetched the document once and stored it moves PENDING (or, after a lease
+    ran out, LEASED) to STORED; a fetch whose last attempt failed decides
+    its failure on every referring reference and drains the row away - there
+    is no ``FAILED`` and no ``SUCCEEDED`` state, the absence of the row is
+    the proof that no reference still waits on its document. A STORED row
+    whose last reference decided is drained by whoever notices it first.
+    """
+    PENDING = 0, _("pending")
+    LEASED = 1, _("leased")
+    STORED = 2, _("stored")
 
 
 class ReferenceErrorKind(TextChoices):

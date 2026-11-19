@@ -10,8 +10,8 @@ from django.utils.translation import gettext_lazy as _
 from mptt2.models import Node
 from registry.managers.mapcontext import (MapContextLayerManager,
                                           MapContextManager)
-from registry.models import DatasetMetadataRecord, Layer
-from registry.models.metadata import Style
+from registry.models.metadata import DatasetMetadataRecord, Style
+from registry.models.service import Layer
 from simple_history.models import HistoricalRecords
 
 
@@ -163,8 +163,11 @@ class MapContext(models.Model):
         return display_prop
 
 
+IMAGE_PNG = "image/png"
+
+
 class RenderingOffering(models.Model):
-    # TODO: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
+    # FUTURE: to get rid of the models.PROTECT calls on_delete and a consistent object instance... we need to create a seperate model for rendering layer...
     rendering_layer: Layer = models.ForeignKey(
         to=Layer,
         on_delete=models.PROTECT,
@@ -208,9 +211,6 @@ class RenderingOffering(models.Model):
         blank=True,
         verbose_name=_("rendering active"),
         help_text=_("should this offering be visible?"))
-    # transparency = models.IntegerField(
-    #     null=True,
-    #     blank=True)
 
     class Meta:
         abstract = True
@@ -218,30 +218,42 @@ class RenderingOffering(models.Model):
     def clean(self):
         errors = {}
         if self.rendering_layer:
-            # TODO: move this to checkContraints
+            # FUTURE: move this to checkContraints
             # Check scale min/max values against the possible configureable values.
-            if self.layer_scale_min and self.rendering_layer.get_scale_min:
-                if self.layer_scale_min < self.rendering_layer.get_scale_min:
-                    errors.update({'layer_scale_min': ValidationError(
-                        "configured layer minimum scale can't be smaller than the scale value of the layer.")})
-                if self.layer_scale_min > self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_min': ValidationError(
-                        "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
-            if self.layer_scale_max and self.rendering_layer.get_scale_max:
-                if self.layer_scale_max > self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_max': ValidationError(
-                        "configured layer maximum scale can't be greater than the scale value of the layer.")})
-                if self.layer_scale_max < self.rendering_layer.get_scale_max:
-                    errors.update({'layer_scale_max': ValidationError(
-                        "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+            self._clean_scale(errors)
 
             # Check style configuration
-            if self.layer_style and not self.rendering_layer.styles.filter(pk=self.layer_style.pk).exists():
-                errors.update({'layer_style': ValidationError(
-                    "configured style is not a valid style for the selected layer.")})
+            self._clean_style(errors)
 
         if errors:
             raise ValidationError(errors)
+
+    def _clean_scale(self, errors):
+        """Collect the scale min/max violations against the rendering layer."""
+        layer = self.rendering_layer
+        if self.layer_scale_min and layer.get_scale_min:
+            if self.layer_scale_min < layer.get_scale_min:
+                errors.update({'layer_scale_min': ValidationError(
+                    "configured layer minimum scale can't be smaller than the scale value of the layer.")})
+            if self.layer_scale_min > layer.get_scale_max:
+                errors.update({'layer_scale_min': ValidationError(
+                    "configured layer minimum scale can't be greater than the maximum scale value of the layer.")})
+        if self.layer_scale_max and layer.get_scale_max:
+            if self.layer_scale_max > layer.get_scale_max:
+                errors.update({'layer_scale_max': ValidationError(
+                    "configured layer maximum scale can't be greater than the scale value of the layer.")})
+            if self.layer_scale_max < layer.get_scale_max:
+                errors.update({'layer_scale_max': ValidationError(
+                    "configured layer maximum scale can't be smaller than the minimum scale value of the layer.")})
+
+    def _clean_style(self, errors):
+        """Reject a configured style the rendering layer does not offer."""
+        if not self.layer_style:
+            return
+        if self.rendering_layer.styles.filter(pk=self.layer_style.pk).exists():
+            return
+        errors.update({'layer_style': ValidationError(
+            "configured style is not a valid style for the selected layer.")})
 
     def rendering_offering(self):
         if self.rendering_layer_id:
@@ -251,8 +263,8 @@ class RenderingOffering(models.Model):
                     {
                         "code": "GetMap",
                         "method": "GET",
-                        "type": "image/png",
-                        "href": self.rendering_layer.get_map_url(format="image/png", style=self.layer_style),
+                        "type": IMAGE_PNG,
+                        "href": self.rendering_layer.get_map_url(format=IMAGE_PNG, style=self.layer_style),
                         "active": self.rendering_active
                     }
                 ]
@@ -280,7 +292,7 @@ class SelectionOffering(models.Model):
 
     def selection_offering(self):
         if self.selection_layer_id:
-            href = self.selection_layer.get_feature_info_url(format="image/png")
+            href = self.selection_layer.get_feature_info_url(format=IMAGE_PNG)
             return {
                 "code": WMS_OFFERING_CODE,
                 "operations": [
@@ -333,7 +345,7 @@ class MapContextLayer(RenderingOffering, SelectionOffering, Node):
 
     @property
     def folder_name(self) -> str:
-        # TODO: use array index notation /0/1 ...
+        # FUTURE: use array index notation /0/1 ...
         if self.is_root_node:
             return f"/{self.id}"
         else:

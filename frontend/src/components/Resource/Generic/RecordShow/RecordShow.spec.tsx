@@ -9,7 +9,7 @@ import {
 } from "react-admin";
 import { Route, Routes } from "react-router-dom";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { choiceLabel } from "./RecordFields";
@@ -65,9 +65,6 @@ vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
     </div>
   ),
 }));
-vi.mock("../../../../jsonapi/components/EditGuesser", () => ({
-  default: () => <div>Edit form</div>,
-}));
 vi.mock("../History/HistoryList", () => ({
   default: () => <div>Record changes</div>,
 }));
@@ -95,8 +92,9 @@ const setup = (
       fileIdentifier: "file-id",
       origin: 5,
       languages: [{ id: 7, value: 7 }],
-      canEdit: permissions,
-      canDelete: permissions,
+      allowedActions: permissions
+        ? ["view", "change", "delete"]
+        : [],
       isBroken: true,
       insufficientQuality: "Missing identifier",
       isSearchable: false,
@@ -237,6 +235,22 @@ describe("record detail pages", () => {
       screen.queryByRole("tab", { name: "recordShow.documents" }),
     ).not.toBeInTheDocument();
   });
+  it("offers the xml source screen on every record kind", async () => {
+    setup("DatasetMetadataRecord", "source");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("tab", { name: "recordShow.xmlSource" }),
+      ).toHaveAttribute("aria-selected", "true"),
+    );
+    // no document on this record — the screen states that honestly
+    expect(
+      screen.getByText("recordShow.sourceHint"),
+    ).toBeInTheDocument();
+    const alerts = screen.getAllByRole("alert").map((a) => a.textContent);
+    expect(alerts.some((text) => text?.includes("recordShow.noStoredXml"))).toBe(
+      true,
+    );
+  });
   it("shows the harvesting relations of the application run by its own record column", async () => {
     setup("ApplicationMetadataRecord", "harvests");
     await waitFor(() =>
@@ -261,11 +275,21 @@ describe("record detail pages", () => {
     expect(screen.getByText(/CatalogueService/)).toBeInTheDocument();
   });
 
-  it("offers an edit form only with permission", async () => {
+  it("links to the full screen editor only with permission", async () => {
     setup("ServiceMetadataRecord", "", true);
-    const edit = await screen.findByRole("button", { name: "ra.action.edit" });
-    fireEvent.click(edit);
-    expect(await screen.findByText("Edit form")).toBeInTheDocument();
+    const edit = await screen.findByRole("link", { name: "ra.action.edit" });
+    expect(edit).toHaveAttribute(
+      "href",
+      "/metadata/ServiceMetadataRecord/record-1/edit",
+    );
+  });
+
+  it("hides the editor link without edit permission", async () => {
+    setup("ServiceMetadataRecord", "", false);
+    await screen.findByRole("heading", { name: "Parsed record" });
+    expect(
+      screen.queryByRole("link", { name: "ra.action.edit" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the relations of a service record by the column each group fills", async () => {

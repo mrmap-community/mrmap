@@ -1,7 +1,11 @@
 import hashlib
 import json
 import sys
+import time
+from dataclasses import dataclass
 from datetime import timedelta
+from enum import Enum, auto
+from typing import Optional
 from uuid import uuid4
 
 from celery import chord, current_task
@@ -9,6 +13,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.gis.db import models
+from django.contrib.postgres.indexes import HashIndex
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import IntegrityError, OperationalError, transaction
@@ -19,21 +25,24 @@ from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
+from extras.locks import SingleFlight
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
 from lxml.etree import XMLParser
+from MrMap import celery_queues
 from MrMap.celery import app
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
                                        HarvestingPhaseEnum, LogKindEnum,
                                        LogLevelEnum)
-from registry.enums.metadata import (MetadataOriginEnum,
+from registry.enums.metadata import (DocumentAcquisitionStateEnum,
+                                     MetadataOriginEnum,
                                      ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
-                                         HarvestingJobManager,
-                                         TemporaryMdMetadataFileManager)
+from registry.managers.harvesting import (HarvestedMetadataRelationQuerySet,
+                                          HarvestingJobManager,
+                                          TemporaryMdMetadataFileManager)
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.utils import make_instance_key
@@ -42,7 +51,11 @@ from registry.models.metadata import (ApplicationMetadataRecord,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
-from registry.settings import (HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
+from registry.settings import (HARVESTING_PAGE_LEASE_GRACE_SECONDS,
+                               HARVESTING_PAGE_POLL_MAX_SECONDS,
+                               HARVESTING_PAGE_POLL_SECONDS,
+                               HARVESTING_PAGE_WAIT_CAP_SECONDS,
+                               HARVESTING_REQUEST_TIMEOUT_BASE_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_MAX_SECONDS,
                                HARVESTING_REQUEST_TIMEOUT_PER_RECORD_SECONDS,
                                MIN_STEP_SIZE, MRMAP_CSW_PK)
@@ -56,6 +69,57 @@ from simple_history.models import HistoricalRecords
 # answer, and a substring of the document cannot know it (#815).
 EXCEPTION_REPORT_XPATH = ("//*[local-name()='ExceptionReport'"
                           " or local-name()='ServiceExceptionReport']")
+
+#: The prefix of the claim one planned page of one run is fetched under. The key
+#: names the run, its catalogue, its credentials and the exact GetRecords request,
+#: so two pages of two runs cannot share a claim (#1411).
+PAGE_CLAIM_PREFIX = "harvesting/page/"
+
+#: What a delivery which holds a page's claim leaves behind for the deliveries
+#: which joined it, as ``(kind, records)``: the records the page brought, a page
+#: the catalogue refused, or an answer which carried no record at all. A joined
+#: delivery works with these exactly as with its own answer, so the halving of
+#: #694 and the trace of #690 decide about a page whether or not this delivery is
+#: the one that asked for it.
+PAGE_STORED = "stored"
+PAGE_REFUSED = "refused"
+PAGE_EMPTY = "empty"
+
+
+def _setting(name, default):
+    """A harvesting bound the deployment may name, the registry default otherwise."""
+    return getattr(settings, name, default)
+
+
+class AnswerOutcome(Enum):
+    """what reading a catalogue's answer yielded: the requested document, the exception
+    report of a refusing service, or nothing to work with - malformed XML or a status
+    which is not ok. A server error class is no outcome to carry: it raises into the
+    task's retry before an answer is ever classified (#689)."""
+    DOCUMENT = auto()
+    EXCEPTION_REPORT = auto()
+    UNUSABLE = auto()
+
+
+@dataclass(frozen=True)
+class CheckedResponse:
+    """the answer of a catalogue, read once by ``HarvestingJob._check_answer``.
+
+    A successful answer carries the tree its caller works on, so one answer is never
+    parsed a second time for storage or for a count read out of it (#1412). The tree
+    lives exactly as long as the call which read the answer: it is never kept across
+    tasks and never serialized through Celery, which keeps a large document bounded."""
+    response: Response
+    outcome: AnswerOutcome
+    document: Optional[etree._Element] = None
+
+    @property
+    def ok(self) -> bool:
+        """whether the answer is the document the request asked for"""
+        return self.outcome is AnswerOutcome.DOCUMENT
+
+
+CREATED_DATETIME_VERBOSE_NAME = _('Created DateTime')
 
 
 class ProcessingData(models.Model):
@@ -76,7 +140,7 @@ class ProcessingData(models.Model):
         # them. `null` stays: a run whose creation cannot be known - a row of a deployment whose
         # change log is gone - has to stay markable as unknown, and the screens of #1071 answer it
         # "not recorded" instead of inventing a moment.
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the process was created in UTC'),
         null=True,
         blank=True)
@@ -134,7 +198,7 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
                                                    "processing duration"),
                                                help_text=_("This is the duration it tooked to handle the processing of creating or updating this record."))
     history_date = models.DateTimeField(auto_now_add=True,
-                                        verbose_name=_('Created DateTime'),
+                                        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
                                         help_text=_(
                                             'Datetime field when the relation was created'),
                                         )
@@ -241,6 +305,15 @@ class HarvestedMetadataRelation(AdditionalTimeFieldsHistoricalModel):
         ]
 
 
+APPLICATION_JSON = "application/json"
+
+# The lazy reference of the process which owns the work rows of harvesting
+# and registration. Named once because three aggregates spell it
+# identically; a ForeignKey ``to`` deconstructs to the same resolved string
+# either way, so the migration state is untouched (#1410).
+BACKGROUND_PROCESS_REF = "notify.BackgroundProcess"
+
+
 class HarvestingJob(ProcessingData):
     """ helper model to visualize harvesting job workflow """
     service: CatalogueService = models.ForeignKey(
@@ -305,7 +378,7 @@ class HarvestingJob(ProcessingData):
         blank=True
     )
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -356,6 +429,11 @@ class HarvestingJob(ProcessingData):
     class Meta(ProcessingData.Meta):
         verbose_name = _("Harvesting Job")
         verbose_name_plural = _("Harvesting Jobs")
+        # the capability the role catalogue of #731 gives to 'harvester':
+        # starting harvests is not the same act as editing a service, so it is
+        # its own codename; the carrier is this model because a harvest is the
+        # aggregate it starts
+        permissions = [('harvest', 'Can run a harvesting job')]
         ordering = ProcessingData.Meta.ordering
         get_latest_by = ProcessingData.Meta.get_latest_by
         # the newest job of one service answers its harvesting alerts - with
@@ -563,6 +641,12 @@ class HarvestingJob(ProcessingData):
 
             from registry.tasks.harvest import \
                 call_fetch_records  # to avoid circular import errors
+            # The request context is the job's own, decided by nothing the loop
+            # changes: read it ONCE. It answers `change_log.first()` and the
+            # user row of that history per call, and this loop ran it per round
+            # trip - the fan-out of a big catalogue paid two SELECTs per
+            # planned page for a dict which never varied (#1392).
+            http_request = self._http_request()
             task_ids = []
             tasks = []
             for number in range(0, round_trips):
@@ -571,7 +655,7 @@ class HarvestingJob(ProcessingData):
                     harvesting_job_id=self.pk,
                     start_position=number * self.max_step_size + 1,
                     recovering=recovering,
-                    http_request=self._http_request()
+                    http_request=http_request
                 )
                 task.set(task_id=str(task_id))
                 task_ids.append(task_id)
@@ -580,7 +664,7 @@ class HarvestingJob(ProcessingData):
             callback_id = uuid4()
             callback = call_chord_md_metadata_file_to_db.s(
                 harvesting_job_id=str(self.pk),
-                http_request=self._http_request(),
+                http_request=http_request,
             )
             callback.set(task_id=str(callback_id))
 
@@ -607,7 +691,7 @@ class HarvestingJob(ProcessingData):
             description=f"phase {HarvestingPhaseEnum.DOWNLOAD_RECORDS.value} started. {round_trips} round trips with step size {self.max_step_size} are needed."
         )
 
-    # TODO: implement three phases:
+    # FUTURE: implement three phases
     # 1. fetch total_records
     # 2. get statistic information about the average response duration with different step sizes
     # 3. start harvesting with the best average response duration step settings
@@ -730,7 +814,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": created_by.pk
             } if created_by else None
@@ -745,7 +829,7 @@ class HarvestingJob(ProcessingData):
             return {
                 "path": "somepath",
                 "method": "GET",
-                "content_type": "application/json",
+                "content_type": APPLICATION_JSON,
                 "data": {},
                 "user_pk": get_user_model().objects.get(
                     username=settings.MRMAP_USER).pk
@@ -761,12 +845,14 @@ class HarvestingJob(ProcessingData):
             record_types.append("application")
         return record_types
 
-    def get_total_records(self, response):
+    def get_total_records(self, document):
+        """how many records the catalogue counted for its answer; the tree is the one
+        document the check of that answer parsed, its bytes are read no second time
+        (#1412)"""
         ns = {
             "csw": NAMESPACE_LOOKUP["csw_2_0_2"]
         }
-        tree = etree.fromstring(response.content)
-        search_results = tree.find(
+        search_results = document.find(
             ".//csw:SearchResults",
             namespaces=ns
         )
@@ -786,13 +872,14 @@ class HarvestingJob(ProcessingData):
                 xml_constraint=client.get_constraint(record_types=self.get_record_types())),
             timeout=60)
 
-        if self._check_xml_response(first_response):
+        checked = self._check_answer(first_response)
+        if not checked.ok:
             self._log_response_error(response=first_response)
             self.total_records = 0
             self.save()
             return self.total_records
 
-        self.total_records = self.get_total_records(first_response)
+        self.total_records = self.get_total_records(checked.document)
         if not self.total_records:
             # try again, cause some csw server implementations are broken and don't support our default TypeName query param
             second_response: Response = client.send_request(
@@ -803,13 +890,14 @@ class HarvestingJob(ProcessingData):
 
             # the fallback is the response to judge: the first response was fine, it only named no
             # records at all (#689)
-            if self._check_xml_response(second_response):
+            checked = self._check_answer(second_response)
+            if not checked.ok:
                 self._log_response_error(response=second_response)
                 self.total_records = 0
                 self.save()
                 return self.total_records
 
-            self.total_records = self.get_total_records(second_response)
+            self.total_records = self.get_total_records(checked.document)
 
             if not self.total_records:
                 # terminate celery workflow by returning total records = 0
@@ -932,18 +1020,39 @@ class HarvestingJob(ProcessingData):
         except Exception:
             return None
 
-    def _check_xml_response(self, response):
-        """whether the answer is no document to work with: no XML at all, or an exception report of
-        whichever namespace prefix the service chose instead of the requested document (#815)"""
+    def _check_answer(self, response) -> CheckedResponse:
+        """read a catalogue's answer once and classify it (#1412).
+
+        The hardened parser of ``_parse_answer`` is the only read of the bytes: a
+        successful answer hands its tree to the caller, so the page storage and the
+        count read work on this document instead of parsing the same bytes again. A
+        refusal is the exception report of whichever namespace prefix the service
+        chose (#815); malformed XML or a status which is not ok is nothing to work
+        with. An answer which cannot be worked on leaves the Response Error of #689
+        in the run's log, and only the server error class raises for a retry. The
+        tree lives no longer than the call which stored its page."""
         document = None if not response.ok else self._parse_answer(response.content)
-        if document is not None and not document.xpath(EXCEPTION_REPORT_XPATH):
-            return False
+        if document is not None:
+            if not document.xpath(EXCEPTION_REPORT_XPATH):
+                return CheckedResponse(
+                    response=response,
+                    outcome=AnswerOutcome.DOCUMENT,
+                    document=document)
+            outcome = AnswerOutcome.EXCEPTION_REPORT
+        else:
+            outcome = AnswerOutcome.UNUSABLE
         self._log_response_error(response=response)
         # only the server error class is worth another request; a chained comparison like
         # ">= 500 <= 600" asks "500 <= 600" and would retry everything from 500 upwards (#689)
         if 500 <= response.status_code < 600:
             raise InternalServerError
-        return True
+        return CheckedResponse(response=response, outcome=outcome)
+
+    def _check_xml_response(self, response):
+        """whether the answer is no document to work with: no XML at all, or an exception report of
+        whichever namespace prefix the service chose instead of the requested document (#815). The
+        bool facade of ``_check_answer`` for callers which need no tree."""
+        return not self._check_answer(response).ok
 
     def get_stored_page_count(self, request) -> int:
         """how many records this job already stores for exactly this request; the requested url
@@ -1022,56 +1131,251 @@ class HarvestingJob(ProcessingData):
                 xml_constraint=client.get_constraint(
                     record_types=self.get_record_types())
             )
-            if check_existing:
-                stored = self.get_stored_page_count(request)
-                if stored:
-                    received += stored
-                    position += stored
-                    remaining -= stored
-                    if step_size == size:
-                        break
-                    continue
-            response: Response = client.send_request(
-                request=request,
-                timeout=self.get_request_timeout(step_size))
-            refused = self._check_xml_response(response)
-            stored = 0 if refused else self._store_page(
-                response, request, start_position=position)
+            stored, refused, planned_page = self._fetch_range_step(
+                client, request, position, check_existing, step_size, size)
             if stored is None:
                 return None
             if stored:
-                received += stored
-                position += stored
-                remaining -= stored
-                if step_size == size:
+                received, position, remaining = self._advance_range(
+                    stored, received, position, remaining)
+                if planned_page:
                     # the catalogue answered the planned size; the page is done with its answer,
                     # a possible shortage is the trace of #690
                     break
                 continue
-            if received and self.total_records is not None and position > self.total_records:
-                # this range reaches beyond the records the catalogue counted for this run; what
-                # is missing is answered by log_missing_records, not by more requests
+            step_size = self._halved_step_size(
+                received, position, step_size, size, refused)
+            if step_size is None:
                 break
-            if step_size <= MIN_STEP_SIZE:
-                break
-            halved = max(step_size // 2, MIN_STEP_SIZE)
-            self.log(
-                level=LogLevelEnum.WARNING.value,
-                description=(
-                    f"GetRecords with maxRecords={step_size} at startPosition {position} "
-                    f"{'was refused' if refused else 'came back without records'}, "
-                    f"the missing part is asked with {halved}"))
-            step_size = halved
         return received
 
-    def _store_page(self, response, request, start_position):
+    def _fetch_range_step(self, client, request, position, check_existing,
+                          step_size, size):
+        """One iteration of the range: the records another run already
+        stored for this request when the range re-asks existing ones, the
+        catalogue's answer otherwise.
+
+        Answers the number of stored records - None when the job is not
+        open for downloading anymore, 0 when the request was refused or
+        came back without records - together with whether it was refused,
+        and whether this answer ends the page at the planned size.
+        """
+        if check_existing:
+            stored = self.get_stored_page_count(request)
+            if stored:
+                return stored, False, step_size == size
+        stored, refused = self._fetch_range_response(
+            client, request, position, step_size)
+        return stored, refused, bool(stored) and step_size == size
+
+    @staticmethod
+    def _advance_range(stored, received, position, remaining):
+        """The counters after one page of the range took its records in."""
+        return received + stored, position + stored, remaining - stored
+
+    def _fetch_range_response(self, client, request, position, step_size):
+        """Ask the catalogue for one step of the range and store the answer.
+
+        Two deliveries of exactly this step which overlap ask the catalogue once
+        (#1411): the one which takes the page's claim makes the request, the other
+        joins what it finds out instead of making a request of its own. What the page
+        is worth to the run does not depend on which of them downloaded it - the
+        records are stored by whoever brought them, and the count of a joined page is
+        the count its holder stored. Which size a refused step is asked next (#694)
+        and what a page which stays without records costs the snapshot (#690) are
+        decided from the same answer either way. A delivery which arrives after the
+        flight is over is not a joiner: it asks, like every attempt before this
+        change.
+
+        Answers the number of stored records - 0 when the request was
+        refused or came back without records - together with whether it
+        was refused, and None stored count when the job is not open for
+        downloading anymore.
+        """
+        claim = self._page_claim(request, step_size)
+        joined = self._joined_page(claim, request)
+        if joined is not None:
+            return joined
+        try:
+            return self._fetch_page(client, request, position, step_size, claim)
+        except Exception:
+            # the task retries this page, and the retry - like every delivery
+            # waiting for the page - must not wait out a claim nobody works under
+            # anymore; the rows of a page whose storage failed are not stored, so
+            # the claim is the only thing to hand back here
+            claim.release()
+            raise
+
+    def _fetch_page(self, client, request, position, step_size, claim):
+        """Ask the catalogue one step of the range, store its answer and leave
+        behind what the deliveries which joined this page have to know about it.
+
+        The outcome is left after the transaction which stored the page, so a
+        delivery which reads it reads a page whose records are in the backlog.
+        """
+        response: Response = client.send_request(
+            request=request,
+            timeout=self.get_request_timeout(step_size))
+        checked = self._check_answer(response)
+        if not checked.ok:
+            claim.finish((PAGE_REFUSED, 0))
+            return 0, True
+        stored = self._store_page(checked, request, start_position=position)
+        if stored is None:
+            # the job closed while the page was downloading: nothing is stored and
+            # the page stays unclaimed, so a delivery waiting for it takes it over
+            # and closes the same way
+            claim.release()
+            return None, False
+        claim.finish((PAGE_STORED, stored) if stored else (PAGE_EMPTY, 0))
+        return stored, False
+
+    def _joined_page(self, claim, request):
+        """What this delivery learns about a page another delivery is fetching.
+
+        Answers the records and the refusal of that page - the shape
+        ``_fetch_range_response`` answers a page in - or None when this delivery has
+        to ask the catalogue itself: nobody held the page, the delivery which did is
+        gone with its claim, or it stayed silent past the wait this delivery is
+        willing to wait for it.
+
+        The claim is taken before anything is read, and an outcome is only read by a
+        delivery which found the claim held. An outcome belongs to the deliveries
+        which overlapped with the request it answers: the next attempt of the run is
+        expected to ask a refusing catalogue again (#694) and to find records an
+        earlier attempt did not store (#690), so answering it from the leftover of a
+        finished flight would silence exactly the retries those answers exist for.
+
+        The wait reads the claim and never the backlog: the rows of a page are
+        visible only once the transaction which stored them committed, which is the
+        moment its holder leaves its outcome behind anyway, and a page whose records
+        the import already consumed is gone from the backlog without ever having
+        been missing.
+        """
+        if claim.acquire():
+            # nobody works under this page's claim, so this delivery is not a waiter
+            # - it is the one which asks the catalogue
+            return None
+        pause = _setting("HARVESTING_PAGE_POLL_SECONDS", HARVESTING_PAGE_POLL_SECONDS)
+        pause_max = max(pause, _setting(
+            "HARVESTING_PAGE_POLL_MAX_SECONDS", HARVESTING_PAGE_POLL_MAX_SECONDS))
+        deadline = time.monotonic() + self._page_wait_seconds(claim)
+        while time.monotonic() < deadline:
+            time.sleep(pause)
+            pause = min(pause * 2, pause_max)
+            answer = claim.answered()
+            if answer is not None:
+                return self._page_outcome(answer)
+            if not claim.held() and claim.acquire():
+                # the delivery which claimed the page is gone: it died, or its
+                # request outlived the claim it took. This one takes the page over
+                # under a claim of its own, which the next delivery joins.
+                return None
+        # the claim is held past everything this delivery was willing to wait for.
+        # Asking for the page anyway is the honest answer: a page which is never
+        # fetched is missing from the snapshot, while two deliveries bringing one
+        # page is a race the storage of the page settles under the job's lock
+        # anyway (#688).
+        self.log(
+            level=LogLevelEnum.WARNING.value,
+            description="fetched a page another delivery still claims",
+            extented_description=(
+                "The GetRecords request was claimed by another delivery which did "
+                f"not answer within the wait this run waits for.\nURL: {request.url}"))
+        return None
+
+    @staticmethod
+    def _page_outcome(answer):
+        """The outcome another delivery left for a page, in the shape this flow
+        answers a page in."""
+        kind, records = answer
+        return records, kind == PAGE_REFUSED
+
+    def _page_claim(self, request, step_size) -> SingleFlight:
+        """The single flight of exactly this page of exactly this run (#1411).
+
+        The claim lasts as long as the request it protects - the timeout this page
+        is asked with, plus the time its answer costs to store - so a healthy
+        delivery is never cut short by the claim it holds, while a delivery which
+        died keeps the page from a second attempt for no longer than one request.
+        """
+        return SingleFlight(
+            key=self._page_claim_key(request),
+            lease_seconds=self.get_request_timeout(step_size)
+            + _setting("HARVESTING_PAGE_LEASE_GRACE_SECONDS",
+                       HARVESTING_PAGE_LEASE_GRACE_SECONDS))
+
+    def _page_claim_key(self, request) -> str:
+        """The fingerprint of one planned page: this run, its catalogue, the
+        credentials the request goes out with and the GetRecords request itself.
+
+        The url carries the effective query - the constraint, the type names, the
+        result type, the size and the position - which is what
+        ``get_stored_page_count`` already treats as the identity of a page. The run
+        and its credentials are what no url tells apart: two runs of one catalogue
+        are two snapshots and never share a page, and the same url asked of a
+        service with someone else's credentials is a different question. A digest
+        because the url of a catalogue is up to 4096 characters long and a cache key
+        wants a fixed size.
+        """
+        auth = None
+        if self.service_id is not None:
+            try:
+                # the client of the service read the credentials to build its
+                # session, so this is the related object it already has
+                auth = self.service.auth
+            except ObjectDoesNotExist:
+                auth = None
+        fingerprint = hashlib.sha256(json.dumps({
+            "job": str(self.pk),
+            "service": str(self.service_id),
+            "auth": None if auth is None else f"{type(auth).__name__}:{auth.pk}",
+            "request": request.url,
+        }, sort_keys=True).encode("utf-8")).hexdigest()
+        return f"{PAGE_CLAIM_PREFIX}{fingerprint}"
+
+    def _page_wait_seconds(self, claim) -> float:
+        """How long this delivery waits for a page it joined.
+
+        Bounded by the claim of the page - a delivery which is healthy answers
+        within the time it asked for - and by what the deployment is willing to
+        stand a waiting worker for.
+        """
+        cap = _setting("HARVESTING_PAGE_WAIT_CAP_SECONDS",
+                       HARVESTING_PAGE_WAIT_CAP_SECONDS)
+        return claim.lease_seconds if cap is None else min(claim.lease_seconds, cap)
+
+    def _halved_step_size(self, received, position, step_size, size, refused):
+        """What a page without any record means for the size of the next
+        request: this range is done at the end of the catalogue or at the
+        floor size, or the missing part is asked with a halved size.
+        """
+        if received and self.total_records is not None and position > self.total_records:
+            # this range reaches beyond the records the catalogue counted for this run; what
+            # is missing is answered by log_missing_records, not by more requests
+            return None
+        if step_size <= MIN_STEP_SIZE:
+            return None
+        halved = max(step_size // 2, MIN_STEP_SIZE)
+        self.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                f"GetRecords with maxRecords={step_size} at startPosition {position} "
+                f"{'was refused' if refused else 'came back without records'}, "
+                f"the missing part is asked with {halved}"))
+        return halved
+
+    def _store_page(self, checked, request, start_position):
         """Store the records of one answered GetRecords response.
+
+        The records are cut out of the tree the check of the answer parsed - the page
+        body is not read a second time (#1412), and the tree stays inside this call.
 
         Answers None when the job is not open for downloading anymore, and the number of stored
         records otherwise - which is the count another worker stored when it won the race for
         exactly this request under the job lock (#688).
         """
-        tree = etree.fromstring(response.content)
+        tree = checked.document
 
         # Namespaces definieren
         ns = {
@@ -1097,7 +1401,7 @@ class HarvestingJob(ProcessingData):
                     job=self,
                     request_id=datestamp,
                     requested_url=request.url,
-                    download_duration=response.elapsed / records_count
+                    download_duration=checked.response.elapsed / records_count
                 )
 
                 # save the file without saving the instance in db... this will be done with bulk_create
@@ -1164,7 +1468,9 @@ REGISTRATION_FILE_SUBDIR = "registration"
 
 def response_file_path(instance, filename):
     # registration work rows live below a distinct per-process prefix; they
-    # have no job and must never share the harvesting layout (#1263)
+    # have no job and must never share the harvesting layout (#1263). The
+    # shared document acquisitions of #1410 store below the very same
+    # prefix - the registration sweep owns that tree for both kinds of row.
     if instance.background_process_id is not None:
         return (f'{TEMPORARY_MD_METADATA_FILE_SUBDIR}/'
                 f'{REGISTRATION_FILE_SUBDIR}/{instance.background_process_id}/{filename}')
@@ -1217,13 +1523,30 @@ class TemporaryMdMetadataFile(models.Model):
     # the process (explicitly or through the retention of #1208) takes the
     # row and its file, while the permanent records and their relations stay.
     background_process = models.ForeignKey(
-        to="notify.BackgroundProcess",
+        to=BACKGROUND_PROCESS_REF,
         on_delete=models.CASCADE,
         verbose_name=_("background process"),
         null=True,
         editable=False,
         related_name="registration_work_items",
         related_query_name="registration_work_item")
+    # the shared document acquisition this reference draws its document
+    # from (#1410).
+    # Rows planned before #1410 - and a retried reference whose acquisition
+    # drained in between - answer None: such a reference fetches and stores
+    # its own document exactly the way #1263 always did. The reference row
+    # stays the unit of the outcome whatever shares the fetch: SET_NULL
+    # keeps it readable after its acquisition drained with the last open
+    # reference pointing at it.
+    acquisition = models.ForeignKey(
+        to="registry.RegistrationDocumentAcquisition",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("document acquisition"),
+        related_name="references",
+        related_query_name="reference")
     md_metadata_file: FieldFile = models.FileField(
         verbose_name=_("response"),
         help_text=_(
@@ -1381,6 +1704,24 @@ class TemporaryMdMetadataFile(models.Model):
         indexes = [
             models.Index(
                 fields=["job_id", "-id"]),
+            # the duplicate guard of a stored page (#688) asks how many files
+            # of this job already carry exactly this requested url; without
+            # an index on the url the count reads every file row of the job
+            # per page - the audit row "_store_page" of
+            # celery-task-orm-audit (#1392). The access method is HASH, not
+            # the default btree on purpose, twice over: the guard is a pure
+            # equality (a hash index answers equality only, which is all
+            # this shape asks), and a btree refuses index rows over ~2.7 KB
+            # while this URLField stores 4096 - a GetRecords GET carrying a
+            # big filter XML would break the INSERT of the file itself once
+            # indexed that way (#1263 learned the same lesson for the
+            # registration identity). Postgres hash indexes are
+            # single-column, so the index names the url alone: the url
+            # repeats across jobs at most by page, and the job filter then
+            # reads a handful of rows instead of the whole backlog.
+            HashIndex(
+                fields=["requested_url"],
+                name="tmpmd_page_dedup_idx"),
             # the count of the files of a job which failed to import, which is one
             # of the numbers of the progress of a job, is answered out of this index
             # alone: without it the count reads the entries of every file of the job
@@ -1573,16 +1914,15 @@ class TemporaryMdMetadataFile(models.Model):
     def save(self, *args, **kwargs) -> None:
         adding = self._state.adding or self.re_schedule
         retried = self.re_schedule
-        if self.re_schedule:
-            if self.background_process_id is None:
-                # the harvesting semantics of ``re_schedule``: the last
-                # verdict is wiped so the next delivery reports fresh. A
-                # registration retry (#1265) deliberately keeps its verdict
-                # fields: the failed reference must stay inspectable - what
-                # kind and what text decided it - until the new attempt
-                # overwrites them or consumes the row with success.
-                self.has_import_error = False
-                self.import_error = ""
+        if self.re_schedule and self.background_process_id is None:
+            # the harvesting semantics of ``re_schedule``: the last
+            # verdict is wiped so the next delivery reports fresh. A
+            # registration retry (#1265) deliberately keeps its verdict
+            # fields: the failed reference must stay inspectable - what
+            # kind and what text decided it - until the new attempt
+            # overwrites them or consumes the row with success.
+            self.has_import_error = False
+            self.import_error = ""
         self.re_schedule = False
 
         ret = super().save(*args, **kwargs)
@@ -1673,7 +2013,14 @@ class TemporaryMdMetadataFile(models.Model):
         if self.job is None or not self.job.service_id:
             return False
         requested = self.job.get_record_types()
-        detected = MDMetadataXmlMapper._detect_hierarchy_level(mapper.xml_root)
+        # the mapper was built with the detection answer of this very node;
+        # a harvesting import never forces a kind, so the answer is there.
+        # A mapper which carries none - a future caller which forced one -
+        # still gets the document asked the way it was before (#1415).
+        detected = mapper.hierarchy_level
+        if detected is None:
+            detected = MDMetadataXmlMapper._detect_hierarchy_level(
+                mapper.xml_root)
         if detected in requested:
             return False
         file_identifier = "".join(mapper.xml_root.xpath(
@@ -1714,6 +2061,7 @@ class TemporaryMdMetadataFile(models.Model):
         of the document itself is documented on the file and re-raised.
         """
         with self.md_metadata_file.open('rb') as _file:
+            mappers = []
             try:
                 with transaction.atomic():
                     start_db_processing = now()
@@ -1724,131 +2072,21 @@ class TemporaryMdMetadataFile(models.Model):
                     instances = mappers[0].xml_to_django()
                     result = []
                     for instance in instances:
-                        # #919: the keyword quality indicator is evaluated on the
-                        # keywords which this document just mapped - no second
-                        # XML parse - so its answer rides the one write which the
-                        # record costs anyway (#858). The keyword rows themselves
-                        # stay exactly as the catalogue published them.
-                        mapped_keywords = [
-                            keyword.keyword
-                            for keyword in getattr(instance, "_keywords_parsed", None) or []
-                        ]
-                        instance.refresh_quality_indicators(mapped_keywords)
-                        # the provenance of the record, computed once per
-                        # record file: the three buckets below name the same
-                        # url, so asking the client three times only paid
-                        # three document reads and parses per imported
-                        # record (#1044). The client reads the catalogue's
-                        # stored capabilities document only - a document
-                        # which is gone from the storage raises
-                        # CapabilitiesBackupMissing for the run instead of
-                        # the import working around a broken service per
-                        # record.
-                        origin = MetadataOriginEnum.CATALOGUE.value if self.job.service_id \
-                            else MetadataOriginEnum.FILE_SYSTEM_IMPORT.value
-                        origin_url = self.job.service.client.get_record_by_id_request(
-                            id=instance.file_identifier).url if self.job.service_id \
-                            else "http://localhost"
-                        handler = PersistenceHandler(
-                            mapper=mappers[0],
-                            change_reason=self.change_reason,
-                            defaults={
-                                "dataset": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                },
-                                "service": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                },
-                                "application": {
-                                    "origin": origin,
-                                    'origin_url': origin_url
-                                }
-                            }
-                        )
-                        created_instances = handler.persist_all()
-                        key = make_instance_key(instance)
-
-                        created_instance = created_instances.get(
-                            instance.__class__, {}).get(key, None)
-                        # after persit handler has created the instances on db side, the objects are no longer identical
-
-                        if created_instance:
-                            created, update = created_instance._custom_state
-                            # #919: the answer of the rule belongs to the stored
-                            # record even when the row was not written at all -
-                            # a record which a run re-harvests unchanged is
-                            # evaluated too, which is what flags the records
-                            # that entered the registry before the rule
-                            # existed and clears the flag once the catalogue
-                            # has fixed its keyword. Only a difference is
-                            # written.
-                            quality_changed = created_instance.refresh_quality_indicators(
-                                mapped_keywords)
-                            if quality_changed:
-                                created_instance._change_reason = "quality"
-                                created_instance.save(mark_customized=False)
-                            if self.job:
-                                end_db_processing = now()
-                                relation = self.update_relations(
-                                    not created,
-                                    update,
-                                    created_instance,
-                                    end_db_processing - start_db_processing
-                                )
-                                if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
-                                    # do not delete this entries for analyze purposes
-                                    import_error = {
-                                        "reason": "duplicated",
-                                        "db_metadata.pk": created_instance.pk,
-                                        "db_metadata.file_identifier": created_instance.file_identifier,
-                                        "db_metadata.code_space": created_instance.code_space,
-                                        "db_metadata.code": created_instance.code,
-                                    }
-                                    self.has_import_error = True
-                                    self.import_error = str(import_error)
-                                    self.save()
-                                    # the whole method answers a list of (record, updated,
-                                    # existed) - the duplicated entry is one such row, so the
-                                    # import task which iterates the result does not crash and
-                                    # the DUPLICATED relation of #827 stays committed. The rows
-                                    # the earlier instances of this file collected stay in the
-                                    # answer too: they were imported by this very call and the
-                                    # task has to be told about them (#1039).
-                                    return result + [
-                                        (created_instance, update, not created)]
-                            result.append(
-                                (created_instance, update, not created))
-                            if self.job:
-                                for warning in mappers[0].warnings:
-                                    self.job.log(
-                                        level=LogLevelEnum.WARNING.value,
-                                        description=warning[:512],
-                                        extented_description=(
-                                            f"Metadata record: {instance.file_identifier}\n"
-                                            f"Source file: {self.md_metadata_file.name}\n"
-                                            f"{warning}\n"
-                                            "The remaining metadata was imported."
-                                        ),
-                                    )
-                                if created_instance.insufficient_quality and (
-                                        created or update or quality_changed):
-                                    self.job.log(
-                                        level=LogLevelEnum.WARNING.value,
-                                        description=(
-                                            "Keyword quality: "
-                                            f"{created_instance.insufficient_quality}")[:512],
-                                        extented_description=(
-                                            f"Metadata record: {instance.file_identifier}\n"
-                                            f"Source file: {self.md_metadata_file.name}\n"
-                                            f"{created_instance.insufficient_quality}\n"
-                                            "The record was imported; the keyword list rule "
-                                            "flags it as of insufficient quality."
-                                        ),
-                                    )
-                            self.delete()
+                        outcome, rows = self._import_mapped_instance(
+                            mappers[0], instance, start_db_processing)
+                        result.extend(rows)
+                        # the whole method answers a list of (record, updated,
+                        # existed) - the duplicated entry is one such row, so
+                        # the import task which iterates the result does not
+                        # crash and the DUPLICATED relation of #827 stays
+                        # committed. The rows the earlier instances of this
+                        # file collected stay in the answer too: they were
+                        # imported by this very call and the task has to be
+                        # told about them (#1039).
+                        if outcome == 'duplicated':
+                            return result
                     return result
+
             except OperationalError:
                 raise
             except Exception as e:
@@ -1859,19 +2097,437 @@ class TemporaryMdMetadataFile(models.Model):
                 self.has_import_error = True
                 self.save()
                 raise e
+            finally:
+                # the next reader of these parsed instances is another
+                # import, which maps the document again under a fresh uuid;
+                # holding them in the process-global cache until its TTL is
+                # holding a parsed copy of every file this worker imported
+                # (#1415)
+                for mapper in mappers:
+                    mapper.release_cache()
+
+    def _import_mapped_instance(self, mapper, instance, start_db_processing):
+        """Persist one mapped instance and tell what the import answered.
+
+        Answers ('ok', rows) with the row this instance adds to the
+        result, or ('duplicated', rows) when the relation of #827
+        diagnosed a duplicate: that outcome ends the file's import.
+        """
+        # #919: the keyword quality indicator is evaluated on the
+        # keywords which this document just mapped - no second
+        # XML parse - so its answer rides the one write which the
+        # record costs anyway (#858). The keyword rows themselves
+        # stay exactly as the catalogue published them.
+        mapped_keywords = [
+            keyword.keyword
+            for keyword in getattr(instance, "_keywords_parsed", None) or []
+        ]
+        instance.refresh_quality_indicators(mapped_keywords)
+        origin, origin_url = self._record_provenance(instance)
+        provenance = {"origin": origin, "origin_url": origin_url}
+        handler = PersistenceHandler(
+            mapper=mapper,
+            change_reason=self.change_reason,
+            defaults={
+                bucket: dict(provenance)
+                for bucket in ("dataset", "service", "application")
+            }
+        )
+        created_instances = handler.persist_all()
+        key = make_instance_key(instance)
+
+        created_instance = created_instances.get(
+            instance.__class__, {}).get(key, None)
+        # after persit handler has created the instances on db side, the objects are no longer identical
+
+        if not created_instance:
+            return 'ok', []
+        return self._account_created_instance(
+            mapper, instance, created_instance, mapped_keywords,
+            start_db_processing)
+
+    def _record_provenance(self, instance):
+        """The provenance of the record, computed once per record file: the
+        three buckets of the handler name the same url, so asking the client
+        three times only paid three document reads and parses per imported
+        record (#1044). The client reads the catalogue's stored capabilities
+        document only - a document which is gone from the storage raises
+        CapabilitiesBackupMissing for the run instead of the import working
+        around a broken service per record.
+        """
+        if self.job.service_id:
+            return (
+                MetadataOriginEnum.CATALOGUE.value,
+                self.job.service.client.get_record_by_id_request(
+                    id=instance.file_identifier).url,
+            )
+        return (MetadataOriginEnum.FILE_SYSTEM_IMPORT.value,
+                "http://localhost")
+
+    def _account_created_instance(self, mapper, instance, created_instance,
+                                  mapped_keywords, start_db_processing):
+        """Write what the import of one persisted record decided: the
+        quality answer of #919, the relation of the run, the warnings of
+        the mapping and the row this file's result gains.
+        """
+        created, update = created_instance._custom_state
+        # #919: the answer of the rule belongs to the stored
+        # record even when the row was not written at all -
+        # a record which a run re-harvests unchanged is
+        # evaluated too, which is what flags the records
+        # that entered the registry before the rule
+        # existed and clears the flag once the catalogue
+        # has fixed its keyword. Only a difference is
+        # written.
+        quality_changed = created_instance.refresh_quality_indicators(
+            mapped_keywords)
+        if quality_changed:
+            created_instance._change_reason = "quality"
+            created_instance.save(mark_customized=False)
+        if self.job:
+            end_db_processing = now()
+            relation = self.update_relations(
+                not created,
+                update,
+                created_instance,
+                end_db_processing - start_db_processing
+            )
+            if relation.collecting_state == CollectingStatenEnum.DUPLICATED.value:
+                return 'duplicated', self._mark_duplicated(
+                    created_instance, created, update)
+        if self.job:
+            self._log_mapping_warnings(mapper, instance)
+            self._log_quality_warning(
+                created_instance, instance, created, update,
+                quality_changed)
+        self.delete()
+        return 'ok', [(created_instance, update, not created)]
+
+    def _mark_duplicated(self, created_instance, created, update):
+        """Diagnose the duplicated record on the file and answer its row;
+        the diagnosis is kept for analyze purposes."""
+        # do not delete this entries for analyze purposes
+        import_error = {
+            "reason": "duplicated",
+            "db_metadata.pk": created_instance.pk,
+            "db_metadata.file_identifier": created_instance.file_identifier,
+            "db_metadata.code_space": created_instance.code_space,
+            "db_metadata.code": created_instance.code,
+        }
+        self.has_import_error = True
+        self.import_error = str(import_error)
+        self.save()
+        return [(created_instance, update, not created)]
+
+    def _log_mapping_warnings(self, mapper, instance):
+        for warning in mapper.warnings:
+            self.job.log(
+                level=LogLevelEnum.WARNING.value,
+                description=warning[:512],
+                extented_description=(
+                    f"Metadata record: {instance.file_identifier}\n"
+                    f"Source file: {self.md_metadata_file.name}\n"
+                    f"{warning}\n"
+                    "The remaining metadata was imported."
+                ),
+            )
+
+    def _log_quality_warning(self, created_instance, instance, created,
+                             update, quality_changed):
+        if not (created_instance.insufficient_quality
+                and (created or update or quality_changed)):
+            return
+        self.job.log(
+            level=LogLevelEnum.WARNING.value,
+            description=(
+                "Keyword quality: "
+                f"{created_instance.insufficient_quality}")[:512],
+            extented_description=(
+                f"Metadata record: {instance.file_identifier}\n"
+                f"Source file: {self.md_metadata_file.name}\n"
+                f"{created_instance.insufficient_quality}\n"
+                "The record was imported; the keyword list rule "
+                "flags it as of insufficient quality."
+            ),
+        )
 
     def update_relations(self, exists, update, db_metadata, duration):
-        # TODO: is this relation still needed?
+        # FUTURE: is this relation still needed?
         # Or is it enough to collect the harvested through by the harvested_metadata_relations?
         if self.job.service:
             db_metadata.harvested_through.add(self.job.service)
 
-        collecting_state = CollectingStatenEnum.UPDATED.value if exists and update else CollectingStatenEnum.EXISTING.value if exists and not update else CollectingStatenEnum.NEW.value
+        if exists and update:
+            collecting_state = CollectingStatenEnum.UPDATED.value
+        elif exists:
+            collecting_state = CollectingStatenEnum.EXISTING.value
+        else:
+            collecting_state = CollectingStatenEnum.NEW.value
         return self.job.add_harvested_metadata_relation(
             db_metadata,
             collecting_state,
             self.download_duration,
             duration)
+
+
+class RegistrationDocumentAcquisition(models.Model):
+    """One shared document acquisition of one collecting run (#1410).
+
+    The capabilities of a service advertise the same ISO document from many
+    references - the service-level reference and every Layer or FeatureType
+    pointing at one url. #1263 made each of those references its own work
+    row, which is what the outcome, the retry and the API need; what must
+    not multiply with them is the HTTP request. A row of this table is that
+    shared half: keyed by the process and the identity of the *request*
+    (the exact advertised url under one auth scope), it carries the fetch
+    lease, the stored bytes and the one decode the referring references
+    import from. The reference row stays the permit of its own outcome;
+    this row is the permit of the fetch only.
+
+    It is a disposable work row like the reference rows above: created with
+    the sealed plan, deleted when the last reference it serves has decided
+    (the drain of #1410) or when its process is purged. It is never a
+    ledger and never exposed by the API - the acquisition key and the claim
+    token authorize work like the reference row's own permits.
+    """
+    background_process = models.ForeignKey(
+        to=BACKGROUND_PROCESS_REF,
+        on_delete=models.CASCADE,
+        verbose_name=_("background process"),
+        editable=False,
+        related_name="document_acquisitions",
+        related_query_name="document_acquisition")
+    # the fixed-size identity of one request within one collecting run: the
+    # SHA-256 digest of the exact advertised url and the auth scope which
+    # answers it (see ``build_acquisition_key``). Unique per owning process
+    # (see Meta); the full url never enters a B-tree key twice.
+    acquisition_key = models.CharField(
+        max_length=64,
+        editable=False,
+        verbose_name=_("acquisition key"),
+        help_text=_(
+            "sha-256 digest of the advertised url and the auth scope of "
+            "this acquisition; set only on shared document work rows"))
+    requested_url = models.URLField(
+        max_length=4096,
+        null=True,
+        verbose_name=_("download link"),
+        help_text=_(
+            "the url where the metadata could be downloaded from."))
+    # when this acquisition was planned - the age a sweep may one day
+    # measure a never-claimed row by, mirroring the reference rows.
+    request_id = models.DateTimeField(null=True)
+    # the work state of the fetch (see DocumentAcquisitionStateEnum); a
+    # fetch which decided its failure does not land here - its failure is
+    # decided on every referring reference and the row drains away.
+    state = models.PositiveSmallIntegerField(
+        choices=DocumentAcquisitionStateEnum.choices,
+        default=DocumentAcquisitionStateEnum.PENDING.value,
+        editable=False,
+        verbose_name=_("work state"),
+        help_text=_(
+            "pending, leased or stored state of a shared document "
+            "acquisition; draining takes a decided row away"))
+    # the single-use permit of the fetching delivery: only a delivery
+    # holding the token stored here may store the document of this
+    # acquisition - an outcome reported under another token is discarded,
+    # like the reference rows' claim (#1263 fences, #1410 reuses it).
+    claim_token = models.UUIDField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("claim token"),
+        help_text=_(
+            "token of the delivery which currently leases this row; an "
+            "outcome reported under another token is discarded"))
+    lease_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name=_("lease expires at"),
+        help_text=_(
+            "until when the current claim may work; a row whose lease ran "
+            "out is eligible for a new claim and for recovery"))
+    attempt_count = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("attempt count"),
+        help_text=_(
+            "how many deliveries have claimed this row; retries included"))
+    # the document fetched once for every referring reference. The name
+    # carries the fetcher's claim token, so a lost attempt's bytes are an
+    # orphan the registration sweep reads out of the prefix, never a
+    # rewrite of what a decided acquisition points at.
+    md_metadata_file: FieldFile = models.FileField(
+        verbose_name=_("response"),
+        help_text=_(
+            "the content of the http response, or of the imported file"),
+        upload_to=response_file_path,
+        blank=True)
+
+    class Meta:
+        constraints = [
+            # one shared document per identical request identity within one
+            # collecting run (#1410): the same url advertised for two
+            # resources is ONE acquisition, a url whose query differs is a
+            # different request and never collapses into it.
+            models.UniqueConstraint(
+                fields=["background_process", "acquisition_key"],
+                name="registration_document_per_process"),
+        ]
+
+    @staticmethod
+    def build_acquisition_key(url, auth_scope=""):
+        """The stable identity of one request for one document.
+
+        The SHA-256 digest of the exact advertised url and the auth scope
+        which answers it - computed at planning time and nowhere else. No
+        normalization of the url: like the reference key of #1263 the
+        contract is the exact capabilities-advertised string, so queries
+        which mean different requests (``?a=1`` vs ``?a=1&b=2``, a
+        case-different path, a different version parameter) never collapse
+        into one acquisition.
+
+        The auth scope distinguishes credential contexts: two references
+        whose documents must be fetched with different stored authentications
+        are different requests even on one url. V1 fetches every advertised
+        reference without authentication (see
+        ``registry.models.metadata.fetch_metadata_document``), so the scope
+        is empty everywhere. Whoever re-adds authentication must pass an
+        opaque scope identity - the primary key of the stored authentication
+        row, never its secret - because the key is a digest, not a vault:
+        the acquisition must never carry a credential or a digest an attacker
+        can precompute from one.
+
+        Args:
+            url (str): the exact advertised url
+            auth_scope (str): opaque identity of the credential context
+
+        Returns:
+            str: the 64-character hex digest stored in ``acquisition_key``
+        """
+        payload = f"{auth_scope}|{url}"
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def claim_for_processing(self, background_process_pk, lease_seconds):
+        """Take the single-use fetch permit of this acquisition row.
+
+        The same posture as the reference row's claim of #1263: lock the
+        background process first, this row second; claim what is claimable
+        and refuse everything else without writing. Only a PENDING row or a
+        LEASE whose holder never reported is claimable - a STORED row needs
+        no fetcher, its bytes answer, and a row whose fetch decided a
+        failure is gone with its decision through the drain. No lock is
+        held across the network: the claim answers a token and the fetch
+        happens behind it, outside any transaction.
+
+        Args:
+            background_process_pk: the process the signature names as owner
+            lease_seconds (int): how long the claim may work
+
+        Returns:
+            tuple|None: ``(claim_token, retried)`` - ``retried`` tells a
+                claim over an expired lease apart from a first attempt -
+                or None when no claim was given
+        """
+        from notify.models import BackgroundProcess  # local import: models cycle
+
+        with transaction.atomic():
+            process = BackgroundProcess.objects.select_for_update().filter(
+                pk=background_process_pk).first()
+            if process is None or process.done_at is not None:
+                # the run decided itself or is gone: a fetch nobody waits
+                # for is a request nobody asked for
+                return None
+            row = RegistrationDocumentAcquisition.objects \
+                .select_for_update(of=("self",)).filter(
+                    pk=self.pk).first()
+            if (row is None
+                    or str(row.background_process_id)
+                    != str(background_process_pk)):
+                return None
+            if row.state == DocumentAcquisitionStateEnum.STORED.value:
+                # the bytes are there: the reader imports from them, nobody
+                # pays for the document a second time
+                return None
+            if row.state == DocumentAcquisitionStateEnum.LEASED.value and (
+                    row.lease_expires_at is None
+                    or row.lease_expires_at > timezone.now()):
+                # an unexpired lease: another delivery is fetching right now
+                return None
+            retried = (
+                row.state
+                == DocumentAcquisitionStateEnum.LEASED.value)
+            token = uuid4()
+            RegistrationDocumentAcquisition.objects.filter(
+                pk=self.pk).update(
+                    state=DocumentAcquisitionStateEnum.LEASED.value,
+                    claim_token=token,
+                    lease_expires_at=timezone.now() + timedelta(
+                        seconds=max(60, int(lease_seconds))),
+                    attempt_count=F("attempt_count") + 1)
+            return token, retried
+
+    def release_claim(self, claim_token):
+        """Hand a still-undetached leased row back for the next attempt.
+
+        A transport failure is not a decision about the document: the fetch
+        lease goes back to the holder of the token only, and a competing
+        delivery may claim the row again - the release of a re-claimed row
+        is refused by the token check, like the reference rows' (#1263).
+        """
+        return RegistrationDocumentAcquisition.objects.filter(
+            pk=self.pk,
+            state=DocumentAcquisitionStateEnum.LEASED.value,
+            claim_token=claim_token).update(
+                state=DocumentAcquisitionStateEnum.PENDING.value,
+                claim_token=None,
+                lease_expires_at=None)
+
+    def store_document(self, claim_token, storage_name):
+        """Attach the fetched bytes while the storing delivery still holds
+        the fetch permit (#1410).
+
+        One conditional UPDATE behind the token: a lease lost while the
+        document was in flight means a recovery already re-drove this row,
+        and this delivery's bytes belong to the sweep, not to the row.
+
+        Returns:
+            bool: whether the row is STORED under this token now
+        """
+        return bool(RegistrationDocumentAcquisition.objects.filter(
+            pk=self.pk,
+            state=DocumentAcquisitionStateEnum.LEASED.value,
+            claim_token=claim_token).update(
+                state=DocumentAcquisitionStateEnum.STORED.value,
+                md_metadata_file=storage_name,
+                claim_token=None,
+                lease_expires_at=None))
+
+    def delete(self, *args, **kwargs):
+        storage = self.md_metadata_file.storage
+        name = self.md_metadata_file.name
+        ret = super().delete(*args, **kwargs)
+        if name:
+            transaction.on_commit(lambda: storage.delete(name))
+        return ret
+
+
+def registration_document_file_names(process_pks):
+    """The stored file names of the shared acquisitions of these processes.
+
+    The same reading rule as ``registration_work_file_names`` (#1263): a
+    cascade takes rows and never bytes, so whoever deletes a collecting
+    process names the acquisitions' files while the rows still exist (#1410).
+    """
+    if not process_pks:
+        return []
+    return list(
+        RegistrationDocumentAcquisition.objects.filter(
+            background_process_id__in=list(process_pks))
+        .exclude(md_metadata_file="")
+        .exclude(md_metadata_file=None)
+        .values_list("md_metadata_file", flat=True))
 
 
 def registration_work_file_names(process_pks):
@@ -1885,12 +2541,12 @@ def registration_work_file_names(process_pks):
     """
     if not process_pks:
         return []
-    return [
-        name for name in TemporaryMdMetadataFile.objects.filter(
+    return list(
+        TemporaryMdMetadataFile.objects.filter(
             background_process_id__in=list(process_pks))
         .exclude(md_metadata_file="")
         .exclude(md_metadata_file=None)
-        .values_list("md_metadata_file", flat=True)]
+        .values_list("md_metadata_file", flat=True))
 
 
 def extented_description_file_path(instance, filename):
@@ -1917,7 +2573,7 @@ class HarvestingLog(models.Model):
         # If you want to be able to modify this field, set the following instead of auto_now_add=True:
         # auto_now_add=True,
         default=now,
-        verbose_name=_('Created DateTime'),
+        verbose_name=CREATED_DATETIME_VERBOSE_NAME,
         help_text=_('Datetime field when the task result was created in UTC')
     )
     level = models.PositiveSmallIntegerField(
@@ -1963,13 +2619,15 @@ class PeriodicHarvestingJob(PeriodicTask):
         help_text=_("this is the service which shall be harvested"))
 
     def __init__(self, *args, **kwargs) -> None:
-        # TODO: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
+        # FUTURE: move to save(), cause init will manipulate the object we will see on django-admin interface etc.
         super().__init__(*args, **kwargs)
         if not self.pk:
             if not self.task:
                 self.task = "registry.tasks.harvest.create_harvesting_job"
             if not self.queue:
-                self.queue = "default"
+                # named by the one module which holds the queue names; it
+                # must stay what the task this row fires declares (#1455)
+                self.queue = celery_queues.DEFAULT
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -1977,7 +2635,7 @@ class PeriodicHarvestingJob(PeriodicTask):
                 http_request = {
                     "path": "/periodic-harvesting-job",
                     "method": "GET",
-                    "content_type": "application/json",
+                    "content_type": APPLICATION_JSON,
                     "data": {},
                     "user_pk": str(system_user.pk)
                 }

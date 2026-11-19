@@ -2,6 +2,7 @@ import {
   ResourceProps
 } from 'react-admin';
 
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AgricultureIcon from '@mui/icons-material/Agriculture';
 import ContactsIcon from '@mui/icons-material/Contacts';
 import CorporateFareIcon from '@mui/icons-material/CorporateFare';
@@ -33,6 +34,8 @@ import ListCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ListCatal
 import ShowCatalogueServiceUpdateJob from './CatalogueServiceUpdateJob/ShowCatalogueServiceUpdateJob';
 import ListDatasetMetadataRecord from './DatasetMetadataRecord/ListDatasetMetadataRecord';
 import ShowDatasetMetadataRecord from './DatasetMetadataRecord/ShowDatasetMetadataRecord';
+import { CreateMetadataRecord } from './Generic/MetadataEditor/CreateMetadataRecord';
+import MetadataEditorRoute from './Generic/MetadataEditor/MetadataEditorRoute';
 import SelectedElementViewerCard from './Generic/ServiceShow/SelectedElementViewerCard';
 import HarvestingJobRowActions from './HarvestingJob/HarvestingJobRowActions';
 import ListHarvestingJob from './HarvestingJob/ListHarvestingJob';
@@ -45,11 +48,13 @@ import ShowWebMapServiceMonitoringRun from './Monitoring/ShowWebMapServiceMonito
 import ListWebFeatureServiceMonitoringSetting from './Monitoring/WebFeatureServiceMonitoringSetting/ListWebFeatureServiceMonitoringSetting';
 import ListWebMapServiceMonitoringSetting from './Monitoring/WebMapServiceMonitoringSetting/ListWebMapServiceMonitoringSetting';
 import ListPeriodicHarvestingJob, { SCHEDULE_LIST_FIELDS } from './PeriodicHarvestingJob/ListPeriodicHarvestingJob';
+import ListOrganizationRoles from './RoleDefinition/ListOrganizationRoles';
 import ListServiceAlert from './ServiceAlert/ListServiceAlert';
 import ListServiceMetadataRecord from './ServiceMetadataRecord/ListServiceMetadataRecord';
 import ShowServiceMetadataRecord from './ServiceMetadataRecord/ShowServiceMetadataRecord';
 import ListSystemInfo from './System/ListSystemInfo';
 import ListTemporaryMdMetadataFile from './TemporaryMdMetadataFile/ListTemporaryMdMetadataFile';
+import ListOrganizationMembers from './User/ListOrganizationMembers';
 import WfsViewerButtons from './WebFeatureService/Button/ListActions';
 import ListWebFeatureService from './WebFeatureService/List/ListWebFeatureService';
 import WfsShow from './WebFeatureService/Show/WfsShow';
@@ -89,6 +94,10 @@ const RESOURCES: Array<ResourceProps> = [
     options: { 
       menu: { group: "WMS", order: 10 },
       list: { 
+        // every screen of a service resource lists the services themselves, not
+        // the update candidates the backend keeps beside them; declared here, so
+        // no screen has to repeat it - and a screen's own filter still wins
+        filter: { is_update_candidate: false },
         perPage: 25,
         sort: { field: 'title', order: 'ASC' },
         defaultSelectedColumns: ["id", "title", "abstract", "username", "actions", ],
@@ -100,12 +109,12 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "WebMapServiceProxySetting", icon: MultipleStopIcon, },
   {name: "WebMapServiceOperationUrl", icon: HttpIcon},
   {name: "HistoricalWebMapService"},
-  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "Layer", icon: LayersIcon, options: { menu: { group: "WMS", order: 20 }, list: { filter: { is_update_candidate: false }, aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "Layer", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
-  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { additionalActions: WfsViewerButtons } }},
+  {name: "WebFeatureService", show: WfsShow, list: ListWebFeatureService, icon: TravelExploreIcon, options: { menu: { group: "WFS", order: 10 }, list: { filter: { is_update_candidate: false }, additionalActions: WfsViewerButtons } }},
   {name: "WebFeatureServiceProxySetting", icon: MultipleStopIcon},
-  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
+  {name: "FeatureType", icon: NotListedLocationIcon, options: { menu: { group: "WFS", order: 30 }, list: { filter: { is_update_candidate: false }, aside: SelectedElementViewerCard, sparseFieldsets: [{ type: "FeatureType", fields: ELEMENT_LIST_FIELDS }]} }},
   
   
   {
@@ -149,9 +158,14 @@ const RESOURCES: Array<ResourceProps> = [
 
   {name: "MetadataContact", icon: ContactsIcon},
   {name: "Keyword", icon: LocalOfferIcon, options: { menu: { group: "Metadata", order: 30 } }},
-  {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, options: { menu: { group: "Metadata", order: 10 } }},
-  {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, options: { menu: { group: "Metadata", order: 20 } }},
-  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, options: { menu: { group: "Metadata", order: 25 } }},
+  // `create` is the blank-record wizard of issue #1248: the POST contract is
+  // identical for all three record types, so one screen serves all of them.
+  {name: "DatasetMetadataRecord", icon: DatasetIcon, list: ListDatasetMetadataRecord, show: ShowDatasetMetadataRecord, create: CreateMetadataRecord, edit: MetadataEditorRoute, options: { menu: { group: "Metadata", order: 10 } }},
+  {name: "ServiceMetadataRecord", icon: DatasetIcon, list: ListServiceMetadataRecord, show: ShowServiceMetadataRecord, create: CreateMetadataRecord, edit: MetadataEditorRoute, options: { menu: { group: "Metadata", order: 20 } }},
+  {name: "ApplicationMetadataRecord", icon: WebAssetIcon, list: ListApplicationMetadataRecord, show: ShowApplicationMetadataRecord, create: CreateMetadataRecord, edit: MetadataEditorRoute, options: { menu: { group: "Metadata", order: 25 } }},
+  // not a screen of its own, but the blank-record wizard fetches the profiles
+  // through the data provider, which needs the resource registered
+  {name: "MetadataProfile", icon: PlagiarismIcon},
   {name: "HarvestedMetadataRelation", icon: DatasetIcon},
   {name: "MetadataRelation"},
   {name: "TimeExtent"},
@@ -253,7 +267,41 @@ const RESOURCES: Array<ResourceProps> = [
   {name: "AllowedWebFeatureServiceOperation", icon: VpnLockIcon, options: { menu: { group: "WFS", order: 40 } }},
   {name: "WebFeatureServiceOperation",},
 
-  {name: "User", icon: CustomerIcon, options: { menu: { group: "Accounts", order: 10 } }},
+  // the administration area of #737: the members of one organization are the
+  // `list` of the User resource (the screen scopes it through the related
+  // collection of the selected organization), its roles are annotated rows of
+  // the RoleDefinition catalogue. Both entries live in the "Admin" group and
+  // are gated by #836's canAccess over the resources named in
+  // providers/permissions.ts - deep links answer with the standard forbidden
+  // state. Role and RoleMembership carry no menu entry: they are the
+  // resources the screens act through (assign, revoke), not screens.
+  {
+    name: "User",
+    icon: CustomerIcon,
+    list: ListOrganizationMembers,
+    options: {
+      menu: { group: "Admin", order: 5 },
+      label: "administration.members.title",
+      list: {
+        defaultSelectedColumns: ["stringRepresentation", "username", "roles", "actions"],
+      },
+    },
+  },
+  {
+    name: "RoleDefinition",
+    icon: AdminPanelSettingsIcon,
+    list: ListOrganizationRoles,
+    options: {
+      menu: { group: "Admin", order: 8 },
+      label: "administration.roles.title",
+      list: {
+        sort: { field: "slug", order: "ASC" },
+        defaultSelectedColumns: ["slug", "label", "description", "scope", "permissions", "actions"],
+      },
+    },
+  },
+  {name: "Role",},
+  {name: "RoleMembership",},
   {name: "Organization", icon: CorporateFareIcon, options: { menu: { group: "Accounts", order: 20 } }},
   {name: "Group", icon: CorporateFareIcon },
 

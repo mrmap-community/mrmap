@@ -9,6 +9,7 @@ import {
   WrapperField,
 } from "react-admin";
 
+import { PUBLIC_READ_RESOURCES } from "../../../../providers/permissions";
 import CustomListActions, {
   type CustomListActionsProps,
 } from "../../../Lists/CustomListActions";
@@ -155,6 +156,10 @@ export const serviceListProps = (
   perPage: SERVICE_LIST_PER_PAGE,
   sort: SERVICE_LIST_SORT,
   additionalActions: config.RowAction ? <config.RowAction /> : undefined,
+  // #833: the list of a kind of service is reachable without a session when
+  // the resource is in the public read-only set - the controller then asks
+  // nothing about a session and renders exactly what the api answers
+  disableAuthentication: PUBLIC_READ_RESOURCES.has(config.resource),
   
   queryOptions: {
     meta: {

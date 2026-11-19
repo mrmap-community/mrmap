@@ -258,7 +258,7 @@ class DirectoryImportFanOutTest(StoredFilesTestCaseMixin, TestCase):
         # the deployment, which HarvestingJob._http_request looks up by name
         get_user_model().objects.get_or_create(username='mrmap')
 
-    @patch('registry.managers.havesting.chord')
+    @patch('registry.managers.harvesting.chord')
     def test_found_files_publish_one_task_per_chunk(self, mocked_chord):
         files = []
         for number in range(5):

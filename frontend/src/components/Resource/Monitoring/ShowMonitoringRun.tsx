@@ -9,6 +9,7 @@ import {
 import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
 
 import JsonApiReferenceField from "../../../jsonapi/components/ReferenceField";
+import ContextualIncidents from "../OperationalIncident/Context/ContextualIncidents";
 import { getDuration } from "../WebMapService/Show/Overview/MonitoringRuns/formatMonitoringRun";
 import MonitoringProbeResults, {
   type ProbeResultsGroup,
@@ -43,8 +44,18 @@ const MonitoringRunDetails = ({
   if (!record) return null;
 
   const completed = Boolean(record.dateDone);
-  const status = !completed ? "running" : record.success ? "passed" : "failed";
-  const severity = !completed ? "info" : record.success ? "success" : "error";
+  let status: string;
+  let severity: "info" | "success" | "error";
+  if (!completed) {
+    status = "running";
+    severity = "info";
+  } else if (record.success) {
+    status = "passed";
+    severity = "success";
+  } else {
+    status = "failed";
+    severity = "error";
+  }
   const duration = getDuration(record.dateCreated, record.dateDone);
   const groups: ProbeResultsGroup[] = probeResults.map(
     ({ resource, type, source }) => ({
@@ -78,6 +89,9 @@ const MonitoringRunDetails = ({
       <Alert severity={severity}>
         {translate(`monitoringRun.${status}Message`)}
       </Alert>
+      {/* the incidents about this run, beside the run's own status which stays
+          authoritative; the probe results below are untouched (#1322) */}
+      <ContextualIncidents />
       <Paper variant="outlined" sx={{ p: 2.5 }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           {translate("monitoringRun.details")}

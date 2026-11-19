@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
+from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly, allowed)
 from guardian.core import ObjectPermissionChecker
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
@@ -38,8 +38,10 @@ class CanChangeRelatedResource(BasePermission):
             return request.user.has_perm('notify.change_backgroundprocess')
 
         perm_checker = ObjectPermissionChecker(user_or_group=request.user)
-        return perm_checker.has_perm(
-            f'change_{resource._meta.model_name}', resource)
+        return allowed(
+            request.user,
+            f'{resource._meta.app_label}.change_{resource._meta.model_name}',
+            resource, checker=perm_checker)
 
 
 class CanRetryRegistrationReference(BasePermission):

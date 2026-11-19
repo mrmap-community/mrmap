@@ -1,4 +1,4 @@
-import type { OWSResource } from "../../ows-lib/OwsContext/core";
+import type { OWSContext, OWSResource } from "../../ows-lib/OwsContext/core";
 
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslate } from "react-admin";
@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { getSteppedTimeDimension, getUpcomingTimeAxisPositions, getTimeValueOfDimension, writeTimeForDimension } from "../../ows-lib/OwsContext/dimensions";
 import { useOwsContextBase } from "../../react-ows-lib/ContextProvider/OwsContextBase";
-import { useMapViewerBase } from "../MapViewer/MapViewerBase";
+import { type TimelineAnimation, useMapViewerBase } from "../MapViewer/MapViewerBase";
 import { AuthOptions, remoteImageIdentity, remoteImageKey, remoteImageQuery, RemoteImageKey } from "./remoteImage";
 
 /** Frames buffered ahead of the selection while the viewer is scrubbing by hand. */
@@ -20,6 +20,65 @@ const PARALLEL = 2;
 const RUNWAY_SECONDS = 4;
 /** How far ahead of a playing selection at most — frames cost memory; the workers bound the network. */
 const AHEAD_PLAYING = 12;
+
+/** the observations which follow a selection, taken from the advertised axis of the layer
+ *  whose timeline the viewer works with: playback advances that layer and the other layers
+ *  of a shared image follow its time. A time the axis does not carry has no advertised
+ *  neighbour and the server default has no position at all, so nothing is invented for
+ *  either (#705) */
+/** the fetch window around a selection: while an animation walks the layer its runway grows
+ *  ahead and nothing behind is worth fetching, while paused the plain window stays (#823) */
+const frameWindow = (advancing: TimelineAnimation | undefined) => ({
+  ahead: advancing === undefined
+    ? AHEAD
+    : Math.min(AHEAD_PLAYING, Math.max(AHEAD, Math.ceil(advancing.fps * RUNWAY_SECONDS))),
+  behind: advancing ? 0 : BEHIND,
+  loop: advancing?.loop ?? false,
+});
+
+const upcomingFrames = ({
+  href,
+  features,
+  animation,
+  timelines,
+  owsContext,
+}: {
+  href: string;
+  features: OWSResource[];
+  animation?: TimelineAnimation;
+  timelines?: Record<string, number>;
+  owsContext: OWSContext;
+}): string[] => {
+  const request = new URL(href);
+  const candidates = [animation?.folder, ...features.map(feature => feature.properties.folder)]
+    .filter((folder, position, all): folder is string =>
+      folder !== undefined && all.indexOf(folder) === position);
+  for (const folder of candidates) {
+    // a layer whose timeline is open somewhere in the viewer is the one its frames are buffered for: the
+    // frames of a layer nobody works with would be asked for on every pan and never reached for (#705)
+    if ((timelines?.[folder] ?? 0) <= 0 && animation?.folder !== folder) continue;
+    const offering = owsContext.findResourceByFolder(folder)?.getWmsOffering();
+    const stepped = getSteppedTimeDimension(offering);
+    if (stepped === undefined) continue;
+    // the observation this request asks for, read from the parameter the dimension was selected
+    // with — the well known TIME or a DIM_<name> — which is also the parameter the frames are asked under
+    const time = getTimeValueOfDimension(request.searchParams, stepped.dimension.name);
+    const position = time === undefined ? -1 : stepped.axis.indexOf(time);
+    if (position < 0) continue;
+    // an animation only ever walks onwards, so a frame behind is only worth fetching while paused;
+    // while it plays the window grows to a runway of seconds worth of frames, so that the steps of
+    // the animation are drawn from the buffer rather than each waiting for its own request (#823)
+    const advancing = animation?.folder === folder ? animation : undefined;
+    return getUpcomingTimeAxisPositions(stepped.axis, position, frameWindow(advancing)).map(next => {
+      const frame = new URL(href);
+      // the time is replaced in its position, so the frame carries the very url the overlay will
+      // draw it under — a buffered frame only answers a selection when both are one identical key
+      writeTimeForDimension(frame.searchParams, stepped.dimension.name, stepped.axis.valueAt(next));
+      return frame.href;
+    });
+  }
+  return [];
+};
 
 export interface TimeFrameBufferProps {
   /** the GetMap request whose frames are buffered; it carries the selected time */
@@ -59,45 +118,10 @@ export const useTimeFrameBuffer = ({
   // timeline the viewer works with: playback advances that layer and the other layers of a shared image
   // follow its time. A time the axis does not carry has no advertised neighbour and the server default has
   // no position at all, so nothing is invented for either (#705).
-  const upcoming = useMemo(() => {
-    if (authenticationError !== undefined) return [];
-    const request = new URL(href);
-    const candidates = [animation?.folder, ...features.map(feature => feature.properties.folder)]
-      .filter((folder, position, all): folder is string =>
-        folder !== undefined && all.indexOf(folder) === position);
-    for (const folder of candidates) {
-      // a layer whose timeline is open somewhere in the viewer is the one its frames are buffered for: the
-      // frames of a layer nobody works with would be asked for on every pan and never reached for (#705)
-      if ((timelines?.[folder] ?? 0) <= 0 && animation?.folder !== folder) continue;
-      const offering = owsContext.findResourceByFolder(folder)?.getWmsOffering();
-      const stepped = getSteppedTimeDimension(offering);
-      if (stepped === undefined) continue;
-      // the observation this request asks for, read from the parameter the dimension was selected
-      // with — the well known TIME or a DIM_<name> — which is also the parameter the frames are asked under
-      const time = getTimeValueOfDimension(request.searchParams, stepped.dimension.name);
-      const position = time === undefined ? -1 : stepped.axis.indexOf(time);
-      if (position < 0) continue;
-      // an animation only ever walks onwards, so a frame behind is only worth fetching while paused;
-      // while it plays the window grows to a runway of seconds worth of frames, so that the steps of
-      // the animation are drawn from the buffer rather than each waiting for its own request (#823)
-      const advancing = animation?.folder === folder ? animation : undefined;
-      const ahead = advancing === undefined
-        ? AHEAD
-        : Math.min(AHEAD_PLAYING, Math.max(AHEAD, Math.ceil(advancing.fps * RUNWAY_SECONDS)));
-      return getUpcomingTimeAxisPositions(stepped.axis, position, {
-        ahead,
-        behind: advancing ? 0 : BEHIND,
-        loop: advancing?.loop ?? false,
-      }).map(next => {
-        const frame = new URL(href);
-        // the time is replaced in its position, so the frame carries the very url the overlay will
-        // draw it under — a buffered frame only answers a selection when both are one identical key
-        writeTimeForDimension(frame.searchParams, stepped.dimension.name, stepped.axis.valueAt(next));
-        return frame.href;
-      });
-    }
-    return [];
-  }, [animation, authenticationError, features, href, owsContext, timelines]);
+  const upcoming = useMemo(() => authenticationError === undefined
+    ? upcomingFrames({ href, features, animation, timelines, owsContext })
+    : [],
+  [animation, authenticationError, features, href, owsContext, timelines]);
 
   // every frame this overlay asked for, so the ones nobody wants anymore can be taken back; the frame the
   // overlay draws itself belongs to them, because it is released with it

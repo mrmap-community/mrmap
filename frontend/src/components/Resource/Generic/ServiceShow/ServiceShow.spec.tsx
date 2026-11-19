@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { DataProvider } from "react-admin";
+import type { AuthProvider, DataProvider } from "react-admin";
 import {
   AdminContext,
   EditButton,
@@ -14,13 +14,18 @@ import {
 } from "react-admin";
 import { Route, Routes, useNavigate } from "react-router-dom";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
 import ConfigureRelatedResource from "../../../../jsonapi/components/ConfigureRelatedResource";
 import { useReferenceManyErrors } from "../../../../jsonapi/components/ReferenceManyErrorsProvider";
 import SchemaAutocompleteInput from "../../../../jsonapi/components/SchemaAutocompleteInput";
+import {
+  ANONYMOUS_SNAPSHOT,
+  canAccessFromSnapshot,
+} from "../../../../providers/permissions";
 import Records from "../../CatalogueService/Show/Records";
+import { ATTENTION_REFETCH_INTERVAL } from "./ServiceAttentionTab";
 import { capabilitiesUrl } from "./ServiceDetailsCard";
 import ServiceMetadataTab from "./ServiceMetadataTab";
 import ServiceRelatedTab from "./ServiceRelatedTab";
@@ -93,6 +98,13 @@ const definitions = {
     hasEdit: true,
     options: {},
   },
+  WebMapService: {
+    name: "WebMapService",
+    hasShow: true,
+    hasList: true,
+    hasEdit: true,
+    options: {},
+  },
   HarvestingJob: {
     name: "HarvestingJob",
     hasList: true,
@@ -151,10 +163,35 @@ const create = vi.fn(async (_resource: string, { data }: { data: object }) => ({
   data: { id: "new-setting", ...data },
 }));
 const getList = vi.fn(async () => ({ data: [], total: 0 }));
-function setup(path: string, tabs: ServiceTab[]) {
+
+/** the #833 anonymous answer: exactly the table the authProvider uses */
+const anonymousAuthProvider: AuthProvider = {
+  login: async () => undefined,
+  logout: async () => undefined,
+  checkAuth: async () => undefined,
+  checkError: async () => undefined,
+  canAccess: async ({ action, resource }: { action: string; resource: string }) =>
+    canAccessFromSnapshot({
+      action,
+      resource,
+      authenticated: false,
+      snapshot: ANONYMOUS_SNAPSHOT,
+    }),
+};
+
+function setup(
+  path: string,
+  tabs: ServiceTab[],
+  options: {
+    resource?: string;
+    authProvider?: AuthProvider;
+  } = {},
+) {
+  const { resource = "CatalogueService", authProvider } = options;
   return render(
     <TestMemoryRouter initialEntries={[path]}>
       <AdminContext
+        authProvider={authProvider}
         dataProvider={testDataProvider({
           getOne: getOne as DataProvider["getOne"],
           update: update as DataProvider["update"],
@@ -163,11 +200,15 @@ function setup(path: string, tabs: ServiceTab[]) {
         })}
       >
         <ResourceDefinitionContextProvider definitions={definitions}>
-          <ResourceContextProvider value="CatalogueService">
+          <ResourceContextProvider value={resource}>
             <Routes>
               <Route
-                path="/CatalogueService/:id/show/*"
+                path={`/${resource}/:id/show/*`}
                 element={<ServiceShow tabs={tabs} />}
+              />
+              <Route
+                path="/access-denied"
+                element={<h1>access denied</h1>}
               />
             </Routes>
           </ResourceContextProvider>
@@ -528,5 +569,77 @@ describe("capabilities links", () => {
         "CSW",
       ),
     ).toBeUndefined();
+  });
+
+  it("shows an anonymous visitor only the tabs of the published service itself (#833)", async () => {
+    setup("/WebMapService/wms-1/show", [
+      { path: "", label: "Overview", resource: "WebMapService", content: <RecordTitle /> },
+      { path: "alerts", label: "Attention", resource: "ServiceAlert", content: <div>alerts</div> },
+      { path: "metadata", label: "Metadata", resource: "WebMapService", action: "edit", content: <div>editor</div> },
+    ], { resource: "WebMapService", authProvider: anonymousAuthProvider });
+
+    expect(await screen.findByText("Overview Setting")).toBeInTheDocument();
+    expect(screen.queryByText("Attention")).toBeNull();
+    expect(screen.queryByText("Metadata")).toBeNull();
+  });
+
+  it("lands an anonymous deep link into a private service on the forbidden state (#833)", async () => {
+    setup("/CatalogueService/csw-1/show", [
+      { path: "", label: "Overview", resource: "CatalogueService", content: <RecordTitle /> },
+    ], { authProvider: anonymousAuthProvider });
+
+    expect(await screen.findByText("access denied")).toBeInTheDocument();
+    expect(screen.queryByText("Overview Catalogue")).toBeNull();
+  });
+});
+
+// The attention states of a service are attributes of its own record and
+// nothing is pushed about them - the shared show screen re-reads the record
+// on the attention interval and pauses in hidden tabs (#1464).
+describe("the attention interval of the shown service", () => {
+  const serviceReads = () =>
+    getOne.mock.calls.filter(([resource]) => resource === "CatalogueService")
+      .length;
+  const advanceTime = async (milliseconds: number) => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(milliseconds);
+    });
+  };
+  let visibility: MockInstance | undefined;
+
+  afterEach(() => {
+    vi.useRealTimers();
+    visibility?.mockRestore();
+    visibility = undefined;
+  });
+
+  it("re-reads the service on the attention interval while the tab is visible", async () => {
+    vi.useFakeTimers();
+    visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("visible");
+    setup("/CatalogueService/csw-9/show", [
+      { path: "", label: "Overview", content: <RecordTitle /> },
+    ]);
+    await advanceTime(0);
+    expect(serviceReads()).toBe(1);
+    await advanceTime(ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(2);
+    await advanceTime(ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(3);
+  });
+
+  it("pauses the attention reads while the tab is hidden", async () => {
+    vi.useFakeTimers();
+    visibility = vi
+      .spyOn(document, "visibilityState", "get")
+      .mockReturnValue("hidden");
+    setup("/CatalogueService/csw-9/show", [
+      { path: "", label: "Overview", content: <RecordTitle /> },
+    ]);
+    await advanceTime(0);
+    expect(serviceReads()).toBe(1);
+    await advanceTime(3 * ATTENTION_REFETCH_INTERVAL);
+    expect(serviceReads()).toBe(1);
   });
 });

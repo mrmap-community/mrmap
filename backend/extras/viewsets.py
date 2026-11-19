@@ -3,16 +3,21 @@ from collections import OrderedDict
 
 from camel_converter import to_snake
 from django.apps import apps
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch, QuerySet
 from django.http import Http404, JsonResponse
 from django.views.generic.detail import BaseDetailView
 from drf_spectacular.utils import extend_schema
-from extras.permissions import (list_is_permission_filtered,
+from extras.permissions import (DjangoObjectPermissionsOrAnonReadOnly,
+                                list_is_permission_filtered,
                                 objects_for_user)
 from extras.utils import get_sparse_fields, parse_sparse_fieldsets
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import BackgroundProcessSerializer
+from simple_history.utils import (get_app_model_primary_key_name,
+                                  get_history_manager_for_model)
 from rest_framework import mixins, status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -123,7 +128,7 @@ class HistoryInformationViewSetMixin:
                 to_snake(include) for include in get_included_resources(
                     self.request, self.get_serializer_class())]
 
-            HistoryModel = apps.get_model(
+            history_model = apps.get_model(
                 self.queryset.model._meta.app_label,
                 f"Historical{self.queryset.model.__name__}"
             )
@@ -140,7 +145,7 @@ class HistoryInformationViewSetMixin:
             if not resource_based_sparse_fields \
                     or any(field in ["created_at", "created_by"] for field in resource_based_sparse_fields)\
                     or "created_by" in include_resources_param:
-                prefetch_qs = HistoryModel.objects.filter(
+                prefetch_qs = history_model.objects.filter(
                     history_type='+').select_related('history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)
@@ -155,7 +160,7 @@ class HistoryInformationViewSetMixin:
                     or any(field in ["last_modified_at", "last_modified_by"] for field in resource_based_sparse_fields)\
                     or "last_modified_by" in include_resources_param:
 
-                prefetch_qs = HistoryModel.objects.all().select_related(
+                prefetch_qs = history_model.objects.all().select_related(
                     'history_user')
                 if not user_is_included:
                     prefetch_qs = prefetch_qs.only(*only_for_history)
@@ -173,6 +178,110 @@ class HistoryInformationViewSetMixin:
         except LookupError:
             pass
         return qs
+
+
+class HistoricalViewSetMixin:
+    """The read-only api over the audit trail of one model (#741).
+
+    A changelog is not an ordinary resource: it is written by the flows which
+    change the object, never by a request. ``http_method_names`` therefore
+    carries no write verb at all — #1449 removed ``patch`` for exactly that
+    reason, and #741 keeps it that way for the role tables, whose audit rows
+    are the answer to "who decided this?" and must not be editable by whoever
+    asks.
+
+    The one thing every consumer of a changelog asks beside the row itself is
+    *what changed*: ``diff_against`` needs the row which came before. Reading
+    that per record is one query per row, so the previous row is annotated here
+    and the page's rows are fetched in one ``in_bulk`` — the plan is stated
+    once for every model which keeps history rather than rewritten per screen.
+    """
+
+    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
+    # delete is only provided on the service endpoint it self, which implicit removes all related objects
+    # #1449: patch is gone as well. No flow edits an audit row — the frontend only
+    # reads the changelog — and leaving the verb open let any authenticated caller
+    # rewrite the compliance record the history exists to prove (#741).
+    http_method_names = ["get", "head", "options"]
+    # reads stay open the way list_HistoricalWebMapServices.feature pins them;
+    # the gate answers per object, so a write could only ever be answered by an
+    # object grant over the audit row — and since patch left http_method_names,
+    # no request reaches that decision anymore.
+    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    select_for_includes = {
+        "historyUser": ["history_user"],
+        # "historyRelation": ["history_relation"]
+    }
+    ordering_fields = ["id", 'history_date', 'history_user']
+
+    def get_queryset(self, *args, **kwargs):
+        qs = super().get_queryset(*args, **kwargs)
+
+        # the include is read through the parser of the framework, the same
+        # one the view mixins of extras use - it answers with the names of
+        # python, into which it also turns the name of the api the request
+        # was written with (#1479)
+        included_resources = get_included_resources(
+            self.request, self.get_serializer_class())
+
+        if "history_user" not in included_resources:
+            defer = [
+                f"history_user__{field.name}"
+                for field in get_user_model()._meta.get_fields()
+                if field.name not in ["id", "pk"]
+            ]
+            qs = qs.select_related("history_user").defer(*defer)
+        else:
+            # FUTURE: select_for_includes setup does not work for history records...
+            qs = qs.select_related("history_user")
+
+        # At the end of the existing get_queryset(), before returning qs:
+        original_model = qs.model.instance_type
+        key_name = get_app_model_primary_key_name(original_model)
+
+        previous_records = (
+            get_history_manager_for_model(original_model)
+            .using(qs.db)
+            .filter(
+                **{
+                    key_name: OuterRef(key_name),
+                    "history_date__lt": OuterRef("history_date"),
+                }
+            )
+            .order_by("-history_date")
+        )
+
+        return qs.annotate(
+            prev_record_id=Subquery(
+                previous_records.values("history_id")[:1]
+            )
+        )
+
+    def paginate_queryset(self, queryset):
+        page = super().paginate_queryset(queryset)
+        if page is None:
+            return None
+
+        previous_ids = {
+            record.prev_record_id
+            for record in page
+            if record.prev_record_id is not None
+        }
+
+        previous_by_id = (
+            queryset.model._default_manager
+            .using(queryset.db)
+            .in_bulk(previous_ids)
+            if previous_ids
+            else {}
+        )
+
+        for record in page:
+            record.prev_prefetched_record = previous_by_id.get(
+                record.prev_record_id
+            )
+
+        return page
 
 
 class PermissionVisibilityMixin:

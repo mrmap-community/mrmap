@@ -1,8 +1,9 @@
-from django.contrib.auth import get_user_model
-from django.db.models import OuterRef, Subquery
 from django.db.models.query import Prefetch
-from extras.permissions import DjangoObjectPermissionsOrAnonReadOnly
-from extras.viewsets import PreloadNotIncludesMixin, SerializerClassesMixin
+# HistoricalViewSetMixin moved to extras/viewsets.py with #741: it is the same
+# read plan for every model which keeps history, and ``accounts`` needs it for
+# its role tables without importing the registry's api
+from extras.viewsets import (HistoricalViewSetMixin, PreloadNotIncludesMixin,
+                             SerializerClassesMixin)
 from mptt2.models import Tree
 from registry.filters.historical import (
     CatalogueServiceHistoricalFilterSet, FeatureTypeHistoricalFilterSet,
@@ -23,98 +24,7 @@ from registry.serializers.historical import (
     LayerHistorySerializer, WebFeatureServiceHistorySerializer,
     WebMapServiceHistorySerializer, DatasetMetadataRecordHistorySerializer,
     ServiceMetadataRecordHistorySerializer)
-from rest_framework_json_api.utils import get_included_resources
 from rest_framework_json_api.views import ModelViewSet
-from simple_history.utils import (get_app_model_primary_key_name,
-                                  get_history_manager_for_model)
-
-
-class HistoricalViewSetMixin:
-    # removes create and delete endpoints, cause this two actions are made by the mrmap system it self in registrion or update processing of the service.
-    # delete is only provided on the service endpoint it self, which implicit removes all related objects
-    # #1449: patch is gone as well. No flow edits an audit row — the frontend only
-    # reads the changelog — and leaving the verb open let any authenticated caller
-    # rewrite the compliance record the history exists to prove (#741).
-    http_method_names = ["get", "head", "options"]
-    # reads stay open the way list_historical_webmapservices.feature pins them;
-    # the gate answers per object, so a write could only ever be answered by an
-    # object grant over the audit row — and since patch left http_method_names,
-    # no request reaches that decision anymore.
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
-    select_for_includes = {
-        "historyUser": ["history_user"],
-        # "historyRelation": ["history_relation"]
-    }
-    ordering_fields = ["id", 'history_date', 'history_user']
-
-    def get_queryset(self, *args, **kwargs):
-        qs = super().get_queryset(*args, **kwargs)
-
-        # the include is read through the parser of the framework, the same
-        # one the view mixins of extras use - it answers with the names of
-        # python, into which it also turns the name of the api the request
-        # was written with (#1479)
-        included_resources = get_included_resources(
-            self.request, self.get_serializer_class())
-
-        if "history_user" not in included_resources:
-            defer = [
-                f"history_user__{field.name}"
-                for field in get_user_model()._meta.get_fields()
-                if field.name not in ["id", "pk"]
-            ]
-            qs = qs.select_related("history_user").defer(*defer)
-        else:
-            # FUTURE: select_for_includes setup does not work for history records...
-            qs = qs.select_related("history_user")
-
-        # At the end of the existing get_queryset(), before returning qs:
-        original_model = qs.model.instance_type
-        key_name = get_app_model_primary_key_name(original_model)
-
-        previous_records = (
-            get_history_manager_for_model(original_model)
-            .using(qs.db)
-            .filter(
-                **{
-                    key_name: OuterRef(key_name),
-                    "history_date__lt": OuterRef("history_date"),
-                }
-            )
-            .order_by("-history_date")
-        )
-
-        return qs.annotate(
-            prev_record_id=Subquery(
-                previous_records.values("history_id")[:1]
-            )
-        )
-
-    def paginate_queryset(self, queryset):
-        page = super().paginate_queryset(queryset)
-        if page is None:
-            return None
-
-        previous_ids = {
-            record.prev_record_id
-            for record in page
-            if record.prev_record_id is not None
-        }
-
-        previous_by_id = (
-            queryset.model._default_manager
-            .using(queryset.db)
-            .in_bulk(previous_ids)
-            if previous_ids
-            else {}
-        )
-
-        for record in page:
-            record.prev_prefetched_record = previous_by_id.get(
-                record.prev_record_id
-            )
-
-        return page
 
 
 class OGCServiceHistoricalViewSetMixin(

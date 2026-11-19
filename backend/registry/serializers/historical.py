@@ -1,65 +1,10 @@
-from logging import Logger
-from operator import itemgetter
-
 from accounts.serializers.users import UserSerializer
-from django.contrib.gis.geos import GEOSGeometry
-from extras.serializers import SystemInfoSerializerMixin
+# HistorySerializerMixin moved to extras/serializers.py with #741, so the role
+# tables of ``accounts`` can answer their changelog without importing this module
+from extras.serializers import HistorySerializerMixin
 from registry.models.metadata import DatasetMetadataRecord, ServiceMetadataRecord
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
-from rest_framework.fields import SerializerMethodField, UUIDField
-from rest_framework_gis.fields import GeometryField
-from rest_framework_json_api.serializers import ModelSerializer
-
-
-class HistorySerializerMixin(
-        SystemInfoSerializerMixin,
-        ModelSerializer):
-    id = UUIDField(source='history_id')
-    history_type = SerializerMethodField()
-    delta = SerializerMethodField()
-
-    class Meta:
-        abstract = True
-        # delta_size is the count the per-day statistics aggregate (see the
-        # registry migration 0025); what this api answers about an audit row is
-        # delta below, the changed fields with their old and new values, so the
-        # count is not asked for and stays out of the resource
-        exclude = ('history_id', 'delta_size')
-
-    def get_history_type(self, obj):
-        if obj.history_type == '+':
-            return "created"
-        elif obj.history_type == '~':
-            return "updated"
-        elif obj.history_type == '-':
-            return "deleted"
-
-    def get_delta(self, obj):
-        if hasattr(obj, "prev_prefetched_record"):
-            prev_record = obj.prev_prefetched_record
-        else:
-            Logger.warning(
-                "prev_prefetched_record not present, using fallback prev_record"
-            )
-            prev_record = obj.prev_record
-        if prev_record:
-            model_delta = obj.diff_against(prev_record)
-            changes = []
-            for change in model_delta.changes:
-                changes.append(
-                    {"field": change.field,
-                     "old": self._serialize_delta_value(change.old),
-                     "new": self._serialize_delta_value(change.new)})
-
-            # otherwise the order is not fix and reproducible for test cases
-            sorted_changes = sorted(changes, key=itemgetter('field'))
-            return sorted_changes
-
-    def _serialize_delta_value(self, value):
-        if isinstance(value, GEOSGeometry):
-            return GeometryField().to_representation(value)
-        return value
 
 
 class WebMapServiceHistorySerializer(HistorySerializerMixin):

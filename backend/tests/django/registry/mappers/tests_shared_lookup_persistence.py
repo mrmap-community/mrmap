@@ -73,6 +73,16 @@ def watch_bulk_create(model_cls, calls):
 class LookupTableInsertTest(TestCase):
     """One import writes the rows it needs as one statement, in key order."""
 
+    @classmethod
+    def setUpTestData(cls):
+        # every assertion of this class compares the WHOLE keyword table, so
+        # only this class' rows may be on it - the isolation the #1215
+        # migration tests and tests_history_delta_size established for their
+        # own tables, here for the keywords (#1638). The class transaction
+        # rolls whatever foreign rows this deleted away at class end, so the
+        # classes which run later reload their fixtures as if nothing happened
+        Keyword.objects.all().delete()
+
     def test_one_statement_carries_all_rows_in_key_order(self):
         calls = []
         # the document carries alpha twice and in the order zulu, alpha, mike
@@ -181,6 +191,15 @@ class ConcurrentLookupImportTest(TransactionTestCase):
             ]
 
         self.assertEqual(failures, [], f'concurrent imports failed: {failures}')
+        # the assertion names THIS import's keywords: a TransactionTestCase
+        # cleans the database after a test, never before it, so committed
+        # rows of an earlier case can sit on the table while this one starts
+        # (#1638, the #1215 lesson) - and the worker imports run with
+        # ignore_conflicts anyway, so an already existing keyword of the
+        # same text is skipped exactly like it is in a deployment. What the
+        # test decides is that every one of its 60 arrived, not that no
+        # other text exists
         self.assertEqual(
-            sorted(Keyword.objects.values_list('keyword', flat=True)),
+            sorted(Keyword.objects.filter(
+                keyword__in=self.KEYWORDS).values_list('keyword', flat=True)),
             sorted(self.KEYWORDS))

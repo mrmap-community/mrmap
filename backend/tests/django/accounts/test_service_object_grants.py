@@ -30,7 +30,7 @@ from django.db.models.signals import post_save
 from django.test import TestCase
 from guardian.core import ObjectPermissionChecker
 from guardian.models import GroupObjectPermission, UserObjectPermission
-from guardian.shortcuts import assign_perm, get_objects_for_user
+from guardian.shortcuts import get_objects_for_user
 from guardian.utils import get_anonymous_user
 
 from accounts.models.groups import Organization
@@ -310,35 +310,3 @@ class ServiceLookupPathTestCase(ServiceGrantTestCaseMixin, TestCase):
         self.assertEqual(
             GroupObjectPermission.objects.filter(
                 content_type__model="webmapservice").count(), 0)
-
-    def test_a_user_self_grant_keeps_the_text_object_pk_of_its_uuid(self):
-        """``User.assign_object_perms`` - dead code, and the #863 shape of it
-
-        Nothing calls this method today (#729 asks to cover or delete it); a
-        ``User`` has a uuid primary key and no dedicated guardian table, so its
-        object permissions are exactly the rows the shared table stores as
-        TEXT: ``object_pk`` is ``str(uuid)``, and the lookup still answers
-        because guardian narrows the shared table by the user it was asked
-        for. This is the surviving corner of #863 for a model without a table
-        of its own.
-        """
-        user = self.outsider
-        user.assign_object_perms()
-
-        rows = UserObjectPermission.objects.filter(user=user)
-        self.assertEqual(
-            set(rows.values_list("permission__codename", flat=True)),
-            {"view_user", "change_user", "delete_user"})
-        for row in rows:
-            self.assertEqual(row.object_pk, str(user.pk))
-            # the user grants are ``accounts`` permission rows: the ``User``
-            # model lives there, so its default permissions do too (#729)
-            self.assertEqual(
-                row.permission.content_type.app_label, "accounts")
-            self.assertEqual(row.permission.content_type.model, "user")
-        self.assertTrue(user.has_perm('accounts.view_user', user))
-        assign_perm(
-            perm='accounts.view_user',
-            user_or_group=user, obj=user)  # idempotent
-        self.assertEqual(UserObjectPermission.objects.filter(
-            user=user, permission__codename='view_user').count(), 1)

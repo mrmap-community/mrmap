@@ -794,6 +794,16 @@ Family: the alert refresh (scoping for #1394)
 Family: conformity checks (scoping for #1394)
 ##############################################
 
+.. note::
+    **Retired (#1458, #1530).** The three tasks and their liveness guard
+    left with #1458; #1530 then removed the rest of the family - models,
+    managers, enums, the plugin helpers, the seed fixtures and all twelve
+    tables - through ``registry/migrations/0062_retire_conformity_check_family``,
+    per the decision record of gate #1528
+    (:ref:`etf-conformity-retirement`). Everything below describes the
+    state as scoped for #1394 and stays as its audit trail; the
+    keep-or-remove question it left open is closed by the removal.
+
 ``run_conformity_check`` (``registry/tasks/conformity.py:25``)
     Run SELECT (1) + ``run.config`` FK deref (1) + a sub-task publish. Two
     bounded SELECTs — but two findings belong to #1394:
@@ -1045,9 +1055,10 @@ enough evidence).
      - per-service ``storage.exists()`` per fire; ``bulk_create`` batch size;
        annotation side already optimal
    * - ``run_conformity_check`` + ``_etf`` + ``_internal``
-     - not enough evidence
-     - no first-party dispatcher on develop; retired task-result seam writes;
-       establish liveness first, plus the ``has_running_check`` exists fix
+     - retired (#1458, #1530)
+     - the audit verdict was "establish liveness first"; nothing dispatched
+       them, the tasks left with #1458 and the whole family was removed by
+       #1530 - see the family section
    * - ``async_analyze_log``
      - already optimal
      - 1 SELECT + ≤1 INSERT; the per-row volume is the intent, confirmed (#1459)
@@ -1182,8 +1193,8 @@ Scoping for the follow-up issues
 
 #1394 — housekeeping, alerts, security, conformity, notify, system
     (**shipped** — the four items below landed; the keep-or-remove question
-    of the whole conformity family is with its owners, see the family
-    section):
+    of the whole conformity family was closed by its removal in #1530,
+    see the family section):
     - ``missing_capabilities_rows``: replace per-service ``storage.exists()``
       with per-prefix listings (or a slower dedicated cadence); add
       ``batch_size`` to the alert ``bulk_create``.

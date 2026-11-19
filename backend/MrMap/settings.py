@@ -1100,6 +1100,16 @@ def default_renderer_classes(production: bool):
 REST_KNOX = {
     "TOKEN_TTL": timedelta(hours=10),
     "AUTO_REFRESH": False,
+    # Concurrency cap, not a lifetime (#1450): knox's stock default is None —
+    # unlimited parallel tokens per user — so one credential seen by an
+    # attacker could farm tokens without bound while a refusal to *issue* one
+    # never leaks anything about the account. The login endpoint refuses with
+    # 403 once the user already holds this many not-yet-expired rows; a logout
+    # (or expiry) frees a slot, guessing at passwords cannot. Five covers the
+    # scripts and CLI clients of one user across a working day; the browser
+    # path of #835 logs in through ``api/auth/session`` and occupies no knox
+    # row (see ``docs/source/administration/authentication.md``).
+    "TOKEN_LIMIT_PER_USER": 5,
 }
 
 REST_FRAMEWORK = {

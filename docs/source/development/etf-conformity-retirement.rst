@@ -155,6 +155,30 @@ helpers, the fixtures, the ``CONFORMITY_DEFAULT_*`` messages,
 ``BASE_URL_FOR_ETF``, the validator infrastructure and the twelve tables -
 remains gated on Q1-Q3 and owned by #1529/#1530/#1531.
 
+**Executed (#1530).** On the operator's instruction — the same shape as
+#1458 and #1529 above — the whole family left the codebase with #1530
+while the Q1-Q3 rows below still read Pending; that deviation from the
+gate is recorded here, not hidden. Removed: ``registry/models/conformity.py``
+(all 9 models) and its re-export in ``registry/models/__init__.py``,
+``registry/managers/conformity.py``, ``registry/enums/conformity.py``,
+``registry/helper/plugins/`` (``etf.py``, ``internal.py`` and the package
+itself) and ``registry/helper/mapping_helper.py``; the six seed fixtures;
+and all twelve tables through the one migration
+``registry/migrations/0062_retire_conformity_check_family``, which follows
+the then-current leaf 0061 and additionally deletes the family's 9 content
+types (post-migrate never prunes them, and an explicit drop keeps the
+database free of ghost permissions). The upgrade path was verified on a
+scratch database built from pre-#1530 code: fixtures loaded, representative
+ETF/internal run rows, unrelated rows, then the new code — twelve tables
+and their permissions gone, survivors intact, reverse-then-forward clean.
+The German catalog lost the family's four run help texts via the canonical
+``makemessages``. What the family page still names as remaining — the
+``CONFORMITY_DEFAULT_*`` messages and ``BASE_URL_FOR_ETF`` — is owned by
+#1531, runtime verification by #1532 and the remaining docs sweep by #1533.
+Applying the migration to a live deployment stays destructive data work:
+the export-before-drop and maintenance-window contract below binds the
+operator, and nothing in the migration invents or re-derives data.
+
 Backend (all imports are family-internal; the only outside importer is
 ``tests/django/test_celery_worker_config.py`` consuming the time-limit
 constants):
@@ -408,7 +432,8 @@ How to re-derive every claim
         tests.django.test_celery_worker_config --noinput
     # by-name dispatch / API / frontend sweep (run from backend/)
     git grep -n "async_run_conformity"        # no hits since #1458 removed
-    # the tasks; the rest of the family still answers until #1530 lands
+    # the tasks; since #1530 removed the rest of the family the sweeps
+    # below answer empty everywhere
     git grep -ln "Conformity" -- registry/serializers registry/views registry/urls.py extras
     # (empty) ; git grep -iln conformity -- frontend/   # only a PNG false hit
     # live table names / counts / permission footprint

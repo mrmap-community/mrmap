@@ -5,6 +5,43 @@ from django.conf import settings
 from django.db.models.signals import post_migrate
 from django.utils.translation import gettext_lazy as _
 
+#: the name the sweep of expired role memberships has in the schedule of beat
+#: (#741); the tests look the row up by it
+MEMBERSHIP_EXPIRY_TASK_NAME = "revoke expired role memberships"
+
+
+def create_membership_expiry_task(sender, **kwargs):
+    """Creates the periodic task which revokes expired role memberships.
+
+    ``valid_until`` of #732 says when a grant ends, and the facade of #734
+    refuses an expired membership on the role axes; what it cannot refuse is a
+    guardian grant of the role's *group*, which reaches the person until the
+    membership row is gone. Only this sweep closes that (#741's AC4), so the
+    row of ``PeriodicTask`` is what makes the field mean what it says.
+
+    Keyed by its name and asked by the whole shape of its crontab, like every
+    other row of beat: a deployment which re-scheduled the sweep over the api
+    keeps what it chose, and a bare minute lookup would answer the rows of the
+    other sweeps and die on ``MultipleObjectsReturned`` (#1273).
+    """
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    # at fifty past the hour: the housekeeping of the deployment is spread
+    # over the hour (import every five minutes, dump at :05, probe artifacts
+    # at :20, job history at :30, incidents at :40) and this sweep takes the
+    # next free slot
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="50", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
+
+    PeriodicTask.objects.get_or_create(
+        name=MEMBERSHIP_EXPIRY_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "accounts.tasks.revoke_expired_role_memberships",
+        }
+    )
+
 
 class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
@@ -21,6 +58,7 @@ class AccountsConfig(AppConfig):
         import accounts.checks  # noqa
         post_migrate.connect(create_default_user_and_org, sender=self)
         post_migrate.connect(ensure_anonymous_viewer_hook, sender=self)
+        post_migrate.connect(create_membership_expiry_task, sender=self)
 
 
 def create_default_user_and_org(sender, **kwargs):

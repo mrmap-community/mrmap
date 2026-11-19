@@ -209,12 +209,15 @@ Beside ``OgcClient``:
      - ``update()`` of each update job kind
        (``models/update.py:866``, ``:1075``, ``:1184``)
    * - ``registry/helper/plugins/etf.py:35``, ``:52``, ``:68``, ``:76``, ``:84``, ``:94``
-     - ETF REST: ``POST v2/TestRuns``, ``GET <run>/progress`` once per polling
+     - **retired (#1530).** ETF REST: ``POST v2/TestRuns``, ``GET <run>/progress``
+       once per polling
        interval, ``GET <run>``, ``GET <run>.html``, two ``DELETE``; module-level
        ``requests`` verbs, no timeout, no session
      - none (the ETF service is assumed open)
      - ``run_conformity_check_etf``
-       (``tasks/conformity.py:49``), started from the conformity API
+       (``tasks/conformity.py:49``), started from the conformity API;
+       the whole transport retired with the family (#1530), see the
+       R16/P-6 disposition below
    * - ``system/status.py:57-70``
      - Docker Engine API of the deployment host, one session per snapshot,
        ``trust_env = False``, per-call deadline of 2 s
@@ -223,10 +226,11 @@ Beside ``OgcClient``:
      - the periodic capacity snapshot (``#1326``)
 
 Not outbound, but the reason some flows above exist: ``registry/tasks/alerts.py``,
-``registry/tasks/security.py``, ``registry/helper/plugins/internal.py``,
+``registry/tasks/security.py``,
 ``registry/csw/`` (the local ``/csw`` endpoint), ``registry/views_ows/`` and
 ``registry/mappers/publish.py`` perform no remote request; the conformity
-checker ``QualityInternal`` evaluates database rows only.
+checker ``QualityInternal`` (``registry/helper/plugins/internal.py``) evaluated
+database rows only and retired with the family (#1530).
 
 Repeated document parse and serialization sites
 ###############################################
@@ -458,16 +462,19 @@ counts requests or parser invocations, not broker messages or rows.
      - ``DescribeFeatureType`` has **no reachable first-party call path**.
        ``models/service.py:1125-1147`` and ``:1166`` are called only from
        ``tests/django/registry/models/tests_document.py``; ``FeatureTypeProperty``
-       rows come from the WFS 2.0.0 **capabilities** config
-       (``mappers/configs/wfs200.py:230``), not from a describe
+       is mapped only by the describe config (``mappers/configs/wfs200.py:230``,
+       inside the ``("DescribeFeatureType", "2.0.0")`` key), whose only reader is
+       ``FeatureType.parse()`` - no production flow writes those rows (corrected
+       by #1414, which had attributed them to the capabilities config)
      - 0 requests in registration, update, monitoring, harvest and preview today
-     - confirmed (no traffic) → #1414 must start
-       from this fact
-     - batching would save 0 requests on today's code. Either a consumer exists
-       that the audit cannot see (an operator command, an external script) or the
-       epic's premise needs re-reading before any batching work is scheduled.
-       Fixture: none exists; a call-path test would be the assertion that no
-       production path reaches it
+     - confirmed (no traffic) → #1414 verdict:
+       no batching, recorded in :ref:`wfs-describe-batching-verdict`
+     - batching would save 0 requests on today's code; the premise re-read per
+       this row, no hidden consumer found (operator commands, scripts, proxy,
+       preview and the frontend were all traced) - the per-type chain is tested
+       but unconnected since the chord task was removed in ``6b3110891``.
+       Fixture: ``tests/django/registry/models/tests_describe_call_path.py``
+       now asserts that no production path reaches it
    * - **R7**
      - Spatially secured WMS ``GetFeatureInfo`` sends a request whose answer it
        cannot use. ``proxy/wms_proxy.py:460`` assigns the **Response** of
@@ -593,7 +600,9 @@ counts requests or parser invocations, not broker messages or rows.
        ``log_missing_records``. Fixture: ``tests_harvest_duplicated_delivery.py``
        and the ``call_count`` assertions of ``tests_harvesting.py:640``
    * - **R16**
-     - An ETF conformity check holds no session and no timeout:
+     - *Moot with #1530: the conformity family and its ETF transport were
+       removed; this row stands as the audit trail.*
+       An ETF conformity check holds no session and no timeout:
        4 fixed requests + one ``GET <run>/progress`` per polling interval, each on
        a fresh connection (``helper/plugins/etf.py``); ETF itself then fetches
        ``BASE_URL_FOR_ETF + resource.get_xml_view_url()`` **back into** MrMap,
@@ -603,6 +612,8 @@ counts requests or parser invocations, not broker messages or rows.
        unpooled requests
      - confirmed → #1415 for the
        re-render; the transport itself is not a child of #1408 (proposal)
+       and became **moot with #1530**: the ETF client retired with the
+       conformity family instead of being pooled
      - bounded, but each unpooled request pays a handshake and each unbounded
        one can hold a worker; the ``requests`` norm in the project's OGC skill
        asks for an explicit timeout. Fixture:
@@ -844,6 +855,8 @@ issues is a human act, so they are listed here and handed over with
 - **P-5 (from R14)** — ``/csw`` document serving re-parses every record per
   request; needs a measurement first, and a staleness-safe key before any cache.
 - **P-6 (from R16)** — the ETF client's unpooled, timeout-less transport.
+  Moot: the transport retired with the conformity family (#1530); no
+  pooling work remains.
 
 SQL-only findings, crosslinked to #1387 (no work here)
 ######################################################

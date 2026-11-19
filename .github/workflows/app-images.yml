@@ -1,0 +1,414 @@
+name: App Images
+
+# Versioned application artifacts (#1582, epic #1577).
+#
+# The dependency images of dev-images.yml stay exactly what they are - build
+# caches tagged by dependency fingerprint, not releases. THIS workflow builds
+# the APPLICATION artifacts (mrmap-backend, mrmap-frontend): images that name
+# themselves through OCI labels (org.opencontainers.image.version /
+# .revision / .source, from the canonical VERSION file of #1579 plus the
+# exact commit) and carry channel-gated tags computed by
+# scripts/image_version.py - never re-implemented here:
+#
+#   channel dev        -> dev-<commit>            (SHA-tagged dev builds)
+#   channel prerelease -> <version> + dev-<commit> (VERSION carries -rc.N)
+#   channel stable     -> <version>               (immutable)
+#
+# No rolling alias (latest and friends) is approved; APPROVED_ROLLING_ALIASES
+# in scripts/image_version.py is the human decision surface. A push step in
+# this file can only carry tags the identity job's guard accepted, and a
+# dev or prerelease identity can never produce a stable-shaped tag - the
+# guard refuses it before any registry is contacted. Protected STABLE
+# PROMOTION of a candidate digest is #1584; the mechanics it needs
+# (docker buildx imagetools create from the digests printed into the step
+# summary) are documented in docs/source/development/versioned-images.rst.
+#
+# The frontend artifact is special by an existing product contract, not by
+# accident: the API address is baked into the SPA bundle at build time and a
+# changed address is expected to rebuild the bundle (#922/#1027), so there is
+# no deployment-neutral frontend artifact to publish on every master push.
+# It is published only when a caller (dispatch, or #1584's release flow via
+# workflow_call) explicitly names the address it serves. The frontend build
+# still runs unpushed on every PR as a build proof. Deployments that need
+# their own address build the frontend image from the checked-out tagged
+# source - deploy/docker-compose.images.yml documents both paths.
+#
+# Multi-arch: not claimed anywhere today - dev-images.yml publishes single
+# architecture OCI manifests (measured, see release-versioning-baseline.rst)
+# and so do these jobs, natively. Adding `platforms` to the publish jobs is
+# the extension point when someone actually supports more than linux/amd64.
+#
+# pull_request (NOT pull_request_target): fork code runs read-only and the
+# PR jobs have no packages: write at all - the dev-images.yml discipline.
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        type: choice
+        description: release channel for the artifacts built from this ref
+        options: [dev, prerelease, stable]
+        default: dev
+      push:
+        type: boolean
+        description: push the artifacts (off = build proof only)
+        default: false
+      frontend_api_base_url:
+        type: string
+        description: VITE_API_BASE_URL for a pushed frontend artifact (empty = do not push the frontend)
+        default: ""
+      frontend_api_port:
+        type: string
+        description: VITE_API_PORT for a pushed frontend artifact
+        default: ""
+      frontend_api_schema:
+        type: string
+        description: VITE_API_SCHEMA for a pushed frontend artifact
+        default: ""
+  push:
+    branches: [master]
+  merge_group:
+    types: [checks_requested]
+    branches: [master, develop]
+  pull_request:
+    branches: [develop, master]
+    types: [opened, synchronize, reopened]
+  workflow_call:
+    inputs:
+      channel:
+        type: string
+        required: true
+      push:
+        type: boolean
+        default: true
+      frontend_api_base_url:
+        type: string
+        default: ""
+      frontend_api_port:
+        type: string
+        default: ""
+      frontend_api_schema:
+        type: string
+        default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BACKEND_APP_IMAGE: ghcr.io/${{ github.repository_owner }}/mrmap-backend
+  FRONTEND_APP_IMAGE: ghcr.io/${{ github.repository_owner }}/mrmap-frontend
+
+jobs:
+  image-identity:
+    name: image-identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      revision: ${{ steps.identity.outputs.revision }}
+      channel: ${{ steps.identity.outputs.channel }}
+      should_push: ${{ steps.identity.outputs.should_push }}
+      push_frontend: ${{ steps.identity.outputs.push_frontend }}
+      backend_tags: ${{ steps.identity.outputs.backend_tags }}
+      frontend_tags: ${{ steps.identity.outputs.frontend_tags }}
+      artifact_args: ${{ steps.identity.outputs.artifact_args }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: resolve identity and guard the tags
+        id: identity
+        # One call pattern for every event: scripts/image_version.py derives
+        # version (canonical VERSION), revision (github.sha - the exact
+        # commit this run checked out) and the tag set for the channel, and
+        # the guard is what every push job below silently depends on: an
+        # untaggable proposal fails THIS job, and the jobs gated by its
+        # outputs never start.
+        run: |
+          set -eu
+          case "${GITHUB_EVENT_NAME}" in
+            workflow_dispatch|workflow_call) channel="${{ inputs.channel }}" ;;
+            *) channel=dev ;;
+          esac
+          version="$(python3 scripts/image_version.py --print)"
+          revision="${GITHUB_SHA}"
+          tags="$(python3 scripts/image_version.py --tags \
+                    --channel "$channel" --revision "$revision")"
+          guard_args=()
+          while IFS= read -r t; do
+            [ -n "$t" ] && guard_args+=(--tag "$t")
+          done <<<"$tags"
+          python3 scripts/image_version.py --guard \
+            --channel "$channel" --revision "$revision" "${guard_args[@]}"
+
+          # build-push-action takes tags comma-separated and build-args
+          # newline-separated. --build-args prints one compact k=v,... line
+          # (the tool's documented shape); the newline form is derived here
+          # and travels as a MULTI-LINE step output, which the $GITHUB_OUTPUT
+          # file only carries in heredoc form - a plain k=value line would
+          # silently truncate at the first newline.
+          backend_tags="$(printf '%s' "$tags" | sed '/^$/d' \
+            | sed "s|^|${BACKEND_APP_IMAGE}:|" | paste -sd, -)"
+          frontend_tags="$(printf '%s' "$tags" | sed '/^$/d' \
+            | sed "s|^|${FRONTEND_APP_IMAGE}:|" | paste -sd, -)"
+          artifact_args="$(python3 scripts/image_version.py \
+              --build-args --channel "$channel" --revision "$revision" \
+              | tr ',' '\n')"
+
+          case "${GITHUB_EVENT_NAME}" in
+            push) should_push=true ;;
+            workflow_dispatch) should_push="${{ inputs.push }}" ;;
+            workflow_call) should_push="${{ inputs.push }}" ;;
+            *) should_push=false ;;
+          esac
+          # The frontend artifact carries a baked API address, so it is only
+          # ever pushed when the caller explicitly named that address.
+          push_frontend=false
+          if [ "$should_push" = "true" ] \
+             && [ -n "${{ inputs.frontend_api_base_url }}" ]; then
+            push_frontend=true
+          fi
+
+          {
+            echo "version=${version}"
+            echo "revision=${revision}"
+            echo "channel=${channel}"
+            echo "should_push=${should_push}"
+            echo "push_frontend=${push_frontend}"
+            echo "backend_tags=${backend_tags}"
+            echo "frontend_tags=${frontend_tags}"
+            echo "artifact_args<<AAEOF"
+            echo "$artifact_args"
+            echo "AAEOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## artifact identity (#1582)"
+            echo ""
+            echo "- version: \`${version}\` (canonical VERSION, #1579)"
+            echo "- revision: \`${revision}\` (the exact commit)"
+            echo "- channel: \`${channel}\`"
+            echo "- tags: \`${tags//$'\n'/\` \`}\`"
+            echo "- pushed: \`should_push=${should_push}\`, frontend: \`${push_frontend}\`"
+            echo ""
+            echo "Promotion of these digests to other names is #1584's" \
+                 "protected step; a rebuild is never how a name moves."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # Build-proof path: every PR and merge-group run builds BOTH artifacts
+  # without pushing (their jobs carry contents: read only - there is no
+  # registry credential in these jobs at all). load: true brings the image
+  # into the local docker so scripts/image_version.py --verify-image can
+  # read its OCI labels back: the version/revision/source contract is
+  # tested, not assumed.
+  # ------------------------------------------------------------------
+  backend-artifact-build:
+    name: backend-artifact-build
+    needs: [image-identity]
+    if: needs.image-identity.outputs.should_push != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build backend artifact (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./backend
+          file: docker/backend/alpine.Dockerfile
+          target: production-image
+          build-args: |
+            MRMAP_PRODUCTION=True
+            ${{ needs.image-identity.outputs.artifact_args }}
+          tags: ${{ needs.image-identity.outputs.backend_tags }}
+          push: false
+          load: true
+          cache-from: type=gha,scope=backend-app
+          cache-to: type=gha,scope=backend-app,mode=min
+          provenance: false
+
+      - name: verify the labels name the identity
+        run: |
+          ref="$(printf '%s' "${{ needs.image-identity.outputs.backend_tags }}" \
+                 | cut -d, -f1)"
+          python3 scripts/image_version.py --verify-image "$ref" \
+            --channel "${{ needs.image-identity.outputs.channel }}" \
+            --revision "${{ needs.image-identity.outputs.revision }}"
+
+  frontend-artifact-build:
+    name: frontend-artifact-build
+    needs: [image-identity]
+    if: needs.image-identity.outputs.should_push != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build frontend artifact (no push)
+        # The API address below is a build PROOF value, never published:
+        # only frontend-artifact-publish (which requires an explicit caller
+        # input) puts a frontend bundle within reach of a registry.
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/nginx/nginx.Dockerfile
+          build-args: |
+            VITE_API_BASE_URL=ci.build-proof.invalid
+            VITE_API_PORT=443
+            VITE_API_SCHEMA=https
+            MRMAP_BUILD_REVISION=${{ needs.image-identity.outputs.revision }}
+            ${{ needs.image-identity.outputs.artifact_args }}
+          tags: ${{ needs.image-identity.outputs.frontend_tags }}
+          push: false
+          load: true
+          cache-from: type=gha,scope=frontend-app
+          cache-to: type=gha,scope=frontend-app,mode=min
+          provenance: false
+
+      - name: verify the labels name the identity
+        run: |
+          ref="$(printf '%s' "${{ needs.image-identity.outputs.frontend_tags }}" \
+                 | cut -d, -f1)"
+          python3 scripts/image_version.py --verify-image "$ref" \
+            --channel "${{ needs.image-identity.outputs.channel }}" \
+            --revision "${{ needs.image-identity.outputs.revision }}"
+
+  # ------------------------------------------------------------------
+  # Publish path. Pushes to ghcr happen on: push to master (dev-channel
+  # artifacts named after the commit - the dev-images.yml discipline),
+  # explicit workflow_dispatch with push=true, and workflow_call (#1584's
+  # release flow) with push=true. The tags are exactly the guarded set;
+  # the frontend additionally requires the caller's API address.
+  # A published tag is immutable: re-running a failed publication re-pushes
+  # the SAME bytes a newer commit never silently retags; promotion of an
+  # existing digest to another name goes through `docker buildx imagetools
+  # create` (docs), never through a rebuild.
+  # ------------------------------------------------------------------
+  backend-artifact-publish:
+    name: backend-artifact-publish
+    needs: [image-identity]
+    if: needs.image-identity.outputs.should_push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: log in to ghcr.io
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build and publish the backend artifact
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./backend
+          file: docker/backend/alpine.Dockerfile
+          target: production-image
+          build-args: |
+            MRMAP_PRODUCTION=True
+            ${{ needs.image-identity.outputs.artifact_args }}
+          pull: true
+          push: true
+          tags: ${{ needs.image-identity.outputs.backend_tags }}
+          cache-from: type=gha,scope=backend-app
+          cache-to: type=gha,scope=backend-app,mode=min
+          provenance: false
+
+      - name: record the digests for promotion (#1584 consumes these)
+        run: |
+          {
+            echo "## backend artifact digests"
+            printf '%s' "${{ needs.image-identity.outputs.backend_tags }}" \
+              | tr ',' '\n' | while IFS= read -r tag; do
+                  [ -n "$tag" ] || continue
+                  digest="$(python3 scripts/image_version.py --digest "$tag")"
+                  echo "- \`${tag}\` -> \`${digest}\`"
+                  echo "  promote by digest:"
+                  echo "  \`docker buildx imagetools create -t ${BACKEND_APP_IMAGE}:<name> ${BACKEND_APP_IMAGE}@${digest}\`"
+                done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  frontend-artifact-publish:
+    name: frontend-artifact-publish
+    needs: [image-identity]
+    if: >
+      needs.image-identity.outputs.should_push == 'true' &&
+      needs.image-identity.outputs.push_frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v7
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: log in to ghcr.io
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build and publish the frontend artifact
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/nginx/nginx.Dockerfile
+          build-args: |
+            VITE_API_BASE_URL=${{ inputs.frontend_api_base_url }}
+            VITE_API_PORT=${{ inputs.frontend_api_port }}
+            VITE_API_SCHEMA=${{ inputs.frontend_api_schema }}
+            MRMAP_BUILD_REVISION=${{ needs.image-identity.outputs.revision }}
+            ${{ needs.image-identity.outputs.artifact_args }}
+          pull: true
+          push: true
+          tags: ${{ needs.image-identity.outputs.frontend_tags }}
+          cache-from: type=gha,scope=frontend-app
+          cache-to: type=gha,scope=frontend-app,mode=min
+          provenance: false
+
+      - name: record the digests for promotion (#1584 consumes these)
+        run: |
+          {
+            echo "## frontend artifact digests"
+            printf '%s' "${{ needs.image-identity.outputs.frontend_tags }}" \
+              | tr ',' '\n' | while IFS= read -r tag; do
+                  [ -n "$tag" ] || continue
+                  digest="$(python3 scripts/image_version.py --digest "$tag")"
+                  echo "- \`${tag}\` -> \`${digest}\`"
+                done
+          } >> "$GITHUB_STEP_SUMMARY"

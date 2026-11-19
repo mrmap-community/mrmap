@@ -463,6 +463,9 @@ def local_build_command(root, image, ref, fp):
         return [
             "docker", "build",
             "-f", str(root / BACKEND_DOCKERFILE),
+            # the dependency image stage; the Dockerfile's last stage is the
+            # application artifact of #1582, never a dev fallback build
+            "--target", "runtime-image",
             *build_arg_flags,
             "-t", ref,
             str(root / "backend"),

@@ -97,6 +97,7 @@ def unit_checks():
     check("backend fallback build uses the workflow's context/Dockerfile/build-args",
           all(part in cmd_b for part in
               ("docker build", "-f", str(ROOT / "docker/backend/alpine.Dockerfile"),
+               "--target runtime-image",
                "--build-arg MRMAP_PRODUCTION=False", "-t ref:1", str(ROOT / "backend"))),
           cmd_b)
     cmd_f = " ".join(dev_image_id.local_build_command(ROOT, "frontend", "ref:1", "deadbeefcafe"))

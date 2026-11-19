@@ -79,6 +79,10 @@ jobs:
         with:
           context: ./backend
           file: docker/backend/alpine.Dockerfile
+          # the dependency image stage - the Dockerfile's LAST stage is the
+          # versioned application artifact of #1582, published only by
+          # app-images.yml; this workflow keeps publishing the dev cache
+          target: runtime-image
           build-args: ${{ steps.image_id.outputs.build_args }}
           push: false
           # Build cache is scoped per image; mode=min keeps one small cache
@@ -131,6 +135,10 @@ jobs:
         with:
           context: ./backend
           file: docker/backend/alpine.Dockerfile
+          # the dependency image stage - the Dockerfile's LAST stage is the
+          # versioned application artifact of #1582, published only by
+          # app-images.yml; this workflow keeps publishing the dev cache
+          target: runtime-image
           build-args: ${{ steps.image_id.outputs.build_args }}
           pull: true
           push: true

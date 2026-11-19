@@ -37,6 +37,10 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # dependency image, not the application artifact (#1582) - the
+      # Dockerfile's last stage moved to the artifact, the target pins the
+      # stage this file has always built
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: 'False'
     entrypoint: /opt/mrmap/.bash_scripts/wait_db.sh
@@ -65,6 +69,10 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # dependency image, not the application artifact (#1582) - the
+      # Dockerfile's last stage moved to the artifact, the target pins the
+      # stage this file has always built
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)
@@ -109,6 +117,10 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # dependency image, not the application artifact (#1582) - the
+      # Dockerfile's last stage moved to the artifact, the target pins the
+      # stage this file has always built
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: 'False'
     shm_size: '2gb' # Fix 'Failed to decode response from marionette' (https://stackoverflow.com/questions/49734915/)

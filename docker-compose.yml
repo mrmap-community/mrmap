@@ -105,6 +105,12 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # The runtime-image stage is the dependency image every dev path of
+      # this repository always built; the last stage of the Dockerfile is
+      # now the versioned application artifact (#1582), so the target is
+      # spelled out - scripts/test_image_version.py fails if one of these
+      # build paths forgets it.
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: "True"
     restart: unless-stopped
@@ -169,6 +175,12 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # The runtime-image stage is the dependency image every dev path of
+      # this repository always built; the last stage of the Dockerfile is
+      # now the versioned application artifact (#1582), so the target is
+      # spelled out - scripts/test_image_version.py fails if one of these
+      # build paths forgets it.
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: "True"
     # deploy:
@@ -242,6 +254,12 @@ services:
     build:
       context: ./backend
       dockerfile: ../docker/backend/alpine.Dockerfile
+      # The runtime-image stage is the dependency image every dev path of
+      # this repository always built; the last stage of the Dockerfile is
+      # now the versioned application artifact (#1582), so the target is
+      # spelled out - scripts/test_image_version.py fails if one of these
+      # build paths forgets it.
+      target: runtime-image
       args:
         MRMAP_PRODUCTION: "True"
     command: >
@@ -302,6 +320,15 @@ services:
         # empty and the About display marks the build as a development
         # revision instead of naming a revision it cannot prove
         - MRMAP_BUILD_REVISION=${MRMAP_BUILD_REVISION:-}
+        # artifact identity labels (#1582): pass them from the deployer's
+        # .env (or `python3 scripts/image_version.py --build-args`) to stamp
+        # the image; empty keeps the labels empty - a dev build need not
+        # name itself. Published artifacts are built by
+        # .github/workflows/app-images.yml, which always names them.
+        - MRMAP_VERSION=${MRMAP_VERSION:-}
+        - MRMAP_REVISION=${MRMAP_REVISION:-}
+        - MRMAP_SOURCE=${MRMAP_SOURCE:-https://github.com/mrmap-community/mrmap}
+        - MRMAP_CHANNEL=${MRMAP_CHANNEL:-dev}
     # nginx logs are symlinked to stdout/stderr, ship them into victoria-logs
     logging:
       driver: syslog

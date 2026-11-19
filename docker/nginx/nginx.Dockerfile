@@ -61,8 +61,28 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
 ##############################################################  
 FROM nginx:1.31.8-alpine-slim AS production-image
 
+# Artifact identity (#1582): the same args and the same OCI labels as the
+# backend's production-image stage. Deliberate difference: no hard-fail
+# validation here, because this file is also built for plain development
+# (`docker compose build frontend`) and an unstamped dev build must stay
+# possible - the bundle itself already fails on a missing or invalid VERSION
+# (vite reads /VERSION, #1579), so it cannot carry a wrong version claim,
+# only no claim. Published artifacts go through app-images.yml, which always
+# passes the identity and reads the labels back with
+# scripts/image_version.py --verify-image.
+ARG MRMAP_VERSION=""
+ARG MRMAP_REVISION=""
+ARG MRMAP_SOURCE="https://github.com/mrmap-community/mrmap"
+ARG MRMAP_CHANNEL="dev"
+
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/
+
+# The routing table travels WITH the artifact (#1582): a deployment that
+# pulls this image needs no checkout, and deploy/docker-compose.images.yml
+# drops the base file's bind of this very path. The dev flow keeps the bind
+# as its live-edit; scripts/nginx_routing_smoke.py guards the table itself.
+COPY docker/nginx/mrmap.conf /etc/nginx/conf.d/default.conf
 
 # report browser side errors into the central log stack; the script is plain
 # JS, not app code, and is injected *before* the app bundle so that it also
@@ -76,6 +96,15 @@ RUN sed -i 's|<script type="module"|<script src="/error-beacon.js"></script><scr
 # the mrmap_frontend_error log of mrmap.conf is a file of its own, ship it to
 # stdout exactly like the access.log of this image
 RUN ln -s /dev/stdout /var/log/nginx/frontend-error.log
+
+LABEL org.opencontainers.image.title="MrMap frontend" \
+      org.opencontainers.image.description="MrMap registry UI: built SPA served and routed by nginx" \
+      org.opencontainers.image.vendor="mrmap-community" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="$MRMAP_VERSION" \
+      org.opencontainers.image.revision="$MRMAP_REVISION" \
+      org.opencontainers.image.source="$MRMAP_SOURCE" \
+      io.github.mrmap.channel="$MRMAP_CHANNEL"
 
 EXPOSE 80/tcp
 EXPOSE 443/tcp

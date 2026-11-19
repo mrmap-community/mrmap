@@ -1,0 +1,97 @@
+# Deployment overlay: run mrmap from versioned artifacts (#1582).
+#
+#     docker compose -f docker-compose.yml -f deploy/docker-compose.images.yml up -d
+#
+# with MRMAP_IMAGE_TAG (and optionally the per-service digest variables) in
+# the deployment's .env - see deploy/images.env.example. Every mrmap service
+# of the base file is addressed through the ONE variable MRMAP_IMAGE_TAG:
+# the four services move as one version or they do not deploy at all - that
+# is the coherent image set #1582 promises, enforced by the file's structure
+# rather than by attention. scripts/image_version.py --check-deploy (and the
+# script-tests CI job) is what keeps it that way.
+#
+# Why the backend services and the frontend are treated differently:
+#
+#   backend, celery-worker, celery-beat
+#     pull-only. `build: !reset null` removes the base file's build section
+#     so no compose invocation can rebuild over the pinned artifact (the
+#     silent-rebuild failure mode docker-compose.prebuilt.yml documents for
+#     the dev flow, mirrored for the deployment flow). The checkout bind of
+#     `./backend` to /opt/mrmap is GONE: the artifact bakes the code at
+#     exactly that path (the production-image stage of
+#     docker/backend/alpine.Dockerfile). A bind mount here would reintroduce
+#     the #922/#1027 stale-shadow failure at the code root - the volume wins,
+#     the image loses, and the deployment silently runs bytes that are not
+#     the artifact it names. `volumes: !override` replaces the base list
+#     instead of appending to it; the named data volumes stay.
+#
+#   frontend
+#     pinned image AND a kept build section. An SPA bundle bakes its API
+#     address at build time and a changed address MUST rebuild it (#922 /
+#     #1027 / #1036) - so a published frontend artifact serves exactly one
+#     address (app-images.yml pushes it only when the caller named one). A
+#     deployment with a different address keeps the local build path: check
+#     out the exact tag the backend artifact was built from and
+#     `docker compose build frontend` produces the same commit's image with
+#     THIS deployment's address, tagged under the pinned name. The nginx
+#     config bind of the base file is gone: mrmap.conf is baked into the
+#     artifact (docker/nginx/nginx.Dockerfile) and into every local build.
+#
+# Pull-by-digest for the frontend: `docker pull
+# ghcr.io/mrmap-community/mrmap-frontend@<digest>` plus `docker tag` onto the
+# pinned name; compose then uses the local image. The backend services take
+# their optional digest suffix right here - a build cannot name itself after
+# a digest, a pull can.
+services:
+
+  backend:
+    image: ghcr.io/mrmap-community/mrmap-backend:${MRMAP_IMAGE_TAG:?Please set MRMAP_IMAGE_TAG in the deployment .env to the exact artifact version - see deploy/images.env.example}${MRMAP_BACKEND_IMAGE_DIGEST:+@${MRMAP_BACKEND_IMAGE_DIGEST}}
+    build: !reset null
+    volumes: !override
+      - type: volume
+        source: backend-media
+        target: /var/mrmap/backend/media
+      - type: volume
+        source: backend-log
+        target: /var/log/mrmap/backend
+      - type: volume
+        source: backend-import
+        target: /var/mrmap/import
+
+  celery-worker:
+    image: ghcr.io/mrmap-community/mrmap-backend:${MRMAP_IMAGE_TAG:?Please set MRMAP_IMAGE_TAG in the deployment .env to the exact artifact version - see deploy/images.env.example}${MRMAP_BACKEND_IMAGE_DIGEST:+@${MRMAP_BACKEND_IMAGE_DIGEST}}
+    build: !reset null
+    volumes: !override
+      - type: volume
+        source: backend-media
+        target: /var/mrmap/backend/media
+      - type: volume
+        source: backend-log
+        target: /var/log/mrmap/backend
+      - type: volume
+        source: backend-import
+        target: /var/mrmap/import
+      - type: volume
+        source: celery-state
+        target: /var/run/celery
+
+  celery-beat:
+    image: ghcr.io/mrmap-community/mrmap-backend:${MRMAP_IMAGE_TAG:?Please set MRMAP_IMAGE_TAG in the deployment .env to the exact artifact version - see deploy/images.env.example}${MRMAP_BACKEND_IMAGE_DIGEST:+@${MRMAP_BACKEND_IMAGE_DIGEST}}
+    build: !reset null
+    volumes: !override
+      - type: volume
+        source: backend-media
+        target: /var/mrmap/backend/media
+      - type: volume
+        source: backend-log
+        target: /var/log/mrmap/backend
+      - type: volume
+        source: backend-import
+        target: /var/mrmap/import
+
+  frontend:
+    image: ghcr.io/mrmap-community/mrmap-frontend:${MRMAP_IMAGE_TAG:?Please set MRMAP_IMAGE_TAG in the deployment .env to the exact artifact version - see deploy/images.env.example}
+    # build: deliberately NOT reset - see the header. The kept build inherits
+    # its VITE_API_* args from the base file, i.e. from this deployment's
+    # EXTERNAL_* values; `pull` still fetches the artifact named above.
+    volumes: !override []

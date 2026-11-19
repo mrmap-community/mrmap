@@ -343,11 +343,16 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
                          "the answer is parsed once; the count reads its tree")
 
 
+@override_settings(CACHES={"default": {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "harvesting-get-records-tests",
+}})
 class HarvestingGetRecordsTaskTest(TransactionTestCase):
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
 
     def setUp(self):
+        cache.clear()
         setup_capabilitites_file()
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
@@ -509,23 +514,21 @@ class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
         self.assertEqual(DatasetMetadataRecord.objects.count(), 1)
 
 
-@override_settings(CACHES={
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "harvesting-step-size-tests",
-    },
-})
+@override_settings(CACHES={"default": {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "harvesting-step-size-tests",
+}})
 class HarvestingStepSizeTest(TransactionTestCase):
     """the page size a run works with is what the catalogue answers (#694)"""
 
     fixtures = ['test_users.json', 'test_keywords.json', 'test_csw.json']
 
     def setUp(self):
-        setup_capabilitites_file()
-        # Parallel test databases reuse the fixture job IDs. Their page claims
-        # must not share Redis or answer this test from another worker's run.
+        # Parallel test databases reuse the fixture job IDs. Page claims must
+        # stay local to this worker, and must not outlive an individual test.
         cache.clear()
         self.addCleanup(cache.clear)
+        setup_capabilitites_file()
 
     @staticmethod
     def requested_sizes(send_request):

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { defaultExclude } from 'vitest/config';
 
 // The canonical application version is the file `VERSION` at the
 // repository root (#1579); this file is the frontend's build-time read of it.
@@ -61,6 +62,14 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './tests/setup.js',
+        // Keep the Playwright browser-acceptance harness out of this run
+        // (#1034): frontend/e2e is not a vitest suite. It carries its own
+        // pinned package.json and runs in the mcr.microsoft.com/playwright
+        // image (frontend/e2e/README.md); the application's node_modules has
+        // no @playwright/test, so its *.spec.ts files would only ever fail
+        // here on the import. The vitest defaults stay - they exclude the
+        // tooling configs and node_modules around this project.
+        exclude: [...defaultExclude, 'e2e/**'],
         coverage: {
             provider: 'istanbul',
             include: ['src/**/*.{js,jsx,ts,tsx}'],

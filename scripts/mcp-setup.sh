@@ -85,17 +85,56 @@ if [ "${MRMAP_MCP_NO_DB:-0}" = "1" ]; then
   exit 0
 fi
 
-# ------------------------------------------------------------ read .env slot
+# ------------------------------------------------------------- read slot keys
+# The slot's .env is written for django-environ, not for a shell: the separator a
+# host list is documented with is ";" (settings.py _split_host_list), and bash
+# reads an unquoted ";" inside a value as a command separator. Sourcing the file
+# therefore died on every slot which set DJANGO_ALLOWED_HOST_DEFAULTS the way the
+# settings document it, and would have run whatever else a value carried (#1434).
+# The keys needed below are read by name instead, and the file is never evaluated.
 [ -f .env ] || { ERR ".env missing - run 'mrp init' / configure the slot first"; exit 1; }
-set -a; . ./.env; set +a
-project="${COMPOSE_PROJECT_NAME:-mrmap}"
-dbuser="${DB_USER:?DB_USER missing in .env}"
-dbname="${DB_NAME:?DB_NAME missing in .env}"
+
+# env_key <key>: the value of exactly that key in ./.env, or empty when the slot
+# does not declare it. First line carrying the key wins; a trailing CR and one
+# pair of surrounding quotes are removed; nothing is expanded or executed.
+env_key() {
+  local line value
+  line="$(grep -m1 -E "^[[:space:]]*(export[[:space:]]+)?$1=" ./.env || true)"
+  [ -n "$line" ] || return 0
+  value="${line#*=}"
+  value="${value%$'\r'}"
+  case "$value" in
+    '"'*'"') value="${value#\"}"; value="${value%\"}" ;;
+    "'"*"'") value="${value#\'}"; value="${value%\'}" ;;
+  esac
+  printf '%s' "$value"
+}
+
+project="$(env_key COMPOSE_PROJECT_NAME)"; project="${project:-mrmap}"
 pg_container="${project}-postgis-1"
 network="${project}_mrmap-internal"
 
 docker ps --format '{{.Names}}' | grep -qx "$pg_container" \
   || { ERR "container $pg_container not running - start it (mrp up postgis / mrp deps)"; exit 1; }
+
+# container_key <key>: the same key answered by the container's own environment,
+# which is what its database was actually created with.
+container_key() {
+  docker exec "$pg_container" printenv "$1" 2>/dev/null || true
+}
+
+# The role and the database to reach: where the slot's .env does not name them,
+# the postgis container answers for itself. A slot has never had a DB_NAME key -
+# docker-compose.yml names them DB_USER and POSTGRES_DB, the latter defaulted to
+# mrmap - and a deployment may keep the user in the backend's env file only.
+# DB_NAME is still read, behind POSTGRES_DB, for the slots which were configured
+# for the version of this script that required it.
+dbuser="$(env_key DB_USER)"; dbuser="${dbuser:-$(container_key POSTGRES_USER)}"
+[ -n "$dbuser" ] \
+  || { ERR "no DB_USER in $PWD/.env and no POSTGRES_USER in $pg_container - configure the slot"; exit 1; }
+dbname="$(env_key POSTGRES_DB)"; dbname="${dbname:-$(env_key DB_NAME)}"
+dbname="${dbname:-$(container_key POSTGRES_DB)}"; dbname="${dbname:-mrmap}"
+NOTE "slot '$project': role '$dbuser', database '$dbname'"
 
 # ------------------------------------------------------- 2. read-only role
 if [ -f "$PWFILE" ]; then
@@ -115,7 +154,12 @@ ALTER ROLE mcp_readonly PASSWORD :'ro_pw';
 ALTER ROLE mcp_readonly SET statement_timeout = '30s';
 ALTER ROLE mcp_readonly SET idle_in_transaction_session_timeout = '30s';
 GRANT pg_read_all_data TO mcp_readonly;
-GRANT CONNECT ON DATABASE mrmap TO mcp_readonly;
+-- Connect right on the database this slot's forwarder serves, whatever it is
+-- called: psql is connected to exactly that one, so current_database() names it
+-- and %I quotes it, instead of assuming the slot's database is called mrmap.
+DO $$ BEGIN
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO mcp_readonly', current_database());
+END $$;
 SQL
 NOTE "role mcp_readonly ready (read-only, 30s statement_timeout)"
 

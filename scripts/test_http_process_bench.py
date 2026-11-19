@@ -351,14 +351,16 @@ def test_compose_passthrough():
 
 def test_report_roundtrip():
     import tempfile
+    http_overall = {"n": 3, "ok": 3, "errors": 0, "rps": 1.5,
+                    "p50_ms": 10.0, "p95_ms": 30.0, "p99_ms": 30.0,
+                    "max_ms": 30.0}
+    peer_overall = {"n": 2, "p50_ms": 5.0, "p95_ms": 6.0, "p99_ms": 6.0,
+                    "max_ms": 6.0}
     record_load = {
         "kind": "load", "arm": "prod-4x4", "phase": "api-load",
-        "http": {"overall": {"n": 3, "ok": 3, "errors": 0, "rps": 1.5,
-                              "p50_ms": 10.0, "p95_ms": 30.0,
-                              "p99_ms": 30.0, "max_ms": 30.0},
+        "http": {"overall": http_overall,
                  "status_hist": {"200": 3}, "by_endpoint": {}},
-        "peer": {"overall": {"n": 2, "p50_ms": 5.0, "p95_ms": 6.0,
-                             "p99_ms": 6.0, "max_ms": 6.0},
+        "peer": {"overall": peer_overall,
                  "status_hist": {}, "by_endpoint": {}},
         "ws": {"count": 2, "open_at_end": 2, "closed_early": 0,
                "closed_detail": [], "handshake": None},

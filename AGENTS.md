@@ -231,6 +231,14 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   `container_name` pinned by `docker-compose.dev.yml`, so add
   `frontend-tests: { container_name: ${COMPOSE_PROJECT_NAME}-frontend-tests }` to it.
 
+- A host short of memory can layer `docker-compose.lightweight.yml` LAST to run a stack without the
+  observability (VictoriaLogs, Grafana) and admin (pgAdmin, Flower) tier, and with the four check
+  containers profiled so a plain `up -d` cannot boot whole suites as background services (#1614). It
+  changes nothing that already runs and nothing CI does: `docker compose run <service>` starts a named
+  service regardless of its profile, so every command above is unaffected. Validate a combination
+  before starting it with `python3 scripts/compose_profiles_smoke.py` (config only, starts nothing);
+  `docs/source/development/compose-profiles.rst` is the service matrix and says what each tier is worth.
+
 - Never combine `run --build` with the prebuilt files. Their `build:` sections are `!reset`, so
   `--build` is a **silent no-op** that keeps running the pinned image — compose reports no error,
   and the local source changes you thought you rebuilt into the image are not in it. With a prebuilt

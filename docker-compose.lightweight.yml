@@ -1,0 +1,172 @@
+# Opt-in lightweight mode - the memory tiers of the same deployment.
+# Issue #1614 (epic #1612, runtime memory). Layer this file LAST to run MrMap
+# without the services which only observe or administer it, or to run it for a
+# test suite which needs nothing but its own dependencies:
+#
+#   cd <worktree or deployment>                 # never the stack of somebody else
+#   export COMPOSE_FILE="docker-compose.yml:docker-compose.dev.yml:docker-compose.lightweight.yml"
+#   docker compose up -d                        # the core tier only
+#
+#   # one tier back on, for the run which needs it:
+#   docker compose --profile observability up -d
+#   docker compose --profile testing run --rm --no-deps django-tests
+#
+# WHAT THIS FILE IS NOT
+#
+# It is not the new default and it changes nothing which is already running.
+# `docker-compose.yml` alone stays the full deployment with its logging, its
+# dashboards and its ordering, exactly as before #1614: Compose profiles are
+# opt-in, so a service which declares one only disappears for the invocation
+# which asked for this file. The measured background of the split is
+# docs/source/development/runtime-memory-baselines.rst (#1613), the matrix and
+# the measured after-picture are docs/source/development/compose-profiles.rst.
+#
+# WHY PROFILES AND NOT A FILE THAT DELETES THE SERVICES
+#
+# A profiled service is missing from the projection, not redefined: it is never
+# created, never started, never restarted after a host reboot, and it publishes
+# none of its host ports. That is what makes the tiering safe to layer over an
+# existing stack - see the switch note below.
+#
+# THE THREE TIER THIS FILE GATES
+#
+#   observability   victoria-logs, grafana
+#                   The log store and its UI. Without them the application's own
+#                   syslog handler is skipped by settings.py (its DNS lookup of
+#                   `victoria-logs` fails and it says so on stdout), which is
+#                   the fallback #1614 relies on: the application starts and
+#                   logs to its console either way.
+#   admin           pgadmin, flower
+#                   Two UIs over data the application itself also serves. The
+#                   edge's /grafana/, /pgadmin/ and /flower/ locations answer
+#                   502 without them; nothing inside MrMap links to them.
+#   testing         pre-commit-check, behave, django-tests, frontend-tests
+#                   The one-off check containers of docker-compose.dev.yml. They
+#                   carry their work in their `command`, so a plain `up -d` used
+#                   to boot whole test suites as background services - the
+#                   biggest accidental memory line of a development stack. They
+#                   stay runnable: `docker compose run <service>` names the
+#                   service explicitly and Compose starts it regardless of its
+#                   profile (verified against Compose v5.6.0), so CI's
+#                   `run --rm <service>` needs no change and no flag.
+#
+# WHAT STAYS, AND WHY (the core tier)
+#
+#   postgis, redis            the data and the broker; every measurement of
+#                             #1613 has them non-optional
+#   backend, celery-worker,
+#   celery-beat, frontend     the application: HTTP, websocket, tasks, edge
+#   docker-api                not a dashboard: the status UI of `system` reads
+#                             container health through it, and a status page
+#                             which cannot answer is a broken status page
+#   mapserver                 a runtime dependency of the dev stack (and the
+#                             exact dependency of the suites which assert OGC
+#                             responses), started by name where it is needed
+#
+# THE TWO LINES WHICH ARE NOT ABOUT PROFILES
+#
+#   backend.depends_on.victoria-logs.required: false
+#     A dependency on a profiled service is a hard configuration error while
+#     the profile is off ("service backend depends on undefined service
+#     victoria-logs"), and the dependency cannot simply be dropped: it is what
+#     makes the syslog handler of settings.py attach on a cold start, because
+#     that handler decides once, at import, whether the log store resolves.
+#     `required: false` is the seam Compose provides for exactly this case -
+#     with the tier on, `condition: service_started` is honoured as before;
+#     with the tier off, the wait is skipped and the app takes its console
+#     fallback. The base file keeps the dependency required, so the full
+#     deployment never loses the ordering.
+#   postgis/frontend logging -> bounded json-file
+#     Those two services ship their stdout/stderr into the log store through
+#     Docker's syslog driver, aimed at the host loopback port which
+#     `victoria-logs` publishes. With the tier off that sink is gone, and a
+#     syslog driver writing into the void loses the container's output
+#     silently - a broken logging setup which looks healthy. So the
+#     lightweight mode says where its logs go instead: the container's own log,
+#     read with `docker compose logs`, capped at 2 x 10 MB per container so the
+#     mode cannot fill the host's disk either. The structured application logs
+#     are unaffected by this line: they reach the store over the project
+#     network when the observability tier is on, without any host port.
+#
+# SWITCHING AN ALREADY RUNNING STACK
+#
+# Profiles gate what `up` creates, they never remove anything. A stack which
+# already runs the tier keeps running it after the file is layered - take it
+# down deliberately, and only in your own project:
+#
+#   docker compose stop grafana pgadmin flower victoria-logs
+#   docker compose rm -f grafana pgadmin flower victoria-logs
+#
+# DOCKER COMPOSE VERSION
+#
+# This file needs `depends_on.required` (Compose v2.20.2) and the `!override`
+# merge tag (v2.24.4) - the same CLI floor the prebuilt overlays of this
+# repository already carry. The base file stays within the installation
+# document's minimum. Verified against Compose v5.6.0 / Docker 29.8.2;
+# scripts/compose_profiles_smoke.py re-checks every combination below.
+
+services:
+
+  # --- observability tier ------------------------------------------------
+  # The log store and its UI. See the header for the two consequences: the
+  # application's syslog handler falls back to its console, and the container
+  # logs of postgis/frontend stay local.
+  victoria-logs:
+    profiles: [observability]
+
+  grafana:
+    profiles: [observability]
+
+  # --- admin tier --------------------------------------------------------
+  # Two operator UIs. Both read what the application's own API and status pages
+  # expose, so nothing inside MrMap depends on them.
+  pgadmin:
+    profiles: [admin]
+
+  flower:
+    profiles: [admin]
+
+  # --- testing tier ------------------------------------------------------
+  # The one-off check containers, which docker-compose.dev.yml defines. Layered
+  # without that file they are inert declarations with no image and no command:
+  # `up` never reaches them, and `--profile testing` without docker-compose.dev.yml
+  # is a combination which does not exist - scripts/compose_profiles_smoke.py
+  # refuses it.
+  pre-commit-check:
+    profiles: [testing]
+
+  behave:
+    profiles: [testing]
+
+  django-tests:
+    profiles: [testing]
+
+  frontend-tests:
+    profiles: [testing]
+
+  # --- the core tier, adjusted to run without the tiers above ------------
+  backend:
+    depends_on:
+      # see "THE TWO LINES WHICH ARE NOT ABOUT PROFILES" in the header: this
+      # keeps the cold-start ordering of the full deployment whenever the
+      # observability tier is on, and lets the core start without it when it
+      # is off. Merged over the base entry, so `condition: service_started`
+      # stands as declared there.
+      victoria-logs:
+        required: false
+
+  postgis:
+    # !override, not a merge: the inherited options are syslog options and
+    # Docker refuses them for the json-file driver.
+    logging: !override
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+  frontend:
+    logging: !override
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"

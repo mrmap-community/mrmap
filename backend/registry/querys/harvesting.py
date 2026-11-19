@@ -58,3 +58,26 @@ class HarvestingJobQuerySet(CTEQuerySet):
         if getattr(self, '_cached_count', None) is not None:
             return self._cached_count
         return super().count()
+
+    def for_client_access(self):
+        """Read plan of a task which asks the catalogue's client (#1392).
+
+        The download half of a harvest builds the OGC client of the job's
+        service: the service row, and behind it the auth records a session
+        is built from. Without the join every such fire paid its lazy
+        SELECTs one by one on top of its locked job read - the audit row
+        ``call_fetch_total_records`` of ``celery-task-orm-audit``. The task
+        of the download phase reads job, service and auth as one statement
+        over this plan; the sibling ``call_fetch_records`` already did it
+        inline and reads through here since.
+
+        Cardinality: 1 row per job, two one-to-one joins. The job's backlog
+        is not part of any plan of this family - it is the table the import
+        drains row by row (#1397's do-not-prefetch-the-backlog rule).
+
+        The row lock a task takes stays an explicit call-site operation
+        (``select_for_update(of=("self",))`` - ``of`` because the join must
+        not widen the lock to the catalogue's rows, rule 3 of the manager
+        conventions), not part of this plan.
+        """
+        return self.select_related("service", "service__auth")

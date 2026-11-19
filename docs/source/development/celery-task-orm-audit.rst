@@ -524,14 +524,24 @@ The download side:
     ``handle_total_records_defined`` (line 555) registers the chord ids (bulk
     INSERT), reports the process (UPDATE), logs the plan (INSERT) and publishes
     the download chord. One ``job.save()`` per fire. **Classification:
-    optimize (small)**: the locked read can carry
-    ``select_related("service__auth")`` so the client build costs no extra
-    SELECT; low priority.
+    optimize (small)** — **done by #1392**: the locked read is the manager
+    plan ``HarvestingJob.objects.for_client_access()``
+    (``select_related("service", "service__auth")``, locked with
+    ``select_for_update(of=("self",))`` so the join never widens to the
+    catalogue's rows) and the client build pays no extra SELECT; and
+    ``handle_total_records_defined`` reads its ``_http_request()`` ONCE
+    instead of once per planned round trip — the fan-out of a big
+    catalogue had been paying history and user SELECTs per planned page
+    for a dict that never varied. Guarded by ``TotalRecordsFanOutShapeTest``
+    and ``ForClientAccessTest``.
 
 ``call_fetch_records`` (``registry/tasks/harvest.py:1594``)
     Job SELECT ``select_related("service","service__auth")`` — the narrow
-    plan is *already* right here (this is the pattern #1397 wants; reuse it in
-    ``for_harvest_task()`` candidates rather than re-inventing). Per answered
+    plan is *already* right here (this is the pattern #1397 wants; #1392
+    centralized it as ``for_client_access()`` on
+    ``HarvestingJobQuerySet`` — the manager forwards — and the download
+    task, the total-records task and the chunk's shared-service read all
+    go through it). Per answered
     page, ``_store_page`` (``registry/models/harvest.py:1067``):
 
 .. list-table::
@@ -549,9 +559,15 @@ The download side:
        registration index — the count matches on ``job_id`` and then filters
        ``requested_url`` against every row of the job. On the 411 k-record
        backlog of #892/#1237 this reads O(job backlog) per *page* —
-       **index candidate** ``["job_id","requested_url"]`` (schema change,
-       belongs with a migration in #1392; run
-       ``scripts/migration_graph_smoke.py`` before pushing)
+       **landed with #1392** as ``tmpmd_page_dedup_idx``, a ``HashIndex``
+       over ``requested_url`` alone rather than the proposed composite:
+       Postgres hash indexes are single-column, and the btree alternative
+       refuses index tuples over ~2.7 KB while this URLField stores 4096
+       characters — a GetRecords GET carrying a big filter XML would then
+       break the INSERT of the file itself (#1263 learned the same for the
+       registration identity). Equality-only is all the guard asks, and the
+       ``job_id`` filter reads the handful of rows a repeated url can
+       belong to. Guarded by ``StorePageShapeTest`` (catalog + plan)
    * - page storage
      - per-record storage write + one ``bulk_create`` batch per page,
        ``ignore_conflicts`` — deliberately *no* ``save()`` scheduling here;
@@ -600,11 +616,14 @@ The import side (the highest-volume path in the deployment):
        catalogue's stored capabilities document from storage** and computes
        the origin url for the record's identifier
      - already reduced from three document reads per record to one by #1044;
-       the remaining cost is one document read+parse *per record* while the
-       document is identical for the whole run. Cache the parsed document
-       (or the client) per chunk/task process — keep the #1044 semantics:
-       a missing document still raises ``CapabilitiesBackupMissing`` for the
-       run, not a per-record workaround
+       #1392 caches the client per chunk: the chunk task loads ONE service
+       instance and hands it to every ``import_md_metadata_file`` of its ids
+       (``shared_service``), whose ``client`` cached_property then reads and
+       parses the document once per chunk. The #1044 semantics hold — a
+       document gone from the storage still raises
+       ``CapabilitiesBackupMissing`` for the run, with one loud report and
+       an unflagged backlog; only the boundary moved, so such a run ends
+       one chunk later. Guarded by ``CapabilitiesDocumentReadShapeTest``
    * - ``PersistenceHandler.persist_all`` per record *file* (line 1770)
      - the whole mapping/persistence machinery per file, including the
        ``get_or_create``-mode writes of the shared lookup tables (keywords,
@@ -615,7 +634,14 @@ The import side (the highest-volume path in the deployment):
        transaction. The reducible cost is the per-file lookup-table round
        trips: candidates are per-chunk lookup caches (read-mostly tables;
        conflicts stay safe) — measure first, this is #1395 fixture work
-       (10/100+ records per chunk)
+       (10/100+ records per chunk). **Measured by #1392** on a real
+       full-path chunk of 10 records with unique identifiers: 433
+       statements, 43.3 per record; the five shared lookup tables (keyword,
+       language, iso category, time extent, reference system) cost 3
+       statements per record each, all riding unique indexes. **Keep**: a
+       cross-record cache would change the transactional meaning of the
+       shared ``PersistenceHandler`` for every importer in the platform to
+       shave same-connection lookups of ~15 statements per record
    * - ``update_relations`` (line 1863)
      - ``harvested_through.add(service)`` M2M (existing-ids SELECT +
        INSERT-when-new) + one ``HarvestedMetadataRelation`` write per record
@@ -626,7 +652,13 @@ The import side (the highest-volume path in the deployment):
        every record, plus one for an insufficient-quality record
      - on warning-heavy catalogues this multiplies rows and files per record;
        keep the audit trail but consider coalescing identical warnings per
-       chunk (decision for #1392, evidence needed)
+       chunk (decision for #1392, evidence needed). **Measured by #1392**:
+       the clean full-path chunk above writes ZERO ``HarvestingLog`` rows —
+       the multiplication only happens where a catalogue actually
+       misbehaves, and every row names the record whose mapping warned.
+       **Keep**: coalescing across records would take the attribution out
+       of the audit trail that exists to give it, and the machine-readable
+       per-record answer is the #919 quality flag already
    * - row exit
      - row ``delete()`` + storage delete on commit (success) or one
        ``UPDATE`` flagging ``has_import_error`` (failure, #895)
@@ -685,7 +717,11 @@ The housekeeping side of the family:
     ``registry/models/harvest.py:1614``). **Not enough evidence** — the
     drop-directory path sees at most one batch of files per 5-minute fire in
     practice; leave it to #1395 to capture whether the per-row scheduling
-    shape deserves the chunk path instead.
+    shape deserves the chunk path instead. **Decided by #1392 from the
+    captures**: volume arrives through the chord-built chunk path (#859),
+    which is where the per-row shape would matter; the drop-directory seam
+    publishes one import per committed file of a hand-delivered batch.
+    **Keep** the single-row scheduling.
 
 Family: registration metadata collection (scoping for #1392)
 ############################################################
@@ -817,8 +853,10 @@ Family: conformity checks (scoping for #1394)
   are dead weight or errors on the new one. Verify at test time and retire.
   **Retired (#1394):** the ``self.task``/``self.job`` reads and writes are
   gone from the module (``bind=True`` with them); a source guard in
-  ``tests/django/registry/tasks/tests_conformity_tasks.py`` keeps the seam
-  out until the family's owners decide its fate.
+  ``tests/django/registry/tasks/tests_conformity_tasks.py`` kept the seam
+  out while the family still existed. That guard module retired with the
+  tasks (#1458) and the module it guarded retired with the family (#1530),
+  so the seam has no code left to keep it out of.
 - no first-party caller of ``async_run_conformity_check`` exists on develop
   (no view, serializer, model hook or ``send_task`` names it). The tasks are
   registered and reachable by name only. **Not enough evidence** for an
@@ -828,12 +866,13 @@ Family: conformity checks (scoping for #1394)
   fixtures or frontend. And it could not answer even a by-name delivery:
   the tasks fetch ``ConformityCheckRun.objects``, the ABSTRACT base of the
   four sibling run tables, so the base read names a relation the migration
-  history never created (pinned by ``tests_conformity_tasks``). The family is
-  dead code, not a query-optimization candidate; the dispatcher read was
-  scoped with ``select_related("config")`` and the worker's second config
-  read now rides the run's own ``config_id``, and the keep-or-remove
-  decision of the whole family - models, managers and tasks - is with its
-  owners, asked on #1394.
+  history never created (pinned by ``tests_conformity_tasks`` until that
+  guard retired with #1458). The family is dead code, not a
+  query-optimization candidate; the dispatcher read was scoped with
+  ``select_related("config")`` and the worker's second config read rode the
+  run's own ``config_id``, and the keep-or-remove decision of the whole
+  family - models, managers and tasks - was with its owners, asked on
+  #1394, and closed by the removal (#1530).
 
 ``run_conformity_check_etf`` / ``run_conformity_check_internal``
     (lines 44/88) Run SELECT + concrete-config SELECT (1 each); the checkers
@@ -841,11 +880,12 @@ Family: conformity checks (scoping for #1394)
     polling/progress step and the internal plugin reads the record's stored XML
     backup. Bounded and dominated by the external ETF polling, not by SQL.
     ``ConformityCheckRunManager.has_running_check``
-    (``registry/managers/conformity.py``) answers ``.count() != 0`` where
-    ``.exists()`` suffices — one-line manager fix, in place, no new method.
-    **Done (#1394):** ``exists()``; note that the method's ``metadata=``
-    filter names a field no concrete run model carries either - like the
-    tasks it belongs to the keep-or-remove question, not to a query plan.
+    (``registry/managers/conformity.py``) answered ``.count() != 0`` where
+    ``.exists()`` suffices — one-line manager fix, no new method.
+    **Done (#1394):** ``exists()``; the method's ``metadata=`` filter named
+    a field no concrete run model carries either - like the tasks it
+    belonged to, that was a keep-or-remove question, not a query plan. The
+    manager itself retired with the family (#1530).
 
 Family: security log analysis (scoping for #1394)
 ##################################################
@@ -1163,22 +1203,36 @@ Scoping for the follow-up issues
 ################################
 
 #1392 — harvesting, import, registration
-    In expected-payoff order:
+    (**shipped by #1392** — each item with its verdict, evidence in the
+    family tables above, guards on the :ref:`celery-task-sql-regression`
+    page):
 
-- capabilities-document cache per chunk in the import path
-  (``md_metadata_file_to_db`` line 1749) — one storage read + parse per
-  *chunk* instead of per record; preserve the #1044 error contract.
-- ``TemporaryMdMetadataFile.for_harvest_import()`` centralization (mechanical,
-  after the measurement).
-- ``["job_id","requested_url"]`` index for the per-page duplicate guard
-  (``_store_page`` / ``get_stored_page_count``) — migration; run
-  ``scripts/migration_graph_smoke.py`` before pushing.
-- per-file lookup-table round trips in ``PersistenceHandler`` during the
-  import (measure at 10/100+ chunk fixtures first; per-record commit stays).
-- per-warning ``job.log`` coalescing (only if a warning-heavy fixture shows
-  multiplication).
-- decide ``check_for_files_to_import``'s single-row scheduling vs the chunk
-  path from a capture.
+- capabilities-document cache per chunk in the import path — **shipped**:
+  one service instance per chunk, shared into every record's import; the
+  client's cached_property reads the document once per chunk and the #1044
+  error contract moves to chunk granularity.
+- ``TemporaryMdMetadataFile.for_harvest_import()`` centralization — landed
+  with #1397; #1392 added the download half, ``for_client_access()`` on
+  ``HarvestingJobQuerySet`` (explicitly forwarded on the hand-written
+  ``HarvestingJobManager``), used by both download tasks and the chunk's
+  shared-service read, the row lock always explicit at the call site
+  (``select_for_update(of=("self",))``, rule 3 of the conventions).
+- ``["job_id","requested_url"]`` index for the per-page duplicate guard —
+  **shipped as ``tmpmd_page_dedup_idx``**, a hash index over
+  ``requested_url`` alone: Postgres hash indexes are single-column and the
+  btree alternative breaks the INSERT of big-filter pages on this
+  4096-character URLField (deviation argued in the family table and the
+  Meta comment).
+- per-file lookup-table round trips in ``PersistenceHandler`` — measured on
+  a real 10-record chunk, **keep** (constant per record, unique-indexed,
+  and the cache would change the #895 transactional meaning of the handler
+  every importer shares).
+- per-warning ``job.log`` coalescing — measured (zero warning rows on a
+  clean chunk), **keep**: the rows are the audit trail naming the warned
+  record.
+- ``check_for_files_to_import`` single-row scheduling vs the chunk path —
+  **keep** the single-row seam; volume runs go through the chord-built
+  chunk path.
 
 #1393 — monitoring, update
     - layers double-read + lazy FK chain + per-check probe write in
@@ -1195,16 +1249,17 @@ Scoping for the follow-up issues
     (**shipped** — the four items below landed; the keep-or-remove question
     of the whole conformity family was closed by its removal in #1530,
     see the family section):
-    - ``missing_capabilities_rows``: replace per-service ``storage.exists()``
-      with per-prefix listings (or a slower dedicated cadence); add
-      ``batch_size`` to the alert ``bulk_create``.
-    - probe-artifact purge: paged read + batched ``update`` behind
-      ``for_cleanup_batch()``.
-    - ``CeleryTaskAttempt``: add the ``recorded_at`` index; optional
-      ``for_retention()`` (left out — one consumer of a one-line filter).
-    - conformity: establish whether the tasks are wired at all; retire the
-      ``self.task``/``self.job`` task-result seam; ``has_running_check``
-      ``count`` → ``exists``.
+
+- ``missing_capabilities_rows``: replace per-service ``storage.exists()``
+  with per-prefix listings (or a slower dedicated cadence); add
+  ``batch_size`` to the alert ``bulk_create``.
+- probe-artifact purge: paged read + batched ``update`` behind
+  ``for_cleanup_batch()``.
+- ``CeleryTaskAttempt``: add the ``recorded_at`` index; optional
+  ``for_retention()`` (left out — one consumer of a one-line filter).
+- conformity: establish whether the tasks are wired at all; retire the
+  ``self.task``/``self.job`` task-result seam; ``has_running_check``
+  ``count`` → ``exists``.
 
 Coverage checklist for #1395
 ############################

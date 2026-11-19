@@ -249,6 +249,13 @@ services:
       - type: bind
         source: ./frontend
         target: /opt/mrmap/frontend
+      # The canonical version file (#1579): vite.config.mjs reads it at
+      # ../VERSION - the parent of /opt/mrmap/frontend - on every vitest and
+      # build run, so the specs measure the same file the image bakes in.
+      - type: bind
+        source: ./VERSION
+        target: /opt/mrmap/VERSION
+        read_only: true
       # Keeps npm dependencies out of the host checkout and warm between runs.
       - type: volume
         source: frontend-node-modules

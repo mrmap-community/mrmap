@@ -1,4 +1,4 @@
-from django_filters import BooleanFilter, FilterSet
+from django_filters import BooleanFilter, CharFilter, FilterSet
 from rest_framework_gis.filters import GeometryFilter
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord,
@@ -38,6 +38,20 @@ class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
     bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
     bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
+    # The keyword filters match over the m2m relation of the keywords, so a record
+    # which holds two keywords answering the asked piece joins twice -- as two rows
+    # of the page AND as two rows of the paginator's count. django-filter adds no
+    # DISTINCT unless a filter carries distinct=True; with it the filter answers
+    # the record once, rows and counts alike (#1477). The ``exact`` lookup is
+    # declared beside them without distinct because it cannot multiply: the unique
+    # keyword column lets at most one keyword of a record answer it.
+
+    keywords__keyword__exact = CharFilter(
+        field_name='keywords__keyword', lookup_expr='exact')
+    keywords__keyword__icontains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='icontains', distinct=True)
+    keywords__keyword__contains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='contains', distinct=True)
 
     class Meta:
         model = DatasetMetadataRecord
@@ -45,7 +59,6 @@ class DatasetMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_dataset_metadata_relation__harvesting_job": ["exact"],
             "harvested_dataset_metadata_relation__collecting_state": ["exact"],
         }
@@ -55,6 +68,14 @@ class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
     bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
     bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
+    # the keyword filters of DatasetMetadataRecordSpatialFilterSet, for the same
+    # reason (#1477)
+    keywords__keyword__exact = CharFilter(
+        field_name='keywords__keyword', lookup_expr='exact')
+    keywords__keyword__icontains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='icontains', distinct=True)
+    keywords__keyword__contains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='contains', distinct=True)
 
     class Meta:
         model = ServiceMetadataRecord
@@ -62,7 +83,6 @@ class ServiceMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, Filte
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_service_metadata_relation__harvesting_job": ["exact"],
             "harvested_service_metadata_relation__collecting_state": ["exact"],
         }
@@ -74,6 +94,14 @@ class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, F
     bounding_geometry__intersects = GeometryFilter(field_name='bounding_geometry', lookup_expr='intersects')
     bounding_geometry__within = GeometryFilter(field_name='bounding_geometry', lookup_expr='within')
     bounding_geometry__contains = GeometryFilter(field_name='bounding_geometry', lookup_expr='contains')
+    # the keyword filters of DatasetMetadataRecordSpatialFilterSet, for the same
+    # reason (#1477)
+    keywords__keyword__exact = CharFilter(
+        field_name='keywords__keyword', lookup_expr='exact')
+    keywords__keyword__icontains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='icontains', distinct=True)
+    keywords__keyword__contains = CharFilter(
+        field_name='keywords__keyword', lookup_expr='contains', distinct=True)
 
     class Meta:
         model = ApplicationMetadataRecord
@@ -81,7 +109,6 @@ class ApplicationMetadataRecordSpatialFilterSet(MetadataQualityFilterSetMixin, F
             'id': ['exact', 'icontains', 'contains', 'in'],
             "title": ["exact", "icontains", "contains"],
             "abstract": ["exact", "icontains", "contains"],
-            "keywords__keyword": ["exact", "icontains", "contains"],
             "harvested_application_metadata_relation__harvesting_job": ["exact"],
             "harvested_application_metadata_relation__collecting_state": ["exact"],
         }

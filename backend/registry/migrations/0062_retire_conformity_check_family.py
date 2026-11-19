@@ -58,7 +58,7 @@ def remove_family_content_types(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0059_remove_catalogueservice_registry_ca_update__7b419c_idx_and_more'),
+        ('registry', '0061_the_keyword_links_rename_their_pair_uniqueness'),
         ('contenttypes', '0002_remove_content_type_name'),
     ]
 

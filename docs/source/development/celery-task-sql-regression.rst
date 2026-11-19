@@ -184,7 +184,7 @@ assertion was not tightened with it - that is the intent.
        base fetch could never answer, so no query guard had anything to
        regress; #1530 then retired the rest of the family - models,
        managers, enums, plugin helpers, fixtures and all twelve tables -
-       through ``registry/migrations/0060_retire_conformity_check_family``,
+       through ``registry/migrations/0062_retire_conformity_check_family``,
        per the decision record of gate #1528
      - #1458, gate #1528, #1530
    * - security log analysis

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-19 06:41+0100\n"
+"POT-Creation-Date: 2026-11-19 09:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,11 +18,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: MrMap/settings.py:301
+#: MrMap/settings.py:298
 msgid "English"
 msgstr "Englisch"
 
-#: MrMap/settings.py:302
+#: MrMap/settings.py:299
 msgid "German"
 msgstr "Deutsch"
 
@@ -70,49 +70,49 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:97 accounts/models/roles.py:194
+#: accounts/models/groups.py:110 accounts/models/roles.py:194
 #: notify/models.py:100 registry/models/mapcontext.py:324
 #: registry/models/security.py:249
 msgid "description"
 msgstr "Beschreibung"
 
-#: accounts/models/groups.py:98
+#: accounts/models/groups.py:111
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
-#: accounts/models/groups.py:106 accounts/models/roles.py:143
+#: accounts/models/groups.py:119 accounts/models/roles.py:143
 msgid "Organization"
 msgstr "Organisation"
 
-#: accounts/models/groups.py:107
+#: accounts/models/groups.py:120
 msgid "Organizations"
 msgstr "Organisationen"
 
-#: accounts/models/groups.py:279
+#: accounts/models/groups.py:292
 msgid "requesting organization"
 msgstr "Neue Organisation"
 
-#: accounts/models/groups.py:285
+#: accounts/models/groups.py:298
 msgid "requested organization"
 msgstr "Organisation entfernen"
 
-#: accounts/models/groups.py:290
+#: accounts/models/groups.py:303
 msgid "accepted"
 msgstr "Akzeptieren"
 
-#: accounts/models/groups.py:299
+#: accounts/models/groups.py:308
 msgid "Pending publish request"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:300
+#: accounts/models/groups.py:309
 msgid "Pending publish requests"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:314
+#: accounts/models/groups.py:328
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
-#: accounts/models/groups.py:381
+#: accounts/models/groups.py:395
 #, python-format
 msgid ""
 "The requesting organization %(from_organization)s has no active publisher "
@@ -2674,8 +2674,8 @@ msgstr "Treffer"
 msgid "how many times this metadata was requested by a client"
 msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
-#: registry/models/metadata.py:992 registry/models/metadata.py:1636
-#: registry/models/metadata.py:1723 registry/models/metadata.py:1788
+#: registry/models/metadata.py:992 registry/models/metadata.py:1666
+#: registry/models/metadata.py:1753 registry/models/metadata.py:1818
 #: registry/serializers/service.py:109 registry/serializers/service.py:919
 msgid "keywords"
 msgstr "Schlüsselwörter"
@@ -2732,11 +2732,11 @@ msgstr ""
 "Bestimmt wo diese Beziehung gefunden wurde oder ob diese von einem Benutzer "
 "erstellt wurde."
 
-#: registry/models/metadata.py:1418
+#: registry/models/metadata.py:1442
 msgid "metadata profile"
 msgstr "Metadaten-Profil"
 
-#: registry/models/metadata.py:1419
+#: registry/models/metadata.py:1443
 msgid ""
 "the authoring profile whose sections and rules describe this record (#1240); "
 "records created by an import or through the api answer the seeded iso19139-"
@@ -2747,24 +2747,24 @@ msgstr ""
 "angelegt werden, beantworten das beim Start gesetzte iso19139-generic-"
 "Profil, siehe MetadataProfile.generic()"
 
-#: registry/models/metadata.py:1425
+#: registry/models/metadata.py:1449
 msgid "flag to signal if this "
 msgstr "Bit um dies zu signalisieren "
 
-#: registry/models/metadata.py:1432
+#: registry/models/metadata.py:1456
 msgid "services"
 msgstr "Dienste"
 
-#: registry/models/metadata.py:1433
+#: registry/models/metadata.py:1457
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
-#: registry/models/metadata.py:1440 registry/models/metadata.py:1662
-#: registry/models/metadata.py:1795
+#: registry/models/metadata.py:1464 registry/models/metadata.py:1692
+#: registry/models/metadata.py:1825
 msgid "contact"
 msgstr "Kontakt"
 
-#: registry/models/metadata.py:1441
+#: registry/models/metadata.py:1465
 msgid ""
 "this is the contact which is responsible for the metadata information of the "
 "dataset."
@@ -2772,146 +2772,146 @@ msgstr ""
 "Dies ist der Kontakt, welcher für die Metadateninformationen verantwortlich "
 "ist."
 
-#: registry/models/metadata.py:1447 registry/models/service.py:720
+#: registry/models/metadata.py:1471 registry/models/service.py:720
 #: registry/serializers/service.py:178 registry/serializers/service.py:952
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
-#: registry/models/metadata.py:1451
+#: registry/models/metadata.py:1475
 msgid "equivalent scale"
 msgstr "äquivalenter Maßstab"
 
-#: registry/models/metadata.py:1452
+#: registry/models/metadata.py:1476
 msgid "1 cm : 100 cm for example"
 msgstr "z. B. 1 cm : 100 cm"
 
-#: registry/models/metadata.py:1456
+#: registry/models/metadata.py:1480
 msgid "ground resolution"
 msgstr "Bodenauflösung"
 
-#: registry/models/metadata.py:1457
+#: registry/models/metadata.py:1481
 msgid "pixel per meter for example"
 msgstr "z. B. Pixel pro Meter"
 
-#: registry/models/metadata.py:1461
+#: registry/models/metadata.py:1485
 msgid "identifier of the remote data"
 msgstr "Identifikator für die entfernten Daten"
 
-#: registry/models/metadata.py:1465
+#: registry/models/metadata.py:1489
 msgid "code space for the given identifier"
 msgstr "Namensraum für den Indenifkator"
 
-#: registry/models/metadata.py:1469
+#: registry/models/metadata.py:1493
 msgid "charset"
 msgstr "Zeichensatz"
 
-#: registry/models/metadata.py:1470
+#: registry/models/metadata.py:1494
 msgid "full name of the character coding standard used for the metadata set"
 msgstr ""
 "vollständiger Name des für den Metadatensatz verwendeten "
 "Zeichencodierungsstandards"
 
-#: registry/models/metadata.py:1478 registry/models/service.py:729
+#: registry/models/metadata.py:1502 registry/models/service.py:729
 msgid "time extent"
 msgstr "Zeitbereich"
 
-#: registry/models/metadata.py:1480
+#: registry/models/metadata.py:1504
 msgid "all time extents which are available for this metadata record."
 msgstr "alle Zeitbereiche, die für diesen Metadatensatz verfügbar sind."
 
-#: registry/models/metadata.py:1645 registry/models/service.py:896
+#: registry/models/metadata.py:1675 registry/models/service.py:896
 #: registry/serializers/monitoring.py:78
 msgid "layers"
 msgstr "Ebenen"
 
-#: registry/models/metadata.py:1646
+#: registry/models/metadata.py:1676
 msgid ""
 "all layers which are linking to this dataset metadata in there capabilities."
 msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:1655 registry/models/service.py:1134
+#: registry/models/metadata.py:1685 registry/models/service.py:1134
 #: registry/serializers/monitoring.py:466
 msgid "feature types"
 msgstr "Merkmalstypen"
 
-#: registry/models/metadata.py:1656
+#: registry/models/metadata.py:1686
 msgid ""
 "all feature types which are linking to this dataset metadata in there "
 "capabilities."
 msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
 
-#: registry/models/metadata.py:1663
+#: registry/models/metadata.py:1693
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: registry/models/metadata.py:1667
+#: registry/models/metadata.py:1697
 msgid "format"
 msgstr "Format"
 
-#: registry/models/metadata.py:1668
+#: registry/models/metadata.py:1698
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: registry/models/metadata.py:1673
+#: registry/models/metadata.py:1703
 msgid "Flag to signal if the described data has a topologically consistence."
 msgstr ""
 "Bit zum signalisieren, ob die beschriebene Information eine topologische "
 "Konsistenz besitzt."
 
-#: registry/models/metadata.py:1684 registry/models/metadata.py:1804
+#: registry/models/metadata.py:1714 registry/models/metadata.py:1834
 msgid "categories"
 msgstr "Kategorien"
 
-#: registry/models/metadata.py:1685
+#: registry/models/metadata.py:1715
 msgid "the topic categories of the dataset"
 msgstr "die Themenkategorien des Datensatzes"
 
-#: registry/models/metadata.py:1697 registry/models/metadata.py:1698
+#: registry/models/metadata.py:1727 registry/models/metadata.py:1728
 #: registry/serializers/service.py:118 registry/serializers/service.py:928
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/metadata.py:1732 registry/models/service.py:398
+#: registry/models/metadata.py:1762 registry/models/service.py:398
 msgid "web map services"
 msgstr "Ihre registrierten Web Map Services"
 
-#: registry/models/metadata.py:1733
+#: registry/models/metadata.py:1763
 msgid ""
 "all wms which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WMS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1740 registry/models/service.py:515
+#: registry/models/metadata.py:1770 registry/models/service.py:515
 msgid "web feature services"
 msgstr "Ihre registrierten Web Feature Services"
 
-#: registry/models/metadata.py:1741
+#: registry/models/metadata.py:1771
 msgid ""
 "all wfs which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WFS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1748 registry/models/service.py:562
+#: registry/models/metadata.py:1778 registry/models/service.py:562
 msgid "catalogue services"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/metadata.py:1749
+#: registry/models/metadata.py:1779
 msgid ""
 "all csw which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle CSW, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1796
+#: registry/models/metadata.py:1826
 msgid "this is the contact which provides this application."
 msgstr "Die Organisation, welche die Anwendung anbietet."
 
-#: registry/models/metadata.py:1805
+#: registry/models/metadata.py:1835
 msgid "the topic categories of the application"
 msgstr "die Themenkategorien der Anwendung"
 
-#: registry/models/metadata.py:1817 registry/models/metadata.py:1818
+#: registry/models/metadata.py:1847 registry/models/metadata.py:1848
 msgid "application metadata"
 msgstr "Anwendung Metadaten"
 
@@ -5003,18 +5003,6 @@ msgstr ""
 "Gesundheitszustand unbekannt, da kein Check für diese Ressource durchgeführt "
 "wurde."
 
-#: registry/settings.py:104
-msgid "The validation state is unknown."
-msgstr "Der Überprüfungszustand ist unbekannt"
-
-#: registry/settings.py:105
-msgid "The resource is valid."
-msgstr "Diese Ressource ist aktiviert."
-
-#: registry/settings.py:106
-msgid "The resource is invalid."
-msgstr "Diese Ressource ist deaktiviert."
-
 #: registry/views/metadata.py:236
 msgid ""
 "Writing metadata records is disabled in this deployment "
@@ -5083,6 +5071,15 @@ msgstr ""
 #: system/apps.py:111
 msgid "System"
 msgstr "System"
+
+#~ msgid "The validation state is unknown."
+#~ msgstr "Der Überprüfungszustand ist unbekannt"
+
+#~ msgid "The resource is valid."
+#~ msgstr "Diese Ressource ist aktiviert."
+
+#~ msgid "The resource is invalid."
+#~ msgstr "Diese Ressource ist deaktiviert."
 
 #~ msgid "the service targeted by this check"
 #~ msgstr "Der Dienst der von dieser Überprüfung betroffen ist."

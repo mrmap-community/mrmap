@@ -245,7 +245,12 @@ services:
     hostname: "mrmap-frontend-tests"
     container_name: "mrmap-frontend-tests"
     working_dir: /opt/mrmap/frontend
+    entrypoint: /usr/local/bin/mrmap-frontend-bootstrap
     volumes:
+      - type: bind
+        source: ./docker/frontend/tests-entrypoint.sh
+        target: /usr/local/bin/mrmap-frontend-bootstrap
+        read_only: true
       - type: bind
         source: ./frontend
         target: /opt/mrmap/frontend
@@ -260,8 +265,9 @@ services:
       - type: volume
         source: frontend-node-modules
         target: /opt/mrmap/frontend/node_modules
-    command: >
-      /bin/sh -c "npm ci --no-audit --no-fund && npm run test -- --run"
+    # Bootstrap runs even when an explicit command replaces this default,
+    # including the VS Code development server task.
+    command: npm run test -- --run
     networks:
       - mrmap-internal
 

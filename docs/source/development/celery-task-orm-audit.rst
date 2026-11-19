@@ -817,8 +817,10 @@ Family: conformity checks (scoping for #1394)
   are dead weight or errors on the new one. Verify at test time and retire.
   **Retired (#1394):** the ``self.task``/``self.job`` reads and writes are
   gone from the module (``bind=True`` with them); a source guard in
-  ``tests/django/registry/tasks/tests_conformity_tasks.py`` keeps the seam
-  out until the family's owners decide its fate.
+  ``tests/django/registry/tasks/tests_conformity_tasks.py`` kept the seam
+  out while the family still existed. That guard module retired with the
+  tasks (#1458) and the module it guarded retired with the family (#1530),
+  so the seam has no code left to keep it out of.
 - no first-party caller of ``async_run_conformity_check`` exists on develop
   (no view, serializer, model hook or ``send_task`` names it). The tasks are
   registered and reachable by name only. **Not enough evidence** for an
@@ -828,12 +830,13 @@ Family: conformity checks (scoping for #1394)
   fixtures or frontend. And it could not answer even a by-name delivery:
   the tasks fetch ``ConformityCheckRun.objects``, the ABSTRACT base of the
   four sibling run tables, so the base read names a relation the migration
-  history never created (pinned by ``tests_conformity_tasks``). The family is
-  dead code, not a query-optimization candidate; the dispatcher read was
-  scoped with ``select_related("config")`` and the worker's second config
-  read now rides the run's own ``config_id``, and the keep-or-remove
-  decision of the whole family - models, managers and tasks - is with its
-  owners, asked on #1394.
+  history never created (pinned by ``tests_conformity_tasks`` until that
+  guard retired with #1458). The family is dead code, not a
+  query-optimization candidate; the dispatcher read was scoped with
+  ``select_related("config")`` and the worker's second config read rode the
+  run's own ``config_id``, and the keep-or-remove decision of the whole
+  family - models, managers and tasks - was with its owners, asked on
+  #1394, and closed by the removal (#1530).
 
 ``run_conformity_check_etf`` / ``run_conformity_check_internal``
     (lines 44/88) Run SELECT + concrete-config SELECT (1 each); the checkers
@@ -841,11 +844,12 @@ Family: conformity checks (scoping for #1394)
     polling/progress step and the internal plugin reads the record's stored XML
     backup. Bounded and dominated by the external ETF polling, not by SQL.
     ``ConformityCheckRunManager.has_running_check``
-    (``registry/managers/conformity.py``) answers ``.count() != 0`` where
-    ``.exists()`` suffices — one-line manager fix, in place, no new method.
-    **Done (#1394):** ``exists()``; note that the method's ``metadata=``
-    filter names a field no concrete run model carries either - like the
-    tasks it belongs to the keep-or-remove question, not to a query plan.
+    (``registry/managers/conformity.py``) answered ``.count() != 0`` where
+    ``.exists()`` suffices — one-line manager fix, no new method.
+    **Done (#1394):** ``exists()``; the method's ``metadata=`` filter named
+    a field no concrete run model carries either - like the tasks it
+    belonged to, that was a keep-or-remove question, not a query plan. The
+    manager itself retired with the family (#1530).
 
 Family: security log analysis (scoping for #1394)
 ##################################################
@@ -1195,16 +1199,17 @@ Scoping for the follow-up issues
     (**shipped** — the four items below landed; the keep-or-remove question
     of the whole conformity family was closed by its removal in #1530,
     see the family section):
-    - ``missing_capabilities_rows``: replace per-service ``storage.exists()``
-      with per-prefix listings (or a slower dedicated cadence); add
-      ``batch_size`` to the alert ``bulk_create``.
-    - probe-artifact purge: paged read + batched ``update`` behind
-      ``for_cleanup_batch()``.
-    - ``CeleryTaskAttempt``: add the ``recorded_at`` index; optional
-      ``for_retention()`` (left out — one consumer of a one-line filter).
-    - conformity: establish whether the tasks are wired at all; retire the
-      ``self.task``/``self.job`` task-result seam; ``has_running_check``
-      ``count`` → ``exists``.
+
+- ``missing_capabilities_rows``: replace per-service ``storage.exists()``
+  with per-prefix listings (or a slower dedicated cadence); add
+  ``batch_size`` to the alert ``bulk_create``.
+- probe-artifact purge: paged read + batched ``update`` behind
+  ``for_cleanup_batch()``.
+- ``CeleryTaskAttempt``: add the ``recorded_at`` index; optional
+  ``for_retention()`` (left out — one consumer of a one-line filter).
+- conformity: establish whether the tasks are wired at all; retire the
+  ``self.task``/``self.job`` task-result seam; ``has_running_check``
+  ``count`` → ``exists``.
 
 Coverage checklist for #1395
 ############################

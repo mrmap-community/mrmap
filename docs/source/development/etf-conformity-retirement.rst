@@ -15,9 +15,15 @@ production deployment: #1528 mutates no data.
 
 The decision itself lives in the `Decision register of #1528
 <https://github.com/mrmap-community/mrmap/issues/1528>`_, asked and recorded
-through ``scripts/decisions`` per :ref:`development-decision-requests`. Until
-a row reads
-``Accepted``, the removal PRs #1529-#1533 stay gated.
+through ``scripts/decisions`` per :ref:`development-decision-requests`. The
+three rows below still read ``Pending`` — re-read them with
+``scripts/decisions --issue 1528 scan`` rather than trusting this page. Two of
+the removal PRs (#1458, #1529, #1530) were carried out on the operator's
+instruction while those rows stood open; that deviation from the gate is
+recorded where it happened, below, and no executed merge on this page is
+presented as an accepted decision. What the open rows still govern is the
+destructive half: applying ``0062`` to a live database (Q2), any scope a
+deployment still retains (Q1) and the fate of #1507 (Q3).
 
 Recommendation (agent): **full retirement** of the family — the ETF validator
 stack, the tasks, the plugin helpers and all twelve legacy tables — not the
@@ -30,18 +36,23 @@ Liveness evidence, reproduced on current develop
 #################################################
 
 Re-derived on ``develop`` at ``019f17a42`` (2026-11-18), in the job's own
-Compose stack on the prebuilt backend image; commands and results:
+Compose stack on the prebuilt backend image. The run and its answer are kept
+as the audit trail of the gate. It is **not a runnable command any more** —
+the first module was removed by #1458 and the family with #1530; what still
+runs today is named in the last section of this page.
 
 .. code:: text
 
+    # as executed on 019f17a42 on 2026-11-18 (do not copy: the first
+    # selection target no longer exists)
     docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
       django-tests python manage.py test \
         tests.django.registry.tasks.tests_conformity_tasks \
         tests.django.test_celery_worker_config --noinput
     # Ran 12 tests in 0.026s — OK
 
-What those two guard modules pin (:ref:`celery-task-sql-regression`), and what
-the static sweep on this checkout re-confirms:
+What those two guard modules pinned at that revision, and what the static
+sweep on this checkout re-confirms:
 
 *   **no first-party dispatcher**: no ``delay``, ``apply_async``,
     ``send_task`` or beat row names ``async_run_conformity_check``,
@@ -72,6 +83,15 @@ the static sweep on this checkout re-confirms:
 The family is dead code kept reachable only through the broker's by-name
 delivery. That is exactly the shape a retirement, not a query optimization,
 resolves — the disposition #1394 reported and #1495 deferred to the owners.
+
+That last bullet is the one claim above which no longer holds on current
+``develop``, and it holds no more by a wider margin: #1458 unregistered the
+tasks, so a delivery naming them is discarded as unregistered (the #1199
+behaviour) instead of executed and failed, and #1530 removed the models, the
+managers and all twelve tables. Nothing on develop can answer those three
+task names at all now. The guard module which pinned the liveness evidence is
+itself gone, which is why the matrix of :ref:`celery-task-sql-regression`
+lists the family as retired rather than green.
 
 Table and schema inventory
 ###########################
@@ -138,7 +158,7 @@ repository; an operator who wanted the seed data had to load them by hand.
 Whether any deployment did is unknown (see below). #1530 removes them with
 the family.
 
-Code and infrastructure surface (the removal list for #1529/#1530)
+Code and infrastructure surface (what left, and which PR took it)
 ####################################################################
 
 **Executed partway (#1458).** The task half of this list has already left:
@@ -209,8 +229,11 @@ constants):
   the next ``makemessages`` (regenerate, never hand-edit);
 * migrations: the historical 0001/0052/0053 stay untouched (never edit
   history); the retirement is **one new migration following the current
-  registry leaf** (``0057`` at the time of writing — re-check the leaf when
-  #1530 branches, run ``scripts/migration_graph_smoke.py``).
+  registry leaf** — it shipped as ``0062_retire_conformity_check_family``,
+  renumbered once develop's keyword-link migration took 0061.
+  ``scripts/migration_graph_smoke.py`` is the check which names that
+  collision before a push, and it is what any later branch beside this leaf
+  runs.
 
 Validator infrastructure (**executed (#1529)**): the service, its image
 and its development tooling are removed:
@@ -332,32 +355,53 @@ runs — none of them may be assumed to be zero:
 6. **manual fixture loads**: whether any deployment ever ran ``loaddata`` on
    the six seed fixtures.
 
-Rollout contract for #1530 and #1532
-#####################################
+Operator rollout and recovery contract (live deployments)
+##########################################################
 
-Derived from the unknowns above; #1530 (schema) and #1532 (runtime removal)
-may only execute this after the owner decision and the operator sign-off
-that the checks came back clean:
+This is the contract the gate asked for, retuned for the state after #1530:
+the drop is no longer something a future PR may do, it ships as
+``registry/migrations/0062_retire_conformity_check_family`` on ``develop``.
+Nothing in it has run against a deployment: a migration runs where an operator
+upgrades and migrates, not where a pull request merges. So every step below
+belongs to the operator of one deployment, and belongs there **before** that
+deployment's ``migrate``:
 
-* **export before drop**: ``pg_dump -t`` of the twelve tables (or a full
-  backup taken after the last write), stored outside the database, plus the
-  restore rehearsal #1509 owns; the export is the rollback object.
-* **drain first**: no by-name caller left (check 1), queued messages for the
-  three names at zero and no ETF task in flight (check 2) — or the operator
-  deliberately purges those queue entries inside the maintenance window;
-  Beat rows (check 3) deleted via the deployment's own admin, not by silent
-  migration, so the audit trail names who removed them.
-* **maintenance window with destructive approval**: dropping twelve tables is
-  destructive data work; per epic rule it carries an explicit approval from
-  the operator of each deployment, never a migration that "just runs".
-* **migration order**: code removal and the drop table lands as one PR on one
-  registry migration following the then-current leaf; the export exists
-  before it, the worker restart after it. A deployment mid-upgrade must not
-  run a worker from before the PR against a database from after it — the
-  tasks would be registered but their tables gone (their by-name delivery
-  fails anyway on the abstract read, which is the safety margin here).
-* **rollback**: restore the export and the previous image; no data is
-  re-derived.
+1. **export before drop**: ``pg_dump -t`` of the twelve tables (or a full
+   backup taken after the last write), stored outside the database, plus the
+   restore rehearsal #1509 owns; the export is the rollback object. A report
+   column of a run table is the only copy an ETF result ever had — once the
+   table is gone there is nothing to re-derive it from.
+2. **drain the broker first**: no by-name caller left (unknown 1), queued
+   messages for the three names at zero and no ETF task in flight (unknown 2)
+   — or the operator deliberately purges those queue entries inside the
+   maintenance window and says so. Since #1458 a late delivery cannot start
+   work, it is discarded as unregistered; purging it is still the honest
+   record of what was dropped.
+3. **Beat rows through the deployment's own admin**: a deployed database can
+   hold ``PeriodicTask``/``CrontabSchedule`` rows naming the legacy tasks
+   (unknown 3). Delete them where they exist through the deployment's admin,
+   never by a silent migration, so the audit trail names who removed them.
+4. **maintenance window with destructive approval**: dropping twelve tables
+   is destructive data work; per epic rule it carries an explicit approval
+   from the operator of each deployment, never a migration that "just runs".
+5. **migration order and the worker restart**: code removal and the table
+   drop are one migration following the then-current leaf; the export exists
+   before it, the worker restart after it. A deployment mid-upgrade must not
+   run a worker from before #1530 against a database from after it — the
+   tasks would be registered while their tables are gone (their by-name
+   delivery fails anyway on the abstract read, which is the safety margin
+   here, not a plan).
+6. **rollback**: restore the export and the previous image; no data is
+   re-derived. ``0062`` reverses cleanly on a scratch database (verified in
+   #1530), but a reverse is not the rollback of a production drop — the
+   export is.
+
+Q2 asked whether this is the agreed shape. While that row reads ``Pending``,
+treat the steps as the recommended procedure an operator still approves
+per deployment, not as an approved procedure. Where one of the unknowns above
+comes back "not zero", that step is the one which decides the window; record
+the answer in the deployment's own runbook, because this page can only name
+the question.
 
 Validation invariants that must stay untouched
 ###############################################
@@ -378,30 +422,127 @@ Retention coordination with #1497
 
 * #1507 (conformity lifecycle and bounded report retention) is **on hold**
   per its own banner while this decision stands open. If the owner approves
-  full retirement, #1507 is superseded — retention on tables about to be
-  dropped is churn — and its graph edge and parent-scope mention are removed
-  from #1509. If ETF-only is chosen instead, #1507 narrows to the retained
-  internal scope. Either outcome is recorded in the issue bodies and the
+  full retirement, #1507 is superseded — retention on tables whose drop
+  already shipped on ``develop`` is churn — and its graph edge and
+  parent-scope mention are removed from #1509. If ETF-only is chosen instead,
+  #1507 narrows to the retained internal scope, which then still needs its
+  retention policy. Either outcome is recorded in the issue bodies and the
   native dependency metadata as part of this gate.
 * The #1528 decision also settles the storage question #1497 lists the family
   under: full retirement bounds that growth by removing the tables outright,
   strictly better than a retention policy on dead rows.
 
+What still names the family today (#1531 owns these)
+#####################################################
+
+The sweeps of #1529 and #1530 left the tracked tree clean of the family's
+code, but three settings sites and one test comment still carry its name. All
+of them are inert — no reader resolves any of them (verified with ``git grep``
+over ``backend/`` at this sweep: each name occurs only at its own definition)
+— and removing them is #1531's, not this page's:
+
+* ``backend/MrMap/settings.py``: ``BASE_URL_FOR_ETF`` (env
+  ``MRMAP_BASE_URL_FOR_ETF``, default ``http://mrmap-appserver:8001``), read
+  by nothing since #1530 removed the client which used it — and the comment
+  block above ``CELERY_TASK_SOFT_TIME_LIMIT`` which still grounds the
+  worker-wide budget in the ETF validator's answer time. The limit itself
+  stays; only its stated reason is stale, and :ref:`celery-queues` already
+  re-grounds that budget on the harvesting request ceiling.
+* ``backend/registry/settings.py``: ``CONFORMITY_DEFAULT_UNKNOWN_MESSAGE``,
+  ``CONFORMITY_DEFAULT_SUCCESS_MESSAGE`` and ``CONFORMITY_DEFAULT_FAIL_MESSAGE``
+  — their only readers were the plugin helpers which left with #1530. Their
+  msgids are still in ``backend/locale/de/LC_MESSAGES/django.po``, sourced
+  from ``registry/settings.py:104-106``, so dropping them is a
+  ``makemessages`` plus ``compilemessages`` pair in the same change, never a
+  hand-edit of the catalog.
+* ``backend/tests/django/test_allowed_hosts_settings.py``: a comment naming
+  "the ETF validator callback" among the reasons for the internal allow-list.
+  The hosts that test asserts on are still wanted; only the reason is stale.
+
+Kept on purpose, and not orphans: the family's name in the historical
+migrations (``0001``, ``0052``, ``0053`` — history is never edited) and in
+``0062_retire_conformity_check_family`` itself, in ``CHANGELOG.md`` (a release
+note describes the release which carried the change), in
+``scripts/test_validator_retirement.py`` (a guard has to name what it forbids)
+and in the audit trail of the three audit pages named below.
+
+Epic status at this sweep
+#########################
+
+Read from the tracker and from ``scripts/decisions`` on 2026-11-19, not
+inferred from this page:
+
+.. list-table::
+   :widths: 12 20 68
+   :header-rows: 1
+
+   * - Issue
+     - State
+     - What it means here
+   * - #1528 (the gate)
+     - closed; Q1-Q3 still ``Pending``
+     - this page is its ADR; with the rows unanswered, the destructive half
+       stays a per-deployment operator approval, see the contract above
+   * - #1529
+     - closed
+     - the validator service, its image subtree and its development tooling
+       are gone; the host cleanup section is what a machine may still carry
+   * - #1530
+     - closed
+     - models, managers, enums, plugin helpers, the six fixtures and the
+       twelve tables are gone through ``0062``
+   * - #1531
+     - open
+     - the residual settings, catalog entries and stale comment of the
+       section above
+   * - #1532
+     - this page's sweep
+     - the documentation, the agent instructions and the audit dispositions
+       recorded below
+   * - #1533
+     - open
+     - fresh-install and upgrade verification, the exhaustive tracked-file
+       sweep and the runtime confirmation no checkout can make
+   * - #1507
+     - open, on hold
+     - superseded or narrowed by Q3, which is still unanswered
+
 Dispositions recorded here
 ###########################
 
-* **#1394** (audit housekeeping task): its reported evidence — the family is
-  registered, unreachable by first-party dispatch, cannot answer — stands
-  reproduced on ``019f17a42`` above; #1394's "left to its owners" question is
-  now the open decision row of this page.
+These are the dispositions the retirement answers with. Each names what the
+earlier audit found, and what became of it — the evidence is kept with a
+retired status, never deleted, so a reader can still tell what was measured
+and when.
+
+* **#1394** (audit housekeeping task): its reported evidence — the family was
+  registered, unreachable by first-party dispatch and could not answer —
+  stands reproduced on ``019f17a42`` above. Its "left to its owners" question
+  is still the open Q1 row of this page; what its audit trail describes is
+  gone from the codebase, and :ref:`celery-task-orm-audit` keeps its
+  conformity section as that trail with the retired status on it rather than
+  as an open finding.
 * **#1409 R16 / P-6** (:ref:`outbound-ogc-request-audit`): the ETF client's
-  unpooled, timeout-less transport (R16) and its pending P-6 are **moot under
-  full retirement** — the transport retires with the family instead of being
-  pooled; under ETF-only retention P-6 stays a live finding. This disposition
-  is recorded so the audit page stays honest once #1530 lands.
-* **The #1495 matrix** (:ref:`celery-task-sql-regression`) deliberately pins
-  no query guard for the family; its baseline entries retire with it under
-  full retirement.
+  unpooled, timeout-less transport (R16) and the P-6 proposal it produced are
+  **resolved by retirement, not by pooling** — the client left with the
+  family in #1530, so P-6 is withdrawn from the audit's proposed-issue list
+  and no issue should ever be filed for it. Under the ETF-only variant Q1
+  offers, P-6 would come back as a live finding; that is Q1's to decide, not
+  this page's.
+* **The #1495 matrix** (:ref:`celery-task-sql-regression`) deliberately pinned
+  no query guard for the family — a guard would have measured a dead path.
+  Its matrix row and its "not covered" entry now read *retired with #1458 and
+  #1530* instead of carrying a baseline that nothing regresses any more.
+* **The documentation and agent instruction sweep (#1532)**: the introduction
+  no longer lists an "ETF testing framework interface" as a supported feature,
+  and names in "What MrMap Is Not" what validation the product does run
+  instead; the conformity rows of the three audit pages carry their retired
+  status; the retirement commands which named modules #1458 and #1530 removed
+  are marked as non-runnable history instead of staying as copyable commands;
+  the agent instruction files carry nothing to unlearn — root ``AGENTS.md``
+  names the validator in exactly one place, the guard which keeps it out
+  (``scripts/test_validator_retirement.py``), and ``backend/registry/AGENTS.md``
+  and the ``mrmap-celery`` skill name it and the family nowhere at all.
 
 Open decision (owner, via scripts/decisions)
 #############################################
@@ -411,31 +552,59 @@ The question asked on #1528 with this recommendation:
 * **Q1 — scope**: full legacy retirement (recommended) vs ETF-only with a
   named retained internal scope. Nothing in-repository answers which (if any)
   external party reads the internal rule configuration; that is owner
-  knowledge.
+  knowledge. The code half of the choice has already run: on ``develop`` no
+  internal rule machinery is left to retain, so an ``ETF-only`` answer now
+  reads as "put it back", and this is the row which would say so.
 * **Q2 — rollout contract**: is the contract above (export-before-drop,
   drained broker, per-deployment destructive approval, one migration at the
-  current leaf) the agreed shape for #1530/#1532?
-* **Q3 — #1507**: supersede it on full retirement as described?
+  current leaf) the agreed shape? It is the shape #1530 shipped, and it is the
+  procedure the operator section hands to each deployment; what Q2 settles is
+  whether a deployment may treat it as approved rather than as recommended.
+* **Q3 — #1507**: supersede it on full retirement as described? #1507 is open
+  and on hold until this row is answered.
 
-Until these rows are ``Accepted`` the implementation PRs stay gated; silence
-records nothing.
+An answer arrives as a ``Q1: A``-style reply on #1528 and is recorded with
+``scripts/decisions --issue 1528 record --write`` plus ``register --write``,
+which is what turns a row to ``Accepted``. Silence records nothing, and no
+merge described anywhere on this page counts as an answer.
 
 How to re-derive every claim
 #############################
 
+The historical run of the liveness section is archived there and no longer
+runs. What follows answers on today's ``develop``, with the stack recipe of
+``backend/AGENTS.md`` ("Prebuilt") for the two container commands:
+
 .. code:: text
 
-    # worker-config guards (this stack recipe: backend/AGENTS.md "Prebuilt");
-    # the conformity task guard retired with the tasks themselves (#1458)
+    # 1. the worker-wide time limits and their per-task resolution still hold
+    #    (this is all that guard of #1454 has left to pin)
     docker compose run --rm --no-deps -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \
       django-tests python manage.py test \
         tests.django.test_celery_worker_config --noinput
-    # by-name dispatch / API / frontend sweep (run from backend/)
-    git grep -n "async_run_conformity"        # no hits since #1458 removed
-    # the tasks; since #1530 removed the rest of the family the sweeps
-    # below answer empty everywhere
-    git grep -ln "Conformity" -- registry/serializers registry/views registry/urls.py extras
-    # (empty) ; git grep -iln conformity -- frontend/   # only a PNG false hit
-    # live table names / counts / permission footprint
-    docker compose run --rm --no-deps backend python manage.py shell -c "..." \
-      # introspection table_names() filtered to the family, ContentType/Permission counts
+    # 2. nothing dispatches, imports or names the family (run from the repo root)
+    git grep -n "async_run_conformity" -- backend       # empty
+    #    (the name survives only in docs/ and CHANGELOG.md, as audit trail)
+    git grep -in conformity -- backend | grep -v migrations
+    # -> only the three CONFORMITY_DEFAULT_* definitions of #1531, which
+    #    nothing reads
+    git grep -n "ETF" -- backend | grep -v migrations
+    # -> BASE_URL_FOR_ETF and its stale comment in MrMap/settings.py, the one
+    #    stale reason in tests/django/test_allowed_hosts_settings.py, and
+    #    nothing else which is ours: the rest are GETFEATURE and IETF inside
+    #    the bundled OGC schema documents, not names to rename
+    git grep -n "ETF" -- docs ':(exclude)docs/source/development'
+    # -> only the retirement note of "What MrMap Is Not" in the introduction
+    # 3. the twelve tables and their content types are gone on a migrated db
+    docker compose run --rm --no-deps backend python manage.py shell -c \
+      "from django.db import connection as c; \
+       print(sorted(t for t in c.introspection.table_names() \
+       if 'conformity' in t or t in ('registry_rule', 'registry_ruleset', \
+       'registry_ruleset_rules')))"
+    # -> []
+    # 4. the validator cannot creep back into the tracked infrastructure
+    python3 scripts/test_validator_retirement.py
+
+The live counts of a *deployment* are not derivable from a checkout at all —
+they are the numbered unknowns above, and only that deployment's operator can
+answer them.

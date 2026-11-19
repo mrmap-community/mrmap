@@ -11,7 +11,9 @@ from django.db.models.deletion import ProtectedError
 from django.db.models.query import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from extras.models import HistoricalRecordMixin
 from extras.permissions import invalidate_permission_caches
+from simple_history.models import HistoricalRecords
 
 #: the slug of the builtin definition which administers one organization; the
 #: catalogue of #731 seeds it and the grants of a new organization are written
@@ -45,6 +47,13 @@ PLATFORM_GROUP_PREFIX = "platform"
 #: explains any more (#735). It is named here, next to the writing, because a
 #: second copy of the shape would be the drift the check exists to catch.
 ROLE_GROUP_SEPARATOR = ": "
+
+#: the readable name of a definition of the catalogue. Three models say it - the
+#: definition itself (#731) and both foreign keys which point at one (#736,
+#: #741) - so it is stated once: the catalog of translations carries one entry
+#: for it instead of three copies of the same words, and a wording which three
+#: fields share is a wording which should not be able to drift apart
+ROLE_DEFINITION_VERBOSE_NAME = _("role definition")
 
 
 def role_group_name(organization, slug, marker=""):
@@ -134,7 +143,7 @@ class RoleScope(models.TextChoices):
     ORGANIZATION = "ORGANIZATION", _("Organization")
 
 
-class RoleDefinition(models.Model):
+class RoleDefinition(HistoricalRecordMixin, models.Model):
     """What a role means, as data rather than as Python.
 
     A role definition is the named, listable set of **global** permissions
@@ -158,6 +167,12 @@ class RoleDefinition(models.Model):
     not an organizational role (decision Q6 = A of #727). ``platform_admin``
     is the closest a role may come to it and is deliberately not offered in
     the member picker.
+
+    What a definition *is* is therefore an auditable statement (#741): the
+    history below records every change of its text and of its flags, and
+    because ``permissions`` is tracked as well, every change of the permission
+    set itself. Who holds a role is the history of ``RoleMembership``; what the
+    role means is this row.
     """
 
     slug = models.SlugField(
@@ -221,9 +236,23 @@ class RoleDefinition(models.Model):
             "stay the work of django-guardian"),
     )
 
+    #: The audit trail of the catalogue (#741). ``m2m_fields`` tracks the
+    #: permission set too: "why does an editor hold change_webmapservice?"
+    #: ends at the moment somebody added it to the definition, so the set is
+    #: part of what the audit has to answer and not an afterthought of the
+    #: scalar columns. A tracked many-to-many is kept in its own history table
+    #: - a change of the set is not a column of the row - which is also why
+    #: this history has no ``delta_size``: that count is computed from the
+    #: columns alone and would silently leave a permission change out (see
+    #: ``registry.querys.historical.with_delta_size``).
+    change_log = HistoricalRecords(
+        related_name="change_logs",
+        m2m_fields=["permissions"],
+    )
+
     class Meta:
         ordering = ["slug"]
-        verbose_name = _("role definition")
+        verbose_name = ROLE_DEFINITION_VERBOSE_NAME
         verbose_name_plural = _("role definitions")
         permissions = [
             ('grant_platform_role', 'Can grant a platform scoped role')]
@@ -286,7 +315,7 @@ class Role(models.Model):
         to=RoleDefinition,
         on_delete=models.PROTECT,
         related_name="roles",
-        verbose_name=_("role definition"),
+        verbose_name=ROLE_DEFINITION_VERBOSE_NAME,
         help_text=_(
             "what this role means, from the catalogue of #731"),
     )
@@ -336,6 +365,12 @@ class Role(models.Model):
     )
 
     objects = RoleManager()
+
+    #: The audit trail of one role (#741): who created it, who retired it and
+    #: who deleted it with its group. The row is the link between a group's
+    #: guardian grants and a definition, so an audit which could not name the
+    #: role behind a group could not answer what a grant was for.
+    change_log = HistoricalRecords(related_name="change_logs")
 
     class Meta:
         ordering = ["organization__name", "role_definition__slug"]
@@ -448,19 +483,21 @@ class Role(models.Model):
         return deleted
 
 
-class RoleMembership(models.Model):
+class RoleMembership(HistoricalRecordMixin, models.Model):
     """A person holds a role, with a record of who decided it.
 
     Adding a membership adds the user to the group of the role, removing it
     takes them out again: the group is the enforcement, the membership row is
     the person-readable statement of why they are in it, with the grantor
-    (#741 asks every answer to be explainable down to a decision).
+    (#741 asks every answer to be explainable down to a decision). The audit
+    trail below is the other half of that answer: it names who granted the
+    role, who took it back and - for a revocation the schedule ran - why.
 
-    ``valid_until`` is stored here and enforced by #741: the periodic task
-    which revokes an expired membership is its work, not this issue's, and a
-    deployment which has not run it yet keeps granting what an expired
-    membership granted. That is stated rather than hidden because the field
-    reads as a revocation which has not happened.
+    ``valid_until`` is the date the membership stops being valid. Until it
+    passes, the facade of #734 refuses the role axes but the guardian grants of
+    the role's group still reach the person; ``accounts.tasks.
+    revoke_expired_role_memberships`` is what closes that gap by deleting the
+    row, which takes the user out of the group (#741).
     """
 
     role = models.ForeignKey(
@@ -502,6 +539,12 @@ class RoleMembership(models.Model):
     )
 
     objects = RoleMembershipManager()
+
+    #: The audit trail of a grant (#741). A deleted membership is the answer
+    #: to "she is not an editor any more, since when?" - and the deletion the
+    #: expiry task writes carries the reason in ``history_change_reason``, so
+    #: expiry is told apart from a revocation by a person.
+    change_log = HistoricalRecords(related_name="change_logs")
 
     class Meta:
         ordering = ["role", "user"]
@@ -561,3 +604,115 @@ class RoleMembership(models.Model):
         group.user_set.remove(self.user)
         invalidate_permission_caches(self.user)
         return deleted
+
+
+class LegacyGroupRetirement(models.Model):
+    """The record of one legacy role group which #741 retired.
+
+    The group and the role row are gone by design - that is what AC3 asks -
+    which leaves the *old* side of the mapping with no row to read it back
+    from: a deleted ``Group`` has no history, and the guardian rows it carried
+    are cascaded away with it. So the mapping the issue asks for ("record
+    old->new identity/role/grant mapping") is written here *before* the
+    deletion, together with a backup of every grant row which went with the
+    group.
+
+    It is what lets an auditor answer the two questions of an upgraded
+    instance after the fact: whose rights came from which legacy group, and
+    whether anything was broadened. ``grants`` names for each deleted row the
+    model and object it pointed at, the permission it carried and the
+    disposition it was reconciled to - ``covered_by_role`` (the successor
+    role's definition grants the same thing through #734, so the row was
+    redundant) or ``preserved_per_user`` (nothing in the catalogue grants it,
+    so it was written onto the members who already held it).
+
+    One row per retired group, keyed by the group's primary key: the sweep
+    which records a group has deleted it, so a re-run finds nothing to record
+    again.
+    """
+
+    group_pk = models.BigIntegerField(
+        unique=True,
+        verbose_name=_("group pk"),
+        help_text=_(
+            "the primary key the retired auth.Group row had; the row is gone, "
+            "this names it"),
+    )
+    group_name = models.CharField(
+        max_length=150,
+        verbose_name=_("group name"),
+        help_text=_("the name the retired group carried, for reading"),
+    )
+    role_definition = models.ForeignKey(
+        to=RoleDefinition,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="retirements",
+        verbose_name=ROLE_DEFINITION_VERBOSE_NAME,
+        help_text=_("what the retired role meant, from the catalogue"),
+    )
+    organization = models.ForeignKey(
+        to="accounts.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="retirements",
+        verbose_name=_("organization"),
+        help_text=_("the organization the retired role belonged to"),
+    )
+    successor = models.ForeignKey(
+        to=Role,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="retired_group_records",
+        verbose_name=_("successor role"),
+        help_text=_(
+            "the active role whose members took the retired group's members "
+            "and reconciled grants"),
+    )
+    members = models.JSONField(
+        default=list,
+        verbose_name=_("members"),
+        help_text=_(
+            "the usernames which held the retired group, and where each of "
+            "them went: adopted into the successor role, or already holding it"),
+    )
+    grants = models.JSONField(
+        default=list,
+        verbose_name=_("grants"),
+        help_text=_(
+            "the backup of every guardian grant row deleted with the group: "
+            "its model, object, permission and the disposition it was "
+            "reconciled to"),
+    )
+    grants_covered = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("grants covered"),
+        help_text=_(
+            "how many of those rows the successor role already granted "
+            "through the facade of #734"),
+    )
+    grants_preserved = models.PositiveIntegerField(
+        default=0,
+        editable=False,
+        verbose_name=_("grants preserved"),
+        help_text=_(
+            "how many of those rows were written onto the members who already "
+            "held them, because no role grants them"),
+    )
+    retired_at = models.DateTimeField(
+        default=timezone.now,
+        editable=False,
+        verbose_name=_("retired at"),
+    )
+
+    class Meta:
+        ordering = ["group_pk"]
+        verbose_name = _("legacy group retirement")
+        verbose_name_plural = _("legacy group retirements")
+
+    def __str__(self):
+        return f"retired {self.group_name} -> {self.successor}"

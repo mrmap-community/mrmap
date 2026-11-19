@@ -8,6 +8,7 @@ the managers built from it, the way ``accounts.managers.users`` holds
 from django.contrib.auth.models import Group
 from django.db import models
 from django.db.models.query import QuerySet
+from django.utils import timezone
 
 
 class RoleQuerySet(models.QuerySet):
@@ -31,6 +32,12 @@ class RoleQuerySet(models.QuerySet):
         deployment already had, which #732 reuses as inactive roles
         instead of deleting them: guardian's rows point at the group, so
         the group has to outlive the bootstrap which created it.
+
+        #741 added a second kind of inactive role: a person may retire a role
+        over the api to take it out of the member picker without deleting it.
+        Deleting those is never this list's purpose, so the retirement itself
+        asks ``accounts.retirement.is_legacy_model_group`` of every row it is
+        handed here.
         """
         return self.filter(is_active=False)
 
@@ -130,6 +137,31 @@ class RoleManager(models.Manager.from_queryset(RoleQuerySet)):
 
 class RoleMembershipQuerySet(models.QuerySet):
     """The memberships, deleting one by one so the group follows."""
+
+    def for_revocation_task(self, now=None) -> QuerySet:
+        """The memberships the revoking task of #741 has to take back.
+
+        Named for its consumer (``accounts.tasks.
+        revoke_expired_role_memberships``), which is the convention of
+        #1397: the selection - a ``valid_until`` which has passed - and the
+        relations the revocation reads are stated once, where they can be
+        reviewed. A membership without a ``valid_until`` never expires and is
+        never an answer; ``None`` asks the clock, so a caller may name the
+        moment it judges (the test of the task does).
+
+        ``role`` and ``role__group`` are both named, and named apart: the
+        second is there because deleting a membership takes the user out of the
+        group of its role, the first because the task reads the role itself for
+        the line it logs. The join of ``role__group`` populates ``role`` today,
+        but a plan which only implies what its consumer reads is a plan which
+        turns lazy again the moment somebody edits the path.
+        """
+        if now is None:
+            now = timezone.now()
+        return self.filter(
+            valid_until__isnull=False,
+            valid_until__lte=now,
+        ).select_related("role", "role__group", "user")
 
     def delete(self):
         """Delete the memberships instance by instance.

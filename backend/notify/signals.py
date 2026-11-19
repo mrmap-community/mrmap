@@ -5,8 +5,13 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from notify.models import BackgroundProcess
 from notify.serializers import BackgroundProcessSerializer
-from notify.utils import build_action_payload, send_msg_on_commit
+from notify.utils import (build_action_payload, invalidate_service_alerts,
+                          send_msg_on_commit)
 from registry.models.harvest import HarvestingJob
+# the phase the harvest alert of a catalogue reads off the newest run, and the
+# constant it is named by: the invalidation below and the annotation of the
+# alert read the same phase from the same constant
+from registry.querys.alerts import ABORTED_PHASE
 from registry.serializers.harvesting import HarvestingJobSerializer
 from simple_history.models import HistoricalRecords
 
@@ -96,10 +101,38 @@ def update_harvesting_job_listeners_on_harvesting_job_save(**kwargs):
 
     A job writes itself on every step of its workflow (see HarvestingJob.save,
     registry/tasks/harvest.py and registry/querys/harvest_history.py), which are
-    exactly what the harvesting views of the frontend are waiting for.
+    exactly what the harvesting views of the frontend are waiting for: the push
+    stays one per save, no matter which field the step wrote.
+
+    The service alerts of the catalogue only hear the real status transitions
+    of the run (#1485). What the harvest alert reads off the job are three
+    facts - which run is the newest of the catalogue, whether that run was
+    aborted and whether it is done (`annotate_harvest_alerts` in
+    registry/querys/alerts.py); what a run left its records behind in travels
+    with the record rows and the log lines and never with a save of the job. A
+    save which moves none of the three - the plan and progress saves of the
+    tasks, which write `total_records`, the step size or the bookkeeping of the
+    watchdog - invalidated the stored alerts per save before: one
+    invalidation message and one enqueued refresh of the whole alert table for
+    a save which no alert can answer differently with.
+
+    Which save is a transition, the model itself answers. The ordinary save of
+    an open run is not one: `HarvestingJob.save` puts
+    `skip_history_when_saving=True` on the instance for exactly those (and
+    deletes it again once the save signal has run), so they skip the audit row
+    of the run. Its decisions write the audit row: the creation, the abort, the
+    zero-record completion taken inside `save()` itself, and every workflow
+    save which names `skip_history_when_saving=False`. A run which carries
+    `done_at` or the aborted phase stands decided anyway, and the creation of a
+    run decides which run is the newest of its catalogue - these are
+    transitions by their state alone, whichever save handed them over.
     """
-    from notify.utils import invalidate_service_alerts
-    if kwargs['instance'].service_id is not None:
+    instance = kwargs['instance']
+    if instance.service_id is not None and (
+            kwargs.get('created', False)
+            or instance.done_at is not None
+            or instance.phase == ABORTED_PHASE
+            or not getattr(instance, 'skip_history_when_saving', False)):
         invalidate_service_alerts()
     if hasattr(HistoricalRecords.context, "request"):
         request = HistoricalRecords.context.request

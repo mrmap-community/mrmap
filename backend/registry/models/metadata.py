@@ -1708,9 +1708,10 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                 "dataset metadata record; any other combination has no place "
                 "in MetadataRelation.")
 
-        kwargs = dict(
-            (MetadataRelation.RECORD_FIELDS[name], records[name])
-            for name in records)
+        kwargs = {
+            MetadataRelation.RECORD_FIELDS[name]: records[name]
+            for name in records
+        }
         kwargs["origin"] = origin if origin else MetadataOriginEnum.EDITOR.value
         kwargs["is_internal"] = is_internal
 

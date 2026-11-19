@@ -42,6 +42,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    canonical-version
    commit-classification
    versioned-images
+   release-compatibility-gates
    schedule-optimization-v3
    code-quality
    keyword-triggers

@@ -1,0 +1,22 @@
+{
+  "note": "The reviewed contract baseline of the OpenAPI/JSON:API public surface (#1583, epic #1577). The PR that changes this file IS the review: scripts/release_gates.py reads the answer, never re-asks it. When the first stable release is cut, a later reviewed PR flips mode to 'released', names the version and source tag here and commits that release's generated OpenAPI document as the snapshot to diff against.",
+  "mode": "pre-baseline",
+  "version": null,
+  "source": null,
+  "document": null,
+  "measured": {
+    "tags": 0,
+    "github_releases": 0,
+    "measured_by": "#1578 (docs/source/development/release-versioning-baseline.rst)",
+    "consequence": "there is no previously supported stable release to diff a candidate's public contract against - measured, not assumed"
+  },
+  "policy": {
+    "reviewed_0_x": true,
+    "breaking_below_1_0": "minor",
+    "declared_on": [
+      "Q1/Q2/Q5/Q6 of #1578 - the register is Pending; scripts/decisions records the human answers (this knob is the gate's reading of Q2 option A, active only once a released baseline exists, and superseded by the recorded answer)",
+      "issue #1583 - while no baseline exists, the reviewed evidence a breaking change still owes is the #1580 classification, a '**Breaking:**' line in the changelog, the exceptions ledger and the migration notes"
+    ],
+    "note": "pre-baseline refuses to be an anything-goes window: version and upgrade keep enforcing what every breaking change owes. The first published release replaces this manifest in its own reviewed pull request."
+  }
+}

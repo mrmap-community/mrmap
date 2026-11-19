@@ -64,18 +64,31 @@ class Contact(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = (
-            "person_name",
-            "email",
-            "phone",
-            "facsimile",
-            "city",
-            "postal_code",
-            "address_type",
-            "address",
-            "state_or_province",
-            "country",
-        )
+        constraints = [
+            # all fields of the block together identify one contact, which is
+            # what `unique_together` said before the option was deprecated. The
+            # rule reaches a child through ONE Meta: the child's own when it
+            # declares one, else the first base which has one (the trap
+            # `extras/models.py` spells out for the guardian bases).
+            # `Organization` declares a Meta of its own, so neither its table
+            # nor its validation ever knew this rule - not as `unique_together`
+            # and not as a constraint. Pinned by
+            # `tests/django/accounts/test_identity_constraints.py`.
+            models.UniqueConstraint(
+                fields=(
+                    "person_name",
+                    "email",
+                    "phone",
+                    "facsimile",
+                    "city",
+                    "postal_code",
+                    "address_type",
+                    "address",
+                    "state_or_province",
+                    "country",
+                ),
+                name="%(app_label)s_%(class)s_unique_contact_details"),
+        ]
 
 
 CAN_PUBLISH_FOR_ORGANIZATION = "accounts.can_publish_for_organization"
@@ -292,12 +305,13 @@ class PublishRequest(BaseInternalRequest):
     class Meta:
         # It shall be restricted to create multiple requests objects for the same organization per group. This unique
         # constraint will also raise a form error if a user trays to add duplicates.
-        unique_together = (
-            "from_organization",
-            "to_organization",
-        )
         verbose_name = _("Pending publish request")
         verbose_name_plural = _("Pending publish requests")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("from_organization", "to_organization"),
+                name="unique_publish_request_per_organization_pair"),
+        ]
 
     def __str__(self):
         return (

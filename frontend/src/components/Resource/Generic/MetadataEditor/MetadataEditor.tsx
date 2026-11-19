@@ -537,7 +537,7 @@ const readOnlyPaneOf = (
         <Typography variant="body2" color="text.secondary">
           {translate("metadataEditor.relationsReadonly")}
         </Typography>
-        <RecordRelations />
+        <RecordRelations readOnly />
       </Stack>
     );
   }

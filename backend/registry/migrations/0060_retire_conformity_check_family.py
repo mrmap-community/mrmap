@@ -13,37 +13,58 @@
 # purge. Historical migrations (0001, 0052, 0053) are untouched. Operators
 # export the tables before deploying this (pg_dump -t, contract in the
 # decision record); the export is the rollback object.
+#
+# The generated operation order was fixed by hand. makemigrations deletes
+# the configuration base before its subclass and emits a field removal for
+# every foreign key of a deleted model. That cannot run against PostgreSQL:
+# dropping the base table while the subclass' parent-link foreign key points
+# at it is refused, and on reversal the restored tables already carry the
+# columns the field removals would re-add. The concrete tables only need
+# their own removal - DROP TABLE drops the outgoing foreign keys with the
+# table - so what remains is one RemoveField per M2M through table (they
+# belong to no model of their own) and the DeleteModels in an order both
+# directions accept: subclasses before the configuration base, children
+# first. The reversal then recreates the base first.
 
 from django.db import migrations
+
+#: the lowercase model names of the retired family; its 9 content types and
+#: the 36 permissions that hang on them leave with the schema below
+FAMILY_MODELS = [
+    'conformitycheckconfiguration',
+    'conformitycheckconfigurationexternal',
+    'conformitycheckconfigurationinternal',
+    'datasetmetadataconformitycheckrun',
+    'featuretypeconformitycheckrun',
+    'layerconformitycheckrun',
+    'rule',
+    'ruleset',
+    'wmsconformitycheckrun',
+]
+
+
+def remove_family_content_types(apps, schema_editor):
+    # post_migrate only ever *creates* content types; nothing deletes the
+    # stale ones unless remove_stale_contenttypes runs, which a deployment
+    # is not required to do. The retirement removes its own rows here so
+    # the database a deploy is left with holds no ghost permissions. The
+    # auth_permission rows cascade with the content types; no object
+    # permission table of guardian or accounts ever named the family.
+    ContentType = apps.get_model('contenttypes', 'ContentType')
+    ContentType.objects.filter(
+        app_label='registry', model__in=FAMILY_MODELS).delete()
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
         ('registry', '0059_remove_catalogueservice_registry_ca_update__7b419c_idx_and_more'),
+        ('contenttypes', '0002_remove_content_type_name'),
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='datasetmetadataconformitycheckrun',
-            name='config',
-        ),
-        migrations.RemoveField(
-            model_name='conformitycheckconfigurationinternal',
-            name='conformitycheckconfiguration_ptr',
-        ),
-        migrations.RemoveField(
-            model_name='wmsconformitycheckrun',
-            name='config',
-        ),
-        migrations.RemoveField(
-            model_name='layerconformitycheckrun',
-            name='config',
-        ),
-        migrations.RemoveField(
-            model_name='featuretypeconformitycheckrun',
-            name='config',
-        ),
+        # the three M2M through tables: they carry no model of their own,
+        # so only a field removal drops them
         migrations.RemoveField(
             model_name='conformitycheckconfigurationinternal',
             name='mandatory_rule_sets',
@@ -53,50 +74,44 @@ class Migration(migrations.Migration):
             name='optional_rule_sets',
         ),
         migrations.RemoveField(
-            model_name='datasetmetadataconformitycheckrun',
-            name='dataset_metadata',
-        ),
-        migrations.RemoveField(
-            model_name='featuretypeconformitycheckrun',
-            name='feature_type',
-        ),
-        migrations.RemoveField(
-            model_name='layerconformitycheckrun',
-            name='layer',
-        ),
-        migrations.RemoveField(
             model_name='ruleset',
             name='rules',
         ),
-        migrations.RemoveField(
-            model_name='wmsconformitycheckrun',
-            name='service',
-        ),
+        # the concrete tables; DROP TABLE takes their outgoing foreign keys
+        # with the table, and the configuration base goes last, after both
+        # subclasses - which makes the reversal create it first
         migrations.DeleteModel(
-            name='ConformityCheckConfigurationExternal',
-        ),
-        migrations.DeleteModel(
-            name='ConformityCheckConfiguration',
-        ),
-        migrations.DeleteModel(
-            name='ConformityCheckConfigurationInternal',
-        ),
-        migrations.DeleteModel(
-            name='DatasetMetadataConformityCheckRun',
-        ),
-        migrations.DeleteModel(
-            name='FeatureTypeConformityCheckRun',
+            name='WmsConformityCheckRun',
         ),
         migrations.DeleteModel(
             name='LayerConformityCheckRun',
         ),
         migrations.DeleteModel(
-            name='Rule',
+            name='FeatureTypeConformityCheckRun',
+        ),
+        migrations.DeleteModel(
+            name='DatasetMetadataConformityCheckRun',
+        ),
+        migrations.DeleteModel(
+            name='ConformityCheckConfigurationExternal',
+        ),
+        migrations.DeleteModel(
+            name='ConformityCheckConfigurationInternal',
         ),
         migrations.DeleteModel(
             name='RuleSet',
         ),
         migrations.DeleteModel(
-            name='WmsConformityCheckRun',
+            name='Rule',
+        ),
+        migrations.DeleteModel(
+            name='ConformityCheckConfiguration',
+        ),
+        migrations.RunPython(
+            remove_family_content_types,
+            # a reversal of the tables re-adds the models, whose content
+            # types post_migrate recreates; recreating the permission rows
+            # is post_migrate's own doing again, so nothing to undo here
+            migrations.RunPython.noop,
         ),
     ]

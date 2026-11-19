@@ -100,10 +100,4 @@ MONITORING_THRESHOLDS = {'WARNING_RESPONSE_TIME': WARNING_RESPONSE_TIME,
 MONITORING_DEFAULT_UNKNOWN_MESSAGE = _(
     'The health state is unknown, cause no health checks runs for this resource.')
 
-# Some pre defined conformity messages
-CONFORMITY_DEFAULT_UNKNOWN_MESSAGE = _('The validation state is unknown.')
-CONFORMITY_DEFAULT_SUCCESS_MESSAGE = _('The resource is valid.')
-CONFORMITY_DEFAULT_FAIL_MESSAGE = _('The resource is invalid.')
-
-
 METADATA_URL_BLACKLIST = ["request=GetMetadata"]

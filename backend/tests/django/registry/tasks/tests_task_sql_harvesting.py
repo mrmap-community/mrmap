@@ -32,22 +32,29 @@ Runtime (chunk durations, drain rates) is V2 (#1396) - statements, rows and
 plans only.
 """
 from contextlib import contextmanager
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from celery.exceptions import Retry
+from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.utils import timezone as dj_timezone
 from lxml import etree
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
+from registry.exceptions.service import CapabilitiesBackupMissing
+from registry.models import service as service_module
 from registry.models.harvest import (AnswerOutcome, CheckedResponse,
                                      HarvestingJob, TemporaryMdMetadataFile)
-from registry.models.metadata import MetadataContact
+from registry.models.metadata import DatasetMetadataRecord, MetadataContact
 from registry.models.service import CatalogueService, WebMapService
 from registry.tasks.harvest import (call_chord_md_metadata_file_to_db,
+                                    call_fetch_total_records,
                                     call_md_metadata_files_to_db,
                                     finish_harvesting_job,
                                     watch_import_backlogs)
@@ -417,6 +424,9 @@ class ImportWatchShapeTest(StoredFilesTestCaseMixin, SqlGuardMixin,
             self.assertPlanUsesIndex(
                 counts[-1]['sql'], BACKLOG_TABLE,
                 label='the waiting-count of the import watchdog')
+
+
+class ReferenceClaimLockOrderTest(SqlGuardMixin, TestCase):
     """The lock order of ``claim_for_processing`` is asserted, not hoped (#1263).
 
     The whole registration collection shares one order: the background
@@ -487,9 +497,11 @@ class StorePageShapeTest(SqlGuardMixin, TestCase):
     UPDATE of the job, the duplicate guard of #688 is one COUNT bounded by
     its plan, and the records go in with ``bulk_create`` of batches of 50
     (``batch_size``) - never one INSERT per record, and no other statement
-    per record either. That the duplicate-guard COUNT has no index naming
-    ``requested_url`` yet is the audit's index candidate; until it lands,
-    the guard pins the statement shape and the 1-row answer of the count.
+    per record either. The index candidate the audit named for that count
+    landed with #1392 as the hash index ``tmpmd_page_dedup_idx`` (hash and
+    not btree: the guard is equality-only and this URLField stores 4096
+    characters, see the Meta comment) - so the guard pins the plan through
+    it, not just the statement shape and the 1-row answer of the count.
     """
 
     def setUp(self):
@@ -582,3 +594,237 @@ class StorePageShapeTest(SqlGuardMixin, TestCase):
         self.assertEqual(
             len(statements_of(context, verb='select')), 2,
             'job lock and duplicate count are all the loser pays')
+
+    def test_the_duplicate_guard_reads_the_page_dedup_index(self):
+        """The #1392 index behind the duplicate guard stands and is used.
+
+        Two halves, like the #886 guard of the watchdog: the catalog holds
+        a HASH index over ``requested_url`` - hash on purpose, a btree
+        would refuse the very long filter-URLs this column stores - and
+        the executed count plans through it.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT indexdef FROM pg_indexes WHERE tablename = %s"
+                " AND indexname = 'tmpmd_page_dedup_idx'", [BACKLOG_TABLE])
+            defs = [row[0] for row in cursor.fetchall()]
+        self.assertEqual(
+            len(defs), 1, 'the #1392 dedup index stands on the backlog')
+        self.assertIn('USING hash', defs[0])
+        self.assertIn('(requested_url)', defs[0])
+
+        self._page(10)()
+        _, context = self.capture(self._page(70))
+        counts = [
+            query for query in context.captured_queries
+            if '__count' in query['sql'] and BACKLOG_TABLE in query['sql']]
+        self.assertTrue(counts, 'the page asks its duplicate count')
+        with off_seqscan():
+            self.assertPlanUsesIndex(
+                counts[-1]['sql'], BACKLOG_TABLE,
+                label='the duplicate-guard count of a stored page')
+
+
+class TotalRecordsFanOutShapeTest(SqlGuardMixin, TestCase):
+    """``call_fetch_total_records``: the fan-out pays nothing per round trip.
+
+    The audit's "optimize (small)" row of #1392 had two halves: the locked
+    read carried no related service (paid lazily, per fire, on top of the
+    lock), and the planning loop of ``handle_total_records_defined`` asked
+    ``self._http_request()`` once PER PLANNED PAGE - a dict decided by
+    nothing the loop changes, whose two reads a big catalogue therefore
+    paid thousands of times. The guards fire the task over 1 and 100 round
+    trips: the statement count must not move, and exactly one request-
+    context read remains (the hoisted one - zero would mean the context
+    went missing, which the fan-out must not do either).
+    """
+
+    def setUp(self):
+        self.total = None
+
+    def _seed(self, size):
+        self.total = size
+        self.job = HarvestingJob.objects.bulk_create([HarvestingJob(
+            total_records=None, phase=Phase.DOWNLOAD_RECORDS)])[0]
+
+    def _fire(self):
+        """the task over the job of the current seed, chord mocked
+
+        The job was bulk_created: no history, no service, so ``_http_request``
+        answers the file-import branch - the deployment's configured
+        superuser read is its per-call cost, the same repeated statement
+        the catalogue branch pays as history plus user reads.
+        """
+        def run():
+            with patch.object(
+                    HarvestingJob, 'fetch_total_records',
+                    lambda job: setattr(job, 'total_records', self.total)):
+                with patch('registry.models.harvest.chord'):
+                    with self.captureOnCommitCallbacks(execute=True):
+                        call_fetch_total_records.run(
+                            harvesting_job_id=self.job.pk)
+        return run
+
+    def test_a_hundred_round_trips_cost_the_same_as_one(self):
+        """1 vs 100 planned pages (step size 50): the loop reads nothing.
+
+        Before #1392 the wide fire paid one SELECT of the user table per
+        planned page; the hoist took exactly that slope out.
+        """
+        self.assertQueryCountIndependent(
+            sizes=(50, 5000), seed=self._seed, run=self._fire(),
+            label='the total-records fan-out')
+
+    def test_the_fan_out_keeps_exactly_one_request_context_read(self):
+        """one hoisted ``_http_request`` - not zero, not one per page"""
+        self._seed(5000)
+        _, context = self.capture(self._fire())
+        # the context read is the deployment user named by settings.MRMAP_USER
+        # (``accounts.User``, not the stock auth table - derive the name)
+        user_table = get_user_model()._meta.db_table
+        user_reads = statements_of(context, verb='select', table=user_table)
+        self.assertEqual(
+            len(user_reads), 1,
+            'the fan-out still carries its request context into every '
+            'signature, but reads it once (#1392)')
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.total_records, 5000,
+                         'the fire is the real thing, not an early return')
+
+
+class CapabilitiesDocumentReadShapeTest(SqlGuardMixin, TestCase):
+    """The stored capabilities document is read once per chunk, not per record.
+
+    ``_record_provenance`` asks ``self.job.service.client`` for the origin
+    url of every imported record; the client is a ``cached_property`` of
+    the SERVICE INSTANCE (#1044) and every backlog row loaded its own job,
+    its own service - so a catalogue harvest read and parsed the document
+    once per record. #1392 hands the chunk one shared service instance: the
+    guards count the reads of a real import over a real catalogue and pin
+    the answer at one, while the locked per-record reads of #895 stay
+    per-record and the boundary of #1044 - a document gone from the storage
+    ends the run once, loudly, and flags no backlog row - holds per chunk.
+    """
+
+    RECORD = Path(__file__).parent / '../../test_data/iso_metadata/dataset.xml'
+    CAPABILITIES = (
+        Path(__file__).parent / '../../test_data/capabilities/csw/2.0.2.xml')
+
+    def setUp(self):
+        media = TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        override = override_settings(MEDIA_ROOT=media.name)
+        override.enable()
+        self.addCleanup(override.disable)
+        # the module-level incident state of #1044 must not leak out of a
+        # guard which raises CapabilitiesBackupMissing on purpose
+        self.addCleanup(service_module._capabilities_backup_missing.clear)
+        contact = MetadataContact.objects.create(name='chunk caps contact')
+        self.service = CatalogueService.objects.create(
+            title='Chunk caps catalogue', version=202, origin=1,
+            service_url='https://example.com/csw',
+            metadata_contact=contact, service_contact=contact)
+        self.service.xml_backup_file = SimpleUploadedFile(
+            'capabilities.xml', self.CAPABILITIES.read_bytes())
+        self.service.save()
+        self.job = HarvestingJob.objects.create(
+            total_records=4, phase=Phase.RECORDS_TO_DB, service=self.service)
+
+    def _record(self, number):
+        """the real dataset document with its fileIdentifier made unique
+
+        Four copies of one identifier would not be four imports: the second
+        import of a stored identifier runs the DUPLICATED branch of
+        #1044-era dedup, which keeps its backlog row for analysis instead of
+        retiring it. The guard measures one import per row, so the fixture
+        hands four records the mapper can actually import.
+        """
+        tree = etree.fromstring(self.RECORD.read_bytes())
+        codes = tree.xpath(
+            '//*[local-name()="fileIdentifier"]'
+            '//*[local-name()="CharacterString"]')
+        self.assertTrue(codes, 'the test document carries a fileIdentifier')
+        codes[0].text = f'urn:guard:chunk:{number}'
+        return etree.tostring(tree)
+
+    def _store(self, count, first_number=0):
+        files = []
+        for number in range(first_number, first_number + count):
+            stored = TemporaryMdMetadataFile(job=self.job)
+            stored.md_metadata_file.save(
+                f'dataset_{number}.xml',
+                ContentFile(self._record(number)), save=False)
+            files.append(stored)
+        return list(TemporaryMdMetadataFile.objects.bulk_create(files))
+
+    def _chunk(self, stored):
+        return lambda: call_md_metadata_files_to_db.run(
+            md_metadata_file_ids=[file.pk for file in stored],
+            harvesting_job_id=self.job.pk,
+            background_process_pk=self.job.background_process_id,
+            http_request=HTTP_REQUEST)
+
+    @contextmanager
+    def counting_capabilities(self, counter):
+        """delegate to the real property, count the reads"""
+        real = CatalogueService.capabilities
+
+        def counting(self):
+            counter.append(self.pk)
+            return real.fget(self)
+
+        with patch.object(CatalogueService, 'capabilities',
+                          property(counting)):
+            yield counter
+
+    def test_a_real_chunk_reads_the_document_once_for_all_its_records(self):
+        stored = self._store(4)
+        with self.counting_capabilities([]) as reads:
+            _, context = self.capture(self._chunk(stored))
+
+        self.assertEqual(
+            len(reads), 1,
+            f'one capabilities read per chunk, not per record; the chunk '
+            f'read it {len(reads)} times (#1392)')
+        # the per-record contract of #895 is untouched by the sharing
+        locked_reads = [
+            query for query in statements_of(
+                context, verb='select', table=BACKLOG_TABLE)
+            if 'for update' in query['sql'].lower()]
+        self.assertEqual(len(locked_reads), 4,
+                         'the per-record locked read stays per record')
+        self.assertEqual(
+            len(statements_of(context, verb='delete', table=BACKLOG_TABLE)),
+            4,
+            'four records imported, four backlog rows retired')
+        self.assertTrue(
+            DatasetMetadataRecord.objects.exists(),
+            'the import was the real mapper run, provenance included')
+        self.assertEqual(
+            DatasetMetadataRecord.objects.count(), 4,
+            'all four stored files became records')
+
+    def test_a_document_gone_between_chunks_ends_the_next_chunk_loudly(self):
+        """#1044 at the granularity of #1392: the boundary re-reads.
+
+        Chunk one imports with the cached client. The document disappears
+        from the storage. Chunk two must notice - raise
+        ``CapabilitiesBackupMissing``, flag nothing, and end the run there
+        and not per record.
+        """
+        with self.counting_capabilities([]) as reads:
+            self._chunk(self._store(1))()
+        self.assertEqual(len(reads), 1)
+
+        self.service.xml_backup_file.storage.delete(
+            self.service.xml_backup_file.name)
+        waiting = self._store(2, first_number=1)
+
+        with self.assertRaises(CapabilitiesBackupMissing):
+            self._chunk(waiting)()
+        self.assertFalse(
+            TemporaryMdMetadataFile.objects.filter(
+                pk__in=[file.pk for file in waiting],
+                has_import_error=True).exists(),
+            'the broken service is never laundered into per-record import '
+            'errors (#1044) - the run ends once, with one loud report')

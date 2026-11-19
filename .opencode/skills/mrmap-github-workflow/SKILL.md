@@ -31,6 +31,12 @@ whether an action needs a human.
 - A pull request relates to an accepted issue or it is closed (`CONTRIBUTING.md`). Issues are
   labelled at creation (`gh issue create --labels 'type: …'`); epic children carry the epic slug
   prefix and the native sub-issue link (root `AGENTS.md`).
+- The **PR title** carries the change class and CI checks it: `<type>[(<scope>)][!]: <summary>`
+  with a type from `python3 scripts/pr_classify types`; a component name is a scope
+  (`fix(mcp-setup): …`, not `mcp-setup: …`), and `!` goes on the title whenever anything breaks
+  a consumer — a merge keeps only the title, so `BREAKING CHANGE:` in a commit message or the PR
+  body is lost at the merge. `python3 scripts/pr_classify title "<title>"` answers it locally
+  (`docs/source/development/commit-classification.rst`).
 - Human-only acts: `agent: approved`, PR review, merge, resolving human threads, branch
   protection/CI changes, access grants, committing secrets. Ask via `scripts/wip ask`; do not
   attempt them (root `AGENTS.md`).

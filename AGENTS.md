@@ -441,8 +441,14 @@ identifier itself is not an option — it breaks document matching against upstr
   when needed to resolve conflicts or dependencies.
 - Human approval and merge requirements remain mandatory.
 - These rules also apply to agent skills and orchestration.
-- Commit messages are short lowercase summaries.
-- Keep unrelated formatting or refactoring out of a change.
+- Commit messages are short lowercase summaries. The *pull request title* is
+  what carries the change class, and CI checks it: write
+  `<type>[(<scope>)][!]: <summary>` there, with a type from
+  `python3 scripts/pr_classify types`. A merge keeps only the title, so a class
+  or a `!` written into a commit message never reaches `develop`
+  (`docs/source/development/commit-classification.rst`).
+- Keep unrelated formatting or refactoring out of a change; a pull request
+  whose commits name a different class than its title is usually two changes.
 
 ### Filing issues
 

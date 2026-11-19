@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0062_retire_conformity_check_family'),
+        ('registry', '0063_temporarymdmetadatafile_tmpmd_page_dedup_idx'),
     ]
 
     operations = [

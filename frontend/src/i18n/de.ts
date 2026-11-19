@@ -1519,6 +1519,11 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     bbox_lat_lon__covers: "Begrenzungsrahmen überdeckt",
     bbox_lat_lon__equals: "Begrenzungsrahmen entspricht",
   },
+  footer: {
+    "appVersion": "MrMap-Anwendungsversion %{version}",
+    "versionMismatch": "Das Frontend hat %{frontend}, das Backend antwortet mit %{backend} – diese Bereitstellung mischt zwei Builds",
+    "devRevision": "Entwicklungsrevision"
+  },
   systemInfo: {
     "title": "Systeminformationen",
     "unavailable": "Systeminformationen sind nicht verfügbar.",

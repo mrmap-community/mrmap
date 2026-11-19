@@ -1383,6 +1383,11 @@ const en = lodashMerge(
       bbox_lat_lon__covers: "Bounding box covers",
       bbox_lat_lon__equals: "Bounding box equals",
     },
+    footer: {
+      "appVersion": "MrMap application version %{version}",
+      "versionMismatch": "The frontend is %{frontend} but the backend answers %{backend} - this deployment mixes two builds",
+      "devRevision": "development revision"
+    },
     systemInfo: {
       "title": "System information",
       "unavailable": "System information is unavailable.",

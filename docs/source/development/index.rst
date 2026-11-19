@@ -35,8 +35,11 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    background-jobs
    prebuilt-images
    agent-capacity
+   runtime-memory-baselines
    decision-requests
    release-versioning-baseline
+   canonical-version
+   commit-classification
    schedule-optimization-v3
    code-quality
    keyword-triggers

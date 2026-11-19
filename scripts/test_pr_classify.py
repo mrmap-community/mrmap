@@ -706,17 +706,35 @@ def test_the_traversal_against_real_merge_commits(repo):
 
 
 def test_the_checker_runs_over_its_own_repository():
-    """`history` over this repository's own recent history has to answer, not crash."""
-    out = io.StringIO()
+    """`history` over this repository's own history has to answer, not crash.
+
+    How much history a checkout carries is not a constant: CI checks a pull request out at
+    depth 1, so `HEAD~40` does not exist there and never did. The check therefore asks the
+    repository how deep it is first. With depth it reads 40 commits for real; without it,
+    the run must fail the way a good tool fails - naming the shallow clone and the way in -
+    because that message is the only thing a developer on a CI runner gets, and "unknown
+    commit" alone sends them hunting for a typo in a range that is correct.
+    """
+    here = SCRIPTS.parent
+    depth = subprocess.run(["git", "-C", str(here), "rev-list", "--count", "HEAD"],
+                           capture_output=True, text=True)
+    commits = int(depth.stdout.strip() or 0) if depth.returncode == 0 else 0
+    out, err_out = io.StringIO(), io.StringIO()
     keep, sys.stdout = sys.stdout, out
     try:
-        code = pc.main(["history", "--range", "HEAD~40..HEAD", "--mode", "advisory",
-                        "--top", "5"])
+        with contextlib.redirect_stderr(err_out):
+            code = pc.main(["history", "--range", "HEAD~40..HEAD", "--mode", "advisory",
+                            "--top", "5"])
     finally:
         sys.stdout = keep
-    text = out.getvalue()
-    check("history answers over the real repository in advisory mode",
-          code == 0 and "records ->" in text, text[:120] + " exit " + str(code))
+    text, err = out.getvalue(), err_out.getvalue()
+    if commits > 40:
+        check("history answers over the real repository in advisory mode",
+              code == 0 and "records ->" in text, text[:120] + " exit " + str(code))
+    else:
+        check("on a shallow checkout (%d commit(s)) it says so instead of quoting git" % commits,
+              code == 2 and "shallow" in err and "--commits-json" in err,
+              "exit %s: %s" % (code, err.strip()[:160]))
 
 
 def test_unclassifiable_carriers_are_the_error_that_reaches_a_developer():

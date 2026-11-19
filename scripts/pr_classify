@@ -488,6 +488,17 @@ def records_from_json(payload, source="input"):
     return out
 
 
+def is_shallow(repo=None):
+    """Is this checkout shallow? A CI checkout usually is, and that is a fact a
+    `--range` failure needs said out loud: on a depth-1 checkout `HEAD~40` does not
+    exist, and git's own complaint ("unknown commit, or the path does not exist")
+    sends a reader hunting for a typo in a range that is correct."""
+    proc = subprocess.run(["git"] + (["-C", repo] if repo else [])
+                          + ["rev-parse", "--is-shallow-repository"],
+                          capture_output=True, text=True)
+    return proc.returncode == 0 and proc.stdout.strip() == "true"
+
+
 def git_log_records(rev_range, path=None, repo=None):
     """Read a range with a read-only `git log`: no write, no fetch, no network."""
     if not rev_range or not rev_range.strip():
@@ -499,8 +510,15 @@ def git_log_records(rev_range, path=None, repo=None):
         cmd += ["--", path]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
-        raise RuntimeError("git log failed for %r: %s"
-                           % (rev_range, proc.stderr.strip() or proc.stdout.strip()))
+        detail = (proc.stderr.strip() or proc.stdout.strip()).splitlines()
+        reason = detail[0] if detail else "git log failed"
+        if is_shallow(repo) and "~" in rev_range:
+            raise RuntimeError(
+                "%s - this checkout is a shallow clone, so the ancestor the range names "
+                "is not here. Fetch deeper ('git fetch --unshallow' or --depth N), or "
+                "give the commits another way in: --commits-json FILE|- accepts the "
+                "'gh api repos/<repo>/pulls/<n>/commits' shape directly." % reason)
+        raise RuntimeError("git log failed for %r: %s" % (rev_range, reason))
     return records_from_stream(proc.stdout)
 
 

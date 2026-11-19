@@ -319,6 +319,13 @@ why the whole thing is testable: the workflow's exact input — GitHub's
 ``pulls/<n>/commits`` JSON — can be piped into the same command from a file, and
 ``scripts/test_pr_classify.py`` does exactly that.
 
+The check reads its commits from the API rather than from the checkout, and that
+is not an accident of convenience: a ``pull_request`` checkout is shallow, so a
+``HEAD~40`` style range does not exist on the runner at all. Measured on a
+depth-1 clone. The tool now says so when a range fails there — naming the
+shallow clone and pointing at ``--commits-json`` — instead of quoting git's
+"unknown commit", and the suite pins that message on a shallow checkout.
+
 Verification
 ============
 

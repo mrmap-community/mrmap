@@ -1,0 +1,1527 @@
+#!/usr/bin/env python3
+"""pr_classify: does this change carry a classification the release tool can read?
+
+Host-side check carried by this repository; run it as `python3 scripts/pr_classify ...`
+from the repository root. Standard library only and entirely offline: no `gh`, no
+network, no container, and the only external command it ever runs is a read-only
+`git log`. Exit 0 when the input classifies, 1 when it does not while the check is
+strict, 2 when the harness itself could not run.
+
+WHY THE PULL REQUEST TITLE, AND NOT THE COMMIT MESSAGES
+------------------------------------------------------
+This repository merge-merges: 833 merge commits are titled `Merge pull request #...`
+and no squash-shaped `subject (#NNNN)` subject exists at all (#1578 counted both).
+Measured here on 40 merge commits, including merges of pull requests with several
+commits, is what that means for a release tool:
+
+    $ git log -1 --format='SUBJECT=[%s]%nBODY=[%b]' <merge commit of PR #1649>
+    SUBJECT=[Merge pull request #1649 from mrmap-community/ao/mrmap-1849/issue-1434-...]
+    BODY=[mcp-setup: reads the slot's env by key instead of sourcing it (#1434)]
+
+The merge commit's body is exactly one line, and that line is the pull request title.
+It is not the description and it is not the list of the merged commits. A merge subject
+never parses as a Conventional Commits header, so the body is what a parser falls back
+to - release-please splits it and reads every header inside it as a commit of its own,
+which is how #1578 measured it. Together that makes the **pull request title the only
+classification carrier that reaches the integration history**. Two consequences, and
+both are enforced here:
+
+* a `<type>:` header has to be on the title, because nothing else arrives;
+* a breaking change has to be marked on the title with `!`. A `BREAKING CHANGE:` footer
+  written in a commit message, or in the pull request description, is invisible to the
+  integration history under merge-merging. An unmarked title therefore does not merely
+  look untidy: it silently drops the one fact that decides the major version. That is
+  what the acceptance of #1580 calls "losing breaking changes", and `pr` reports it.
+
+Neither rule needs the repository's merge setting changed, which is a human act and is
+deliberately not assumed: both hold under today's merge-merging, and both hold under a
+squash, where the squash subject is the title with ` (#NNNN)` appended. `pr` reports
+both readings.
+
+WHAT IS ENFORCED, AND WHAT IS NOT
+---------------------------------
+Enforced: that a title parses as `<type>[(<scope>)][!]: <summary>` with a type of the
+approved vocabulary; that a breaking marker sits on the carrier that survives the merge;
+that a `revert:` names what it reverts; and that a change entering the integration
+history is attributable to exactly one entry.
+
+Not enforced, on purpose: whether the change is good, and whether a class consumes a
+version number. "Docs and chores consume no number" is decision Q4 of #1578 and that
+register is still Pending, and the arithmetic is #1581's. This tool reports the class
+and the matrix's *proposed* `consumes_version` of it, and never gates on it, so a run
+today cannot be misread as that decision having been taken.
+
+Nothing here approves anything, bypasses a branch rule, writes a label or touches
+protection: it reads and it reports. Making its check a required status check is a
+person's act on branch protection.
+
+ROLLOUT, BECAUSE 99.3 % OF THE HISTORY DOES NOT PARSE
+-----------------------------------------------------
+`--advisory` reports violations as warnings and exits 0; `--strict` fails them; the
+default `--auto` picks by date - advisory before `STRICT_FROM`, strict from it. That is
+the explicit rollout for the branches that exist today: they keep their titles, nothing
+in history is rewritten (the 7532 non-conventional commits of #1578 stay what they are),
+and a pull request opened from the strict date has to carry a header. The date is
+`STRICT_FROM` below, overridable with `MRMAP_PR_CLASSIFICATION_STRICT_FROM` for a
+deployment that wants to move earlier or later, and `--today` fixes the clock so the
+offline suite can test both halves.
+
+Commands
+--------
+  types                       the vocabulary, the changelog section, the non-classes
+  title  <title>              check one pull request title
+  pr     --title T [--body-file F] [--commits-json F|-]
+                              check a pull request: its title, its description and the
+                              commits that would enter the history through it
+  history --range A..B | --commits-json F|- [--json] [--seen FILE] [--top N] [--all]
+                              classify a range the way the release tool reads it: one
+                              entry per change, duplicates folded away, breaking unioned
+  check                       the checker's own self-test
+
+The JSON input and the git record stream are the same shape, so CI can pipe
+`gh api repos/<repo>/pulls/<n>/commits` straight in and the suite beside this file can
+fix the shapes in a file with no network: python3 scripts/test_pr_classify.py
+"""
+
+import argparse
+import ast
+import json
+import os
+import re
+import subprocess
+import sys
+from datetime import date
+from pathlib import Path
+
+# The day the check stops advising and starts failing. The reason it is a date and not an
+# opinion is measured in docs/source/development/commit-classification.rst: 53 of 7641
+# commits name an approved class, and the pull requests open while this is being written
+# (#1650 on 2026-11-19, with #1642 already conforming) are in the old style. Three weeks
+# gives an author time to retitle a finished branch without being blocked by a check that
+# arrived under their feet. Moving the date is a deployment's call through the variable
+# below, or a policy change in a pull request that says so in its own title.
+STRICT_FROM = "2026-12-07"
+STRICT_FROM_ENV = "MRMAP_PR_CLASSIFICATION_STRICT_FROM"
+
+# The change classes of #1578's classification matrix, with what the matrix proposes
+# about them. `consumes_version` is reported and never enforced: it is Q4, still Pending.
+TYPES = {
+    "feat": {"consumes_version": True, "changelog": "Added"},
+    "fix": {"consumes_version": True, "changelog": "Fixed"},
+    "perf": {"consumes_version": True, "changelog": "Changed"},
+    "refactor": {"consumes_version": True, "changelog": "Changed, or omitted"},
+    "revert": {"consumes_version": True, "changelog": "as the class it reverts"},
+    "build": {"consumes_version": False, "changelog": "not in the release notes"},
+    "chore": {"consumes_version": False, "changelog": "not in the release notes"},
+    "ci": {"consumes_version": False, "changelog": "not in the release notes"},
+    "docs": {"consumes_version": False, "changelog": "not in the release notes"},
+    "style": {"consumes_version": False, "changelog": "not in the release notes"},
+    "test": {"consumes_version": False, "changelog": "not in the release notes"},
+}
+
+# A dependency update is the one class whose release relevance comes from the scope: the
+# matrix puts `build(deps):` and `chore(deps):` under Dependencies, which consumes a
+# PATCH, or a MINOR when it drops a supported version - and reading that is a person.
+DEPS_SCOPES = {"deps", "dev-deps", "deps-dev", "dependencies", "requirements"}
+
+# Words people reach for that are not types. Naming them is what lets the message say
+# what to write instead, which is the difference between a red check and an actionable
+# one; the matrix's "anything else" row is decided here.
+HINTS = {
+    "security": "a security fix is fix(security): - security is a scope of fix, not a type",
+    "sec": "a security fix is fix(security): - security is a scope of fix, not a type",
+    "hotfix": "a hot fix is fix: - the patch number follows from the class, not the name",
+    "patch": "use fix: - 'patch' is a position in the version, not a change class",
+    "deps": "a dependency update is build(deps): or chore(deps):",
+    "dependency": "a dependency update is build(deps): or chore(deps):",
+    "wip": "wip is not a class: squash the fixup into the change before the pull request",
+    "temp": "temp is not a class: squash the fixup into the change before the pull request",
+    "tmp": "tmp is not a class: squash the fixup into the change before the pull request",
+    "fixup": "fixup is not a class: squash the fixup into the change before the pull request",
+    "squash": "squash is not a class: squash the fixup into the change before the pull request",
+    "debug": "debug is not a class: fold it into the change, or chore: if it is tooling",
+    "feature": "use feat: - the class is the four letters the parser knows",
+    "bug": "use fix:", "bugfix": "use fix:", "fixes": "use fix:", "chores": "use chore:",
+    "documentation": "use docs:", "tests": "use test:", "ci-cd": "use ci:",
+    "release": "use chore: or build: - a release commit is prepared by the release tool "
+               "of #1584, not typed by hand",
+}
+
+# The grammar in pieces, so a diagnosis can name the piece that is missing rather than
+# saying "invalid format" the way a generic linter does.
+TYPE_RE = r"[A-Za-z][A-Za-z0-9_-]*"
+HEADER_RE = re.compile(r"^(?P<type>%s)(?:\((?P<scope>[^()]*)\))?(?P<bang>!)?:(?P<rest>.*)$"
+                       % TYPE_RE)
+SCOPE_RE = re.compile(r"^[a-z0-9][a-z0-9._/+-]*(?: [a-z0-9][a-z0-9._/+-]*)*$")
+FOOTER_TEXT_RE = re.compile(r"(?im)^BREAKING[ -]CHANGE[ ]?:\s*(.+)$")
+PR_REF_RE = re.compile(r"\(#(\d+)\)")
+SQUASH_SUBJECT_RE = re.compile(r"^(?P<subject>.*\S)\s*\(#(?P<pr>\d+)\)\s*$")
+MERGE_PR_RE = re.compile(r"^Merge pull request #(\d+) from ", re.I)
+# Merging the base into a branch, in the shapes this repository actually writes: the
+# #1578 audit names "Merge remote-tracking branch 'origin/develop' into <branch>" and a
+# stated "merge develop into the issue-1481 branch to resolve the changelog conflict".
+SYNC_MERGE_RE = re.compile(r"^Merge (remote-tracking )?branch \S*(develop|master|main)\b"
+                           r"|^merg(?:e|ing) (?:the )?(?:base|develop|master|main)\b", re.I)
+GH_REVERT_BODY_RE = re.compile(r"(?im)^\s*reverts\s*#(\d+)")
+REVERTS_COMMIT_RE = re.compile(r"(?im)^\s*this reverts commit ([0-9a-f]{7,40})")
+# A subject that says the commit only assembles its own pull request. Such a commit is
+# not a change beside the change the title already declares, so it is not read as one.
+ASSEMBLY_RE = re.compile(r"(?i)^\s*(fixup!|squash!|(adds?|updates?|removes?) the changelog"
+                        r"|changelog|address(es|ed)? (the )?review|applies? (the )?feedback"
+                        r"|resolv(?:e|es|ed) (the )?conflicts?|merges? (the )?base"
+                        r"|co-authored-by:)")
+
+RECORD_SEP = "\x1e"
+FIELD_SEP = "\x1f"
+
+
+class Finding(object):
+    """One diagnosis: what is wrong, why, and what to write instead."""
+
+    def __init__(self, code, severity, message, fix=None, where="", pr=None):
+        self.code = code
+        self.severity = severity        # "error" or "warning"
+        self.message = message
+        self.fix = fix
+        self.where = where
+        self.pr = pr
+
+    def as_dict(self):
+        out = {"code": self.code, "severity": self.severity, "message": self.message}
+        if self.fix:
+            out["fix"] = self.fix
+        if self.where:
+            out["where"] = self.where
+        if self.pr is not None:
+            out["pr"] = self.pr
+        return out
+
+    def render(self, index=None):
+        label = "ERROR" if self.severity == "error" else "warning"
+        head = "%s: %s" % (label, self.message) if index is None \
+            else "%d. %s: %s" % (index, label, self.message)
+        lines = [head]
+        if self.where:
+            lines.append("      where: %s" % self.where)
+        if self.fix:
+            lines.append("      fix:   %s" % self.fix)
+        return "\n".join(lines)
+
+
+def strict_from():
+    return os.environ.get(STRICT_FROM_ENV, STRICT_FROM)
+
+
+def mode_for(today, mode="auto"):
+    """Which half of the rollout a run is in: 'advisory' or 'strict'."""
+    if mode in ("advisory", "strict"):
+        return mode
+    return "strict" if str(today) >= strict_from() else "advisory"
+
+
+def is_assembly_noise(summary):
+    """True when a commit subject only says it assembles its own pull request."""
+    return bool(ASSEMBLY_RE.search(summary or ""))
+
+
+# --------------------------------------------------------------------------- the vocabulary
+
+
+def suggest_class(text):
+    """The nearest class for a component-shaped prefix: a hint, never a decision."""
+    low = (text or "").lower()
+    for word, cls in (("perf", "perf"), ("refactor", "refactor"), ("doc", "docs"),
+                      ("test", "test"), ("ci", "ci"), ("dep", "build"),
+                      ("bug", "fix"), ("fix", "fix")):
+        if word in low:
+            return cls
+    return "feat"
+
+
+def classify_type(type_, scope, breaking, context=""):
+    """The vocabulary rules over one parsed header.
+
+    Returns (findings, consumes_version, extra_code). An unknown type is an error and
+    leaves the change unclassifiable (`consumes_version` None); a known type is not.
+    """
+    findings = []
+    consumes = None
+    extra = ""
+    if type_ not in TYPES:
+        hint = HINTS.get(type_.lower())
+        if hint:
+            findings.append(Finding("unknown-type", "error",
+                                    "'%s' is not a change class." % type_, hint))
+        elif type_ != type_.lower():
+            findings.append(Finding("unknown-type", "error",
+                                    "'%s' is not a change class: a type is written in "
+                                    "lowercase." % type_,
+                                    "write '%s:' - the parsers match the type case "
+                                    "sensitively, so '%s:' reads as no class at all and "
+                                    "the change silently consumes nothing"
+                                    % (type_.lower(), type_)))
+        elif scope is None and ("-" in type_ or "_" in type_):
+            findings.append(Finding("unknown-type", "error",
+                                    "'%s' is not a change class; it reads as a component "
+                                    "name in the type position." % type_,
+                                    "name the class and move the component into a scope: "
+                                    "'%s(%s): <summary>'" % (suggest_class(context), type_)))
+        else:
+            findings.append(Finding("unknown-type", "error",
+                                    "'%s' is not a change class." % type_,
+                                    "the classes are: %s" % ", ".join(sorted(TYPES))))
+        return findings, None, "unclassifiable"
+
+    consumes = TYPES[type_]["consumes_version"]
+    if scope and type_ in ("build", "chore") and scope.lower() in DEPS_SCOPES:
+        consumes = True
+        extra = "dependency-change"
+    if scope and scope != scope.lower():
+        findings.append(Finding("scope-case", "warning",
+                                "the scope '%s' is not lowercase." % scope,
+                                "a scope is written lowercase: '(%s)'" % scope.lower()))
+    if type_ == "fix" and scope and scope.lower() == "security":
+        findings.append(Finding("security-named", "info",
+                                "a security fix names itself: fix(security):.",
+                                "nothing to fix - the matrix puts this under Fixed with "
+                                "security named in the line"))
+        findings = [f for f in findings if f.code != "security-named"]
+    if breaking and not consumes and extra != "dependency-change":
+        findings.append(Finding("breaking-non-release-class", "warning",
+                                "'%s%s' is marked breaking, but '%s' is a class the matrix "
+                                "puts outside the release notes."
+                                % (type_, "!" if breaking else "", type_),
+                                "a change that breaks a contract is feat: or fix: with the "
+                                "'!' marker, so the breaking fact also carries the number"))
+    return findings, consumes, extra
+
+
+def parse_header(line):
+    """Parse one Conventional Commits header, or None when the line is not one."""
+    text = (line or "").strip()
+    if not text:
+        return None
+    match = HEADER_RE.match(text)
+    if not match:
+        return None
+    rest = match.group("rest")
+    if rest and not rest.startswith((" ", "\t")):
+        # `fix:nospace` is not a header: the spec wants a space, and a parser that
+        # follows it reads the type as `fix:nospace`. Say so rather than guessing.
+        return None
+    description = rest.strip()
+    if not description:
+        return None
+    return {"type": match.group("type"), "scope": match.group("scope"),
+            "breaking": bool(match.group("bang")), "description": description}
+
+
+def header_findings(line, where=""):
+    """Parse a header and run every header rule over it.
+
+    Returns (findings, header_or_None, consumes_version, extra_code). A header that does
+    not parse is an error with a diagnosis of *which piece* is missing; a header of an
+    unknown type parses but is unclassifiable.
+    """
+    text = (line or "").strip()
+    if not text:
+        return ([Finding("empty", "error", "there is nothing to classify.",
+                         "write '<type>[(<scope>)][!]: <summary>'", where)], None, None, "")
+    if ":" not in text:
+        return ([Finding("no-header", "error",
+                         "no '<type>: <summary>' header: there is no colon at all.",
+                         "prefix the class, for example 'fix: %s' - the title is the only "
+                         "thing that reaches the integration history, scripts/pr_classify "
+                         "explains why" % text, where)], None, None, "")
+
+    match = HEADER_RE.match(text)
+    if match is None:
+        return ([Finding("malformed-header", "error",
+                         "what stands before the colon is not a header: '%s'."
+                         % text.split(":", 1)[0],
+                         "write '<type>[(<scope>)][!]: <summary>' - the scope in "
+                         "parentheses, the '!' before the colon, one space after the "
+                         "colon, and a summary: '%s' has none" % text, where)],
+                None, None, "")
+
+    rest = match.group("rest")
+    header = {"type": match.group("type"), "scope": match.group("scope"),
+              "breaking": bool(match.group("bang")), "description": rest.strip()}
+    findings = []
+    if rest and not rest.startswith((" ", "\t")):
+        findings.append(Finding("missing-space", "error",
+                                "no space after the colon: '%s'." % text.split(":", 1)[0] + ":",
+                                "write ': ' and then the summary - a header without the "
+                                "space is not a header, and a parser reads the whole "
+                                "string as the type", where))
+        return (findings, None, None, "")
+
+    type_findings, consumes, extra = classify_type(header["type"], header["scope"],
+                                                   header["breaking"], text)
+    findings.extend(type_findings)
+
+    if header["scope"] is not None and not SCOPE_RE.match(header["scope"]):
+        findings.append(Finding("scope", "warning",
+                                "the scope '%s' is not in the shape scopes are written in."
+                                % header["scope"],
+                                "a scope is lowercase words separated by '-': "
+                                "'(proxy-security)', '(mcp-setup)'", where))
+    if not header["description"]:
+        # No summary means there is no header to classify, even though the words before
+        # the colon looked like one: it consumes nothing, because there is nothing there.
+        findings.append(Finding("empty-summary", "error",
+                                "the header carries no summary after the colon.",
+                                "write '<type>[(<scope>)][!]: <what changed>'", where))
+        return findings, None, None, ""
+    if not re.match(r"^[A-Za-z0-9]", header["description"]):
+        findings.append(Finding("summary-start", "warning",
+                                "the summary starts with %r instead of a word."
+                                % header["description"][:1],
+                                "start the summary with a word", where))
+    if header["description"].endswith("."):
+        findings.append(Finding("summary-period", "warning",
+                                "the summary ends in a full stop.",
+                                "a summary is a heading, not a sentence: drop the '.'",
+                                where))
+    return findings, header, consumes, extra
+
+
+def strip_pr_ref(text):
+    """Take the ' (#NNNN)' GitHub appends to a squash subject off the summary."""
+    match = SQUASH_SUBJECT_RE.match((text or "").strip())
+    if match:
+        return match.group("subject").strip(), int(match.group("pr"))
+    return (text or "").strip(), None
+
+
+def revert_target(subject, body=""):
+    """Which pull request a revert names, or None when it names nothing reachable."""
+    match = GH_REVERT_BODY_RE.search(body or "")
+    if match:
+        return int(match.group(1))
+    _, pr = strip_pr_ref(subject or "")
+    if pr:
+        return pr
+    match = PR_REF_RE.search(subject or "")
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def breaking_footer(body):
+    """The `BREAKING CHANGE:` footer text, which only counts where the tool can read it."""
+    match = FOOTER_TEXT_RE.search(body or "")
+    return match.group(1).strip() if match else None
+
+
+# ------------------------------------------------------------------------- commit records
+
+
+def records_from_stream(text):
+    """Read the stream `git log --format='%H%x1f%P%x1f%s%x1f%b'` writes."""
+    out = []
+    for raw in (text or "").split(RECORD_SEP):
+        if not raw.strip():
+            continue
+        parts = raw.strip("\n").split(FIELD_SEP)
+        if len(parts) >= 4:
+            out.append({"sha": parts[0].strip(), "parents": parts[1].split(),
+                        "subject": parts[2].strip(),
+                        "body": FIELD_SEP.join(parts[3:]).strip()})
+        elif len(parts) == 1:
+            lines = raw.strip("\n").split("\n")
+            out.append({"sha": "", "parents": [], "subject": lines[0].strip(),
+                        "body": "\n".join(lines[1:]).strip()})
+        else:
+            raise ValueError("a commit record needs sha, parents, subject and body "
+                             "separated by %r, got %d field(s)" % (FIELD_SEP, len(parts)))
+    return out
+
+
+def records_from_json(payload, source="input"):
+    """Accept every shape this tool is fed: the git stream, a plain list, GitHub's API.
+
+    `gh api repos/<repo>/pulls/<n>/commits` answers objects with `sha` and
+    `commit.message`; `--range` produces the `%x1f` stream out of `git log`; a suite
+    fixture is a list of `subject`/`body`. All three become the same records here, so the
+    classification cannot depend on which one brought the data - which is what lets the
+    offline suite fix CI's exact input in a file.
+    """
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
+            return records_from_stream(payload)
+    if isinstance(payload, dict):
+        payload = payload.get("commits") or payload.get("items") or [payload]
+    out = []
+    for item in payload or []:
+        if isinstance(item, str):
+            out.extend(records_from_stream(item))
+            continue
+        if not isinstance(item, dict):
+            raise ValueError("%s: a commit is an object, not %s"
+                             % (source, type(item).__name__))
+        commit = item.get("commit") if isinstance(item.get("commit"), dict) else {}
+        sha = item.get("sha") or commit.get("sha") or ""
+        message = item.get("message") or commit.get("message") or ""
+        parents = item.get("parents") or commit.get("parents") or []
+        parent_shas = []
+        for parent in parents:
+            if isinstance(parent, dict):
+                parent = parent.get("sha")
+            if parent:
+                parent_shas.append(parent)
+        if message:
+            lines = message.replace("\r\n", "\n").split("\n")
+            subject, body = lines[0].strip(), "\n".join(lines[1:]).strip()
+        else:
+            subject = (item.get("subject") or "").strip()
+            body = (item.get("body") or "").strip()
+            if "\n" in subject:
+                # A fixture that carries the whole message in `subject` still has one
+                # subject line; the rest of it is the body, where the footer lives.
+                lines = subject.replace("\r\n", "\n").split("\n")
+                subject = lines[0].strip()
+                body = "\n".join(lines[1:]).strip() or body
+        out.append({"sha": sha, "parents": parent_shas, "subject": subject, "body": body})
+    return out
+
+
+def git_log_records(rev_range, path=None, repo=None):
+    """Read a range with a read-only `git log`: no write, no fetch, no network."""
+    if not rev_range or not rev_range.strip():
+        raise ValueError("--range wants a revision range like A..B")
+    fmt = FIELD_SEP.join(["%H", "%P", "%s", "%b"]) + RECORD_SEP
+    cmd = ["git"] + (["-C", repo] if repo else []) + ["log", "--no-color", "--topo-order",
+                                                      "--format=%s" % fmt, rev_range]
+    if path:
+        cmd += ["--", path]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError("git log failed for %r: %s"
+                           % (rev_range, proc.stderr.strip() or proc.stdout.strip()))
+    return records_from_stream(proc.stdout)
+
+
+def load_commits(json_path=None, range_=None, path=None, repo=None):
+    if json_path:
+        if json_path == "-":
+            payload = sys.stdin.read()
+        else:
+            try:
+                with open(json_path) as handle:
+                    payload = handle.read()
+            except OSError as err:
+                raise RuntimeError("cannot read --commits-json %s: %s" % (json_path, err))
+        return records_from_json(payload, json_path)
+    if range_:
+        return git_log_records(range_, path, repo)
+    return []
+
+
+# ---------------------------------------------------------------------- one history entry
+
+
+def first_body_line(body):
+    for line in (body or "").split("\n"):
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+def entry_from_record(record, kind, pr=None, source_pr=None):
+    """Classify one commit in the role it plays in the integration history.
+
+    `kind` is 'carrier' (a pull request's own merge or squash commit, and therefore the
+    entry a note is built from), 'self' (a commit that reaches a permanent branch on its
+    own), 'folded' (a commit absorbed into a carrier's entry, whose own words are read
+    for the breaking fact and nothing else) or 'sync' (a merge of the base into a branch,
+    which carries nothing at all).
+
+    Which kind a commit is decides how hard it is judged, and that is deliberate: the
+    pull request title is the carrier this repository enforces, so an absent class is an
+    error on a carrier, a warning on a commit that reaches the branch outside a pull
+    request, and no finding at all on a commit folded into somebody else's entry. The
+    one thing a folded commit may still raise is the breaking fact it carries, and
+    `carry_up` is where that happens.
+    """
+    subject, body = record["subject"], record["body"]
+    where = "commit %s" % (record["sha"][:10] or subject[:40])
+    entry = {
+        "sha": record["sha"], "kind": kind, "pr": pr, "source_pr": source_pr,
+        "type": None, "scope": None, "breaking": False, "consumes_version": None,
+        "changelog": "-", "class_source": "none", "reverts_pr": None, "extra": "",
+        "summary": subject, "findings": [],
+    }
+    if kind == "sync":
+        entry["class_source"] = "sync-merge"
+        return entry
+
+    # Read the footer first, before any early return: a commit that never parses as a
+    # header can still declare itself breaking, and that fact has to reach the entry that
+    # survives the merge. Skipping this is how a breaking change is lost.
+    footer = breaking_footer(body)
+    if footer:
+        entry["breaking"] = True
+        entry["breaking_footer"] = footer[:200]
+
+    header_line = None
+    if kind == "carrier":
+        # GitHub writes the title as the body of the merge commit; a squash carries it in
+        # the subject. Anything else in either place is prose the parser never reads.
+        body_line = first_body_line(body)
+        if parse_header(body_line):
+            header_line = body_line
+            entry["class_source"] = "merge-commit-body"
+        elif parse_header(strip_pr_ref(subject)[0]):
+            header_line = strip_pr_ref(subject)[0]
+            entry["class_source"] = "squash-subject"
+        else:
+            shown = body_line or subject
+            entry["findings"].append(Finding(
+                "carrier-unclassified", "error",
+                "the pull request that brought this change carries no class: its title is "
+                "'%s'." % shown[:80],
+                "retitle the pull request with '<type>[(<scope>)][!]: <summary>' - the "
+                "merge commit's body is that title and nothing else",
+                where=where, pr=pr))
+            return entry
+    elif parse_header(subject):
+        header_line = subject
+        entry["class_source"] = "commit-subject"
+    else:
+        # The repository's own convention is a lowercase summary ("adds ..."), so most
+        # commits of a pull request do not parse and are not supposed to: only the title
+        # has to. Say it once, for a commit nobody is carrying.
+        if kind == "self":
+            entry["findings"].append(Finding(
+                "commit-unclassified", "warning",
+                "a commit reaches a permanent branch without a class: '%s'" % subject[:80],
+                "the pull request's title carries the class for every commit of that pull "
+                "request; a commit that reaches the branch on its own needs a header of "
+                "its own", where=where, pr=source_pr))
+        return entry
+
+    findings, header, consumes, extra = header_findings(header_line, where)
+    if kind == "folded":
+        findings = []                  # its words are read for the breaking fact only
+    entry["findings"].extend(findings)
+    if header is None:
+        # It parses as nothing: for a self commit that is the warning above, and the
+        # component-shaped subjects of this repository ('notify: alert invalidation ...')
+        # are exactly that case, so they are not raised as vocabulary errors.
+        if kind == "self" and findings:
+            entry["findings"] = [Finding(
+                "commit-unclassified", "warning",
+                "a commit reaches a permanent branch without a class: '%s'" % subject[:80],
+                "the pull request's title carries the class; a commit that reaches the "
+                "branch on its own needs a header of its own", where=where, pr=source_pr)]
+        return entry
+    entry["type"] = header["type"]
+    entry["scope"] = header["scope"]
+    entry["breaking"] = bool(header["breaking"])
+    entry["consumes_version"] = consumes
+    entry["extra"] = extra
+    entry["summary"] = header["description"]
+    entry["changelog"] = "Dependencies" if extra == "dependency-change" \
+        else TYPES[header["type"]]["changelog"] if header["type"] in TYPES else "-"
+    if header["type"] == "revert":
+        entry["reverts_pr"] = revert_target(subject or entry["summary"], body)
+    return entry
+
+
+def commit_declares_breaking(record):
+    """Does this commit claim a breaking change, in either of the two places it can."""
+    header = parse_header(record["subject"])
+    return bool(header and header["breaking"]) or bool(breaking_footer(record["body"]))
+
+
+# --------------------------------------------------------------------------- pull requests
+
+
+def title_findings(title):
+    """Every rule a pull request title has to pass. Returns (findings, header, consumes)."""
+    text = (title or "").strip()
+    if not text:
+        return ([Finding("empty", "error", "the pull request has no title to classify.",
+                         "write '<type>[(<scope>)][!]: <summary>'")], None, None)
+    rest, _pr = strip_pr_ref(text)
+    findings, header, consumes, _extra = header_findings(rest, "the pull request title")
+    if header and header["type"] == "revert" and revert_target(text) is None:
+        findings.append(Finding("revert-names-nothing", "warning",
+                                "the title is a revert and names no pull request.",
+                                "put what it reverts on the title - 'revert: <the original "
+                                "summary> (#1234)' - or leave GitHub's own 'Reverts #1234' "
+                                "line in the description; `pr` decides this as an error "
+                                "once it can see both", "the pull request title"))
+    return findings, header, consumes
+
+
+def check_pr(title, body="", commits=None, today=None, mode="auto"):
+    """Classify a pull request and report what the integration history will carry.
+
+    This is the check CI runs. It is the pull request, not a commit, because the pull
+    request is the unit this repository merges and therefore the unit that has to be
+    classified: under merge-merging its title is what reaches the branch, and under a
+    squash its title is what survives the commits being folded together.
+    """
+    findings, header, consumes = title_findings(title)
+    _, pr_ref = strip_pr_ref((title or "").strip())
+    result = {
+        "title": title,
+        "type": header["type"] if header else None,
+        "scope": header["scope"] if header else None,
+        "breaking": bool(header and header["breaking"]),
+        "consumes_version": consumes,
+        "changelog": TYPES[header["type"]]["changelog"] if header
+        and header["type"] in TYPES else "-",
+        "carrier": {"merge": "a merge commit whose body is this title",
+                    "squash": "%s (#%s)" % (title, pr_ref if pr_ref else "<pr number>")},
+        "commits": len(commits or []),
+        "findings": findings,
+    }
+
+    # A breaking fact that exists only where the integration history will not read it is
+    # a fact that gets lost at the merge. This is the check #1580 exists for.
+    footer = breaking_footer(body)
+    if footer and not result["breaking"]:
+        findings.append(Finding(
+            "breaking-not-on-title", "error",
+            "the description declares a breaking change, but the title carries no '!' "
+            "marker.",
+            "write 'feat!:' or 'fix!:' on the title: a merge commit's body is the title "
+            "alone, so the footer never reaches the integration history and the breaking "
+            "fact is dropped at the merge", "the pull request description"))
+    for record in commits or []:
+        if commit_declares_breaking(record) and not result["breaking"]:
+            findings.append(Finding(
+                "breaking-lost-at-merge", "error",
+                "a commit of this pull request declares a breaking change (%s) while the "
+                "title carries no '!' marker."
+                % (record["sha"][:10] or record["subject"][:40]),
+                "add '!' to the title - a merge keeps the title only, so the marker "
+                "written in the commit is lost at the merge",
+                "commit %s" % (record["sha"][:10] or record["subject"][:60])))
+    if result["breaking"] and not footer and not any(
+            breaking_footer(r["body"]) for r in commits or []):
+        findings.append(Finding(
+            "breaking-without-note", "warning",
+            "the title marks a breaking change, but neither the description nor a commit "
+            "carries a 'BREAKING CHANGE:' line.",
+            "say what breaks in the description: the release notes' Breaking Changes "
+            "section is curated from it (#1578), and whoever reads this pull request has "
+            "to learn which contract moves"))
+
+    # The commits are not the carrier, but two things about them are worth saying.
+    commit_types = set()
+    for record in commits or []:
+        header_of_commit = parse_header(record["subject"])
+        if header_of_commit is None:
+            continue
+        commit_types.add(header_of_commit["type"])
+        if header_of_commit["type"] != result["type"] and not is_assembly_noise(
+                record["subject"]):
+            findings.append(Finding(
+                "commit-class-differs", "warning",
+                "a commit classifies itself as '%s:' while the title says '%s:'."
+                % (header_of_commit["type"], result["type"]),
+                "the title is what reaches the integration history; if the commit is "
+                "really a different change it belongs in a pull request of its own "
+                "(one change per pull request)",
+                "commit %s" % (record["sha"][:10] or record["subject"][:60])))
+    result["commit_classes"] = sorted(commit_types)
+
+    if header and header["type"] == "revert":
+        named = bool(revert_target(title, body)) or any(
+            revert_target(r["subject"], r["body"]) or REVERTS_COMMIT_RE.search(r["body"])
+            for r in commits or [])
+        # The warning from title_findings is the most CI can say when it cannot see the
+        # description; with the description in hand, a nameless revert is an error.
+        findings[:] = [f for f in findings
+                       if not (f.code == "revert-names-nothing" and named)]
+        if not named:
+            findings[:] = [f for f in findings if f.code != "revert-names-nothing"]
+            findings.append(Finding(
+                "revert-names-nothing", "error",
+                "a revert has to name what it reverts, and nothing here does.",
+                "put the reverted pull request on the title - 'revert: <the original "
+                "summary> (#1234)' - or let GitHub's own revert leave 'Reverts #1234' in "
+                "the description: a revert nobody can pair is counted as a change of its "
+                "own, which is how a taken-back feature still ships a release note"))
+    result["mode"] = mode_for(today, mode)
+    return result
+
+
+# ------------------------------------------------------------------------------- history
+
+
+def is_sync_merge(record):
+    """A merge of the base into a branch: it brings no change of its own."""
+    subject = record["subject"]
+    if MERGE_PR_RE.match(subject):
+        return False
+    if len(record["parents"]) < 2:
+        return False
+    return bool(SYNC_MERGE_RE.match(subject))
+
+
+def is_carrier(record):
+    """The commit a pull request reaches the branch with: GitHub's merge, or a squash."""
+    if MERGE_PR_RE.match(record["subject"]):
+        return True
+    # A squash has one parent and a subject GitHub finished with ' (#NNNN)'.
+    return len(record["parents"]) <= 1 and strip_pr_ref(record["subject"])[1] is not None
+
+
+def carrier_pr(record):
+    match = MERGE_PR_RE.match(record["subject"])
+    if match:
+        return int(match.group(1))
+    return strip_pr_ref(record["subject"])[1]
+
+
+def carry_up(entry, child):
+    """Union a folded commit's breaking fact into the entry that survives the merge.
+
+    Folding may only ever add the breaking fact, never drop it: the acceptance calls
+    that "losing breaking changes", and the direction of the union is the whole rule.
+    """
+    if entry is None or child is None:
+        return
+    if child["breaking"] and not entry["breaking"]:
+        entry["breaking"] = True
+        entry["breaking_from"] = child["sha"] or child["summary"]
+        entry["findings"].append(Finding(
+            "breaking-folded-up", "error",
+            "a commit declares a breaking change the entry itself does not: '%s'"
+            % (child["summary"] or "")[:80],
+            "retitle the pull request with '!' - the merge keeps only the title, so this "
+            "breaking change would reach the release notes by accident instead of by the "
+            "carrier that carries it",
+            where="commit %s" % (child["sha"][:10] or ""), pr=entry["pr"]))
+
+
+def newest_first(records):
+    """Order records so that a commit always comes before its own parents.
+
+    The traversal that folds a pull request's commits into its carrier only works when
+    the carrier is visited first, so the order belongs to the algorithm rather than to
+    whatever order the input arrived in. This sorts it over the parent edges, so
+    `history` answers the same way from `git log` (newest first), from GitHub's commit
+    API (oldest first), or from a suite fixture written in whatever order was handy.
+    """
+    by_sha = {r["sha"]: r for r in records if r["sha"]}
+    has_child = set()
+    for record in records:
+        for parent in record["parents"]:
+            if parent in by_sha:
+                has_child.add(parent)
+    roots = [r["sha"] for r in records if r["sha"] and r["sha"] not in has_child]
+
+    order = []
+    done = set()
+    for root in roots:
+        if root in done:
+            continue
+        stack = [(root, False)]
+        while stack:
+            sha, expanded = stack.pop()
+            if expanded:
+                if sha not in done:
+                    done.add(sha)
+                    order.append(sha)
+                continue
+            if sha in done:
+                continue
+            stack.append((sha, True))
+            record = by_sha.get(sha)
+            if record:
+                for parent in record["parents"]:
+                    if parent not in done and parent != sha:
+                        stack.append((parent, False))
+
+    # The DFS appends a commit after its parents, which is parents-first; the traversal
+    # needs the other direction, so the order is turned around here. Getting this wrong
+    # is invisible in a first-parent range and wrong everywhere else: with parents first,
+    # no carrier is ever visited before its branch commits and nothing folds.
+    ordered = [by_sha[sha] for sha in reversed(order) if sha in by_sha]
+    # Records with no identity of their own (a fixture that only names subjects) keep
+    # their input place at the end rather than vanishing.
+    ordered.extend(r for r in records if not r["sha"])
+    return ordered
+
+
+def introduced_parents(record):
+    """The parents whose content a merge brought in: everything but the base it joined.
+
+    For a GitHub pull-request merge that is the second parent, the head of the branch; the
+    first parent is the tip the pull request was merged into, whose commits already belong
+    to the pull requests that brought them. Walking it too would fold develop's own history
+    into the pull request being examined, which is the other half of the double count.
+
+    A record with one parent introduces nothing at all: a plain commit's parent is its own
+    predecessor, and a squash's single parent is the base it was rebased onto - walking
+    either would swallow history that belongs to other pull requests.
+    """
+    parents = record["parents"]
+    if len(parents) >= 2:
+        return parents[1:]
+    return []
+
+
+def history_entries(records):
+    """Group a range into one entry per change, the way the release tool reads it.
+
+    The acceptance asks for "without counting duplicates or losing breaking changes",
+    and both fall out of one traversal:
+
+    * a carrier - GitHub's merge commit of a pull request, or a squash subject
+      `summary (#NNNN)` - owns one entry, classified by the title GitHub wrote into it;
+    * the commits that carrier introduced are folded into that entry, so a change is not
+      counted once per commit;
+    * the walk stops at any commit it has already owned, and that stop *is* the duplicate
+      rule: a sync merge of develop into a branch has nothing to contribute, because
+      everything on its side was already counted by the pull request that brought it
+      (#1578 measured that such a subject never parses either);
+    * a carrier met inside another carrier's walk keeps its own entry, which is the epic
+      case: an epic branch merged into develop answers one entry per feature pull request
+      rather than one for the epic plus one per feature;
+    * the breaking flags of everything folded in are unioned into the entry, and
+      `--seen` unions them across reports, so no fold and no re-merge can drop the fact.
+    """
+    by_sha = {r["sha"]: r for r in records if r["sha"]}
+    owned = set()
+    entries = []
+
+    def take(record, kind, pr=None, source_pr=None):
+        entry = entry_from_record(record, kind, pr=pr, source_pr=source_pr)
+        entries.append(entry)
+        return entry
+
+    for record in newest_first(records):
+        sha, parents = record["sha"], record["parents"]
+        if sha and sha in owned:
+            continue
+        if sha:
+            owned.add(sha)
+
+        if is_sync_merge(record):
+            entries.append(entry_from_record(record, "sync"))
+            continue
+
+        carrier = is_carrier(record)
+        entry = None
+        if carrier:
+            entry = take(record, "carrier", pr=carrier_pr(record))
+        elif len(parents) >= 2:
+            # A merge with no pull request behind it: an epic branch merged by hand, or a
+            # permanent-branch sync written as prose. It owns nothing; its side branches
+            # do. It is only an entry when somebody wrote a header into its body, because
+            # then a parser does read it as a change.
+            if parse_header(first_body_line(record["body"])):
+                entry = take(record, "carrier", pr=None)
+        else:
+            entry = take(record, "self")
+
+        stack = [(sha, entry) for sha in introduced_parents(record)]
+        walked = set()
+        while stack:
+            current, owner = stack.pop()
+            if current in owned or current in walked:
+                continue                      # already counted: the duplicate rule
+            walked.add(current)
+            owned.add(current)
+            child = by_sha.get(current)
+            if child is None:
+                continue                      # outside the range: another window's work
+            if is_carrier(child):
+                # A pull request inside a pull request keeps its own entry, and the
+                # commits under it belong to *it*, not to the outer carrier that led the
+                # walk here. Attributing them to the outer one is how a feature's breaking
+                # marker ends up on the wrong change.
+                child_entry = take(child, "carrier", pr=carrier_pr(child),
+                                   source_pr=owner["pr"] if owner else None)
+                carry_up(owner, child_entry)
+                stack.extend((p, child_entry) for p in introduced_parents(child))
+                continue
+            if owner is None:
+                # A merge with no class of its own (an epic branch merged by hand with an
+                # empty message) cannot carry anything: what it brings stays an entry of
+                # its own, which is the honest reading of commits that reached the branch
+                # with no pull request title behind them.
+                take(child, "self")
+                stack.extend((p, None) for p in introduced_parents(child))
+                continue
+            child_entry = take(child, "folded", source_pr=owner["pr"])
+            carry_up(owner, child_entry)
+            stack.extend((p, owner) for p in introduced_parents(child))
+    return entries
+
+
+def counted_entries(entries):
+    """The entries a release would count: carriers and their own, not folded, not sync."""
+    return [e for e in entries if e["kind"] in ("carrier", "self")]
+
+
+def fold_carrier_duplicates(entries):
+    """One pull request that entered the branch twice is one change, not two.
+
+    A pull request whose merge was reverted and merged again, or a branch merged and
+    later brought in by a sync, arrives as two carriers naming the same pull request
+    number. The acceptance's "without counting duplicates" is decided here: the copy that
+    entered first stays the entry and the later ones net to nothing. A revert is exempt -
+    taking a change back is itself a change, and folding it away would hide the take-back
+    from the release notes.
+    """
+    first = {}
+    for entry in entries:
+        if entry["kind"] != "carrier" or entry.get("pr") is None:
+            continue
+        if entry.get("type") == "revert" or re.match(r"^\s*revert", entry["summary"] or "",
+                                                     re.I):
+            continue
+        earlier = first.get(entry["pr"])
+        if earlier is None:
+            first[entry["pr"]] = entry
+            continue
+        earlier["re_merged"] = True
+        entry["net"] = "none (this pull request entered the branch already)"
+        entry["duplicate_of_sha"] = earlier["sha"]
+        if entry["breaking"] and not earlier["breaking"]:
+            earlier["breaking"] = True
+            earlier["findings"].append(Finding(
+                "breaking-in-duplicate", "error",
+                "pull request #%s entered the branch twice and only the later copy marks "
+                "it breaking." % entry["pr"],
+                "the breaking copy wins: put '!' on the pull request title so the marker "
+                "is on the carrier and not only on one of its merges",
+                "commit %s" % (entry["sha"][:10] or ""), pr=entry["pr"]))
+    return entries
+
+
+def fold_reverts(entries):
+    """Pair a revert with what it reverts, inside the window it is read in.
+
+    Only counted entries take part: a feature added and taken back inside the same window
+    ships nothing, so the pair must net to no entry *and* answer no breaking note. A
+    revert whose target is outside the window is a change of its own - it is what an
+    operator who upgraded will read about.
+    """
+    counted = counted_entries(entries)
+    by_pr = {e["pr"]: e for e in counted if e.get("pr")}
+    for entry in counted:
+        if entry.get("type") != "revert":
+            continue
+        target = entry.get("reverts_pr")
+        reverted = by_pr.get(target) if target else None
+        if reverted is None or reverted is entry:
+            entry["net"] = "its own class (what it reverts is outside the window)"
+            continue
+        entry["net"] = "none"
+        entry["reverted_pr"] = target
+        reverted["net"] = "none (reverted within the window)"
+        reverted["reverted_by"] = entry["pr"]
+        # A change that arrived and was taken back inside the same window ships nothing,
+        # so it must not leave a breaking note behind either; the pair is still reported.
+        if reverted["breaking"] or entry["breaking"]:
+            entry["pair_was_breaking"] = True
+            reverted["breaking"] = False
+            entry["breaking"] = False
+            entry["findings"].append(Finding(
+                "breaking-reverted-in-window", "info",
+                "a breaking change and its revert are both inside the window: the pair "
+                "nets to nothing and answers no breaking note.",
+                "nothing to fix - this is the outcome, and #1581 must count neither half",
+                "pull request #%s" % target, pr=entry["pr"]))
+    return entries
+
+
+def load_seen(path):
+    """Entries a previous report already counted, so a second branch cannot count twice."""
+    if not path:
+        return {}
+    try:
+        with open(path) as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError) as err:
+        raise RuntimeError("cannot read --seen %s: %s" % (path, err))
+    items = payload.get("entries") if isinstance(payload, dict) else payload
+    out = {}
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        key = item.get("pr") or item.get("sha") or item.get("key")
+        if key:
+            out[str(key)] = item
+    return out
+
+
+def dedupe_seen(entries, seen):
+    """Fold away entries an earlier report counted, keeping any breaking fact."""
+    if not seen:
+        return entries, []
+    kept, dropped = [], []
+    for entry in entries:
+        key = str(entry["pr"]) if entry.get("pr") is not None else str(entry.get("sha") or "")
+        previous = seen.get(key) if key else None
+        if previous is None:
+            kept.append(entry)
+            continue
+        dropped.append(entry)
+        if (previous.get("breaking") or entry["breaking"]) and not entry["breaking"]:
+            entry["breaking"] = True
+            entry["findings"].append(Finding(
+                "breaking-in-duplicate", "error",
+                "this change was already counted by the report in --seen, and one of the "
+                "two copies marks it breaking while this copy does not.",
+                "the breaking copy wins; the title of the pull request that lost the '!' "
+                "has to say so", "entry %s" % key, pr=entry.get("pr")))
+            kept.append(entry)
+    return kept, dropped
+
+
+def release_relevant(entries):
+    """The entries a release is built from: something to note, or something breaking.
+
+    Folded and sync records are not entries at all (#1578 measured that a sync merge
+    contributes no commit), a netted pair is not a change, and a class the matrix puts
+    outside the notes is only relevant when it carries the breaking marker.
+    """
+    out = []
+    for entry in counted_entries(entries):
+        if not entry["type"]:
+            continue
+        net = entry.get("net") or ""
+        if net.startswith("none"):
+            continue
+        if entry["breaking"] or entry.get("consumes_version"):
+            out.append(entry)
+    return out
+
+
+# ------------------------------------------------------------------------- self description
+
+
+def render_types():
+    lines = ["Change classes pr_classify accepts. The matrix they come from is #1578's,",
+             "docs/source/development/release-versioning-baseline.rst; the enforcement",
+             "this table describes is docs/source/development/commit-classification.rst.",
+             "",
+             "  %-26s %-22s %s" % ("header", "consumes a version", "changelog section"),
+             "  %-26s %-22s %s" % ("------", "------------------", "---------------")]
+    for name in sorted(TYPES):
+        info = TYPES[name]
+        lines.append("  %-26s %-22s %s" % (
+            "%s:" % name,
+            "yes" if info["consumes_version"] else "no (Q4 of #1578 pending)",
+            info["changelog"]))
+    lines.append("  %-26s %-22s %s" % ("build(deps): / chore(deps):", "yes", "Dependencies"))
+    lines.append("  %-26s %-22s %s" % ("fix(security):", "yes", "Fixed, security named"))
+    lines.append("  %-26s %-22s %s" % ("feat!: / fix!: / footer", "yes", "Breaking Changes"))
+    lines.append("  %-26s %-22s %s" % ("revert: ... (#NNNN)", "yes", "as the class reverted"))
+    lines.append("")
+    lines.append("  Not classes, with what to write instead:")
+    for word in sorted(HINTS):
+        lines.append("    %-14s %s" % (word + ":", HINTS[word].split(" - ")[0]))
+    lines.append("")
+    lines.append("  Whether a class consumes a number is reported, never enforced: that is")
+    lines.append("  decision Q4 of #1578 and its register is Pending; #1581 computes the")
+    lines.append("  number. Nothing here approves anything or bypasses a branch rule.")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------------- output
+
+
+def in_actions():
+    return os.environ.get("GITHUB_ACTIONS", "").lower() == "true"
+
+
+def annotate(kind, title, message):
+    """A GitHub Actions annotation: the line a reader sees beside the offending file."""
+    clean = (message or "").replace("\n", " ").replace("%", "%25").replace("\r", "%0D")
+    return "::%s title=%s::%s" % (kind, title.replace("%", "%25"), clean)
+
+
+def render_report(result, mode, stream=None):
+    stream = stream or sys.stdout
+    """The human report, plus annotations when running inside Actions."""
+    findings = [f for f in result.get("findings", []) if isinstance(f, Finding)]
+    errors = [f for f in findings if f.severity == "error"]
+    warnings = [f for f in findings if f.severity == "warning"]
+    failing = bool(errors) and mode == "strict"
+    advisory = bool(errors) and mode == "advisory"
+
+    print("pr_classify (%s, strict from %s)" % (mode, strict_from()), file=stream)
+    # A header of an unknown type parsed but classifies nothing, so it is not reported as
+    # a class: the finding below names it, and a "class: security" line next to an error
+    # saying security is not a class is the kind of report nobody reads.
+    if result.get("type") and result.get("consumes_version") is not None:
+        print("  class:      %s%s%s - consumes a version: %s"
+              % (result["type"],
+                 "(%s)" % result["scope"] if result.get("scope") else "",
+                 "!" if result.get("breaking") else "",
+                 "yes" if result.get("consumes_version") else "no"), file=stream)
+        print("  changelog:  %s" % result.get("changelog"), file=stream)
+    if result.get("carrier"):
+        print("  carrier:    the change reaches the branch as %s"
+              % result["carrier"]["merge"], file=stream)
+    if findings:
+        print("", file=stream)
+        print("  %d error(s), %d warning(s):" % (len(errors), len(warnings)), file=stream)
+        for index, finding in enumerate(findings, 1):
+            print("  " + finding.render(index).replace("\n", "\n  "), file=stream)
+    else:
+        print("  no finding: the change carries a class the release tool can read.",
+              file=stream)
+
+    if in_actions():
+        for finding in findings:
+            if finding.severity == "error":
+                kind = "warning" if advisory else "error"
+                label = "classification (advisory): " if advisory else "classification: "
+            else:
+                kind, label = "warning", "classification: "
+            print(annotate(kind, label + finding.code,
+                           "%s %s" % (finding.message, finding.fix or "")), file=stream)
+
+    print("", file=stream)
+    if failing:
+        print("FAIL: %d error(s). The change is not classifiable, or a breaking fact "
+              "would be lost at the merge." % len(errors), file=stream)
+        print("  vocabulary: python3 scripts/pr_classify types", file=stream)
+        print("  policy:     docs/source/development/commit-classification.rst", file=stream)
+    elif advisory:
+        print("ADVISORY: %d error(s) reported without failing. This check only reports "
+              "until %s and fails from that date." % (len(errors), strict_from()),
+              file=stream)
+    else:
+        print("PASS", file=stream)
+    stream.flush()
+    return 1 if failing else 0
+
+
+def one_line(text, limit=0):
+    """A summary for a table cell: no embedded newlines, optionally shortened."""
+    text = " ".join((text or "").split())
+    return text[:limit] if limit else text
+
+
+def history_report(records, entries, kept, dropped, args, mode, stream=None):
+    stream = stream or sys.stdout
+    """The history table, then every finding it raises, then the verdict.
+
+    The table is the audit trail of the acceptance: it answers how many records became how
+    many entries, which of them were folded into a carrier, which were sync merges, which
+    had already been counted by the report in `--seen`, and which carriers reached the
+    branch with no class at all. A reader should be able to see *why* a number is what it
+    is, because a silent count is exactly the silent double-count #1578 warns about.
+    """
+    relevant = release_relevant(entries)
+    counted = counted_entries(entries)
+    unclassified = [e for e in counted if e["kind"] == "carrier" and not e["type"]]
+    folded = [e for e in entries if e["kind"] == "folded"]
+    sync = [e for e in entries if e["kind"] == "sync"]
+    kept_ids = {id(e) for e in kept}
+    shown = [e for e in entries
+             if id(e) in kept_ids or (args.all and e["kind"] in ("carrier", "self", "folded"))]
+    if args.top:
+        shown = shown[:args.top]
+    findings = [f for e in entries for f in e["findings"] if isinstance(f, Finding)]
+    errors = [f for f in findings if f.severity == "error"]
+
+    print("pr_classify history (%s, strict from %s)" % (mode, strict_from()), file=stream)
+    print("  %d records -> %d counted entries" % (len(records), len(kept)), file=stream)
+    print("    %d release-relevant, %d breaking, %d folded into a carrier, %d sync merges, "
+          "%d already counted by --seen"
+          % (len(relevant), len([e for e in kept if e["breaking"]]), len(folded), len(sync),
+             len(dropped)), file=stream)
+    if unclassified:
+        print("    %d carrier(s) reach the branch with no class at all" % len(unclassified),
+              file=stream)
+    print("", file=stream)
+    print("  %-9s %-24s %-8s %-18s %s" % ("pull", "class", "breaking", "carried by",
+                                          "summary"), file=stream)
+    for entry in shown:
+        if entry["kind"] == "sync":
+            print("  %-9s %-24s %-8s %-18s %s" % ("-", "sync merge: nothing", "-", "-",
+                                                  one_line(entry["summary"], 46)),
+                  file=stream)
+            continue
+        if entry["type"]:
+            cls = "%s%s%s" % (entry["type"],
+                              "(%s)" % entry["scope"] if entry.get("scope") else "",
+                              "!" if entry["breaking"] else "")
+        elif entry["breaking"]:
+            # A commit that never parses but declares itself breaking: the fact is real,
+            # the header is not, and the table has to tell those two apart.
+            cls = "! without a header"
+        else:
+            cls = "-"
+        note = ""
+        if entry.get("net"):
+            note = "  [%s]" % entry["net"]
+        print("  %-9s %-24s %-8s %-18s %s%s" % (
+            "#%s" % entry["pr"] if entry.get("pr") else "-", cls,
+            "yes" if entry["breaking"] else "no",
+            "folded" if entry["kind"] == "folded" else entry["class_source"],
+            one_line(entry["summary"], 46), note), file=stream)
+    if findings:
+        print("", file=stream)
+        print("  findings:", file=stream)
+        for index, finding in enumerate(findings, 1):
+            print("  " + finding.render(index).replace("\n", "\n  "), file=stream)
+    print("", file=stream)
+    if errors and mode == "strict":
+        print("FAIL: %d error(s) over %d counted entries." % (len(errors), len(kept)),
+              file=stream)
+        print("  vocabulary: python3 scripts/pr_classify types", file=stream)
+        print("  policy:     docs/source/development/commit-classification.rst", file=stream)
+        return 1
+    if errors:
+        print("ADVISORY: %d error(s) reported without failing, because the rollout is "
+              "advisory until %s." % (len(errors), strict_from()), file=stream)
+        return 0
+    print("PASS", file=stream)
+    return 0
+
+
+# ---------------------------------------------------------------------------- self test
+
+
+SELF_CASES = [
+    ("feat: adds the thing", "valid"),
+    ("fix(security): closes the open redirect (#1234)", "valid"),
+    ("feat(proxy-security)!: moves the proxy onto the session cookie", "valid"),
+    ("build(deps): bumps postgis to 18-3.6-alpine", "valid"),
+    ("chore(deps): bumps the dev requirements", "valid"),
+    ("docs: explains the classification", "valid"),
+    ("ci: runs the classification check", "valid"),
+    ("revert: reverts the celery send_task routing (#1574)", "valid"),
+    ("perf: what the save paths decide, no more than that (#1482)", "valid"),
+    ("chore(release-management): enforces the classification", "valid"),
+    ("mcp-setup: reads the slot's env by key", "invalid"),
+    ("Remove the legacy conformity check family", "invalid"),
+    ("security: closes the open redirect", "invalid"),
+    ("deps: bumps postgis", "invalid"),
+    ("fix:", "invalid"),
+    ("fix:nospace", "invalid"),
+    ("Fix: the type is case sensitive", "invalid"),
+    ("wip: half of it", "invalid"),
+    ("feat!: ", "invalid"),
+    ("release: cut 0.2.0", "invalid"),
+]
+
+
+def self_test():
+    """The checker's own first line of defence; the suite is scripts/test_pr_classify.py."""
+    bad = 0
+    for title, expectation in SELF_CASES:
+        findings, _header, _consumes = title_findings(title)
+        errors = [f for f in findings if f.severity == "error"]
+        got = "invalid" if errors else "valid"
+        if got != expectation:
+            bad += 1
+            print("self-test: %-58s expected %s, got %s (%s)"
+                  % (title, expectation, got, ", ".join(f.code for f in errors)),
+                  file=sys.stderr)
+    if bad:
+        print("self-test: %d of %d titles decided wrongly." % (bad, len(SELF_CASES)),
+              file=sys.stderr)
+        return 1
+    print("self-test: %d titles decided as expected." % len(SELF_CASES))
+    return 0
+
+
+# ------------------------------------------------------------------------------------ cli
+
+
+def add_common(parser):
+    parser.add_argument("--mode", choices=("auto", "strict", "advisory"), default="auto",
+                        help="auto is advisory before %s, strict from it" % STRICT_FROM)
+    parser.add_argument("--today", default=None, help="fix the clock (YYYY-MM-DD)")
+    parser.add_argument("--json", action="store_true", help="machine-readable report")
+
+
+def today_or(value):
+    return value or date.today().isoformat()
+
+
+def emit_json(result, mode, stream=None):
+    stream = stream or sys.stdout
+    payload = dict(result)
+    payload["mode"] = mode
+    payload["strict_from"] = strict_from()
+    payload["findings"] = [f.as_dict() for f in result.get("findings", [])
+                           if isinstance(f, Finding)]
+    print(json.dumps(payload, indent=2, sort_keys=True), file=stream)
+
+
+def exit_code_for(result, mode):
+    errors = [f for f in result.get("findings", [])
+              if isinstance(f, Finding) and f.severity == "error"]
+    return 1 if (errors and mode == "strict") else 0
+
+
+def emitted_codes():
+    """Every finding code this file can raise, read from this file.
+
+    The policy page promises that its list of codes is the tool's list, and
+    `test_pr_classify.py` checks the two against each other. Deriving the set from this
+    module's own syntax is what keeps that check honest as the tool grows: a new
+    `Finding("new-code", ...)` appears here without anybody maintaining a second list,
+    which is exactly the drift the check exists to catch.
+
+    The read is a parse, not a text search. Measured while writing it: a plain search
+    also finds the code named in a docstring's example sentence, and prose must not be
+    able to add a code to the tool's public vocabulary.
+    """
+    try:
+        tree = ast.parse(Path(__file__).read_text())
+    except (OSError, SyntaxError):                # a frozen or in-memory import
+        return set()
+    codes = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+        if name != "Finding" or not node.args:
+            continue
+        first = node.args[0]
+        value = first.value if isinstance(first, ast.Constant) else None
+        if isinstance(value, str):
+            codes.add(value)
+    return codes
+
+
+EMITTED_CODES = emitted_codes()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(
+        prog="scripts/pr_classify",
+        description="Enforce the pull request and commit classification of #1580.",
+        epilog="Reads only. Approves nothing, merges nothing, bypasses no branch rule.")
+    sub = parser.add_subparsers(dest="command")
+
+    sub.add_parser("types", help="print the approved vocabulary")
+
+    p_title = sub.add_parser("title", help="check one pull request title")
+    p_title.add_argument("title", nargs="+", help="the title, quoted as one argument")
+    add_common(p_title)
+
+    p_pr = sub.add_parser("pr", help="check a pull request: title, description, commits")
+    p_pr.add_argument("--title", required=True)
+    p_pr.add_argument("--body", default="")
+    p_pr.add_argument("--body-file", default=None)
+    p_pr.add_argument("--commits-json", default=None,
+                      help="a JSON array of commits, the git record stream, or - for stdin")
+    add_common(p_pr)
+
+    p_hist = sub.add_parser("history",
+                            help="classify a range the way the release tool reads it")
+    p_hist.add_argument("--range", default=None, help="a revision range, e.g. HEAD~20..HEAD")
+    p_hist.add_argument("--path", default=None, help="restrict the range to a path")
+    p_hist.add_argument("--repo", default=None,
+                        help="read this repository instead of the current one (git -C)")
+    p_hist.add_argument("--commits-json", default=None, help="records instead of a git range")
+    p_hist.add_argument("--seen", default=None,
+                        help="a previous report whose entries are already counted")
+    p_hist.add_argument("--top", type=int, default=0, help="print at most this many entries")
+    p_hist.add_argument("--all", action="store_true",
+                        help="also print the entries folded into another entry")
+    add_common(p_hist)
+
+    sub.add_parser("check", help="run the checker's own self-test")
+
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 2
+
+    try:
+        if args.command == "types":
+            print(render_types())
+            return 0
+        if args.command == "check":
+            return self_test()
+
+        if args.command == "title":
+            mode = mode_for(today_or(args.today), args.mode)
+            title = " ".join(args.title)
+            findings, header, consumes = title_findings(title)
+            result = {"title": title,
+                      "type": header["type"] if header else None,
+                      "scope": header["scope"] if header else None,
+                      "breaking": bool(header and header["breaking"]),
+                      "consumes_version": consumes,
+                      "changelog": TYPES[header["type"]]["changelog"] if header
+                      and header["type"] in TYPES else "-",
+                      "findings": findings}
+            if args.json:
+                emit_json(result, mode)
+                return exit_code_for(result, mode)
+            return render_report(result, mode)
+
+        if args.command == "pr":
+            body = args.body or ""
+            if args.body_file:
+                try:
+                    with open(args.body_file) as handle:
+                        body = handle.read()
+                except OSError as err:
+                    print("pr_classify: cannot read --body-file: %s" % err, file=sys.stderr)
+                    return 2
+            commits = load_commits(args.commits_json)
+            result = check_pr(args.title, body, commits, today_or(args.today), args.mode)
+            if args.json:
+                emit_json(result, result["mode"])
+                return exit_code_for(result, result["mode"])
+            return render_report(result, result["mode"])
+
+        if args.command == "history":
+            mode = mode_for(today_or(args.today), args.mode)
+            records = load_commits(args.commits_json, args.range, args.path, args.repo)
+            if not records:
+                print("pr_classify history: nothing to read. Give --range A..B or "
+                      "--commits-json FILE|-.", file=sys.stderr)
+                return 2
+            entries = fold_reverts(fold_carrier_duplicates(history_entries(records)))
+            counted = counted_entries(entries)
+            kept, dropped = dedupe_seen(counted, load_seen(args.seen))
+            if args.json:
+                relevant = release_relevant(entries)
+                payload = {
+                    "mode": mode, "strict_from": strict_from(),
+                    "counts": {
+                        "records": len(records), "counted_entries": len(kept),
+                        "already_counted": len(dropped), "release_relevant": len(relevant),
+                        "breaking": len([e for e in kept if e["breaking"]]),
+                        "folded": len([e for e in entries if e["kind"] == "folded"]),
+                        "sync_merges": len([e for e in entries if e["kind"] == "sync"]),
+                        "unclassified_carriers": len([e for e in kept
+                                                      if e["kind"] == "carrier"
+                                                      and not e["type"]])},
+                    "entries": [{k: v for k, v in e.items() if k != "findings"}
+                                for e in entries if e["kind"] in ("carrier", "self", "sync")],
+                    "findings": [f.as_dict() for e in entries
+                                 for f in e["findings"] if isinstance(f, Finding)],
+                }
+                print(json.dumps(payload, indent=2, sort_keys=True))
+                errors = [f for f in payload["findings"] if f["severity"] == "error"]
+                return 1 if (errors and mode == "strict") else 0
+            return history_report(records, entries, kept, dropped, args, mode)
+    except RuntimeError as err:
+        print("pr_classify: %s" % err, file=sys.stderr)
+        return 2
+    except ValueError as err:
+        print("pr_classify: %s" % err, file=sys.stderr)
+        return 2
+    print("pr_classify: unknown command %r" % args.command, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

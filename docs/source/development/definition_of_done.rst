@@ -50,4 +50,10 @@ Run the following checks before starting a pullrequest to avoid of error while g
 
 |uncheck| run the Behave scenarios covering the changed API or workflow
 
+|uncheck| confirm the pull request **title** carries the change class —
+  ``<type>[(<scope>)][!]: <summary>`` with a type from ``python3 scripts/pr_classify types``,
+  and ``!`` if the change breaks an existing consumer. The merge keeps the title and nothing
+  else, so a class or a marker written only into a commit message never reaches the
+  integration history; see :ref:`commit-classification`.
+
 |uncheck| run production compose file ``docker compose -f docker-compose.yml up --build``

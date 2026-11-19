@@ -3,6 +3,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TransactionTestCase
 from django.test.utils import override_settings
@@ -508,6 +509,12 @@ class TemporaryMdMetadataFileToDbTaskTest(TransactionTestCase):
         self.assertEqual(DatasetMetadataRecord.objects.count(), 1)
 
 
+@override_settings(CACHES={
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "harvesting-step-size-tests",
+    },
+})
 class HarvestingStepSizeTest(TransactionTestCase):
     """the page size a run works with is what the catalogue answers (#694)"""
 
@@ -515,6 +522,10 @@ class HarvestingStepSizeTest(TransactionTestCase):
 
     def setUp(self):
         setup_capabilitites_file()
+        # Parallel test databases reuse the fixture job IDs. Their page claims
+        # must not share Redis or answer this test from another worker's run.
+        cache.clear()
+        self.addCleanup(cache.clear)
 
     @staticmethod
     def requested_sizes(send_request):

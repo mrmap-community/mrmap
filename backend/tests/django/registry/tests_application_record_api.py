@@ -196,6 +196,23 @@ class ApplicationRecordApiTests(QueryMeasurementMixin, TestCase):
         self.assertEqual(status, 200, body)
         self.assertEqual([row['id'] for row in body['data']], [str(self.record.pk)])
 
+    def test_a_keyword_filter_never_answers_the_record_twice(self):
+        """two matching keywords are one row and one count (#1477)
+
+        Same multiplication as in tests_metadata_record_search.py, on the
+        third filterset of registry/filters/metadata.py. The asked piece is
+        this test's own so that no fixture keyword can answer it beside the
+        two added here.
+        """
+        for word in ('Trinkwasser1477', 'Abwasser1477'):
+            self.record.keywords.add(Keyword.objects.create(keyword=word))
+        status, body, _ = self.request(
+            '/api/registry/application-metadata',
+            **{'filter[keywords__keyword__icontains]': 'wasser1477'})
+        self.assertEqual(status, 200, body)
+        self.assertEqual([row['id'] for row in body['data']], [str(self.record.pk)])
+        self.assertEqual(body['meta']['pagination']['count'], 1)
+
     def test_sparse_fieldsets_keep_unasked_fields_out_of_the_answer(self):
         """a screen which only shows the title pays for the title"""
         status, body, _ = self.request(

@@ -6,10 +6,19 @@ FROM node:26-alpine3.24 AS frontend-compile-image
 ARG VITE_API_BASE_URL
 ARG VITE_API_PORT
 ARG VITE_API_SCHEMA
+# The exact revision of this bundle, stamped by the builder from .env; empty
+# keeps the build a "dev revision" in the About display (#1579).
+ARG MRMAP_BUILD_REVISION=""
 
 WORKDIR /app
 
 COPY ./frontend/ .
+
+# The canonical application version (#1579): vite.config.mjs reads it at
+# ../VERSION, i.e. exactly this /VERSION for this /app. The COPY is also the
+# cache key: a version bump rebuilds the bundle, the same mechanism #1027
+# learned for the API address args below.
+COPY ./VERSION /VERSION
 
 # The VITE_API_* args (docker-compose.yml derives them from EXTERNAL_BASE_URL /
 # EXTERNAL_PORT / EXTERNAL_SCHEME) are baked into the bundle by `vite build`,
@@ -19,9 +28,12 @@ COPY ./frontend/ .
 # changed address in .env rebuild the bundle on every builder (#1027). Before
 # #922 removed the frontend-static volume no rebuild reached the browser at
 # all; that the volume is gone is guarded by scripts/static_mounts_smoke.py.
-RUN echo "building the SPA against ${VITE_API_SCHEMA}://${VITE_API_BASE_URL}:${VITE_API_PORT}" && \
-  npm install && \
-  npm run build
+RUN echo "building the SPA against ${VITE_API_SCHEMA}://${VITE_API_BASE_URL}:${VITE_API_PORT} (version $(tr -d '[:space:]' < /VERSION), revision ${MRMAP_BUILD_REVISION:-dev})" && \
+  npm install
+
+# The build is its own instruction so that a version or revision change busts
+# the bundle cache without redoing the dependency install.
+RUN MRMAP_BUILD_REVISION="${MRMAP_BUILD_REVISION}" npm run build
 
 
 ##############################################################

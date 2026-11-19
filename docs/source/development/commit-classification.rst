@@ -137,8 +137,9 @@ what happens. What it does *not* do is arithmetic:
   an unanswered normative question would be a decision by a bot.
 * **diff-aware dependency detection** — not attempted. ``build(deps)`` is
   trusted as written. Nothing here inspects a lock file.
-* **changelog generation, version calculation, tags, releases** — #1581, #1584,
-  and the canonical version of #1579. This issue produces classifiable input and
+* **changelog generation, version calculation, tags, releases** — #1581 and
+  #1584; the canonical version is #1579, which landed as :ref:`canonical-version`
+  while this page was being written. This issue produces classifiable input and
   stops there.
 
 The tool as a command
@@ -378,7 +379,11 @@ for others, deliberately:
 * **#1581** — read the classes and compute a version. The ``--json`` payload and
   the ``consumes_version`` field are its input; the Pending ``Q1``..``Q6`` are
   its blockers, not this page's to answer.
-* **#1579** — the canonical version string.
+* **#1579** — the canonical version string: landed as :ref:`canonical-version`,
+  one root ``VERSION`` file that everything else projects from. It and this page
+  are orthogonal by design — the class of a change says what a release note
+  lists, the version file says what is installed — and #1581 is where the two
+  meet.
 * **#1584** — changelog and release notes, which are what the ``changelog``
   column of every entry is there for.
 * A person, when they choose to: making this check *required* in branch

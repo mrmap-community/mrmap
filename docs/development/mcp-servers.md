@@ -116,10 +116,17 @@ cd <checkout> && ./scripts/mcp-setup.sh
 It installs orm-lens (`orm-lens[mcp]==1.18.0` into `~/.venvs/orm-lens`),
 checks node and the SonarQube token file (it never writes token material),
 ensures the read-only DB role, (re)starts the loopback forwarder for the
-slot's postgis container (from `.env`: `COMPOSE_PROJECT_NAME`, `DB_USER`,
-`DB_NAME`) and merges the `postgres` entry into the local override, keeping
-whatever else that file holds. Idempotent: a re-run updates that entry and
-changes no other byte of it. Options:
+slot's postgis container and merges the `postgres` entry into the local
+override, keeping whatever else that file holds. It reads the slot **by key
+name and never sources `.env`**: that file is written for django-environ, whose
+documented list separator `;` is a command separator for bash, so sourcing it
+died on every slot which set `DJANGO_ALLOWED_HOST_DEFAULTS` the documented way
+(#1434). `COMPOSE_PROJECT_NAME`, `DB_USER` and the database name (`POSTGRES_DB`,
+the key `docker-compose.yml` uses) come from that file where it declares them and
+from the postgis container's own environment where it does not — a deployment
+keeps the user in `docker/backend/.mrmap.env` and no slot carries a database key
+beyond `POSTGRES_DB`. Idempotent: a re-run updates that entry and changes no
+other byte of it. Options:
 `MRMAP_MCP_NO_DB=1` (host without the dev stack: the DB steps are skipped and
 an existing override is left exactly as it is), `MRMAP_MCP_PORT=NNN`
 (forwarder port). Requirements: `python3`, Docker + running slot stack for
@@ -148,9 +155,17 @@ python3 -m venv ~/.venvs/orm-lens
 npx -y @playwright/mcp@0.0.85 --version   # probe only
 
 # 4. Dev PostgreSQL access (read-only role + loopback proxy)
-set -a; . ./.env; set +a
+#    Read the slot by key name instead of sourcing it: .env is written for
+#    django-environ, whose documented list separator ";" is a command separator
+#    for bash, so `set -a; . ./.env` dies on the values the backend parses
+#    correctly (#1434). Where the slot declares nothing, the container answers.
+PG=mrmap-postgis-1
+DB_USER=$(grep -m1 '^DB_USER=' .env | cut -d= -f2-)
+DB_NAME=$(grep -m1 '^POSTGRES_DB=' .env | cut -d= -f2-)
+: "${DB_USER:=$(docker exec "$PG" printenv POSTGRES_USER)}"
+: "${DB_NAME:=$(docker exec "$PG" printenv POSTGRES_DB)}"
 RO_PW=$(openssl rand -hex 16); echo "$RO_PW" > ~/.mrmap_mcp_ro_pw; chmod 600 ~/.mrmap_mcp_ro_pw
-docker exec -i -e RO_PW="$RO_PW" mrmap-postgis-1 psql -v ON_ERROR_STOP=1 -v ro_pw="$RO_PW" \
+docker exec -i -e RO_PW="$RO_PW" "$PG" psql -v ON_ERROR_STOP=1 -v ro_pw="$RO_PW" \
   -U "$DB_USER" -d "$DB_NAME" <<'SQL'
 DO $$ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='mcp_readonly') THEN
@@ -161,7 +176,9 @@ ALTER ROLE mcp_readonly PASSWORD :'ro_pw';
 ALTER ROLE mcp_readonly SET statement_timeout = '30s';
 ALTER ROLE mcp_readonly SET idle_in_transaction_session_timeout = '30s';
 GRANT pg_read_all_data TO mcp_readonly;
-GRANT CONNECT ON DATABASE mrmap TO mcp_readonly;
+DO $$ BEGIN  -- the database psql is connected to, whatever this slot calls it
+  EXECUTE format('GRANT CONNECT ON DATABASE %I TO mcp_readonly', current_database());
+END $$;
 SQL
 
 # Postgres is not published on a host port by docker-compose.yml; a small

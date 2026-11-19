@@ -85,6 +85,17 @@ def step_impl(context, url):
     context.endpoint = url
 
 
+@when('I clear the queryparams')
+def step_impl(context):
+    """Ask the same endpoint without the terms of the scenario's last request.
+
+    One list asked from two sides needs this: the pair group of #985 is asked
+    with the record column of the screen and the OTHER record column, and the
+    terms of the first side must not travel into the query of the second.
+    """
+    context.query_params.clear()
+
+
 @given('I set the request payload to:')
 @given('I set the request payload to')
 def step_impl(context):

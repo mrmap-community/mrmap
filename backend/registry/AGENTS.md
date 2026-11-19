@@ -21,8 +21,8 @@ Paths in this file are relative to `backend/registry/`. Backend-wide rules and c
 | `mappers/` | Capabilities mapping and persistence: `configs/` per protocol version, `parsers/`, `persistence/`, `factory.py`, `xml_mapper.py`, `identifiers.py`, `cache.py`. |
 | `ows_lib/` | OWS domain code: `client/`, `request/`, `response/`, `xml/`, `wms/`, `wfs/`, `csw/`. No DRF or model code. |
 | `proxy/` | Security proxy for secured services (`wms_proxy.py`, `wfs_proxy.py`, `mixins.py`) and the capabilities documents of a single layer or feature type (`resource_capabilities.py`). |
-| `tasks/` | Celery tasks: service building, harvesting and recovery, updates, monitoring, conformity, security. |
-| `helper/` | Mapping helpers, the live preview helpers (`preview.py`, `preview_image.py`), the narrowing of a capabilities document to one resource (`resource_capabilities.py`) plus `plugins/` (`etf.py`, `internal.py`) for external validation. |
+| `tasks/` | Celery tasks: service building, harvesting and recovery, updates, monitoring, security. |
+| `helper/` | The live preview helpers (`preview.py`, `preview_image.py`) and the narrowing of a capabilities document to one resource (`resource_capabilities.py`). |
 | `expressions/` | Reusable ORM/SQL expressions, e.g. `layer_ctes.py` for partitioned layer queries. |
 | `enums/` | Enumerations per aggregate. |
 | `admin/`, `fixtures/`, `migrations/`, `templates/` | Django admin, fixtures, schema history, templates. |

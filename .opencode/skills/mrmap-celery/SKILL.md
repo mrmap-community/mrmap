@@ -43,7 +43,7 @@ Load when the task touches `backend/registry/tasks/`, `backend/notify/`, `MrMap/
 ## Recommended patterns (project code, mirror these)
 
 - Module per domain in `registry/tasks/` (`service`, `harvest`, `update`, `monitoring`,
-  `conformity`, `alerts`, `security`); task bases per domain (`HarvestingTask`, …).
+  `alerts`, `security`); task bases per domain (`HarvestingTask`, …).
 - Retries: inherit the retry policy of `BackgroundProcessBased` (`autoretry_for`,
   `retry_backoff`) instead of hand-rolled loops; transient Redis/DB errors are the retried class.
 - Chords/groups for fan-out with bounded `max_retries` (`registry/tasks/harvest.py`).

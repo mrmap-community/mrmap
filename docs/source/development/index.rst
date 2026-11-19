@@ -35,6 +35,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    decision-requests
+   release-versioning-baseline
    schedule-optimization-v3
    code-quality
    keyword-triggers

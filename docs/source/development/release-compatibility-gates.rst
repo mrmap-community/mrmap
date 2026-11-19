@@ -117,7 +117,20 @@ What each gate decides
     while major is 0 under the reviewed ``breaking_below_1_0: "minor"``
     reading of Q2 (which Q2's answer supersedes once recorded); a feature
     requires MINOR; a fix requires any movement; a candidate behind its
-    baseline fails because a released version never moves backwards. While no
+    baseline fails because a released version never moves backwards. Versions
+    are compared by **SemVer precedence, not by splitting on dots**: build
+    metadata is ignored for precedence (section 10), so a new build of the
+    baseline version is not a bump, and a prerelease sorts *below* the release
+    it precedes (section 11), so an rc candidate carries the version it will
+    become (``0.2.0-rc.1``, the convention of ``scripts/image_release.py``)
+    and not the baseline's own. The baseline itself must be a **stable**
+    release: an rc announces a release instead of being one (``image_release.py``
+    refuses the stable aliases for a prerelease), and the rc of 0.2.0 already
+    carries the movement that 0.2.0 releases - so a prerelease in the manifest
+    is a *cannot run*, not a reading of the bump. A version the pattern cannot
+    read is a *cannot run* (exit 2) too, never a traceback: exit 1 means the
+    gate decided against a candidate, and on an unreadable version it decided
+    nothing. While no
     released baseline exists, the bump is reported as advisory - there is
     nothing to bump *from* - but the evidence a breaking change owes is not
     advisory: the UNRELEASED changelog must carry it as a ``**Breaking:**``

@@ -45,6 +45,17 @@ def run_gates(args, root="."):
     return proc.returncode, proc.stdout, proc.stderr
 
 
+def gates_module():
+    """The tool as a module, for checks of its pure functions (the version
+    comparison is decided by `semver_cmp` and is worth pinning without
+    building a repository around it)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("release_gates", GATES)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 # ---------------------------------------------------------------- api fixtures
 
 
@@ -519,7 +530,7 @@ def test_version_equal_and_backwards():
         commit_all(repo, "feat: a feature")
         code, out, err = run_gates(["version", "--base", "develop"], repo)
         check("version: a feature with no version movement fails",
-              code == 1 and "equals the baseline" in err, err)
+              code == 1 and "same precedence" in err, err)
 
     with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
         repo = _released_repo(tmp, version="0.2.0")
@@ -537,6 +548,89 @@ def test_version_equal_and_backwards():
         code, out, err = run_gates(["version", "--base", "develop"], repo)
         check("version: a candidate behind its baseline fails",
               code == 1 and "BEHIND" in err, err)
+
+
+def test_semver_precedence_not_dot_splitting():
+    """canonical_version.py allows `0.2.0-rc.1` and `0.2.0+9f8e7d6` on purpose
+    (#1579) and image_release.py tags rc candidates, so the gate reads versions
+    by SemVer precedence. Splitting on '.' yields int("0-rc") and a traceback,
+    which exits 1 - the code this tool reserves for a decision AGAINST a
+    candidate (#1677 review)."""
+    rg = gates_module()
+    chain = ["1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-alpha.beta", "1.0.0-beta",
+             "1.0.0-beta.2", "1.0.0-beta.11", "1.0.0-rc.1", "1.0.0"]
+    ordered = all(rg.semver_cmp(a, b) < 0 for a, b in zip(chain, chain[1:]))
+    check("version: the SemVer 11 precedence chain orders correctly "
+          "(numeric identifiers below alphanumeric, beta.2 < beta.11, "
+          "rc.1 < release)", ordered, str(chain))
+    check("version: build metadata is ignored for precedence (SemVer 10)",
+          rg.semver_cmp("1.2.3+9f8e7d6", "1.2.3") == 0
+          and rg.semver_cmp("0.2.0-rc.1", "0.2.0+b") < 0, "")
+    try:
+        rg.semver_parse("1.2", "the fixture version")
+        check("version: a version the gate cannot read is a cannot-run, "
+              "not a crash", False, "no GateCannotRun raised")
+    except rg.GateCannotRun as exc:
+        check("version: a version the gate cannot read is a cannot-run, "
+              "not a crash", "not strict SemVer" in str(exc), str(exc))
+
+
+def test_version_prerelease_candidate():
+    with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
+        # the rc of the version the range MOVES TO is a real minor bump
+        repo = _released_repo(tmp, version="0.2.0-rc.1")
+        branch_from_develop(repo)
+        (repo / "backend" / "notify" / "x.py").write_text("X = 1\n",
+                                                          encoding="utf-8")
+        commit_all(repo, "feat: a feature")
+        code, out, err = run_gates(["version", "--base", "develop"], repo)
+        check("version: an rc candidate of the next version is a valid "
+              "minor bump (baseline 0.1.0 -> 0.2.0-rc.1)",
+              code == 0 and "Traceback" not in err, err)
+
+    with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
+        # the rc of the BASELINE's own version is below it, not equal to it
+        repo = _released_repo(tmp, version="0.2.0-rc.1")
+        _set_manifest(repo, version="0.2.0")
+        branch_from_develop(repo)
+        (repo / "backend" / "notify" / "x.py").write_text("X = 1\n",
+                                                          encoding="utf-8")
+        commit_all(repo, "feat: a feature")
+        code, out, err = run_gates(["version", "--base", "develop"], repo)
+        check("version: a prerelease of the baseline version is BEHIND it, "
+              "not equal to it (0.2.0-rc.1 < 0.2.0)",
+              code == 1 and "BEHIND" in err and "Traceback" not in err, err)
+
+    with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
+        # a new build of the baseline version is not a bump
+        repo = _released_repo(tmp, version="0.1.0+9f8e7d6")
+        branch_from_develop(repo)
+        (repo / "backend" / "notify" / "x.py").write_text("X = 1\n",
+                                                          encoding="utf-8")
+        commit_all(repo, "feat: a feature")
+        code, out, err = run_gates(["version", "--base", "develop"], repo)
+        check("version: build metadata does not move a version ahead",
+              code == 1 and "same precedence" in err
+              and "Traceback" not in err, err)
+
+
+def test_version_baseline_must_be_stable():
+    """The contract baseline is the previous SUPPORTED stable release; an rc
+    announces a release instead of being one (image_release.py refuses the
+    stable aliases for a prerelease). Before, a prerelease here reached the
+    version arithmetic and died with a ValueError."""
+    with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
+        repo = _released_repo(tmp, version="0.2.0")
+        _set_manifest(repo, version="0.2.0-rc.1")
+        branch_from_develop(repo)
+        (repo / "backend" / "notify" / "x.py").write_text("X = 1\n",
+                                                          encoding="utf-8")
+        commit_all(repo, "feat: a feature")
+        code, out, err = run_gates(["version", "--base", "develop"], repo)
+        check("version: a prerelease baseline cannot run (exit 2), naming the "
+              "stable-release rule",
+              code == 2 and "stable release" in err
+              and "Traceback" not in err, err)
 
 
 # ---------------------------------------------------------------- upgrade gate
@@ -814,6 +908,9 @@ def main():
             test_version_breaking_needs_a_breaking_line,
             test_version_bump_policy,
             test_version_equal_and_backwards,
+            test_semver_precedence_not_dot_splitting,
+            test_version_prerelease_candidate,
+            test_version_baseline_must_be_stable,
             test_upgrade_clean_migration_passes,
             test_upgrade_fake_migration_fails_then_marked_passes,
             test_upgrade_noop_runpython_is_fake,

@@ -61,7 +61,16 @@ version   Decide what the candidate's version must be from the classified
           change classes of the range (`pr_classify history --json`): breaking
           requires a MAJOR bump, or a MINOR bump while major is 0 and the
           baseline manifest carries the reviewed `breaking_below_1_0: "minor"`
-          reading of Q2; a feature requires MINOR; a fix requires PATCH. While
+          reading of Q2; a feature requires MINOR; a fix requires PATCH. Versions are
+           compared by SemVer precedence, not by splitting on dots: build
+           metadata never moves a version ahead (section 10), and a prerelease
+           sorts BELOW the release it precedes (section 11), so an rc candidate
+           must carry the version it will become (`0.2.0-rc.1`, the convention
+           of `image_release.py`) and not the baseline's own - while the
+           baseline itself must be a STABLE release, because the rc of 0.2.0
+           already carries the movement that 0.2.0 releases. A version the
+           regex cannot read is a cannot-run (exit 2), never a traceback
+           masquerading as a decision (exit 1). While
           no baseline version exists the required bump is reported as advisory
           (nothing to bump FROM - Q1/Q4 pending), but a range containing
           breaking entries still requires a "**Breaking:**" line in the
@@ -168,6 +177,57 @@ class GateCannotRun(Exception):
     """The gate could not answer; reported as exit 2, never as a pass."""
 
 
+def semver_parse(version, what="version"):
+    """(major, minor, patch, prerelease-identifiers) of a strict SemVer.
+
+    Read from SEMVER_RE's own groups, never by splitting on '.': this project
+    allows the prerelease and build-metadata suffixes on purpose (#1579 -
+    `0.2.0-rc.1`, `0.2.0+9f8e7d6`, and `scripts/image_release.py` tags rc
+    candidates that way), so a split yields `int("0-rc")` and raises. A
+    traceback would exit 1, which this tool reserves for a decision the gate
+    made AGAINST a candidate; a version the gate cannot read is not a
+    decision, it is a cannot-run and exits 2.
+    """
+    match = SEMVER_RE.match(version or "")
+    if not match:
+        raise GateCannotRun(
+            f"{what} {version!r} is not strict SemVer - readable is "
+            "major.minor.patch with an optional -prerelease and an optional "
+            "+buildmetadata")
+    major, minor, patch, prerelease, _meta = match.groups()
+    return (int(major), int(minor), int(patch),
+            tuple(prerelease.split(".")) if prerelease else ())
+
+
+def semver_precedence(version, what="version"):
+    """The SemVer precedence key of a version (spec sections 10 and 11).
+
+    Build metadata is IGNORED for precedence (section 10): `0.1.0+9f8e7d6` is
+    the same release as `0.1.0` and is therefore not a bump. A version WITH a
+    prerelease sorts BELOW the same version without one (section 11), which is
+    what makes `1.2.3-rc.1` and `1.2.3` two versions instead of one - the
+    mistake a numeric-triple comparison makes. Prerelease identifiers compare
+    dot by dot: numerically when numeric, numeric always below alphanumeric,
+    and a larger set of identifiers wins when all preceding ones are equal.
+    """
+    major, minor, patch, prerelease = semver_parse(version, what)
+
+    def identifier(ident):
+        if ident.isdigit():
+            return (0, int(ident), "")
+        return (1, 0, ident)
+
+    return ((major, minor, patch), 0 if prerelease else 1,
+            tuple(identifier(i) for i in prerelease))
+
+
+def semver_cmp(older, newer, what_older="version", what_newer="version"):
+    """<0, 0 or >0: the precedence of the first version against the second."""
+    first = semver_precedence(older, what_older)
+    second = semver_precedence(newer, what_newer)
+    return (first > second) - (first < second)
+
+
 # --------------------------------------------------------------------------
 # json plumbing
 
@@ -226,6 +286,18 @@ def read_baseline(root, path, document_required=True):
         if not isinstance(version, str) or not SEMVER_RE.match(version):
             raise GateCannotRun(
                 f"{path}: released mode needs a strict SemVer 'version'")
+        if semver_parse(version, f"{path} 'version'")[3]:
+            # The baseline is the previous SUPPORTED stable release, and a
+            # prerelease is not one: scripts/image_release.py refuses the
+            # stable aliases for a prerelease precisely because an rc promises
+            # a release instead of being one. Letting an rc in here would also
+            # make the bump question undecidable, since the rc of 0.2.0 already
+            # carries the minor movement that 0.2.0 releases.
+            raise GateCannotRun(
+                f"{path}: the contract baseline must be a stable release, not "
+                f"the prerelease {version} (an rc announces a release, it is "
+                "not a supported one - image_release.py refuses the stable "
+                "aliases for a prerelease)")
         if document_required and not document:
             raise GateCannotRun(
                 f"{path}: released mode needs the committed 'document' "
@@ -721,19 +793,29 @@ def cmd_version(args):
                 f"'{baseline['mode']}', Q1 of #1578 Pending) - the reviewed "
                 "0.x reading stands in until the first tag exists")
     else:
-        base_parts = tuple(int(p) for p in baseline_version.split(".")[:3])
-        cand_parts = tuple(int(p) for p in candidate_version.split(".")[:3])
+        base_parts = semver_parse(baseline_version, "the baseline version")[:3]
+        cand_parts = semver_parse(candidate_version,
+                                  "the candidate version")[:3]
+        order = semver_cmp(candidate_version, baseline_version,
+                           "the candidate version", "the baseline version")
         moved_major = cand_parts[0] > base_parts[0]
         moved_minor = moved_major or (cand_parts[0] == base_parts[0]
                                       and cand_parts[1] > base_parts[1])
-        if cand_parts < base_parts:
+        if order < 0:
             problems.append(
                 f"{candidate_version} is BEHIND the baseline "
-                f"{baseline_version}: a released version never moves backwards")
-        elif cand_parts == base_parts and required:
+                f"{baseline_version}: a released version never moves "
+                "backwards, and a prerelease sorts below the release it "
+                "precedes - an rc candidate carries the version it will "
+                "become (`0.2.0-rc.1`, scripts/image_release.py), not the "
+                "baseline's")
+        elif order == 0 and required:
             problems.append(
-                f"the range is {required}-worthy but {candidate_version} "
-                f"equals the baseline {baseline_version}")
+                f"the range is {required}-worthy but {candidate_version} has "
+                f"the same precedence as the baseline {baseline_version} "
+                "(build metadata does not move a version ahead: SemVer "
+                "ignores it for precedence, so a new build of the baseline "
+                "version is not a bump)")
         else:
             policy = baseline.get("policy", {})
             minor_for_breaking = (policy.get("breaking_below_1_0") == "minor"

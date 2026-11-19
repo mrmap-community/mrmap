@@ -158,6 +158,33 @@ class RecordListMixin:
         self.assertEqual(body['meta']['pagination']['count'], 2)
         self.assertEqual(len(body['data']), 2)
 
+    def test_a_keyword_filter_never_answers_the_record_twice(self):
+        """Two matching keywords are still one row and one count (#1477).
+
+        The keyword filters of ``registry/filters/metadata.py`` match over
+        the m2m relation of the keywords, and django-filter adds no DISTINCT
+        unless a filter carries ``distinct=True``: a record holding two
+        keywords which answer the asked piece joined twice -- as two rows of
+        the page AND as two rows of the paginator's count. That breaks the
+        promise of the filterset's own docstring, that one filter answers
+        rows and counts alike, and it multiplies every facet built over the
+        filtered set.
+        """
+        twice = self.record(
+            title='Wasserwerk Geesthacht',
+            keywords=['Wasserversorgung', 'Trinkwasser'])
+        for lookup in ('icontains', 'contains'):
+            with self.subTest(lookup=lookup):
+                _status, body, _queries = self.request(
+                    **{f'filter[keywords__keyword__{lookup}]': 'asser'})
+                self.assertEqual(
+                    [resource['id'] for resource in body['data']],
+                    [str(twice.pk)],
+                    f'the {lookup} keyword filter multiplied the record')
+                self.assertEqual(
+                    body['meta']['pagination']['count'], 1,
+                    f'the {lookup} keyword filter multiplied the count')
+
     def test_a_searched_list_is_counted_by_a_containment_over_the_vector(self):
         """The count is the statement #1029 is about; it may not search texts.
 

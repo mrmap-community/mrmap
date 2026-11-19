@@ -59,6 +59,7 @@ What it checks
    keeps the pinned reference - the guarantee the whole overlay rests on.
 """
 
+import json
 import re
 import shutil
 import subprocess
@@ -527,8 +528,21 @@ def compose_checks():
     that shape belongs next to the thing it describes: if a Compose version ever
     starts merging instead of resetting, a release would silently go back to
     building from a checkout - so this check asks, where docker is present.
+
+    It renders with ``--no-interpolate`` and an empty ``--env-file``, the way
+    ``scripts/static_mounts_smoke.py`` does. The merge question is about the
+    committed files, and a runner without a configured ``.env`` has to be able to
+    answer it: CI has none, and the first run of this check failed there on
+    ``required variable DJANGO_SECRET_KEY is missing a value`` while it was green
+    on every development checkout, which is the worst direction a check can fail
+    in. Asking the base file first, and for the same services, keeps the check
+    honest about itself: a render that dropped ``build:`` for the wrong reason
+    would fail the control, not pass the claim.
     """
-    if shutil.which("docker") is None:
+    services = ("backend", "celery-worker", "celery-beat", "frontend")
+    digests = {"backend": FAKE, "frontend": FAKE2}
+    docker = shutil.which("docker")
+    if docker is None:
         check("compose renders the pinned images and no build section", None,
               "skipped: no docker on this runner")
         RESULTS[-1] = ("compose renders the pinned images and no build section", True,
@@ -537,37 +551,54 @@ def compose_checks():
     with tempfile.TemporaryDirectory() as tmp:
         overlay = Path(tmp) / "mrmap-0.2.0.yml"
         overlay.write_text(ir.render_manifest("0.2.0", "stable", ir.REGISTRY_BASE,
-                                              {"backend": FAKE, "frontend": FAKE2}, SHA),
+                                              digests, SHA),
                            encoding="utf-8")
-        env = {"EXTERNAL_BASE_URL": "localhost", "EXTERNAL_PORT": "8001",
-               "EXTERNAL_SCHEME": "http", "PATH": "/usr/bin:/bin:/usr/local/bin"}
-        try:
-            proc = subprocess.run(
-                ["docker", "compose", "-f", "docker-compose.yml", "-f", str(overlay),
-                 "config"],
-                cwd=str(REPO), capture_output=True, text=True, timeout=180, env=env)
-        except (OSError, subprocess.TimeoutExpired) as error:
-            check("compose renders the pinned images and no build section", False, str(error))
-            return
-        rendered = proc.stdout
-        ok = proc.returncode == 0
-        sections = {}
-        current = None
-        for raw in rendered.splitlines():
-            if re.match(r"^  [a-z0-9-]+:$", raw):
-                current = raw.strip().rstrip(":")
-            elif current and re.match(r"^    (image|build):", raw):
-                sections.setdefault(current, []).append(raw.strip())
-        # the repository comes from the tool itself, so the assertion checks
-        # that compose renders what the tool named, not a second guess of it
-        wanted = {service: f"{ir.repository(ir.image_of_service(service), ir.REGISTRY_BASE)}"
-                  f":{ir.version_tag('0.2.0')}@"
-                  for service in ("backend", "celery-worker", "celery-beat", "frontend")}
-        for service, image in wanted.items():
-            found = " ".join(sections.get(service, []))
-            ok = ok and f"image: {image}" in found and "build:" not in found
-        check("compose renders the pinned images and no build section", ok,
-              f"rc={proc.returncode} {proc.stderr.strip()[:200]} sections={sections}")
+        empty_env = Path(tmp) / "empty.env"
+        empty_env.write_text("", encoding="utf-8")
+        # no COMPOSE_* of the developer's shell reaches this render; HOME stays so
+        # that a per-user docker CLI plugin is still found
+        env = {"PATH": f"{Path(docker).resolve().parent}:/usr/bin:/bin",
+               "HOME": str(Path.home())}
+
+        def render(*files):
+            argv = [docker, "compose", "--env-file", str(empty_env)]
+            for one in files:
+                argv += ["-f", one]
+            argv += ["config", "--no-interpolate", "--format", "json"]
+            try:
+                proc = subprocess.run(argv, cwd=str(REPO), capture_output=True,
+                                      text=True, timeout=180, env=env)
+            except (OSError, subprocess.TimeoutExpired) as error:
+                return None, str(error)
+            if proc.returncode != 0:
+                return None, f"rc={proc.returncode} {proc.stderr.strip()[:200]}"
+            try:
+                return json.loads(proc.stdout), ""
+            except ValueError as error:
+                return None, f"rendered output is not json: {error}"
+
+        base, why = render("docker-compose.yml")
+        built = {name: "build" in base["services"][name]
+                 for name in services} if base else {}
+        check("the base compose file still builds these images itself", base is not None
+              and all(built.values()), why or f"build sections: {built}")
+
+        merged, why = render("docker-compose.yml", str(overlay))
+        problems = []
+        if merged is None:
+            problems.append(why)
+        else:
+            for name in services:
+                image = ir.image_of_service(name)
+                # the reference comes from the tool itself, so this checks that
+                # compose renders what the tool named, not a second guess of it
+                wanted = (f"{ir.repository(image, ir.REGISTRY_BASE)}"
+                          f":{ir.version_tag('0.2.0')}@{digests[image]}")
+                rendered = merged["services"][name]
+                if rendered.get("image") != wanted or "build" in rendered:
+                    problems.append(f"{name}: {json.dumps(rendered)[:160]}")
+        check("compose renders the pinned images and no build section", not problems,
+              "; ".join(problems) or "all four services pinned, no build section")
 
 
 def main():

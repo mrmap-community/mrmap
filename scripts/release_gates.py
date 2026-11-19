@@ -221,10 +221,11 @@ def semver_precedence(version, what="version"):
             tuple(identifier(i) for i in prerelease))
 
 
-def semver_cmp(older, newer, what_older="version", what_newer="version"):
-    """<0, 0 or >0: the precedence of the first version against the second."""
-    first = semver_precedence(older, what_older)
-    second = semver_precedence(newer, what_newer)
+def semver_cmp(left, right, what_left="version", what_right="version"):
+    """<0, 0 or >0: the precedence of the left version against the right one
+    (so `semver_cmp(candidate, baseline) < 0` means the candidate is BEHIND)."""
+    first = semver_precedence(left, what_left)
+    second = semver_precedence(right, what_right)
     return (first > second) - (first < second)
 
 

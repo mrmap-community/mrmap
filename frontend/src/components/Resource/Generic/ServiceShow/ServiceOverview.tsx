@@ -38,7 +38,9 @@ const ServiceOverview = ({
     >
       {collection && <Grid size={12}>{collection}</Grid>}
       <Grid size={{ xs: 12, md: 6 }}>
-        <ServiceDetailsCard protocol={protocol} />
+        {/* the record of a shown service answers its owning organization, so
+            the card names the absence of one as the answer it is */}
+        <ServiceDetailsCard protocol={protocol} ownerHint />
       </Grid>
       {history && <Grid size={{ xs: 12, md: 6 }}>{history}</Grid>}
       {preview && <Grid size={12}>{preview}</Grid>}

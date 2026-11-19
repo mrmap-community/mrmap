@@ -285,6 +285,24 @@ describe("ServiceDetailsCard of a selected service", () => {
     expect(await screen.findAllByText("not readable")).toHaveLength(2);
   });
 
+  it("says nothing about ownership to a service which is only selected", () => {
+    // the record of the list aside never asked for the owner, so the card must
+    // not read its absence as the service having none
+    render(
+      selectedCard(
+        { id: "service-1", title: "Weather WMS" },
+        testDataProvider({
+          getList: vi
+            .fn()
+            .mockImplementation(async () =>
+              answersOutcome("WebMapServiceMonitoringRun"),
+            ),
+        }),
+      ),
+    );
+    expect(screen.queryByText("Owning organization")).not.toBeInTheDocument();
+  });
+
   it("asks nothing and shows no outcome of a service which is not selected", () => {
     const getList = vi.fn().mockResolvedValue({ data: [], total: 0 });
     render(

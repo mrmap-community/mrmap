@@ -19,6 +19,7 @@ import MapViewerButton from "../../WebMapService/Button/MapViewerButton";
 import ActivateServiceButton from "./ActivateServiceButton";
 import ServiceAlertChips from "./ServiceAlertChips";
 import ServiceOutcomes from "./ServiceOutcomes";
+import ServiceOwnerField from "./ServiceOwnerField";
 import ServicePreviewImage from "./ServicePreviewImage";
 
 export type ServiceProtocol = "WMS" | "WFS" | "CSW";
@@ -72,6 +73,7 @@ const ServiceDetailsCard = ({
   protocol,
   attention,
   openDetails,
+  ownerHint,
 }: {
   protocol: ServiceProtocol;
   /** the states of the service which need attention and the outcome of its last
@@ -81,6 +83,11 @@ const ServiceDetailsCard = ({
   /** the way to the screen of the service, which the card of a service which is
    *  only selected cannot show by itself */
   openDetails?: boolean;
+  /** Whether the card speaks of a service whose own record answers the owning
+   *  organization. Only such a record can tell an ownerless service - one of
+   *  before #733 stored ownership - from a service the request did not ask that
+   *  question about, which is what the screen showing the service itself does. */
+  ownerHint?: boolean;
 }) => {
   const resource = useResourceContext();
   const record = useRecordContext();
@@ -184,6 +191,9 @@ const ServiceDetailsCard = ({
               />
             </Labeled>
           )}
+          {/* the organization the service belongs to, and who may therefore see
+              it: the answer of the `owner` relation of #733 */}
+          <ServiceOwnerField hintWhenAbsent={ownerHint} />
           {attention && (
             <Stack spacing={0.5} sx={{ pt: 1, minWidth: 0 }}>
               <Stack

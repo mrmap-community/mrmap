@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.x.x] - UNRELEASED
+## Unreleased
+
+Curated entries for changes without a classifiable carrier, kept above the
+generated releases; entries move into a release when that release is prepared
+(#1581, epic #1577). The heading is written without a version and without
+brackets on purpose: the release planner inserts a generated release before
+the first heading that starts a version entry, and this heading must not
+look like one.
 
 ### Added
 - The overview of a registered WMS, WFS or CSW names the organization which owns it, the answer of the read-only `owner` relation of #733: the name is read from the organizations the caller may read - the list of them, because that answers every signed-in caller while the record of one organization refuses anybody but its own members, and a refused read would answer a public service page with a permission notification or an anonymous visit with a redirect to the login page - a caller without a session asks nothing at all, since the organizations endpoint refuses them and #833's public seam shows a service without naming its owner, a service which names no owner on the screen which asked for one says it was registered before ownership was stored rather than looking ownerless by accident, and the organization picked in a registration form leaves as the `owner` relationship of the create payload, so the 400 the backend answers when ownership is ambiguous or unclaimed surfaces on that field instead of as a failed POST only (#1399)

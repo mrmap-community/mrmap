@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "comment": "The release planner of epic #1577, configured by #1581. It only ever prepares a pull request against develop: skip-github-release keeps every tag and GitHub release out of this branch, tagging and releasing belong to the promotion issue #1584 and to people. The design notes and the measurements behind every key are docs/source/development/release-planning.rst.",
+  "release-type": "simple",
+  "version-file": "VERSION",
+  "extra-files": [
+    "backend/MrMap/version.py"
+  ],
+  "bump-minor-pre-major": true,
+  "skip-github-release": true,
+  "last-release-sha": "e4b59b976f276abea46fd4ed7733c65610bb2b71",
+  "commit-search-depth": 6000,
+  "changelog-sections": [
+    { "type": "feat", "section": "Added" },
+    { "type": "fix", "section": "Fixed" },
+    { "type": "perf", "section": "Changed" },
+    { "type": "refactor", "section": "Changed" },
+    { "type": "revert", "section": "Changed" },
+    { "type": "docs", "section": "Changed", "hidden": true },
+    { "type": "test", "section": "Changed", "hidden": true },
+    { "type": "style", "section": "Changed", "hidden": true },
+    { "type": "build", "section": "Changed", "hidden": true },
+    { "type": "ci", "section": "Changed", "hidden": true },
+    { "type": "chore", "section": "Changed", "hidden": true }
+  ],
+  "packages": {
+    ".": {}
+  }
+}

@@ -1,0 +1,89 @@
+name: Release Planning
+
+# WHY THIS WORKFLOW EXISTS AND WHY IT ONLY EVER OPENS A PULL REQUEST.
+#
+# Epic #1577 decided how MrMap names its versions and writes its changelog, and
+# #1581 wires the preferred planner: release-please reads the integration
+# history of `develop` - where every pull request reaches the branch as a merge
+# commit whose whole body is the pull request title, the shape #1578 measured
+# and #1580 enforces - and prepares the version bump and the changelog entry as
+# a reviewable pull request against `develop`. Nothing else.
+#
+# `skip-github-release: true` is the load-bearing line: it keeps release-please
+# from creating a tag or a GitHub release here. This branch carries no release
+# and no tag - cutting those is the promotion of a reviewed version onto the
+# release branch, issue #1584, and an act of people. A release PR merged on
+# `develop` without that promotion is why the planner then reports
+# "untagged, merged release PRs outstanding": the planner waits, it does not
+# invent a tag.
+#
+# The knobs of the plan - which commit classes land under which Keep a
+# Changelog heading, how versions bump, what anchors the window - live in
+# release-please-config.json and nowhere else; docs/source/development/
+# release-planning.rst carries the measurements behind each one, and
+# scripts/test_release_planning.py fails if this file and that config drift.
+#
+# What this workflow deliberately is not:
+#   * not a releaser. It cannot tag, release, deploy or publish; it has no
+#     environment, no deployment secret and no registry credential.
+#   * not a merge bot. It opens and updates its pull request; a person reviews
+#     and merges it, as everywhere else in this repository.
+#   * not silent. The `release_planning` job name and the planner's own run log
+#     say what was considered, what was planned and what was skipped.
+
+on:
+  push:
+    branches: [develop]
+  schedule:
+    # Re-anchor weekly even without merges: the plan is a function of the
+    # history and of the config, and a config change that reached develop
+    # through a path other than a push to it (or a lost run) is picked up here.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      release_as:
+        description: >-
+          Explicit reviewed version for the next planned release (the reviewed
+          override; leave empty to let the history decide the bump).
+        required: false
+        type: string
+
+permissions:
+  contents: write      # the planner clones and pushes only its own release branch
+  pull-requests: write # it opens and updates its own pull request
+
+# One planner at a time against develop: runs are idempotent recomputations of
+# the same plan, so a newer push supersedes a run still in flight.
+concurrency:
+  group: release-planning-develop
+  cancel-in-progress: true
+
+jobs:
+  release_planning:
+    # Never run from a fork: the planner would open its pull request against
+    # somebody else's repository copy.
+    if: github.repository == 'mrmap-community/mrmap'
+    runs-on: ubuntu-latest
+    steps:
+      # The action clones the repository itself; no checkout step is needed
+      # and none would be read.
+      #
+      # Note for reviewers of the PR this opens: it is created with the
+      # workflow token, and checks do not run automatically on a first push of
+      # a pull request that GITHUB_TOKEN created. The checks run on every
+      # subsequent push, and reopening the pull request triggers them too.
+      # That is GitHub's rule for token-created pull requests, not a setting
+      # of this workflow.
+      - name: plan the next release of develop
+        uses: googleapis/release-please-action@v4.4.1
+        with:
+          target-branch: develop
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          # The one line that keeps this branch free of tags and releases.
+          skip-github-release: true
+          # Labels on a pull request belong to the people of this repository.
+          skip-labeling: true
+          # Empty by ordinary runs; a workflow_dispatch may name the reviewed
+          # explicit version here.
+          release-as: ${{ inputs.release_as }}

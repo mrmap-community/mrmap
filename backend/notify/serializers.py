@@ -155,11 +155,6 @@ class BackgroundProcessSerializer(
         # #1223, so it is no longer named here.
         exclude = ("celery_task_ids", "action_required")
 
-    # included_serializers = {
-    #    'logs': BackgroundProcessLogSerializer,
-    # }
-    # }
-
     def get_related_resource(self, obj):
         # the type of the related resource is select_related by process_info(), so
         # this answers without an additional query - which matters here, because

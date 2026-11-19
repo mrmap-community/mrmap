@@ -39,9 +39,9 @@ Who announces what
        * - ``BackgroundProcess``
          - every save and delete; the terminal states ``completed``, ``failed`` and ``aborted`` carry ``done_at`` and are flagged ``immediate``
        * - ``HarvestingJob``
-         - every phase transition (progress and measurements are annotations - the receiver re-reads the job through ``with_process_info()`` so the push carries exactly what the endpoint answers)
+         - every save (progress and measurements are annotations - the receiver re-reads the job through ``with_process_info()`` so the push carries exactly what the endpoint answers)
        * - ``ServiceAlert``
-         - an invalidation message with empty ``ids`` on harvesting state changes (#1030); the subscribers refetch their scoped alerts, the message itself carries no records
+         - an invalidation message with empty ``ids`` on real harvesting state changes only (#1030, #1485): the create of a run, a workflow save which writes the run's change log, and a save which finds the run done or aborted. The plan and progress saves of the tasks invalidate nothing - the alert reads the newest run, its phase and its completion, never its bookkeeping; the subscribers refetch their scoped alerts, the message itself carries no records
 
     Two preconditions decide whether an announcement happens at all:
 

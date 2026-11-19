@@ -215,9 +215,11 @@ Beside ``OgcClient``:
        ``requests`` verbs, no timeout, no session
      - none (the ETF service is assumed open)
      - ``run_conformity_check_etf``
-       (``tasks/conformity.py:49``), started from the conformity API;
-       the whole transport retired with the family (#1530), see the
-       R16/P-6 disposition below
+       (``tasks/conformity.py:49``), reachable through a broker delivery by
+       name only - the "conformity API" this row first named never existed:
+       gate #1528 found no view, serializer, frontend caller or beat row for
+       the family. The whole transport retired with the family (#1530), see
+       the R16/P-6 disposition below
    * - ``system/status.py:57-70``
      - Docker Engine API of the deployment host, one session per snapshot,
        ``trust_env = False``, per-call deadline of 2 s
@@ -616,8 +618,9 @@ counts requests or parser invocations, not broker messages or rows.
        conformity family instead of being pooled
      - bounded, but each unpooled request pays a handshake and each unbounded
        one can hold a worker; the ``requests`` norm in the project's OGC skill
-       asks for an explicit timeout. Fixture:
-       ``tests/django/registry/tasks/tests_conformity_tasks.py``
+       asks for an explicit timeout. Fixture: none - the guard module
+       ``tests/django/registry/tasks/tests_conformity_tasks.py`` retired with
+       the tasks (#1458), and there is nothing left to hold a timeout
    * - **R17**
      - A logged proxied response is decoded twice: once for the mask
        (``proxy/wms_proxy.py:369-375``) and again from storage in the analysis
@@ -855,8 +858,11 @@ issues is a human act, so they are listed here and handed over with
 - **P-5 (from R14)** — ``/csw`` document serving re-parses every record per
   request; needs a measurement first, and a staleness-safe key before any cache.
 - **P-6 (from R16)** — the ETF client's unpooled, timeout-less transport.
-  Moot: the transport retired with the conformity family (#1530); no
-  pooling work remains.
+  **Withdrawn, never filed:** the transport retired with the conformity
+  family (#1530) instead of being pooled, so no work remains and nothing
+  here should ever be opened as an issue. The disposition is recorded in
+  :ref:`etf-conformity-retirement`, which also closes the keep-or-remove
+  question #1394 had left to the family's owners.
 
 SQL-only findings, crosslinked to #1387 (no work here)
 ######################################################

@@ -23,6 +23,7 @@ from registry.serializers.historical import (
     LayerHistorySerializer, WebFeatureServiceHistorySerializer,
     WebMapServiceHistorySerializer, DatasetMetadataRecordHistorySerializer,
     ServiceMetadataRecordHistorySerializer)
+from rest_framework_json_api.utils import get_included_resources
 from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import (get_app_model_primary_key_name,
                                   get_history_manager_for_model)
@@ -49,9 +50,14 @@ class HistoricalViewSetMixin:
     def get_queryset(self, *args, **kwargs):
         qs = super().get_queryset(*args, **kwargs)
 
-        include = self.request.GET.get("include", None)
+        # the include is read through the parser of the framework, the same
+        # one the view mixins of extras use - it answers with the names of
+        # python, into which it also turns the name of the api the request
+        # was written with (#1479)
+        included_resources = get_included_resources(
+            self.request, self.get_serializer_class())
 
-        if not include or "historyUser" not in include:
+        if "history_user" not in included_resources:
             defer = [
                 f"history_user__{field.name}"
                 for field in get_user_model()._meta.get_fields()

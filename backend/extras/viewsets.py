@@ -1,7 +1,7 @@
 import uuid
 from collections import OrderedDict
 
-from camel_converter import to_camel, to_snake
+from camel_converter import to_snake
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db.models.query import Prefetch, QuerySet
@@ -10,7 +10,7 @@ from django.views.generic.detail import BaseDetailView
 from drf_spectacular.utils import extend_schema
 from extras.permissions import (list_is_permission_filtered,
                                 objects_for_user)
-from extras.utils import get_sparse_fields
+from extras.utils import get_sparse_fields, parse_sparse_fieldsets
 from guardian.core import ObjectPermissionChecker
 from notify.serializers import BackgroundProcessSerializer
 from rest_framework import mixins, status
@@ -19,7 +19,8 @@ from rest_framework.reverse import reverse
 from rest_framework.settings import api_settings
 from rest_framework.test import APIRequestFactory
 from rest_framework.viewsets import GenericViewSet
-from rest_framework_json_api.utils import (get_included_resources,
+from rest_framework_json_api.utils import (format_field_name,
+                                           get_included_resources,
                                            get_resource_name)
 from rest_framework_json_api.views import PreloadIncludesMixin, RelatedMixin
 
@@ -401,17 +402,26 @@ class PreloadNotIncludesMixin:
 
 
 class SparseFieldMixin:
+    """Endpoints whose expensive answers are asked with a sparse fieldset.
+
+    The parsing is the one of the project: `parse_sparse_fieldsets` of
+    `extras.utils` turns the names of the api into the names of python, and
+    the answers of this mixin name the fields with `format_field_name` back
+    in the names of the api, so the very same fieldset is answered whether a
+    request wrote its fields with camel or with snake names (#1479). The
+    callers ask with the names of the api (`check_sparse_fields_contains`),
+    and a request without a fieldset renders all of the answers.
+    """
+
     def initial(self, *args, **kwargs):
-        # FUTURE: get all sparsefield parameters
-        fields_snake = self.request.GET.get(
-            f"fields[{self.queryset.model.__name__}]", "").split(',')
         self.sparse_fields = {
-            self.queryset.model.__name__: [
-                to_camel(field) for field in fields_snake if field.strip()]
+            resource: [format_field_name(field) for field in fields]
+            for resource, fields in parse_sparse_fieldsets(self.request).items()
         }
         super().initial(*args, **kwargs)
 
     def get_sparse_fields(self, resource):
+        """The fieldset of one resource, named with the names of the api."""
         return self.sparse_fields.get(resource, [])
 
     def check_sparse_fields_contains(self, fieldname):

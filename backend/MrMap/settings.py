@@ -274,12 +274,18 @@ ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS])
+        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS]
+        + ([] if MRMAP_PRODUCTION else ["http://localhost:5173", "http://127.0.0.1:5173"]))
 ).split(";")
 
+# The Vite development frontend authenticates with the backend's session cookie.
+# Keep credentialed development requests restricted to the local frontend origins.
+CORS_ALLOW_CREDENTIALS = not MRMAP_PRODUCTION
 if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
     CORS_ALLOWED_ORIGINS = os.environ.get(
         "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
+elif not MRMAP_PRODUCTION:
+    CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 else:
     warn("all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
     CORS_ALLOW_ALL_ORIGINS = True

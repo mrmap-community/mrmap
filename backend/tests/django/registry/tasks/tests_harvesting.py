@@ -527,6 +527,7 @@ class HarvestingStepSizeTest(TransactionTestCase):
         # Parallel test databases reuse the fixture job IDs. Page claims must
         # stay local to this worker, and must not outlive an individual test.
         cache.clear()
+        self.addCleanup(cache.clear)
         setup_capabilitites_file()
 
     @staticmethod

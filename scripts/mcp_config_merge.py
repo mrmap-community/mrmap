@@ -126,8 +126,8 @@ def read_existing(path):
         raise Refused(
             "is not valid JSON "
             f"({error.msg} at line {error.lineno} column {error.colno}). "
-            "Comments and trailing commas are not JSON: OpenCode reads "
-            "`.jsonc`/`.json5` files as such, this file is parsed strictly")
+            "Comments and trailing commas are not JSON: this file is read "
+            "strictly, so they have to go before it can be updated")
     if not isinstance(document, dict):
         raise Refused(
             f"holds a JSON {_json_type_name(document)} at its top level; an "

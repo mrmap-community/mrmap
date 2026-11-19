@@ -3,8 +3,9 @@
 
 Run from the repository root:  python3 scripts/test_mcp_config_merge.py
 Needs nothing but the standard library: no docker, no network, no gh, no
-database, no OpenCode. Exit 0 = every check passed, 1 = a check failed, 2 = the
-harness itself could not run.
+database, no OpenCode. Exit 0 = every check passed, 1 = a check failed - which
+includes a phase which could not finish, reported as a check rather than as a
+traceback which would have swallowed the results collected before it.
 
 Why these checks exist
 ----------------------
@@ -108,9 +109,29 @@ HOST_CONFIG = {
 
 def without_postgres(document):
     """A deep copy with only the postgres entry dropped out of it."""
+    if not isinstance(document, dict):
+        return document
     kept = copy.deepcopy(document)
-    kept.get("mcp", {}).get("servers", {}).pop("postgres", None)
+    mcp = kept.get("mcp")
+    servers = mcp.get("servers") if isinstance(mcp, dict) else None
+    if isinstance(servers, dict):
+        servers.pop("postgres", None)
     return kept
+
+
+def dig(document, *keys):
+    """Follow keys through nested dicts; ``None`` where one of them is not there.
+
+    A key which went missing is a finding to report, not a ``KeyError`` to take
+    the run down with: against the version of the script this suite exists for,
+    exactly these keys are the ones which were gone.
+    """
+    node = document
+    for key in keys:
+        if not isinstance(node, dict) or key not in node:
+            return None
+        node = node[key]
+    return node
 
 
 def run_merger(cwd, dsn=DSN, file="opencode.json", server="postgres",
@@ -127,11 +148,29 @@ def run_merger(cwd, dsn=DSN, file="opencode.json", server="postgres",
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    """The parsed file, or ``None`` when it is not there or not JSON.
+
+    Reported, not raised: a file the code under test failed to write is a
+    finding this suite has to print, the same reason ``dig`` returns ``None``.
+    """
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
 
 
 def mode_of(path):
-    return stat.S_IMODE(Path(path).stat().st_mode)
+    """The file mode, or ``None`` when the file is not there to be measured."""
+    try:
+        return stat.S_IMODE(Path(path).stat().st_mode)
+    except OSError:
+        return None
+
+
+def mode_text(path):
+    """A mode for the detail of a check: ``0o600``, or that it is missing."""
+    mode = mode_of(path)
+    return "missing" if mode is None else oct(mode)
 
 
 def temp_tree():
@@ -162,14 +201,14 @@ def merger_checks():
         if created_ok:
             doc = read_json(target)
             check("  with the schema and the note of a fresh file",
-                  doc.get("$schema") == "https://opencode.ai/config.json"
-                  and doc.get("$comment") == "LOCAL override for this checkout")
+                  dig(doc, "$schema") == "https://opencode.ai/config.json"
+                  and dig(doc, "$comment") == "LOCAL override for this checkout")
             check("  with the postgres entry the setup script needs",
-                  doc["mcp"]["servers"]["postgres"] == {
+                  dig(doc, "mcp", "servers", "postgres") == {
                       "type": "local", "command": ["npx", "-y", PIN],
                       "environment": {"DATABASE_URL": DSN}})
             check("  written as mode 0600 (it carries a DSN)",
-                  mode_of(target) == 0o600, f"mode {oct(mode_of(target))}")
+                  mode_of(target) == 0o600, f"mode {mode_text(target)}")
 
         # -- preserves everything the script was not asked about
         host_file = tmp / "host.json"
@@ -185,18 +224,18 @@ def merger_checks():
                   without_postgres(after) == without_postgres(HOST_CONFIG),
                   "a top-level setting or another server entry changed")
             check("  keeps a server the host disabled, disabled",
-                  after["mcp"]["servers"]["github"].get("disabled") is True)
+                  dig(after, "mcp", "servers", "github", "disabled") is True)
             check("  keeps the mcp settings beside the servers",
-                  after["mcp"].get("timeout") == {"startup": 90000})
+                  dig(after, "mcp", "timeout") == {"startup": 90000})
             check("  keeps the host's own $comment and $schema",
-                  after.get("$comment") == HOST_CONFIG["$comment"]
-                  and "$schema" in after)
+                  dig(after, "$comment") == HOST_CONFIG["$comment"]
+                  and dig(after, "$schema") is not None)
             check("  replaces the postgres entry with the intended one",
-                  after["mcp"]["servers"]["postgres"] == {
+                  dig(after, "mcp", "servers", "postgres") == {
                       "type": "local", "command": ["npx", "-y", PIN],
                       "environment": {"DATABASE_URL": DSN}})
             check("  tightens a mode which is too loose for a DSN",
-                  mode_of(host_file) == 0o600, f"mode {oct(mode_of(host_file))}")
+                  mode_of(host_file) == 0o600, f"mode {mode_text(host_file)}")
 
             # -- repeated setup runs are idempotent about unrelated settings
             before_bytes = host_file.read_bytes()
@@ -257,8 +296,8 @@ def merger_checks():
         proc = run_merger(tmp, file="empty.json")
         check("treats an empty file as nothing to preserve",
               proc.returncode == 0
-              and read_json(empty)["mcp"]["servers"]["postgres"]
-              ["environment"]["DATABASE_URL"] == DSN
+              and dig(read_json(empty), "mcp", "servers", "postgres",
+                      "environment", "DATABASE_URL") == DSN
               and mode_of(empty) == 0o600, proc.stderr.strip())
 
         proc = run_merger(tmp, file="no/such/dir/opencode.json")
@@ -391,9 +430,9 @@ def script_checks():
         if override.is_file():
             doc = read_json(override)
             check("  with the DSN of this slot's forwarder",
-                  doc["mcp"]["servers"]["postgres"]["environment"]
-                  ["DATABASE_URL"] == DSN, json.dumps(
-                      doc["mcp"]["servers"].get("postgres", {})))
+                  dig(doc, "mcp", "servers", "postgres", "environment",
+                      "DATABASE_URL") == DSN,
+                  json.dumps(dig(doc, "mcp", "servers", "postgres")))
             check("  as mode 0600", mode_of(override) == 0o600,
                   f"mode {oct(mode_of(override))}")
         ignore = (repo / ".gitignore").read_text(encoding="utf-8")
@@ -411,20 +450,27 @@ def script_checks():
                             encoding="utf-8")
         os.chmod(override, 0o644)
         proc = run_setup(repo, home, stubs, docker_log)
-        ok = proc.returncode == 0
-        check("the script keeps a host's local config across a re-run", ok,
+        check("the script succeeds on a host which already has a local config",
+              proc.returncode == 0,
               f"exit {proc.returncode}: {proc.stderr.strip()}")
-        if ok:
-            after = read_json(override)
-            check("  model, provider limits, compaction, permissions and "
-                  "unknown keys survive",
-                  without_postgres(after) == without_postgres(HOST_CONFIG))
-            check("  a server disabled on this host is still disabled",
-                  after["mcp"]["servers"]["github"].get("disabled") is True)
-            check("  only the postgres entry was updated",
-                  after["mcp"]["servers"]["postgres"]["environment"]
-                  ["DATABASE_URL"] == DSN)
-            check("  and the file ends up 0600", mode_of(override) == 0o600)
+        # read the file whatever the run answered: losing the settings is the
+        # finding, and it has to be reported even when the run also failed
+        after = read_json(override)
+        check("the script keeps a host's own settings across a re-run",
+              without_postgres(after) == without_postgres(HOST_CONFIG),
+              "a top-level setting or another server entry was lost")
+        check("  model, provider limits, compaction and permissions survive",
+              dig(after, "model") == HOST_CONFIG["model"]
+              and dig(after, "provider") == HOST_CONFIG["provider"]
+              and dig(after, "compaction") == HOST_CONFIG["compaction"]
+              and dig(after, "permission") == HOST_CONFIG["permission"])
+        check("  a server disabled on this host is still disabled",
+              dig(after, "mcp", "servers", "github", "disabled") is True)
+        check("  only the postgres entry was updated",
+              dig(after, "mcp", "servers", "postgres", "environment",
+                  "DATABASE_URL") == DSN)
+        check("  and the file ends up 0600", mode_of(override) == 0o600,
+              f"mode {mode_text(override)}")
         again_bytes = override.read_bytes()
         proc = run_setup(repo, home, stubs, docker_log)
         check("  a third run changes no byte at all",
@@ -478,8 +524,15 @@ def script_checks():
 
 
 def main():
-    merger_checks()
-    script_checks()
+    # A phase which cannot finish is a failed check, not a traceback: the checks
+    # it did collect are printed below the failure, because what stopped the run
+    # is usually one of the findings this suite exists to report.
+    for phase in (merger_checks, script_checks):
+        try:
+            phase()
+        except Exception as error:
+            check(f"{phase.__name__} ran to the end", False,
+                  f"{type(error).__name__}: {error}")
 
     width = max((len(name) for name, _, _ in RESULTS), default=0)
     failed = [(name, detail) for name, ok, detail in RESULTS if not ok]

@@ -38,6 +38,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    runtime-memory-baselines
    decision-requests
    release-versioning-baseline
+   canonical-version
    schedule-optimization-v3
    code-quality
    keyword-triggers

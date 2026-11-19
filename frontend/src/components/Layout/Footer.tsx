@@ -7,6 +7,7 @@ import { Box, IconButton, Stack, Tooltip } from '@mui/material';
 
 import { useHttpClientContext } from '../../context/HttpClientContext';
 import { useSystemTime } from "../../jsonapi/hooks/useSystemTime";
+import AppVersionInfo from './AppVersionInfo';
 
 const Footer = () => {
   const systemTime = useSystemTime();
@@ -31,11 +32,7 @@ const Footer = () => {
       direction="row"
       sx={{justifyContent:"space-between", alignItems:"center"}}
     >
-      <Box 
-        sx={{paddingLeft: 2}}
-      >
-          v.{api?.document.info.version}
-      </Box>
+      <AppVersionInfo backendVersion={api?.document.info.version} />
       <Box  >
         <IconButton 
           href="https://github.com/mrmap-community" 

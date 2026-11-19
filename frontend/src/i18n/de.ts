@@ -1488,6 +1488,14 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       restricted:
         "Nur einzeln benannte Gruppen oder Personen dürfen diesen Dienst einsehen.",
     },
+    // die Organisation, der der Dienst gehört (#733); die Relation wird
+    // schreibgeschützt beantwortet, ein Dienst aus der Zeit vor der
+    // Eigentümerschaft nennt also keine, und wer nicht Mitglied ist, kann sie
+    // gar nicht lesen
+    owner: "Eigentümerorganisation",
+    ownerNone:
+      "Keine Eigentümerorganisation gespeichert. Dieser Dienst wurde registriert, bevor die Eigentümerschaft gespeichert wurde.",
+    ownerUnavailable: "nicht lesbar",
     operationUrls: "Operations-URLs",
     layers: "Layer",
     featureTypes: "Feature-Typen",

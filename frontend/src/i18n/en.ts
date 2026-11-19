@@ -1352,6 +1352,13 @@ const en = lodashMerge(
         restricted:
           "Only individually named groups or users may view this service.",
       },
+      // the organization which owns the service (#733); the relation is answered
+      // read-only, so a service of before ownership was stored names none, and a
+      // caller who is not a member of the owner cannot read it at all
+      owner: "Owning organization",
+      ownerNone:
+        "No owning organization is stored. This service was registered before ownership was stored.",
+      ownerUnavailable: "not readable",
       operationUrls: "Operation URLs",
       layers: "Layers",
       featureTypes: "Feature types",

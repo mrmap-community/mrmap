@@ -1,5 +1,5 @@
-# Opt-in compose layer that replaces the per-run `npm ci` of the
-# `frontend-tests` service with a prebuilt frontend dependency image
+# Opt-in compose layer that seeds the `frontend-tests` dependency volume
+# from a prebuilt image instead of downloading dependencies with `npm ci`
 # (issue #963, epic #959; resolver wiring #962). Layer it over the development
 # configuration:
 #
@@ -56,8 +56,7 @@ services:
         MRMAP_IMAGE_FP: ${MRMAP_FRONTEND_IMAGE_FP:-unset}
     environment:
       MRMAP_FRONTEND_IMAGE_FP: ${MRMAP_FRONTEND_IMAGE_FP:-}
-    # Replaces the `npm ci && npm run test` default command of
-    # docker-compose.dev.yml: the bootstrap entrypoint takes care of the
-    # dependencies, so the command only runs the check itself.
+    # The same bootstrap handles both plain Node and prebuilt images; the
+    # dependency tree in this image lets it seed instead of running npm ci.
     entrypoint: /usr/local/bin/mrmap-frontend-bootstrap
     command: /bin/sh -c "npm run test -- --run"

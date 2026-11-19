@@ -65,7 +65,7 @@ def harvest_durations(service_ids):
             newest of them and the amount of runs which measured it
     """
     from registry.models.harvest import HarvestingJob
-    from registry.querys.havesting import run_created_at
+    from registry.querys.harvesting import run_created_at
     return {
         row['service']: row
         for row in HarvestingJob.objects.filter(

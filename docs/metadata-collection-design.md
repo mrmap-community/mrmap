@@ -128,9 +128,9 @@ Registration should adopt it rather than add a parallel mechanism.
 
 | Need | Existing pattern to copy | Where it lives today |
 | --- | --- | --- |
-| one landing row per expected item, with its outcome and a retry switch | `TemporaryMdMetadataFile`: `requested_url`, `has_import_error`, `import_error`, `re_schedule` | `registry/models/harvest.py:1124-1161`, manager `registry/managers/havesting.py:473-518` |
+| one landing row per expected item, with its outcome and a retry switch | `TemporaryMdMetadataFile`: `requested_url`, `has_import_error`, `import_error`, `re_schedule` | `registry/models/harvest.py:1124-1161`, manager `registry/managers/harvesting.py:473-518` |
 | the number expected, known **before** the fan-out | `HarvestingJob.total_records` is a stored field, filled from the answer of the catalogue | `registry/models/harvest.py:254`, `:733-748` |
-| counters which must not be re-aggregated per poll | stored counters (measured in #1037: annotations on a live run cost 5.85 s cold / 12.2 s worst), answered by index-backed correlated subqueries — a `COUNT FILTER` in front of the whole backlog read the rows of all 411,518 files of one job on every request which rendered its progress | `registry/managers/havesting.py:105-125` (#870, #886), `docs/architecture.md:100-172` |
+| counters which must not be re-aggregated per poll | stored counters (measured in #1037: annotations on a live run cost 5.85 s cold / 12.2 s worst), answered by index-backed correlated subqueries — a `COUNT FILTER` in front of the whole backlog read the rows of all 411,518 files of one job on every request which rendered its progress | `registry/managers/harvesting.py:105-125` (#870, #886), `docs/architecture.md:100-172` |
 | a retry of one item which reports into the same run | `re_schedule` makes `save()` clear the error and schedule the import task again — today only the admin action sets it | `registry/models/harvest.py:1177-1202`, `registry/admin/harvest.py:7-13` |
 | a transient failure which must not become a terminal one | the import task re-raises what its base promises to retry, „or its autoretry is laundered into a terminal has_import_error" (#895) | `registry/tasks/harvest.py:1186-1190` |
 | the per-item table of one run, on the run's screen | `NestedTemporaryMdMetadataFileViewSet` | `registry/urls.py:118-119`, `registry/views/harvesting.py` |
@@ -230,7 +230,7 @@ An answer is a design decision — it is not `agent: approved` and not a pull re
    > (`registry/models/update.py:329-337`). The flag reads as *stands while a human is awaited*; whether a
    > **finished** run with recorded errors uses it at all is the follow-up D9, recorded as A on
    > 2026-11-12: it does not —
-   > completed-with-import-errors is how harvesting shows it (`registry/managers/havesting.py:520-528`,
+   > completed-with-import-errors is how harvesting shows it (`registry/managers/harvesting.py:520-528`,
    > `frontend/src/i18n/en.ts:457-458`), and #1277's acknowledge was released to #1104 under that answer.
 2. **Where the per-reference outcome lives.** New columns on the four `RemoteMetadata` subclasses, or one
    table per registration run (the `HarvestedMetadataRelation` shape). The first is cheaper, the second keeps

@@ -25,17 +25,14 @@
 # A one-field marker written by the #963 bootstrap is still understood: it
 # counts as a match only while no canonical fp is exported (plain :main flow).
 # When no dependency tree is baked into the image (plain node:26-alpine, the
-# non-prebuilt path) the script does nothing.
+# non-prebuilt path), install into the volume on first use or a fingerprint
+# change. Explicit commands such as `npm run dev` need the same bootstrap.
 set -eu
 
 APP_DIR=/opt/mrmap/frontend
 DEPS_DIR=/opt/frontend-deps
 NM_DIR="$APP_DIR/node_modules"
 MARKER="$NM_DIR/.mrmap-deps-fp"
-
-if [ ! -d "$DEPS_DIR/node_modules" ]; then
-    exec "$@"
-fi
 
 image_fp=$(cat "$DEPS_DIR/.mrmap-deps-fp" 2>/dev/null || echo none)
 current_fp=$({ cat "$APP_DIR/package.json" "$APP_DIR/package-lock.json"; node -v; npm -v; } | sha256sum | cut -d ' ' -f1 | cut -c1-12)
@@ -57,13 +54,17 @@ fi
 if [ -n "$m_canon" ] && [ "$m_canon" = "$canonical_fp" ] && [ "$m_deps" = "$current_fp" ]; then
     echo "frontend-deps: node_modules volume is up to date (fp $current_fp, image $canonical_fp)" >&2
 else
-    if [ "$image_fp" = "$current_fp" ]; then
+    if [ -d "$DEPS_DIR/node_modules" ] && [ "$image_fp" = "$current_fp" ]; then
         echo "frontend-deps: seeding node_modules from image (fp $current_fp, image $canonical_fp)" >&2
         mkdir -p "$NM_DIR"
         find "$NM_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
         cp -a "$DEPS_DIR/node_modules/." "$NM_DIR/"
     else
-        echo "frontend-deps: mounted lockfile ($current_fp) differs from image ($image_fp) - running npm ci" >&2
+        if [ "$image_fp" = none ]; then
+            echo "frontend-deps: installing npm dependencies (fp $current_fp)" >&2
+        else
+            echo "frontend-deps: mounted lockfile ($current_fp) differs from image ($image_fp) - running npm ci" >&2
+        fi
         ( cd "$APP_DIR" && npm ci --no-audit --no-fund )
     fi
     echo "$canonical_fp $current_fp" > "$MARKER"

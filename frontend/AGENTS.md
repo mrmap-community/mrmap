@@ -176,10 +176,10 @@ resets the `container_name` pinned in `docker-compose.dev.yml`; without it a sec
 `frontend-tests` beside the first. The default command under this file is the full test suite, so a
 bare `run --rm --no-deps frontend-tests` needs no arguments.
 
-Without the prebuilt file the local flow keeps working unchanged — `node:26-alpine` plus the
-project's `node_modules` volume, where only the first run in a fresh project pays for `npm ci`
-(~20 s) as long as you pass an explicit command (the service's default command installs on every
-start):
+Without the prebuilt file, `node:26-alpine` uses the same bootstrap with the project's
+`node_modules` volume. It runs `npm ci` on first use (~20 s) and when the manifests or Node/npm
+versions change, then reuses the dependencies on subsequent starts. This also applies to explicit
+commands, including the VS Code `Frontend: run dev` task:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-deps frontend-tests

@@ -58,9 +58,16 @@ SERVICE_OPERATIONS = {
 # the metadata records a service declares to operate on: uuidref names the
 # record, href points at it - two evidence strands, kept apart as the document
 # carries them (#982 defines how they resolve; #669 forbids comparing them
-# as one identifier blindly)
+# as one identifier blindly).
+#
+# The `_reverse` makes the rows WRITABLE for the write mapper (#985): a curated
+# record to record relation of a service metadata record is serialized into its
+# document as one row per coupled dataset - uuidref the dataset record's
+# document identity, href its location. Writing is add/remove only: the rows a
+# harvested document brought in stay as they are unless a write names them.
 OPERATES_ON = {
     "_values": True,
+    "_reverse": True,
     "_base_xpath": "./gmd:identificationInfo/srv:SV_ServiceIdentification/srv:operatesOn",
     "fields": {
         "uuidref": "./@uuidref",

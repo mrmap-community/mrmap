@@ -890,7 +890,12 @@ class XmlMapper:
             value = values[name]
             if is_value_spec(field):
                 # the _values specs are document evidence with no model field
-                # of their own - nothing to write back
+                # of their own - written only where the config declares a
+                # `_reverse` for them (#985: the srv:operatesOn rows a curated
+                # record to record relation adds to its service document)
+                if field.get("_reverse"):
+                    self._write_value_field(
+                        name, field, value, nsmap, element_order)
                 continue
             if isinstance(field, dict) and "_model" in field:
                 self._write_related_field(
@@ -899,6 +904,91 @@ class XmlMapper:
                 self._write_flat_field(
                     name, field, value, self.current_element, nsmap,
                     element_order)
+
+    def _write_value_field(self, name, spec, value, nsmap, element_order):
+        """Write the rows of one writable ``_values`` field.
+
+        An addition creates only what the document does not already carry -
+        the same skip-if-equal rule the scalar fields keep - and a removal
+        hits exactly the rows whose every named field matches; unlike the
+        model-backed collections the document OWNS its evidence here, so a
+        harvested row which no row of the database claims keeps its bytes no
+        matter what else is written (#985).
+
+        The shape written is either the list ``mapped_values()`` answers -
+        a pure add, every row asserted - or the publish diff
+        ``{"add": [...], "remove": [...]}``: removals first, then additions,
+        so one request which unlinks a reference and declares another never
+        answers the removed row as "already carried".
+        """
+        if value is None:
+            return
+        if isinstance(value, dict):
+            removals = list(value.get("remove") or [])
+            additions = list(value.get("add") or [])
+        else:
+            removals, additions = [], list(value)
+        base = spec.get("_base_xpath")
+        if not base:
+            self.warnings.append(
+                f"'{name}' is not writable: the spec names no _base_xpath")
+            return
+        steps, _attr, _is_text = parse_write_path(base)
+        if not steps:
+            self.warnings.append(
+                f"'{name}' is not writable: its _base_xpath names no row")
+            return
+
+        for item in removals:
+            for row in self._value_row_matches(spec, item, steps, nsmap):
+                remove_mapped_element(row, self.current_element)
+        if not additions:
+            return
+
+        row_steps = [step for step in steps[-1:] if step.name != "."]
+        for item in additions:
+            if self._value_row_matches(spec, item, steps, nsmap):
+                continue
+            existing = find_mapped_elements(
+                self.current_element, steps, nsmap)
+            if existing:
+                leaf = create_mapped_row(
+                    None, row_steps, nsmap, element_order,
+                    after=existing[-1])
+            else:
+                container = ensure_mapped_element(
+                    self.current_element, steps[:-1], nsmap, element_order)
+                leaf = create_mapped_row(
+                    container, row_steps, nsmap, element_order)
+            self._write_row_values(
+                name, spec, item, leaf, None, nsmap, element_order)
+
+    def _value_row_matches(self, spec, item, steps, nsmap):
+        """The rows the base path answers which carry every field of *item*."""
+        return [
+            row for row in find_mapped_elements(self.current_element, steps, nsmap)
+            if self._value_row_equals(spec, item, row, nsmap)
+        ]
+
+    def _value_row_equals(self, spec, item, row, nsmap):
+        """Whether one row element carries exactly the fields *item* names.
+
+        Absent and empty answer as one value, the way the reader of a value
+        spec extracts an attribute it does not find; fields the row carries
+        besides the named ones do not break the match - the fields name the
+        reference, the row's other attributes are its own representation.
+        """
+        for field_name, field_spec in (spec.get("fields") or {}).items():
+            if not isinstance(field_spec, str):
+                return False  # pragma: no cover - configs are hand checked
+            value = (item or {}).get(field_name)
+            field_steps, attr, _is_text = parse_write_path(field_spec)
+            attr_tag = resolve_write_qname(attr, nsmap) if attr else None
+            targets = find_mapped_elements(row, field_steps, nsmap)
+            current = get_mapped_value(targets[0], attr_tag) if targets else None
+            if (current or "") != ("" if value is None else str(value)):
+                return False
+        return True
 
     def _write_flat_field(self, name, field_spec, value, base_el, nsmap,
                           element_order):

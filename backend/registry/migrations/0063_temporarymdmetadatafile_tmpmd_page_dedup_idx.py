@@ -8,7 +8,11 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('notify', '0010_operationalincident'),
-        ('registry', '0058_registrationdocumentacquisition_and_more'),
+        # renumbered from 0059 onto develop's current leaf: develop grew the
+        # 0059-0062 chain (the index cleanup and the retired conformity
+        # family) while this branch was open, and two leaf nodes of one app
+        # are what makemigrations refuses in the merge queue
+        ('registry', '0062_retire_conformity_check_family'),
     ]
 
     operations = [

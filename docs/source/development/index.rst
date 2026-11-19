@@ -36,6 +36,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    runtime-memory-baselines
+   celery-healthcheck-overhead
    decision-requests
    release-versioning-baseline
    canonical-version
@@ -44,4 +45,3 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    keyword-triggers
    definition_of_done
    vscode-configuration
-   

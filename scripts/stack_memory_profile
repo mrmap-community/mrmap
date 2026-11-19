@@ -4,8 +4,8 @@
 The runtime-memory epic (#1612) needs baselines nobody has to re-measure by
 hand, and the #1054 lesson says what to measure: the charge a stack puts on
 the cgroup that owns it, split into what can be reclaimed and what cannot.
-This tool only READS: cgroup files of the stack's containers and of its own
-cgroup, plus `docker ps`/`docker inspect` for the container list. It never
+The sample/report commands only READ: cgroup files of the stack's containers
+and of its own cgroup, plus `docker ps`/`docker inspect` for the container list. It never
 writes a cgroup file, never touches compose state, never scales anything.
 
 What each sample records per container: memory.current, memory.peak where
@@ -15,8 +15,9 @@ cumulative), the cpu.stat usage and throttle counters (same delta rule), and
 on a coarser cadence the per-process view of /proc/<pid>/status: RSS with its
 anon/file/shmem split per command name, which is how PostgreSQL's shared
 buffers are told apart from private memory (#1613). Proportional Set Size is
-NOT measured: it would need /proc/<pid>/smaps_rollup, which an unprivileged
-agent container may not read, and an invented PSS is worse than the gap. And
+not part of stack samples: it needs /proc/<pid>/smaps_rollup, which an
+unprivileged agent container may not read. The command subcommand samples
+PSS of its own child when readable, leaving missing readings null. And
 the same numbers for the SAMPLER's own cgroup, because a profile taken inside
 the agent container is a measurement of the agent cgroup, not of the machine
 (#1054). Phases (cold start, warmed idle, load, suite) are separate runs with
@@ -34,8 +35,13 @@ usage:
       outlives the cap is terminated and reported as during_rc)
   scripts/stack_memory_profile report --in FILE
       print the phase table of the runs recorded in FILE
+  python scripts/stack_memory_profile command --phase NAME [--runs N]
+      [--timeout SECONDS] [--out FILE] [--revision SHA] -- executable args...
+      run a single-process probe repeatedly, without a shell; record each
+      exit code, timeout, wall time, CPU, kernel peak RSS and sampled PSS.
+      Run INSIDE the worker container for healthcheck comparisons (#1616).
 
-Both commands take --cgroup-root and --proc-root for the offline suite;
+The sample command takes --cgroup-root and --proc-root for the offline suite;
 everything docker-related goes through run_docker(), which the suite stubs.
 """
 
@@ -43,9 +49,12 @@ import argparse
 import datetime
 from itertools import zip_longest
 import json
+import math
 import os
+import signal
 import subprocess
 import sys
+import threading
 import time
 
 CGROUP_ROOT = "/sys/fs/cgroup"
@@ -250,6 +259,102 @@ def read_proc_comm(pid, proc_root=PROC_ROOT):
     if start == -1 or end <= start:
         return None
     return text[start + 1:end]
+
+
+def read_proc_pss(pid, proc_root=PROC_ROOT):
+    """PSS in bytes, or None when smaps_rollup is absent or forbidden."""
+    try:
+        with open(os.path.join(proc_root, str(pid), "smaps_rollup")) as handle:
+            for line in handle:
+                fields = line.split()
+                if len(fields) == 3 and fields[0] == "Pss:" and fields[1].isdigit():
+                    return int(fields[1]) * 1024
+    except OSError:
+        pass
+    return None
+
+
+def measure_command(command, timeout=10, interval=0.01):
+    """Measure one Linux child; wait4 keeps CPU/RSS local to this invocation.
+
+    PSS is sampled, so it is a lower bound on the transient peak. ru_maxrss
+    is the kernel's peak RSS even for a process too short to sample. This
+    measures the immediate child; use an executable directly, not a shell
+    or a command which starts worker descendants.
+    """
+    started = time.monotonic()
+    child = subprocess.Popen(command, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+    pss_readings = []
+    timed_out = False
+    sampling = threading.Event()
+    try:
+        while True:
+            pss = read_proc_pss(child.pid)
+            if pss is not None:
+                pss_readings.append(pss)
+            pid, status, usage = os.wait4(child.pid, os.WNOHANG)
+            if pid:
+                break
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0:
+                timed_out = True
+                os.killpg(child.pid, signal.SIGKILL)
+                _, status, usage = os.wait4(child.pid, 0)
+                break
+            sampling.wait(min(interval, remaining))
+        child.returncode = os.waitstatus_to_exitcode(status)
+    finally:
+        if child.returncode is None:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait()
+    return {
+        "returncode": child.returncode,
+        "timed_out": timed_out,
+        "wall_seconds": time.monotonic() - started,
+        "cpu_seconds": usage.ru_utime + usage.ru_stime,
+        "rss_peak": usage.ru_maxrss * 1024,  # Linux reports KiB
+        "pss_sampled_peak": max(pss_readings) if pss_readings else None,
+        "pss_samples": len(pss_readings),
+    }
+
+
+def cmd_command(args):
+    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+    if (not command or args.runs < 1
+            or not math.isfinite(args.timeout) or args.timeout <= 0
+            or not math.isfinite(args.interval) or args.interval <= 0):
+        die("command needs an executable and positive runs, timeout and interval")
+
+    def interrupted(signum, frame):
+        # Unwind measure_command's finally even on a runner's SIGTERM.
+        raise SystemExit(128 + signum)
+
+    previous = signal.signal(signal.SIGTERM, interrupted)
+    try:
+        measurements = [measure_command(command, args.timeout, args.interval)
+                        for _ in range(args.runs)]
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+    run = {
+        "kind": "command", "phase": args.phase, "command": command,
+        "environment": environment(None), "python": sys.version,
+        "at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "interval_seconds": args.interval, "timeout_seconds": args.timeout,
+        "measurements": measurements,
+    }
+    if args.revision:
+        run["environment"]["git_commit"] = args.revision
+    text = json.dumps(run, sort_keys=True)
+    if args.out:
+        with open(args.out, "a") as handle:
+            handle.write(text + "\n")
+    else:
+        print(text)
+    return 1 if any(m["returncode"] != 0 for m in measurements) else 0
 
 
 def sample_processes(path, cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT):
@@ -537,6 +642,20 @@ def cmd_report(args):
     print(f"runs: {len(runs)}  project: {env.get('project')}  "
           f"commit: {env.get('git_commit')}  kernel: {env.get('kernel')}")
     for run in runs:
+        if run.get("kind") == "command":
+            measurements = run["measurements"]
+            print(f"\n== {run['phase']}  ({len(measurements)} command runs)"
+                  f"  exits {[m['returncode'] for m in measurements]}"
+                  f"  timeouts {sum(m['timed_out'] for m in measurements)}")
+            for key in ("wall_seconds", "cpu_seconds", "rss_peak", "pss_sampled_peak"):
+                values = [m[key] for m in measurements if m[key] is not None]
+                median, peak = percentile(values, 0.5), percentile(values, 1)
+                if key.endswith("seconds"):
+                    print(f"   {key}: p50 {median:.3f}  peak {peak:.3f}")
+                else:
+                    print(f"   {key}: p50 {fmt_mb(median)}  peak {fmt_mb(peak)}"
+                          f"  readable {len(values)}/{len(measurements)}")
+            continue
         child = f"  during: {run['during']} (rc={run['during_rc']})" if run.get("during") else ""
         self_cgroup = run.get("sampler_cgroup") or {}
         print(f"\n== {run['phase']}  ({run['samples']} samples, "
@@ -598,11 +717,21 @@ def main(argv=None):
     sample.add_argument("--out")
     sample.add_argument("--cgroup-root", default=CGROUP_ROOT)
     sample.add_argument("--proc-root", default=PROC_ROOT)
+    command = sub.add_parser("command", help="measure a single-process command (Linux)")
+    command.add_argument("--phase", required=True)
+    command.add_argument("--runs", type=int, default=10)
+    command.add_argument("--timeout", type=float, default=10)
+    command.add_argument("--interval", type=float, default=0.01)
+    command.add_argument("--out")
+    command.add_argument("--revision")
+    command.add_argument("command", nargs=argparse.REMAINDER)
     report = sub.add_parser("report", help="print the runs of one --out file")
     report.add_argument("--in", dest="infile", required=True)
     report.add_argument("--procs", type=int, default=3,
                         help="process rows to show per container (0 = none)")
     args = parser.parse_args(argv)
+    if args.cmd == "command":
+        return cmd_command(args)
     if args.cmd == "sample":
         if not args.project:
             die("sample needs --project (or COMPOSE_PROJECT_NAME)")

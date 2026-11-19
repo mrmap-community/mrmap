@@ -178,14 +178,15 @@ assertion was not tightened with it - that is the intent.
        keeps its identity across refreshes (green, #1319/#1030)
      - #1394
    * - conformity checks
-     - retired with #1458
+     - retired with #1458 and #1530
      - the three dead tasks and their liveness guard left the codebase with
        #1458: nothing on develop ever dispatched them and their abstract
        base fetch could never answer, so no query guard had anything to
-       regress; what remains of the family (models, managers, plugins,
-       tables) is owned by the retirement decision of #1528 and its
-       removal PR #1530
-     - #1458, gate #1528
+       regress; #1530 then retired the rest of the family - models,
+       managers, enums, plugin helpers, fixtures and all twelve tables -
+       through ``registry/migrations/0060_retire_conformity_check_family``,
+       per the decision record of gate #1528
+     - #1458, gate #1528, #1530
    * - security log analysis
      - not pinned
      - already optimal as an ORM plan per the audit; its volume question is
@@ -313,8 +314,9 @@ Not covered here, and why
 
 - **conformity**: #1394 established that no first-party code dispatches the
   family and that its tasks read the abstract run base, which has no table -
-  a query guard would measure a dead path, so the family page carries a
-  liveness guard instead. **security-log-analysis**: already optimal per the
+  a query guard would measure a dead path. The tasks retired with #1458 and
+  the whole family, schema included, retired with #1530, so there is nothing
+  left to guard. **security-log-analysis**: already optimal per the
   audit; a count guard would re-assert a conclusion that has nothing to
   regress.
 - **Runtime behavior of any kind** - durations, backpressure, queue drain:

@@ -29,6 +29,7 @@ from extras.locks import SingleFlight
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
 from lxml.etree import XMLParser
+from MrMap import celery_queues
 from MrMap.celery import app
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
@@ -2624,7 +2625,9 @@ class PeriodicHarvestingJob(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.harvest.create_harvesting_job"
             if not self.queue:
-                self.queue = "default"
+                # named by the one module which holds the queue names; it
+                # must stay what the task this row fires declares (#1455)
+                self.queue = celery_queues.DEFAULT
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':

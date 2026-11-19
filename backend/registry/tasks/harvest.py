@@ -639,11 +639,17 @@ def resume_stale_import_run(job, registered_ids, origin):
 
 @worker_ready.connect
 def recover_harvests_after_restart(sender, **kwargs):
-    # Database state also covers a crash between commit and publishing a chord.
-    sender.app.send_task("registry.tasks.harvest.recover_harvesting_jobs")
+    # Database state also covers a crash between commit and publishing a
+    # chord. Addressed by name, the call is a remote call: the queue is
+    # part of it - the declaration of the task is not what routes such a
+    # call (Celery's calling docs; #1455). The queue named here is the one
+    # the task declares below.
+    sender.app.send_task(
+        "registry.tasks.harvest.recover_harvesting_jobs",
+        queue=celery_queues.DEFAULT)
 
 
-@shared_task(queue="default", base=HarvestingTask)
+@shared_task(queue=celery_queues.DEFAULT, base=HarvestingTask)
 def recover_harvesting_jobs():
     """Resume the harvests which did not end while no worker was running.
 
@@ -1535,9 +1541,12 @@ def sweep_ended_harvest_temp_files(*args, **kwargs):
         # whose chord died between commit and publish waits for nothing
         # else but this pass and the worker start (#1263). The singleton
         # deduplicates it against that hook; its refusal here is only a
-        # deferred pass, never a lost recovery.
+        # deferred pass, never a lost recovery. Addressed by name, the call
+        # is a remote call: the queue is part of it, and what it names is
+        # the queue of #1263's isolation the task declares (#1455).
         app.send_task(
-            "registry.tasks.service.recover_registration_reference_work")
+            "registry.tasks.service.recover_registration_reference_work",
+            queue=celery_queues.DB_ROUTINES)
     except Exception:
         logger.warning(
             f"could not schedule the registration reference recovery; the "
@@ -1568,7 +1577,7 @@ def schedule_cleanup_of_harvest_temp_files(harvesting_job_id):
     transaction.on_commit(_publish)
 
 
-@shared_task(queue="default", bind=True, base=HarvestingTask)
+@shared_task(queue=celery_queues.DEFAULT, bind=True, base=HarvestingTask)
 def create_harvesting_job(self, *args, **kwargs):
     from registry.models.harvest import HarvestingJob
     from registry.models.service import CatalogueService

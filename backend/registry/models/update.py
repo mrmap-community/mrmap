@@ -13,6 +13,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from extras.scheduling import next_run_expected_at
+from MrMap import celery_queues
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.update import UpdateJobStatusEnum, UpdateModeEnum
 from registry.managers.service import configured_relation_fields
@@ -113,7 +114,10 @@ class WebMapServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_wms_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -156,7 +160,10 @@ class WebFeatureServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_wfs_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':
@@ -199,7 +206,10 @@ class CatalogueServiceUpdateSetting(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.update.create_csw_update_job"
             if not self.queue:
-                self.queue = "update"
+                # the queue of the update work named by the one module
+                # which holds the names; it must stay what the task this
+                # row fires declares (#1455)
+                self.queue = celery_queues.UPDATE
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':

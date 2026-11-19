@@ -6,11 +6,16 @@ the row is already there; for a missing row it locks nothing at all, so two
 writers of one couple - the same reference collected twice, a registration
 beside an update - both saw no row and both wrote one. The service side of the
 same table never had that hole, because its pairs are unique constraints since
-their first migration; the dataset side is closed the same way here, with
-``is_internal`` in the key: a couple is one row per kind of coupling, because
-the imported evidence a capabilities document carried and a curator's internal
-coupling of the very same pair are rows of their own by design
-(``MetadataRelation.publication_kind``).
+their first migration; the dataset side is closed the same way here.
+
+The key of the new constraints is the key the write path itself re-asserts on:
+the pair beside ``is_internal`` and ``origin``, the two columns which say
+*which* coupling of a pair a row is. The table holds rows of one couple on
+purpose - the imported evidence of a document, the internal coupling a curator
+maintains (``MetadataRelation.publication_kind``) and the EDITOR coupling a
+collection finds standing beside the one it asserts itself, which
+``tests/django/registry/tasks/tests_reference_work_queue.py`` pins - and a key
+which left ``origin`` out refuses what that flow writes.
 
 ``DatasetCouplingUniquenessTests`` pins what the schema answers for the live
 model. ``DatasetCouplingDedupeMigrationTest`` travels the real
@@ -35,6 +40,22 @@ from registry.models.service import (FeatureType, Layer, WebFeatureService,
 #: constraint of ``MetadataRelation`` allows a dataset record beside these two
 #: only, so they are also the only pair columns which need a constraint.
 ELEMENTS = ('layer', 'feature_type')
+
+#: the kinds of coupling one couple keeps a row of its own for: ``origin`` and
+#: ``is_internal``, the columns ``add_metadata_relation`` keys its
+#: ``get_or_create`` on beside the pair, which is what the pair constraint of
+#: #1483 therefore compares
+KINDS = {
+    'imported evidence': (MetadataOriginEnum.CAPABILITIES.value, False),
+    'curated coupling': (MetadataOriginEnum.EDITOR.value, True),
+    # the shape the collection of an advertised document finds standing:
+    # another origin, the same flag
+    'curated from the catalogue': (MetadataOriginEnum.EDITOR.value, False),
+}
+
+#: the kind the repetitions of a couple are written as, and whose oldest row
+#: the dedupe of the upgrade has to leave standing
+FIRST_KIND = 'imported evidence'
 
 
 class CouplingParts:
@@ -96,58 +117,72 @@ class DatasetCouplingUniquenessTests(CouplingParts, TestCase):
         self.assertEqual(first.pk, again.pk)
         self.assertEqual(MetadataRelation.objects.count(), 1)
 
-    def test_the_second_row_of_a_couple_is_refused(self):
+    def test_the_second_row_of_a_couple_of_one_kind_is_refused(self):
         """The write the missing constraint let through (#1483).
 
-        Each subtest names the element whose pair column the constraint covers:
-        the two are separate constraints and a copy-paste in one of them reads
-        as green for the other.
+        Each subtest names the element and the kind whose row is repeated: the
+        two elements are separate constraints, so a copy-paste in one of them
+        reads as green for the other, and a kind the key does not compare would
+        let the race of #1483 through under its own ``origin``.
+        """
+        for element in ELEMENTS:
+            for kind, (origin, is_internal) in KINDS.items():
+                with self.subTest(element=element, kind=kind):
+                    described = self.element(element)
+                    self.dataset.add_metadata_relation(
+                        related_object=described, origin=origin,
+                        is_internal=is_internal)
+
+                    with self.assertRaises(IntegrityError):
+                        with transaction.atomic():
+                            MetadataRelation.objects.create(
+                                dataset_metadata=self.dataset,
+                                **{element: described},
+                                origin=origin, is_internal=is_internal)
+
+                    self.assertEqual(
+                        MetadataRelation.objects.filter(
+                            dataset_metadata=self.dataset, origin=origin,
+                            is_internal=is_internal,
+                            **{element: described}).count(), 1,
+                        'a second row of one coupling survived the constraint')
+
+    def test_every_kind_of_a_couple_stays_a_row_of_its_own(self):
+        """Why ``origin`` and ``is_internal`` belong to the key.
+
+        Three rows of one pair are production readings, not test shapes: the
+        evidence a capabilities document carried, the coupling a curator
+        maintains in MrMap, and the EDITOR coupling a collection finds standing
+        beside the one it asserts itself. A constraint over the bare pair - or
+        over the pair plus one of the two columns - would refuse one of them,
+        and the write path would answer an IntegrityError for a coupling it
+        neither wrote nor may drop.
         """
         for element in ELEMENTS:
             with self.subTest(element=element):
                 described = self.element(element)
-                evidence = self.dataset.add_metadata_relation(
-                    related_object=described)
+                asserted = {
+                    kind: self.dataset.add_metadata_relation(
+                        related_object=described, origin=origin,
+                        is_internal=is_internal).pk
+                    for kind, (origin, is_internal) in KINDS.items()}
 
-                with self.assertRaises(IntegrityError):
-                    with transaction.atomic():
-                        MetadataRelation.objects.create(
-                            dataset_metadata=self.dataset,
-                            **{element: described},
-                            origin=MetadataOriginEnum.CATALOGUE.value,
-                            is_internal=evidence.is_internal)
-
+                self.assertEqual(
+                    len(set(asserted.values())), len(KINDS),
+                    'two kinds of one couple share a row')
                 self.assertEqual(
                     MetadataRelation.objects.filter(
                         dataset_metadata=self.dataset,
-                        **{element: described}).count(), 1,
-                    'a second row of the couple survived the constraint')
+                        **{element: described}).count(), len(KINDS))
 
-    def test_the_two_kinds_of_a_couple_stay_rows_of_their_own(self):
-        """Why ``is_internal`` belongs to the key of the constraint.
-
-        The imported evidence of a capabilities document and the coupling a
-        curator maintains in MrMap are separate rows of one pair: only one of
-        them is published, and a constraint over the bare pair would refuse a
-        curator's coupling of a reference the document already carried - or the
-        harvest of a document for a pair a curator coupled first.
-        """
-        for element in ELEMENTS:
-            with self.subTest(element=element):
-                described = self.element(element)
-                evidence = self.dataset.add_metadata_relation(
-                    related_object=described)
-                curated = self.dataset.add_metadata_relation(
-                    related_object=described,
-                    origin=MetadataOriginEnum.EDITOR.value, is_internal=True)
-
-                self.assertNotEqual(evidence.pk, curated.pk)
-                self.assertFalse(evidence.is_internal)
-                self.assertTrue(curated.is_internal)
-                self.assertEqual(
-                    MetadataRelation.objects.filter(
-                        dataset_metadata=self.dataset,
-                        **{element: described}).count(), 2)
+                # and asserting one of them again answers its own row
+                for kind, (origin, is_internal) in KINDS.items():
+                    self.assertEqual(
+                        self.dataset.add_metadata_relation(
+                            related_object=described, origin=origin,
+                            is_internal=is_internal).pk,
+                        asserted[kind],
+                        're-asserting a kind answered another kind of the pair')
 
     def test_a_row_without_an_element_is_no_couple_of_anything(self):
         """The record-only rows of the table are no pairs to compare.
@@ -189,16 +224,17 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
         """The rows a deployment carries under the schema which allowed them.
 
         Written with the models of the state before the constraint, because
-        that is the schema which let them in: one couple per element with three
-        repetitions - the first of them is what the dedupe has to leave behind,
-        the two after it are what it has to remove - beside a row of the very
-        same pair which is an internal one, which is a couple of its own and has
-        to survive, beside a row which names no element at all, which is no pair
+        that is the schema which let them in: three rows of one couple and one
+        kind - the first of them is what the dedupe has to leave behind, the
+        two after it are what it has to remove - beside a row of the very same
+        pair of every other kind, which is a coupling of its own and has to
+        survive, beside a row which names no element at all, which is no pair
         and has to survive too.
 
         Returns:
-            dict: per element the primary key of the first row and of the
-                internal row, plus the key of the row which names no element
+            dict: per element the primary key of the first row of
+                ``FIRST_KIND`` and of the row of every other kind, plus the key
+                of the row which names no element
         """
         executor = MigrationExecutor(connection)
         executor.migrate(self.migrate_from)
@@ -215,52 +251,54 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
 
         written = {}
         for element in ELEMENTS:
+            origin, is_internal = KINDS[FIRST_KIND]
             rows = [Relation.objects.create(
                 dataset_metadata=dataset, **{element: described[element]},
-                origin=MetadataOriginEnum.CAPABILITIES.value)
+                origin=origin, is_internal=is_internal)
                 for _ in range(3)]
-            written[element] = {
-                'first': rows[0].pk,
-                'internal': Relation.objects.create(
+            others = {
+                kind: Relation.objects.create(
                     dataset_metadata=dataset,
                     **{element: described[element]},
-                    origin=MetadataOriginEnum.EDITOR.value,
-                    is_internal=True).pk,
-            }
+                    origin=kind_origin, is_internal=kind_internal).pk
+                for kind, (kind_origin, kind_internal) in KINDS.items()
+                if kind != FIRST_KIND}
+            written[element] = {'first': rows[0].pk, 'others': others}
         written['without_element'] = Relation.objects.create(
             dataset_metadata=dataset,
             origin=MetadataOriginEnum.CATALOGUE.value).pk
         return written
 
     def rows_per_couple(self):
-        """The rows the upgrade left behind, grouped by the couple they form.
+        """The rows the upgrade left behind, grouped by the coupling they form.
 
-        Grouped by what the pair constraint compares - the element of the
-        coupling and its kind - and answered as the primary keys of the rows, so
-        an assertion about a survivor names the row it means.
+        Grouped by what the pair constraint compares - the element, the origin
+        and the flag - and answered as the primary keys of the rows, so an
+        assertion about a survivor names the row it means.
 
         Returns:
-            dict: per (element, kind of coupling) the primary keys of its rows,
-                in the order they were written
+            dict: per (element, kind) the primary keys of its rows, in the
+                order they were written
         """
         couples = {}
         for element in ELEMENTS:
-            for kind in (False, True):
+            for kind, (origin, is_internal) in KINDS.items():
                 couples[(element, kind)] = list(
                     MetadataRelation.objects.filter(
-                        dataset_metadata=self.dataset, is_internal=kind,
+                        dataset_metadata=self.dataset, origin=origin,
+                        is_internal=is_internal,
                         **{element: self.element(element)}).order_by('pk')
                     .values_list('pk', flat=True))
         return couples
 
-    def test_the_upgrade_keeps_one_row_per_couple(self):
-        """The oldest row of a couple stands, its repetitions are gone.
+    def test_the_upgrade_keeps_one_row_per_coupling(self):
+        """The oldest row of a coupling stands, its repetitions are gone.
 
         The oldest one stands because that is the row every writer of the
-        couple would have re-used: ``get_or_create`` returns the row it finds,
-        and before the constraint existed it found the first one written. The
-        internal coupling of the very same pair is a couple of its own and keeps
-        its row, which is why the assertion reads per kind and not per pair.
+        coupling would have re-used: ``get_or_create`` returns the row it finds,
+        and before the constraint existed it found the first one written. Every
+        other kind of the very same pair is a coupling of its own and keeps its
+        row, which is why the assertion reads per kind and not per pair.
         """
         seeded = self.repetitions()
 
@@ -270,14 +308,16 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
         survivors = self.rows_per_couple()
         for element in ELEMENTS:
             with self.subTest(element=element):
-                self.assertEqual(survivors[(element, False)],
-                                 [seeded[element]['first']],
-                                 'the dedupe kept a repetition of the imported '
-                                 'coupling, or dropped its first row')
-                self.assertEqual(survivors[(element, True)],
-                                 [seeded[element]['internal']],
-                                 'the dedupe treated the internal coupling of a '
-                                 'pair as a repetition of the imported one')
+                self.assertEqual(
+                    survivors[(element, FIRST_KIND)],
+                    [seeded[element]['first']],
+                    'the dedupe kept a repetition of the imported coupling, or '
+                    'dropped its first row')
+                for kind, pk in seeded[element]['others'].items():
+                    self.assertEqual(
+                        survivors[(element, kind)], [pk],
+                        f'the dedupe treated the {kind} of a pair as a '
+                        'repetition of another kind')
 
         self.assertTrue(
             MetadataRelation.objects.filter(
@@ -291,10 +331,11 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
         executor.migrate(self.migrate_to)
 
         for element in ELEMENTS:
+            origin, is_internal = KINDS[FIRST_KIND]
             with self.subTest(element=element):
                 with self.assertRaises(IntegrityError):
                     with transaction.atomic():
                         MetadataRelation.objects.create(
                             dataset_metadata=self.dataset,
                             **{element: self.element(element)},
-                            origin=MetadataOriginEnum.CATALOGUE.value)
+                            origin=origin, is_internal=is_internal)

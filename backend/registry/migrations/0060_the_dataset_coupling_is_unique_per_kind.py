@@ -5,7 +5,9 @@
 # which does not exist yet: two writers of one pair both saw no row and both
 # wrote one. The dedupe runs first, because a deployment which already carries
 # a repeated pair would otherwise be refused by the constraint this same
-# migration adds.
+# migration adds. What counts as a repeated pair is the key the write path
+# re-asserts on - `is_internal` and `origin` beside the pair - so the rows of
+# one couple which are a coupling of a different kind keep their rows.
 
 from django.db import migrations, models
 from django.db.models import Exists, OuterRef
@@ -22,17 +24,21 @@ def _repeated_couplings(apps, element):
     """The couplings of one element which repeat a couple that stands already.
 
     A couple is identified the way `add_metadata_relation` identifies it: the
-    element, the record and `is_internal`. `is_internal` belongs to the key by
-    design - the imported evidence a capabilities document carried stays a row
-    of its own beside a curator's internal coupling of the very same pair, see
-    `MetadataRelation.publication_kind` - while the `origin` of a row does not
-    split it, because the `get_or_create` does not ask it either.
+    element, the record and the kind of the coupling - `is_internal` and
+    `origin`, the two columns which say *which* coupling of a pair this is.
+    Both belong to the key by design: the imported evidence a capabilities
+    document carried stays a row of its own beside a curator's internal
+    coupling of the very same pair (`MetadataRelation.publication_kind`), and
+    so does the EDITOR coupling a collection finds already standing beside the
+    one it asserts itself - which is what
+    `tests/django/registry/tasks/tests_reference_work_queue.py` pins.
     """
     MetadataRelation = apps.get_model('registry', 'MetadataRelation')
     earlier_of_the_same_couple = MetadataRelation.objects.filter(
         **{
             'pk__lt': OuterRef('pk'),
             'is_internal': OuterRef('is_internal'),
+            'origin': OuterRef('origin'),
             f'{element}_id': OuterRef(f'{element}_id'),
             'dataset_metadata_id': OuterRef('dataset_metadata_id'),
         })
@@ -70,13 +76,14 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='metadatarelation',
             constraint=models.UniqueConstraint(
-                fields=('is_internal', 'dataset_metadata', 'layer'),
+                fields=('is_internal', 'origin', 'dataset_metadata', 'layer'),
                 name='unique_dataset_metadata_representation_for_layer'),
         ),
         migrations.AddConstraint(
             model_name='metadatarelation',
             constraint=models.UniqueConstraint(
-                fields=('is_internal', 'dataset_metadata', 'feature_type'),
+                fields=('is_internal', 'origin', 'dataset_metadata',
+                        'feature_type'),
                 name='unique_dataset_metadata_representation_for_feature_type'),
         ),
     ]

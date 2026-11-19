@@ -1334,21 +1334,28 @@ class MetadataRelation(models.Model):
                 fields=["service_metadata", "wfs"]
             ),
             # a coupling of a dataset record to one element is stored once per
-            # kind of coupling (#1483). `is_internal` is part of the key
-            # because that is the key :meth:`MetadataRecord.add_metadata_relation`
-            # re-asserts on: the imported evidence a capabilities document
-            # carried and a curator's internal coupling of the very same pair
-            # are two rows by design, see :attr:`MetadataRelation.publication_kind`.
+            # kind of coupling (#1483). The key is the one
+            # :meth:`MetadataRecord.add_metadata_relation` re-asserts on - the
+            # filled columns plus `is_internal`, and `origin` is a filled
+            # column - because the table holds rows of one pair on purpose:
+            # the imported evidence of a document, the coupling a curator
+            # maintains (`publication_kind`) and the EDITOR coupling a
+            # collection finds already standing beside its own are separate
+            # rows, which `tests/django/registry/tasks/
+            # tests_reference_work_queue.py` pins for the collection. A key
+            # without `origin` would refuse what that flow writes.
             # Only the layer and the feature type are named: the check
             # constraint `one_related_object_selected` allows a dataset record
-            # beside no other element.
+            # beside no other element. The service block above is narrower
+            # than this and predates it; these two mirror their own write path.
             models.UniqueConstraint(
                 name="unique_dataset_metadata_representation_for_layer",
-                fields=["is_internal", "dataset_metadata", "layer"]
+                fields=["is_internal", "origin", "dataset_metadata", "layer"]
             ),
             models.UniqueConstraint(
                 name="unique_dataset_metadata_representation_for_feature_type",
-                fields=["is_internal", "dataset_metadata", "feature_type"]
+                fields=["is_internal", "origin", "dataset_metadata",
+                        "feature_type"]
             )
         ]
 

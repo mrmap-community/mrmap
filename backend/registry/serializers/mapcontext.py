@@ -146,9 +146,6 @@ class MapContextLayerSerializer(
         else:
             return node.insert_at(parent)
 
-    def get_mptt_tree_id(self, instance):
-        return instance.mptt_tree_id
-
 
 class MapContextDefaultSerializer(
         StringRepresentationSerializer,

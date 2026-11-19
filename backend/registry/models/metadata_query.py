@@ -48,6 +48,13 @@ DATASET_WITHOUT_RELATION = Q(
 SERVICE_WITHOUT_RELATION = Q(
     layer__isnull=True, feature_type__isnull=True, csw__isnull=True,
     wms__isnull=True, wfs__isnull=True, dataset_metadata__isnull=True, service_metadata__isnull=False)
+# the declaration of one service metadata record operating on one dataset
+# metadata record (#985); D5 of docs/metadata-identity.md names this coupling an
+# established relationship kind and the write api of the relation endpoint
+# stores it exactly once per pair, which is the combination this Q allows
+SERVICE_WITH_DATASET_RELATION = Q(
+    layer__isnull=True, feature_type__isnull=True, csw__isnull=True,
+    wms__isnull=True, wfs__isnull=True, dataset_metadata__isnull=False, service_metadata__isnull=False)
 
 
 VALID_LAYER_RELATIONS = LAYER_WITH_SERVICE_RELATION | LAYER_WITH_DATASET_RELATION | LAYER_WITH_SERVICE_RELATION
@@ -56,4 +63,4 @@ VALID_CSW_RELATIONS = CSW_WITHOUT_RELATION | CSW_WITH_SERVICE_RELATION
 VALID_WMS_RELATIONS = WMS_WITHOUT_RELATION | WMS_WITH_SERVICE_RELATION
 VALID_WFS_RELATIONS = WFS_WITHOUT_RELATION | WFS_WITH_SERVICE_RELATION
 
-VALID_RELATIONS = VALID_LAYER_RELATIONS | VALID_FEATURE_TYPE_RELATIONS | VALID_CSW_RELATIONS | VALID_WMS_RELATIONS | VALID_WFS_RELATIONS | DATASET_WITHOUT_RELATION | SERVICE_WITHOUT_RELATION
+VALID_RELATIONS = VALID_LAYER_RELATIONS | VALID_FEATURE_TYPE_RELATIONS | VALID_CSW_RELATIONS | VALID_WMS_RELATIONS | VALID_WFS_RELATIONS | DATASET_WITHOUT_RELATION | SERVICE_WITHOUT_RELATION | SERVICE_WITH_DATASET_RELATION

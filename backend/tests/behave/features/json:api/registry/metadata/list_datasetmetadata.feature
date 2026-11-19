@@ -31,6 +31,21 @@ Feature: DatasetMetadataRecord List Endpoint
             | filter by title    | filter[title__icontains]             | Relative Feuchte                | 1     |
             | filter by abstract | filter[abstract__icontains]          | Messwerte der relativen Feuchte | 1     |
 
+    # A keyword filter matches over the m2m relation of the keywords. A record
+    # answering the asked piece with two of its keywords joined the relation twice,
+    # which the answer paid as two rows of the page AND as two rows of the
+    # paginator's count; distinct=True on these filters answers the record once,
+    # rows and counts alike (#1477).
+    Scenario Outline: A record with two matching keywords is answered once by <lookup>
+        Given the fixture record holds a second keyword answering the piece
+        When I ask the dataset metadata list for a "<lookup>" filter on the keyword piece "<piece>"
+        Then the list answers the record "d8b50d33-2ad7-4a41-bd0d-2d518ea10fd4" once
+
+        Examples:
+            | lookup    | piece        |
+            | icontains | niederschlag |
+            | contains  | Niederschlag |
+
     # A search word is a word of the record: of its title, of its abstract or of one
     # of its keywords, which is what the vector of the record holds. A piece of a
     # word is not a word and finds nothing, which is what makes the search answerable

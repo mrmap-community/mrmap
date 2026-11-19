@@ -256,8 +256,9 @@ peer-closed or errored connection):
      - 28 ms
      - 25/25, 0 early
 
-All 11 000 answered requests across the four arms came back under 400 -
-the workload never produced an error in any shape.
+All 18 000 answered requests across the four arms came back under 400 -
+the workload never produced an error in any shape (the peer prober's
+requests are counted separately by design).
 
 What the tables say
 ===================
@@ -334,12 +335,12 @@ Low-memory mode: what it trades
 ===============================
 
 ``MRMAP_LOW_MEMORY=1`` is the shape #1617 measured as **1 worker x 2
-threads**, and the trade is now a number: it gives up ~351 M of the
-backend container's committed reservation (and, with a populated or
-busier host, up to ~420 M of the loaded peak: 713 -> 295 M committed
-between the arms) and takes back 73 % of the empty-database list
-throughput, with the cheap neighbour waiting 464 ms instead of 218 ms
-under a 16-client burst. The mode is aimed at the host the epic describes
+threads**, and the trade is now a number: it gives up ~349 M of the
+backend container's committed reservation (632 -> 283 M idle) and ~418 M
+of its loaded committed peak (713 -> 295 M), and pays 73 % of the
+empty-database list throughput for it, with the cheap neighbour waiting
+464 ms instead of 218 ms under a 16-client burst. The mode is aimed at
+the host the epic describes
 - a developer's or an agent's machine running *beside* MrMap, where the
 web tier is background service - not at a deployment; the
 :ref:`compose-profiles` mode (#1614) tiers away the optional UIs, this

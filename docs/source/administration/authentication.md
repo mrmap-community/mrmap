@@ -97,6 +97,7 @@ and CLI clients. The policy is an explicit deployment decision in
 | --- | --- | --- |
 | `REST_KNOX["TOKEN_TTL"]` | `timedelta(hours=10)` | One working day, enforced **server-side** on every request against the token row's `expiry` — not a client-side notion. |
 | `REST_KNOX["AUTO_REFRESH"]` | `False` | No rolling extension. Activity does not stretch the token; it ends predictably. |
+| `REST_KNOX["TOKEN_LIMIT_PER_USER"]` | `5` | At most five **not-yet-expired** tokens per user (#1450). While the cap is reached, `POST /api/auth/login` refuses further logins with `403` and issues no token; a logout or an expiry frees a slot — guessing at passwords cannot. This bounds what one seen credential can farm; it is not a device-management promise, and there is no per-device view. |
 
 Revocation paths:
 
@@ -129,6 +130,7 @@ answer **403**. The deliberate contract is in the JSON:API error `code`
 | CSRF check failed on a session-authenticated write | 403 | `permission_denied` | The session is alive but the request repeated no CSRF cookie. The SPA always sends it; a client without one must read the cookie first (`GET /api/auth/session`). |
 | Credential rejected with a `401` (possible in other stacks, e.g. Basic against `WWW-Authenticate`) | 401 | `authentication_failed` / `not_authenticated` | Same as the dead-credential row. |
 | Login budget spent by the client address (`POST /api/auth/session`, `POST /api/auth/login`) | 429 | plain JSON `detail` with a `Retry-After` header, like these views' other refusals | Wait the window out; while the budget is spent no credential of this address is even read. The password-free verbs — probe, logout — never cost anything (#1450). |
+| Login credential valid, but the user already holds `TOKEN_LIMIT_PER_USER` not-yet-expired tokens (`POST /api/auth/login`) | 403 | knox's plain JSON `{"error": …}` (not the JSON:API envelope) | The concurrency cap refused to issue another token (#1450); no token row was created. A logout or an expiry frees a slot. |
 
 The frontend (`frontend/src/providers/authProvider.ts`) implements exactly
 this: 401 always ends the session; a 403 ends it **only** when the error code

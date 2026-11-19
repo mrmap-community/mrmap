@@ -12,7 +12,10 @@
 # the ASGI handler - are the right fit for exactly that shape of work. HTTP
 # deliberately is not: see startup.sh.
 source /opt/venv/bin/activate
+# resolves GUNICORN_WS_WORKERS (default 1) the same way the HTTP server
+# resolves its shape; the websockets are never preloaded (#1617)
+source /opt/mrmap/.bash_scripts/process_defaults.sh
 
 exec gunicorn -b 0.0.0.0:8002 -k uvicorn.workers.UvicornWorker \
-    --workers=${GUNICORN_WS_WORKERS:-1} --log-level=info --timeout=0 \
+    --workers="$GUNICORN_WS_WORKERS" --log-level=info --timeout=0 \
     MrMap.asgi:application

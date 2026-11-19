@@ -36,6 +36,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    runtime-memory-baselines
+   http-process-profiles
    compose-profiles
    decision-requests
    release-versioning-baseline

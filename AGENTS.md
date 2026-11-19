@@ -74,7 +74,7 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   fake or unapproved-destructive migrations, and the promotion attestation binding a candidate
   SHA to its tests/Sonar/dependency/artifact evidence; the baseline, ledger and #1180 constraint
   files in `scripts/` are reviewed content — the PR that edits one is the review (`python3
-  scripts/test_release_gates.py` runs the 51-check suite offline; `.github/workflows/
+  scripts/test_release_gates.py` runs the 63-check suite offline; `.github/workflows/
   release-gates.yml` runs the gates; docs: `docs/source/development/release-compatibility-gates.rst`).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's

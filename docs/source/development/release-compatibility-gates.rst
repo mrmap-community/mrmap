@@ -41,7 +41,7 @@ decides against the candidate, **2** the gate could not run and refuses to
 pretend otherwise. CI runs the three candidate gates on every pull request,
 merge-queue entry and develop/master push in
 ``.github/workflows/release-gates.yml``; the offline suite
-``scripts/test_release_gates.py`` (51 checks) runs in
+``scripts/test_release_gates.py`` (63 checks) runs in
 ``scripts/check_repo_tooling.sh`` and drives each gate red with its intentional
 failure and green with the review added - a gate nobody woke up red is a
 decoration.

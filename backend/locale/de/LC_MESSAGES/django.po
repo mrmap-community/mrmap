@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-19 06:41+0100\n"
+"POT-Creation-Date: 2026-11-19 14:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -70,49 +70,49 @@ msgstr "Bundesland"
 msgid "Country"
 msgstr "Land"
 
-#: accounts/models/groups.py:97 accounts/models/roles.py:194
+#: accounts/models/groups.py:110 accounts/models/roles.py:194
 #: notify/models.py:100 registry/models/mapcontext.py:324
 #: registry/models/security.py:249
 msgid "description"
 msgstr "Beschreibung"
 
-#: accounts/models/groups.py:98
+#: accounts/models/groups.py:111
 msgid "Describe what this organization representing"
 msgstr "Die angefragte Organisation"
 
-#: accounts/models/groups.py:106 accounts/models/roles.py:143
+#: accounts/models/groups.py:119 accounts/models/roles.py:143
 msgid "Organization"
 msgstr "Organisation"
 
-#: accounts/models/groups.py:107
+#: accounts/models/groups.py:120
 msgid "Organizations"
 msgstr "Organisationen"
 
-#: accounts/models/groups.py:279
+#: accounts/models/groups.py:292
 msgid "requesting organization"
 msgstr "Neue Organisation"
 
-#: accounts/models/groups.py:285
+#: accounts/models/groups.py:298
 msgid "requested organization"
 msgstr "Organisation entfernen"
 
-#: accounts/models/groups.py:290
+#: accounts/models/groups.py:303
 msgid "accepted"
 msgstr "Akzeptieren"
 
-#: accounts/models/groups.py:299
+#: accounts/models/groups.py:308
 msgid "Pending publish request"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:300
+#: accounts/models/groups.py:309
 msgid "Pending publish requests"
 msgstr "Ausstehende Anfragen"
 
-#: accounts/models/groups.py:314
+#: accounts/models/groups.py:328
 msgid " can already publish for "
 msgstr "Eine Gruppe möchte für Ihre Organisation veröffentlichen!"
 
-#: accounts/models/groups.py:381
+#: accounts/models/groups.py:395
 #, python-format
 msgid ""
 "The requesting organization %(from_organization)s has no active publisher "
@@ -1947,7 +1947,7 @@ msgstr "liefert Featuretypes, die keiner Featuretype-Zuordnung zugeordnet sind"
 msgid "returns featuretypes that are mapped to a featuretype mapping"
 msgstr "liefert Featuretypes, die einer Featuretype-Zuordnung zugeordnet sind"
 
-#: registry/mappers/rules.py:142
+#: registry/mappers/rules.py:147
 #, python-format
 msgid ""
 "The validation rule %(rule)s could not be evaluated; the server log carries "
@@ -2674,8 +2674,8 @@ msgstr "Treffer"
 msgid "how many times this metadata was requested by a client"
 msgstr "Wie offt dieser Metadatensatz angefragt wurde"
 
-#: registry/models/metadata.py:992 registry/models/metadata.py:1636
-#: registry/models/metadata.py:1723 registry/models/metadata.py:1788
+#: registry/models/metadata.py:992 registry/models/metadata.py:1789
+#: registry/models/metadata.py:1876 registry/models/metadata.py:1941
 #: registry/serializers/service.py:109 registry/serializers/service.py:919
 msgid "keywords"
 msgstr "Schlüsselwörter"
@@ -2732,11 +2732,11 @@ msgstr ""
 "Bestimmt wo diese Beziehung gefunden wurde oder ob diese von einem Benutzer "
 "erstellt wurde."
 
-#: registry/models/metadata.py:1418
+#: registry/models/metadata.py:1497
 msgid "metadata profile"
 msgstr "Metadaten-Profil"
 
-#: registry/models/metadata.py:1419
+#: registry/models/metadata.py:1498
 msgid ""
 "the authoring profile whose sections and rules describe this record (#1240); "
 "records created by an import or through the api answer the seeded iso19139-"
@@ -2747,24 +2747,24 @@ msgstr ""
 "angelegt werden, beantworten das beim Start gesetzte iso19139-generic-"
 "Profil, siehe MetadataProfile.generic()"
 
-#: registry/models/metadata.py:1425
+#: registry/models/metadata.py:1504
 msgid "flag to signal if this "
 msgstr "Bit um dies zu signalisieren "
 
-#: registry/models/metadata.py:1432
+#: registry/models/metadata.py:1511
 msgid "services"
 msgstr "Dienste"
 
-#: registry/models/metadata.py:1433
+#: registry/models/metadata.py:1512
 msgid "all services from which this dataset was harvested."
 msgstr "Gruppe wählen, für welche die Ressource registriert werden soll."
 
-#: registry/models/metadata.py:1440 registry/models/metadata.py:1662
-#: registry/models/metadata.py:1795
+#: registry/models/metadata.py:1519 registry/models/metadata.py:1815
+#: registry/models/metadata.py:1948
 msgid "contact"
 msgstr "Kontakt"
 
-#: registry/models/metadata.py:1441
+#: registry/models/metadata.py:1520
 msgid ""
 "this is the contact which is responsible for the metadata information of the "
 "dataset."
@@ -2772,146 +2772,146 @@ msgstr ""
 "Dies ist der Kontakt, welcher für die Metadateninformationen verantwortlich "
 "ist."
 
-#: registry/models/metadata.py:1447 registry/models/service.py:720
+#: registry/models/metadata.py:1526 registry/models/service.py:720
 #: registry/serializers/service.py:178 registry/serializers/service.py:952
 msgid "reference systems"
 msgstr "Referenzsysteme"
 
-#: registry/models/metadata.py:1451
+#: registry/models/metadata.py:1530
 msgid "equivalent scale"
 msgstr "äquivalenter Maßstab"
 
-#: registry/models/metadata.py:1452
+#: registry/models/metadata.py:1531
 msgid "1 cm : 100 cm for example"
 msgstr "z. B. 1 cm : 100 cm"
 
-#: registry/models/metadata.py:1456
+#: registry/models/metadata.py:1535
 msgid "ground resolution"
 msgstr "Bodenauflösung"
 
-#: registry/models/metadata.py:1457
+#: registry/models/metadata.py:1536
 msgid "pixel per meter for example"
 msgstr "z. B. Pixel pro Meter"
 
-#: registry/models/metadata.py:1461
+#: registry/models/metadata.py:1540
 msgid "identifier of the remote data"
 msgstr "Identifikator für die entfernten Daten"
 
-#: registry/models/metadata.py:1465
+#: registry/models/metadata.py:1544
 msgid "code space for the given identifier"
 msgstr "Namensraum für den Indenifkator"
 
-#: registry/models/metadata.py:1469
+#: registry/models/metadata.py:1548
 msgid "charset"
 msgstr "Zeichensatz"
 
-#: registry/models/metadata.py:1470
+#: registry/models/metadata.py:1549
 msgid "full name of the character coding standard used for the metadata set"
 msgstr ""
 "vollständiger Name des für den Metadatensatz verwendeten "
 "Zeichencodierungsstandards"
 
-#: registry/models/metadata.py:1478 registry/models/service.py:729
+#: registry/models/metadata.py:1557 registry/models/service.py:729
 msgid "time extent"
 msgstr "Zeitbereich"
 
-#: registry/models/metadata.py:1480
+#: registry/models/metadata.py:1559
 msgid "all time extents which are available for this metadata record."
 msgstr "alle Zeitbereiche, die für diesen Metadatensatz verfügbar sind."
 
-#: registry/models/metadata.py:1645 registry/models/service.py:896
+#: registry/models/metadata.py:1798 registry/models/service.py:896
 #: registry/serializers/monitoring.py:78
 msgid "layers"
 msgstr "Ebenen"
 
-#: registry/models/metadata.py:1646
+#: registry/models/metadata.py:1799
 msgid ""
 "all layers which are linking to this dataset metadata in there capabilities."
 msgstr ""
 "Alle Ebenen welche mit diesem Datensatz im Capabilities-Dokument verknüpft "
 "sind."
 
-#: registry/models/metadata.py:1655 registry/models/service.py:1134
+#: registry/models/metadata.py:1808 registry/models/service.py:1134
 #: registry/serializers/monitoring.py:466
 msgid "feature types"
 msgstr "Merkmalstypen"
 
-#: registry/models/metadata.py:1656
+#: registry/models/metadata.py:1809
 msgid ""
 "all feature types which are linking to this dataset metadata in there "
 "capabilities."
 msgstr "Alle Merksmalstypen, welche mit diesem Metadatensatz verknüpft sind."
 
-#: registry/models/metadata.py:1663
+#: registry/models/metadata.py:1816
 msgid "this is the contact which provides this dataset."
 msgstr "Die Organisation, welche den Dienst anbietet."
 
-#: registry/models/metadata.py:1667
+#: registry/models/metadata.py:1820
 msgid "format"
 msgstr "Format"
 
-#: registry/models/metadata.py:1668
+#: registry/models/metadata.py:1821
 msgid "The format in which the described dataset is stored."
 msgstr "Die Organisation für welche der Dienst registriert wurde."
 
-#: registry/models/metadata.py:1673
+#: registry/models/metadata.py:1826
 msgid "Flag to signal if the described data has a topologically consistence."
 msgstr ""
 "Bit zum signalisieren, ob die beschriebene Information eine topologische "
 "Konsistenz besitzt."
 
-#: registry/models/metadata.py:1684 registry/models/metadata.py:1804
+#: registry/models/metadata.py:1837 registry/models/metadata.py:1957
 msgid "categories"
 msgstr "Kategorien"
 
-#: registry/models/metadata.py:1685
+#: registry/models/metadata.py:1838
 msgid "the topic categories of the dataset"
 msgstr "die Themenkategorien des Datensatzes"
 
-#: registry/models/metadata.py:1697 registry/models/metadata.py:1698
+#: registry/models/metadata.py:1850 registry/models/metadata.py:1851
 #: registry/serializers/service.py:118 registry/serializers/service.py:928
 msgid "dataset metadata"
 msgstr "Datensatz Metadaten"
 
-#: registry/models/metadata.py:1732 registry/models/service.py:398
+#: registry/models/metadata.py:1885 registry/models/service.py:398
 msgid "web map services"
 msgstr "Ihre registrierten Web Map Services"
 
-#: registry/models/metadata.py:1733
+#: registry/models/metadata.py:1886
 msgid ""
 "all wms which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WMS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1740 registry/models/service.py:515
+#: registry/models/metadata.py:1893 registry/models/service.py:515
 msgid "web feature services"
 msgstr "Ihre registrierten Web Feature Services"
 
-#: registry/models/metadata.py:1741
+#: registry/models/metadata.py:1894
 msgid ""
 "all wfs which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle WFS, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1748 registry/models/service.py:562
+#: registry/models/metadata.py:1901 registry/models/service.py:562
 msgid "catalogue services"
 msgstr "Zugehöriger Dienst"
 
-#: registry/models/metadata.py:1749
+#: registry/models/metadata.py:1902
 msgid ""
 "all csw which are linking to this service metadata in there capabilities."
 msgstr ""
 "alle CSW, die in ihren Capabilities auf diese Dienst-Metadaten verweisen."
 
-#: registry/models/metadata.py:1796
+#: registry/models/metadata.py:1949
 msgid "this is the contact which provides this application."
 msgstr "Die Organisation, welche die Anwendung anbietet."
 
-#: registry/models/metadata.py:1805
+#: registry/models/metadata.py:1958
 msgid "the topic categories of the application"
 msgstr "die Themenkategorien der Anwendung"
 
-#: registry/models/metadata.py:1817 registry/models/metadata.py:1818
+#: registry/models/metadata.py:1970 registry/models/metadata.py:1971
 msgid "application metadata"
 msgstr "Anwendung Metadaten"
 
@@ -4000,19 +4000,64 @@ msgstr "Wurzelknoten kann nicht verschoben werden"
 msgid "position index out of range"
 msgstr "Positionsindex nicht innerhalb des zulässigen Bereichs."
 
-#: registry/serializers/metadata.py:67
+#: registry/serializers/metadata.py:69
 msgid "The source document must be sent as the document text."
 msgstr "Das Quelldokument muss als Dokumenttext gesendet werden."
 
-#: registry/serializers/metadata.py:231
+#: registry/serializers/metadata.py:233
 msgid "the end of a period must not be before its begin"
 msgstr "das Ende eines Zeitraums darf nicht vor seinem Beginn liegen"
 
-#: registry/serializers/metadata.py:235
+#: registry/serializers/metadata.py:237
 msgid "a relative extent names no begin nor end"
 msgstr "ein relativer Zeitraum nennt weder Beginn noch Ende"
 
-#: registry/serializers/metadata.py:581
+#: registry/serializers/metadata.py:421
+msgid "This field is answered by the server and can not be written."
+msgstr "Dieses Feld wird vom Server beantwortet und kann nicht geschrieben werden."
+
+#: registry/serializers/metadata.py:445
+#, python-format
+msgid "A relation couples one described element; it names '%s'."
+msgstr "Eine Verknüpfung beschreibt ein einziges Element; sie nennt '%s'."
+
+#: registry/serializers/metadata.py:449
+msgid ""
+"A relation couples a metadata record; neither datasetMetadata nor "
+"serviceMetadata was given."
+msgstr "Eine Verknüpfung koppelt einen Metadatensatz; weder datasetMetadata noch serviceMetadata wurde übermittelt."
+
+#: registry/serializers/metadata.py:453
+msgid ""
+"A relation couples two metadata records or one element with one metadata "
+"record; it names both records and an element."
+msgstr "Eine Verknüpfung koppelt zwei Metadatensätze oder ein Element mit einem Metadatensatz; sie nennt beide Metadatensätze und ein Element."
+
+#: registry/serializers/metadata.py:460
+msgid ""
+"A relation couples its metadata record to a described element or to the "
+"other kind of metadata record; it names neither."
+msgstr "Eine Verknüpfung koppelt ihren Metadatensatz an ein beschriebenes Element oder an die andere Art von Metadatensatz; sie nennt keines von beiden."
+
+#: registry/serializers/metadata.py:467
+msgid ""
+"A dataset metadata record is coupled to a layer or a feature type, not to a "
+"whole service."
+msgstr "Ein Metadatensatz eines Datensatzes wird an eine Ebene oder einen Merkmalstyp gekoppelt, nicht an einen ganzen Dienst."
+
+#: registry/serializers/metadata.py:478
+msgid ""
+"Writing a relation requires the change permission over one of the records it "
+"couples, and the view permission over every end."
+msgstr "Das Schreiben einer Verknüpfung verlangt die Bearbeiten-Berechtigung für einen der gekoppelten Metadatensätze und die Ansehen-Berechtigung für jedes Ende."
+
+#: registry/serializers/metadata.py:526
+msgid ""
+"The service record's document could not be published; the relation is "
+"refused and nothing changed."
+msgstr "Das Dokument des Dienstdatensatzes konnte nicht veröffentlicht werden; die Verknüpfung wird abgelehnt und nichts wurde geändert."
+
+#: registry/serializers/metadata.py:804
 msgid ""
 "The ISO document served for this record could not be regenerated from its "
 "stored fields; the write is refused so that the served document never "
@@ -4022,7 +4067,7 @@ msgstr ""
 "gespeicherten Feldern nicht neu erzeugt werden; die Schreiboperation wird "
 "abgelehnt, damit das ausgelieferte Dokument dem Datensatz nie widerspricht."
 
-#: registry/serializers/metadata.py:603
+#: registry/serializers/metadata.py:826
 msgid ""
 "The submitted source document could not be published as the record's "
 "document; the write is refused and nothing changed."
@@ -4031,15 +4076,15 @@ msgstr ""
 "veröffentlicht werden; die Schreiboperation wird abgelehnt und nichts wurde "
 "geändert."
 
-#: registry/serializers/metadata.py:645
+#: registry/serializers/metadata.py:868
 msgid "This field is read-only and can not be written."
 msgstr "Dieses Feld ist schreibgeschützt und kann nicht geschrieben werden."
 
-#: registry/serializers/metadata.py:688
+#: registry/serializers/metadata.py:911
 msgid "The file identifier must be a text."
 msgstr "Der Dateienidentifikator muss ein Text sein."
 
-#: registry/serializers/metadata.py:698
+#: registry/serializers/metadata.py:921
 #, python-format
 msgid ""
 "The file identifier is too long; it may hold at most %(max_length)s "
@@ -4048,7 +4093,7 @@ msgstr ""
 "Der Dateienidentifikator ist zu lang; er darf höchstens %(max_length)s "
 "Zeichen enthalten."
 
-#: registry/serializers/metadata.py:705
+#: registry/serializers/metadata.py:928
 msgid ""
 "A record with this file identifier already exists. The file identifier is "
 "the identifier of the record inside its ISO document and must be unique."
@@ -4057,7 +4102,7 @@ msgstr ""
 "Dateienidentifikator ist die Kennung des Datensatzes in seinem ISO-Dokument "
 "und muss eindeutig sein."
 
-#: registry/serializers/metadata.py:742
+#: registry/serializers/metadata.py:965
 msgid ""
 "This field is read out of the record's ISO document but the document has no "
 "writable mapping for it; accepting this write would leave the served "
@@ -4067,7 +4112,7 @@ msgstr ""
 "Dokument hat keine beschreibbare Zuordnung dafür; diese Schreiboperation "
 "würde das ausgelieferte Dokument hinter dem Datensatz zurücklassen."
 
-#: registry/serializers/metadata.py:786
+#: registry/serializers/metadata.py:1009
 msgid ""
 "A created record receives its first document from its fields; the raw source "
 "document is written onto an existing record."
@@ -4075,7 +4120,7 @@ msgstr ""
 "Ein neu erzeugter Datensatz erhält sein erstes Dokument aus seinen Feldern; "
 "das rohe Quelldokument wird auf einen bestehenden Datensatz geschrieben."
 
-#: registry/serializers/metadata.py:805
+#: registry/serializers/metadata.py:1028
 msgid ""
 "The raw source document replaces every form-mapped value of the record; it "
 "must be written on its own, without other attributes."
@@ -4084,7 +4129,7 @@ msgstr ""
 "Datensatzes; es muss für sich allein, ohne weitere Attribute, gesendet "
 "werden."
 
-#: registry/serializers/metadata.py:817
+#: registry/serializers/metadata.py:1040
 #, python-format
 msgid ""
 "The source document is not well-formed XML (line %(line)s, column "
@@ -4093,7 +4138,7 @@ msgstr ""
 "Das Quelldokument ist nicht wohlgeformtes XML (Zeile %(line)s, Spalte "
 "%(column)s)."
 
-#: registry/serializers/metadata.py:829
+#: registry/serializers/metadata.py:1052
 msgid ""
 "The submitted document can not become this record's source document: it must "
 "carry exactly this record - identified by its fileIdentifier, with a "
@@ -4104,7 +4149,7 @@ msgstr ""
 "fileIdentifier, mit einem parsebaren dateStamp – als die Art von ISO-19139-"
 "Dokument, als die der Datensatz geführt wird."
 
-#: registry/serializers/metadata.py:867
+#: registry/serializers/metadata.py:1090
 msgid ""
 "The profile of this record names structural rules which this version can not "
 "evaluate; the write is refused instead of skipping the validation."
@@ -4113,7 +4158,7 @@ msgstr ""
 "nicht auswerten kann; die Schreiboperation wird abgelehnt, statt die "
 "Überprüfung zu überspringen."
 
-#: registry/serializers/metadata.py:920
+#: registry/serializers/metadata.py:1143
 msgid ""
 "The structural rules of this record's profile could not be assessed against "
 "its ISO document; the write is refused instead of skipping the validation."
@@ -5015,13 +5060,19 @@ msgstr "Diese Ressource ist aktiviert."
 msgid "The resource is invalid."
 msgstr "Diese Ressource ist deaktiviert."
 
-#: registry/views/metadata.py:236
+#: registry/views/metadata.py:237
 msgid ""
 "Writing metadata records is disabled in this deployment "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
 msgstr ""
 "Das Schreiben von Metadatensätzen ist in dieser Installation deaktiviert "
 "(MRMAP_METADATA_EDITOR_WRITES_ENABLED)."
+
+#: registry/views/metadata.py:711
+msgid ""
+"Only relations which an editor added can be taken back through this "
+"endpoint; a harvested coupling belongs to the document which declared it."
+msgstr "Nur Verknüpfungen, die ein Bearbeiter hinzugefügt hat, können über diesen Endpunkt zurückgenommen werden; eine geharvestete Kopplung gehört zu dem Dokument, das sie erklärt hat."
 
 #: registry/views/scheduling.py:136
 msgid "Preview a proposed schedule without saving it"

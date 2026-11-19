@@ -798,7 +798,7 @@ Family: conformity checks (scoping for #1394)
     **Retired (#1458, #1530).** The three tasks and their liveness guard
     left with #1458; #1530 then removed the rest of the family - models,
     managers, enums, the plugin helpers, the seed fixtures and all twelve
-    tables - through ``registry/migrations/0060_retire_conformity_check_family``,
+    tables - through ``registry/migrations/0062_retire_conformity_check_family``,
     per the decision record of gate #1528
     (:ref:`etf-conformity-retirement`). Everything below describes the
     state as scoped for #1394 and stays as its audit trail; the

@@ -164,8 +164,8 @@ gate is recorded here, not hidden. Removed: ``registry/models/conformity.py``
 ``registry/helper/plugins/`` (``etf.py``, ``internal.py`` and the package
 itself) and ``registry/helper/mapping_helper.py``; the six seed fixtures;
 and all twelve tables through the one migration
-``registry/migrations/0060_retire_conformity_check_family``, which follows
-the then-current leaf 0059 and additionally deletes the family's 9 content
+``registry/migrations/0062_retire_conformity_check_family``, which follows
+the then-current leaf 0061 and additionally deletes the family's 9 content
 types (post-migrate never prunes them, and an explicit drop keeps the
 database free of ghost permissions). The upgrade path was verified on a
 scratch database built from pre-#1530 code: fixtures loaded, representative

@@ -220,9 +220,6 @@ METADATA_URL = [
     "request=GetMetadata&",
 ]
 
-BASE_URL_FOR_ETF = os.environ.get(
-    "MRMAP_BASE_URL_FOR_ETF", "http://mrmap-appserver:8001"
-)
 # Host allow-list for Django's host validation (#949). Three sources are
 # merged, every one of them optional and ";" and/or "," separated:
 #  * DJANGO_ALLOWED_HOSTS: the deployer knob documented in
@@ -230,10 +227,10 @@ BASE_URL_FOR_ETF = os.environ.get(
 #    through to backend, celery-worker and celery-beat.
 #  * DJANGO_ALLOWED_HOST_DEFAULTS: replaces the internal preset, which keeps
 #    the callers that reach the backend without a browser Host working: the
-#    ETF validator answers to MRMAP_BASE_URL_FOR_ETF (mrmap-appserver:8001),
-#    the dev stack publishes 8001 on localhost, deployments reached over the
-#    docker bridge still answer to 172.17.0.1, and Django's test client
-#    sends "testserver".
+#    deployment's own service address (mrmap-appserver is the name older
+#    deployments gave the app server), the dev stack publishing the backend
+#    on localhost, deployments reached over the docker bridge still answer
+#    to 172.17.0.1, and Django's test client sends "testserver".
 #  * EXTERNAL_BASE_URL: the name the deployment is served under stays
 #    auto-allowed; it may be written as a host, a host:port or a full URL
 #    and contributes its bare hostname.

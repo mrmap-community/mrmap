@@ -172,12 +172,23 @@ scratch database built from pre-#1530 code: fixtures loaded, representative
 ETF/internal run rows, unrelated rows, then the new code — twelve tables
 and their permissions gone, survivors intact, reverse-then-forward clean.
 The German catalog lost the family's four run help texts via the canonical
-``makemessages``. What the family page still names as remaining — the
-``CONFORMITY_DEFAULT_*`` messages and ``BASE_URL_FOR_ETF`` — is owned by
-#1531, runtime verification by #1532 and the remaining docs sweep by #1533.
+``makemessages``. What the family page named as remaining — the
+``CONFORMITY_DEFAULT_*`` messages and ``BASE_URL_FOR_ETF`` — was retired
+by #1531, runtime verification is owned by #1532 and the remaining docs
+sweep by #1533.
 Applying the migration to a live deployment stays destructive data work:
 the export-before-drop and maintenance-window contract below binds the
 operator, and nothing in the migration invents or re-derives data.
+
+**Executed (#1531).** The settings residuals named above are removed.
+``BASE_URL_FOR_ETF`` (env ``MRMAP_BASE_URL_FOR_ETF``) left
+``MrMap/settings.py`` — nothing read it after the ETF client retired —
+and so did the three unused ``CONFORMITY_DEFAULT_*_MESSAGE`` strings of
+``registry/settings.py``; the German catalog lost their msgids via the
+canonical ``makemessages``. The ETF validator rationale left the
+allow-list comment, while the shipped ``ALLOWED_HOSTS_PRESET``, its
+environment docs and its ``test_allowed_hosts_settings`` guard stay for
+the callers which still reach the backend without a browser Host.
 
 Backend (all imports are family-internal; the only outside importer is
 ``tests/django/test_celery_worker_config.py`` consuming the time-limit
@@ -296,8 +307,9 @@ them) and the shared, deliberately retained prebuilt dependency images.
    and whose content the operator has confirmed disposable.
 
 4. **Env and override footprint.** A deployment may still set
-   ``MRMAP_BASE_URL_FOR_ETF``; the value is inert from this PR on and the
-   setting itself retires with #1531. A compose override outside this tree
+   ``MRMAP_BASE_URL_FOR_ETF``; the value was inert from #1529 on and the
+   setting itself retired with #1531 - an env which still sets it is now
+   simply unread. A compose override outside this tree
    that still adds the service now adds one without image and without
    build: it cannot start and is dead weight - remove the block, the way
    this PR removed it from ``docker-compose.dev.yml``.

@@ -558,10 +558,14 @@ def compose_checks():
                 current = raw.strip().rstrip(":")
             elif current and re.match(r"^    (image|build):", raw):
                 sections.setdefault(current, []).append(raw.strip())
-        for service in ("backend", "celery-worker", "celery-beat", "frontend"):
+        # the repository comes from the tool itself, so the assertion checks
+        # that compose renders what the tool named, not a second guess of it
+        wanted = {service: f"{ir.repository(ir.image_of_service(service), ir.REGISTRY_BASE)}"
+                  f":{ir.version_tag('0.2.0')}@"
+                  for service in ("backend", "celery-worker", "celery-beat", "frontend")}
+        for service, image in wanted.items():
             found = " ".join(sections.get(service, []))
-            ok = ok and f"image: ghcr.io/mrmap-community/{('mrmap-frontend' if service == 'frontend' else 'mrmap-backend')}:0.2.0@" in found \
-                and "build:" not in found
+            ok = ok and f"image: {image}" in found and "build:" not in found
         check("compose renders the pinned images and no build section", ok,
               f"rc={proc.returncode} {proc.stderr.strip()[:200]} sections={sections}")
 

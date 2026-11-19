@@ -53,7 +53,7 @@ way CI does it:
 
     $ docker compose -f docker-compose.yml -f docker-compose.dev.yml \
         run --rm pre-commit-check python manage.py spectacular \
-        --file /opt/mrmap/openapi-candidate.json --format json
+        --file /opt/mrmap/openapi-candidate.json --format openapi-json
 
 The reviewed baselines are files
 ================================

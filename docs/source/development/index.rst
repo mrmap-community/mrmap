@@ -37,6 +37,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    agent-capacity
    runtime-memory-baselines
    http-process-profiles
+   db-pool-memory
    compose-profiles
    decision-requests
    release-versioning-baseline

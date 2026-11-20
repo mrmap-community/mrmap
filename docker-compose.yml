@@ -150,6 +150,12 @@ services:
       # GUNICORN_PRELOAD lets the HTTP workers fork one pre-imported
       # application; both readings are in
       # docs/source/development/http-process-profiles.rst (#1617).
+      # The pool bounds which those processes open against PostGIS
+      # (MIN/MAX_BACKEND_RESERVED_CONNECTIONS, #1621) are deliberately not
+      # listed here: settings reads them from the environment, and listing
+      # them with the empty fallback of a pass-through would shadow the
+      # value a deployment sets for them in docker/backend/.mrmap.env, which
+      # is where MAX_BACKEND_RESERVED_CONNECTIONS has always been set.
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-}
       GUNICORN_WS_WORKERS: ${GUNICORN_WS_WORKERS:-}

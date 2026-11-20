@@ -275,7 +275,9 @@ throughput. The mode changes nothing else - not the websocket server, not
 ``DJANGO_DEBUG``, not any queue depth an explicit ``GUNICORN_WORKERS`` or
 ``GUNICORN_THREADS`` pins - and an unset value keeps the shipped production
 shape, so selecting the mode can never reduce production throughput by
-accident. Measured cost and saving: :ref:`http-process-profiles`.
+accident. Since #1621 the mode also selects the bounds of the database pool
+below, because every HTTP worker carries its own pool; it still changes
+nothing else. Measured cost and saving: :ref:`http-process-profiles`.
 
 ``GUNICORN_PRELOAD``
 ********************
@@ -288,3 +290,31 @@ websocket server runs one worker (there is nothing to share) and #1617's
 acceptance names stuck websockets as the failure mode a preload must not
 introduce. The fork-safety audit behind the flag - and the measured memory it
 does and does not buy - is in :ref:`http-process-profiles`.
+
+``MIN_BACKEND_RESERVED_CONNECTIONS`` and ``MAX_BACKEND_RESERVED_CONNECTIONS``
+*****************************************************************************
+
+The bounds of the psycopg connection pool which every non-Celery process
+opens against PostgreSQL - the ``min_size`` and ``max_size`` of the ``pool``
+entry under ``DATABASES`` in the settings (#1621). ``min_size`` is what one
+process holds at rest; ``max_size`` is what one process may open, so the
+deployment's reservation is the pair multiplied by the number of pooled
+processes, of which the HTTP workers are the ``GUNICORN_WORKERS`` multiplier
+named above. Celery's processes are deliberately outside the pool: an
+unfinished transaction once survived on a pooled connection and poisoned the
+next request, and the worker branch of the settings has kept the pool off
+ever since.
+
+An unset value lands on the default of the selected mode: **4 reserved and
+20 open** per process in the shipped shape, **1 and 4** with
+``MRMAP_LOW_MEMORY``, mirroring the smaller shape so the rest reservation
+follows the process it belongs to. An explicit value always wins over the
+mode, and nonsense - not a number, below 1, or a minimum above the maximum -
+fails while the settings load rather than being decoded differently
+elsewhere. In a Compose deployment these are set in
+``docker/backend/.mrmap.env``, the ``env_file`` of the backend service, and
+deliberately are not passed through ``docker-compose.yml``: an
+``environment`` entry with the empty fallback of a pass-through would shadow
+a value written into that file, which is the #1615 failure this knob must
+not have. What the bounds are worth in idle and loaded connections and in
+PostgreSQL's own per-connection memory: :ref:`db-pool-memory`.

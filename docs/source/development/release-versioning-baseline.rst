@@ -108,8 +108,10 @@ Docs, changelog, and the tag trap
 ---------------------------------
 
 * ``CHANGELOG.md`` declares SemVer and Keep a Changelog at ``:5-6``, has
-  ``## [0.x.x] - UNRELEASED`` at ``:8`` and one released heading
-  ``## [0.1.0] - 2023-03-23`` at ``:120``. The unreleased section is long and
+  ``## Unreleased`` at the top and one released heading
+  ``## [0.1.0] - 2023-03-23``. The curated unreleased heading deliberately
+  has no version or brackets (#1581): the release planner inserts generated
+  releases before the first version heading. The unreleased section is long and
   contains breaking changes, which is the material the first real release has
   to curate rather than generate blindly.
 * ``docs/source/conf.py:108`` sets ``smv_tag_whitelist = r'^v\d+\.\d+$'``,

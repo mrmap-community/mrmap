@@ -400,7 +400,7 @@ def make_repo(tmp, changelog_notes=True, compose_extra="", settings_extra="",
              "- NEW_SECRET_VAR must be set by the operator before start (#1583)\n"
              if changelog_notes else "")
     (repo / "CHANGELOG.md").write_text(
-        "# Changelog\n\n## [0.x.x] - UNRELEASED\n\n### Added\n- a thing (#1)\n"
+        "# Changelog\n\n## Unreleased\n\n### Added\n- a thing (#1)\n"
         f"\n{notes}\n## [0.1.0] - 2023-03-23\n\n- old\n", encoding="utf-8")
     (repo / "docker-compose.yml").write_text(
         "services:\n  backend:\n    environment:\n"
@@ -459,6 +459,18 @@ def test_version_empty_range():
             ["version", "--base", "develop", "--exceptions",
              "scripts/release_contract_exceptions.json"], repo)
         check("version: develop itself (empty range) is green", code == 0, err)
+
+
+def test_version_missing_unreleased_heading():
+    with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
+        repo = make_repo(tmp)
+        changelog = repo / "CHANGELOG.md"
+        changelog.write_text(
+            changelog.read_text(encoding="utf-8").replace(
+                "## Unreleased\n", ""), encoding="utf-8")
+        code, out, err = run_gates(["version", "--base", "develop"], repo)
+        check("version: a missing Unreleased heading fails closed",
+              code == 2 and "has no '## Unreleased' heading" in err, err)
 
 
 def test_version_migration_needs_a_note():
@@ -963,6 +975,7 @@ def main():
             test_api_ledger_validation,
             test_api_ref_resolution,
             test_version_empty_range,
+            test_version_missing_unreleased_heading,
             test_version_migration_needs_a_note,
             test_version_required_config_needs_a_note,
             test_version_breaking_needs_a_breaking_line,

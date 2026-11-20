@@ -52,5 +52,6 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    schedule-optimization-v3
    code-quality
    keyword-triggers
+   systemtest-bdd-architecture
    definition_of_done
    vscode-configuration

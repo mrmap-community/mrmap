@@ -1,0 +1,95 @@
+{
+  "_about": "Machine-readable release lifecycle of mrmap (issue #1585, epic #1577). This file is the interface the documentation automation (#1604) generates from and the interface tests (#1586) verify against. scripts/test_release_lifecycle.py holds every fact here against the workflows, scripts and docs it names: a drift between this description and the tooling fails the suite, so the generated prose cannot outlive the mechanism. It describes the lifecycle, not the schedule; nothing dated or countable belongs here.",
+  "schema_version": 1,
+  "version_file": "VERSION",
+  "version_pattern": "^\\d+\\.\\d+\\.\\d+$",
+  "tag_pattern": "^v\\d+\\.\\d+\\.\\d+$",
+  "channels": {
+    "development": {
+      "branch": "develop",
+      "consumers": "contributors and pre-release deployments",
+      "images": {
+        "registry": "ghcr.io/mrmap-community",
+        "name_pattern": "mrmap-backend-dev / mrmap-frontend-dev",
+        "tag_pattern": "^[0-9a-f]{12}$",
+        "published_by": ".github/workflows/dev-images.yml",
+        "stable_alias": false
+      }
+    },
+    "stable": {
+      "branch": "master",
+      "consumers": "production deployments",
+      "images": {
+        "publisher_tool": "scripts/image_release.py",
+        "promotion_mode": "--promote by digest; the tested bytes are tagged, never rebuilt",
+        "stable_alias_rule": "a stable version tag never moves once written",
+        "published_by": null,
+        "note": "the publisher workflow is deliberately not wired yet (#1581); the tool and its policy are committed and tested today"
+      },
+      "documentation_versions": {
+        "tool": "sphinx_multiversion",
+        "tag_whitelist": "^v\\d+(\\.\\d+){1,2}$",
+        "branch_whitelist": "^develop$",
+        "excluded": "release candidates and prerelease suffixes carry no published documentation"
+      }
+    }
+  },
+  "phases": [
+    {
+      "id": "pre-release",
+      "actor": "contributor",
+      "action": "code changes only; the canonical VERSION file is never hand-edited in a PR",
+      "evidence": "version drift gate of .github/workflows/release-gates.yml"
+    },
+    {
+      "id": "cut",
+      "actor": "human",
+      "action": "release-please opens the Version Release PR; a human approves and merges it; the merge tags vX.Y.Z and advances master",
+      "evidence": ".github/workflows/release-planning.yml",
+      "docs": "release-planning"
+    },
+    {
+      "id": "build-and-gate",
+      "actor": "ci",
+      "action": "images for the candidate are built and attested by digest; the contract, version and upgrade gates judge it",
+      "evidence": ".github/workflows/release-gates.yml",
+      "docs": "release-compatibility-gates"
+    },
+    {
+      "id": "promote",
+      "actor": "human",
+      "action": "the Release promotion workflow is dispatched manually behind the protected environment; its gate step refuses a candidate whose evidence is incomplete",
+      "evidence": ".github/workflows/release-promotion.yml",
+      "environment": "release-stable",
+      "dispatch_modes": ["plan", "status", "gate", "open-release-pr", "finalize", "sync"],
+      "docs": "release-promotion"
+    },
+    {
+      "id": "verify-on-master",
+      "actor": "ci",
+      "action": "the version upgrade gate re-runs against master with the candidate's migrations before anything is called stable",
+      "evidence": "scripts/release_promotion.py finalize",
+      "docs": "release-promotion"
+    },
+    {
+      "id": "post-release",
+      "actor": "human",
+      "action": "the release issue family is closed and the next maintenance versions announced; the master-to-develop sync PR is opened by the tool and merged by a human",
+      "evidence": "scripts/release_promotion.py sync",
+      "docs": "release-planning"
+    }
+  ],
+  "constraints": {
+    "version_bumping": "automatic via release-please reading conventional commit classes; no contributor edits version fields",
+    "permanent_branch_pushes": "no agent pushes develop or master; the promotion tool opens PRs and a human merges",
+    "approvals": "humans alone approve, merge and resolve",
+    "issue_closing": "the promotion path never closes issues",
+    "security_fix_class": "fix(security) is a patch unless it breaks an API shape, which is a major",
+    "changelog": "CHANGELOG.md is maintained by the Version Release PR, never by hand"
+  },
+  "operator_runbook": {
+    "page": "docs/source/administration/release-operator-runbook.rst",
+    "label": "release-operator-runbook",
+    "sections": ["Lifecycle", "Prerequisites", "Receiving an upgrade", "Backup obligations", "Rollback", "Security fixes", "Troubleshooting"]
+  }
+}

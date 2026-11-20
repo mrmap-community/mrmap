@@ -67,6 +67,15 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   that adds a migration and it names both leaves, the file of each and the number to renumber to.
   Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
   one throw-away git repository; needs neither docker nor the network).
+  `scripts/release_gates.py` decides what a release candidate may claim (#1583, epic #1577): the
+  OpenAPI/JSON:API contract diff against the committed baseline (today `pre-baseline`, measured 0
+  tags, with the reviewed 0.x reading declared in the manifest), the version bump and the
+  `### Migration notes` the range owes, the migration graph plus the staged #1180 boundaries and
+  fake or unapproved-destructive migrations, and the promotion attestation binding a candidate
+  SHA to its tests/Sonar/dependency/artifact evidence; the baseline, ledger and #1180 constraint
+  files in `scripts/` are reviewed content — the PR that edits one is the review (`python3
+  scripts/test_release_gates.py` runs the 63-check suite offline; `.github/workflows/
+  release-gates.yml` runs the gates; docs: `docs/source/development/release-compatibility-gates.rst`).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's

@@ -28,6 +28,12 @@ htmlcov/
 **/*coverage-report.xml
 **/*coverage-report.json
 
+# release gates (#1583): candidate document and verdicts CI generates, never committed
+backend/openapi-candidate.json
+release-api.json
+release-version.json
+release-upgrade.json
+
 # Django stuff:
 *.log
 local_settings.py

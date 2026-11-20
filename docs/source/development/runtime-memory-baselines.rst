@@ -402,7 +402,9 @@ Measured and projected, kept apart
   gunicorn/Uvicorn ASGI server on :8002; the deployed image runs gunicorn
   with 4 workers and 4 threads, and daphne for WebSockets), a tuned
   ``shared_buffers``, a database with content, and authenticated requests
-  with their session and permission work.
+  with their session and permission work. The first measurement of the
+  deployed gunicorn shape is :ref:`http-process-profiles` (#1617) - same
+  stack, same sampler, arms labelled the way this page labels its phases.
 
 Budget conclusions
 ==================

@@ -94,7 +94,7 @@ class _Profile:
 
     __slots__ = ("task_id", "attempt_no", "task_name", "root_id",
                  "mono_start", "sql_seconds", "sql_queries",
-                 "http_seconds", "http_calls", "partial")
+                 "http_seconds", "http_calls")
 
     def __init__(self, task_id, attempt_no, task_name, root_id):
         self.task_id = task_id
@@ -106,9 +106,6 @@ class _Profile:
         self.sql_queries = 0
         self.http_seconds = 0.0
         self.http_calls = 0
-        #: True when the profile stopped observing (buffer overflow) or
-        #: never saw its attempt's end - a report over it is visibly partial
-        self.partial = False
 
     def report(self, active_seconds=None):
         """The category split of this profile.
@@ -130,7 +127,6 @@ class _Profile:
             "http_seconds": round(self.http_seconds, 6),
             "http_calls": self.http_calls,
             "accounted_seconds": round(accounted, 6),
-            "partial": self.partial,
         }
         if active_seconds is not None:
             report["active_seconds"] = round(active_seconds, 6)
@@ -146,7 +142,7 @@ _current = None
 
 
 def _active_profile():
-    return _current if _current is not None and not _current.partial else None
+    return _current
 
 
 def _record_sql(seconds, queries=1):
@@ -257,11 +253,15 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
         key = (profile.task_id, profile.attempt_no)
         if len(_profiles) >= int(
                 _setting("TASK_PROFILING_BUFFER_LIMIT", 200) or 200):
-            profile.partial = True
+            # full buffer: this attempt runs unprofiled. Its time costs one
+            # counter and nothing else - like #1330's dropping buffer, the
+            # profiler degrades its own coverage before anything else
             _stats["dropped"] += 1
+            _current = None
+            return
         _profiles[key] = profile
         _stats["profiled"] += 1
-        _current = profile if not profile.partial else None
+        _current = profile
     except Exception as error:  # never break or fail the task (#1330 rule)
         logger.debug("task profiling start skipped: %s", error)
         _current = None
@@ -304,10 +304,11 @@ def drain_reports(active_seconds_map=None):
     """Return and forget the buffered reports of this process (#1389).
 
     The batched read side of the bounded mode, mirroring #1330's flush: a
-    report is produced per buffered profile, the attempt's own measured
+    report is produced per buffered profile, and the attempt's own measured
     ``active_seconds`` (when the caller has it - #1330's row owns that
-    number) closes the split with a named *unaccounted* remainder, and a
-    profile which overflowed the buffer is reported as ``partial``.
+    number) closes the split with a named *unaccounted* remainder. Attempts
+    dropped by a full buffer are counted in :func:`profiling_stats`, never
+    silently missing.
     """
     active_seconds_map = active_seconds_map or {}
     reports = []

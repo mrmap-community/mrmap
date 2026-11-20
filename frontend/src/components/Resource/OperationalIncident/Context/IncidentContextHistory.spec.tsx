@@ -11,10 +11,13 @@ import "@testing-library/jest-dom/vitest";
 vi.mock("react-admin", () => ({
   useTranslate: () => (key: string, options?: Record<string, unknown>) =>
     options && typeof options._ === "string" ? options._ : key,
+  // the same show-view path react-admin builds, so the href pins what the
+  // link of the entry really is
+  useCreatePath: () => (params: { resource: string; id: string }) =>
+    `/${params.resource}/${params.id}/show`,
   Link: ({ to, children }: { to: string; children: ReactNode }) => (
     <a href={to}>{children}</a>
   ),
-  BasenameContextProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
 vi.mock("../../../Field/RelativeDateField", () => ({
@@ -24,18 +27,19 @@ vi.mock("../../../Field/RelativeDateField", () => ({
 }));
 
 const resolved = (
-  overrides: Partial<OperationalIncidentRecord> & { id: string | number },
+  overrides: Partial<OperationalIncidentRecord> & { id: string },
 ): OperationalIncidentRecord => ({
-  code: "update.timeout",
-  sourceType: "update",
+  code: "update_run_service_metadata",
+  source: "update",
   severity: "warning",
-  state: "resolved",
+  status: "resolved",
+  scope: "resource",
   summary: `summary-${overrides.id}`,
   occurrenceCount: 1,
-  firstOccurrence: "2026-11-10T10:00:00Z",
-  lastOccurrence: "2026-11-10T10:00:00Z",
+  firstOccurredAt: "2026-11-10T10:00:00Z",
+  lastOccurredAt: "2026-11-10T10:00:00Z",
   resolvedAt: "2026-11-10T10:00:00Z",
-  targetPath: `/WebMapService/${overrides.id}/show`,
+  affectedResource: { type: "WebMapService", id: overrides.id },
   ...overrides,
 });
 
@@ -49,9 +53,9 @@ describe("IncidentContextHistory", () => {
     const { container } = render(
       <IncidentContextHistory
         incidents={[
-          resolved({ id: 1, resolvedAt: "2026-11-10T10:00:00Z" }),
-          resolved({ id: 2, resolvedAt: "2026-11-12T10:00:00Z" }),
-          resolved({ id: 3, resolvedAt: "2026-11-11T10:00:00Z" }),
+          resolved({ id: "1", resolvedAt: "2026-11-10T10:00:00Z" }),
+          resolved({ id: "2", resolvedAt: "2026-11-12T10:00:00Z" }),
+          resolved({ id: "3", resolvedAt: "2026-11-11T10:00:00Z" }),
         ]}
       />,
     );
@@ -66,14 +70,20 @@ describe("IncidentContextHistory", () => {
   });
 
   it("names the moment a resolved incident was resolved", () => {
-    render(<IncidentContextHistory incidents={[resolved({ id: 1 })]} />);
+    render(<IncidentContextHistory incidents={[resolved({ id: "1" })]} />);
     expect(screen.getByTestId("relative-resolvedAt")).toBeInTheDocument();
   });
 
-  it("links a resolved incident only to its answered target path", () => {
+  it("links the resource the api named and gives a system incident none", () => {
     render(
       <IncidentContextHistory
-        incidents={[resolved({ id: 8, targetPath: null })]}
+        incidents={[
+          resolved({
+            id: "8",
+            scope: "system",
+            affectedResource: null,
+          }),
+        ]}
       />,
     );
     expect(

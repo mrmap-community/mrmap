@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import {
-  BasenameContextProvider,
   Link,
+  useCreatePath,
   useTranslate,
 } from "react-admin";
 
@@ -18,8 +18,8 @@ const byNewestActivity = (
   a: OperationalIncidentRecord,
   b: OperationalIncidentRecord,
 ): number => {
-  const at = new Date(a.resolvedAt ?? a.lastOccurrence).getTime();
-  const bt = new Date(b.resolvedAt ?? b.lastOccurrence).getTime();
+  const at = new Date(a.resolvedAt ?? a.lastOccurredAt).getTime();
+  const bt = new Date(b.resolvedAt ?? b.lastOccurredAt).getTime();
   return bt - at;
 };
 
@@ -44,6 +44,7 @@ const IncidentContextHistory = ({
   incidents,
 }: IncidentContextHistoryProps): ReactNode => {
   const translate = useTranslate();
+  const createPath = useCreatePath();
   if (incidents.length === 0) return null;
 
   const ordered = [...incidents].sort(byNewestActivity);
@@ -61,8 +62,8 @@ const IncidentContextHistory = ({
       >
         {ordered.map((incident) => {
           const source = translate(
-            `contextualIncidents.sources.${incident.sourceType}`,
-            { _: incident.sourceType },
+            `contextualIncidents.sources.${incident.source}`,
+            { _: incident.source },
           );
           const severity = translate(
             `serviceAlerts.${incident.severity === "error" ? "error" : "warning"}`,
@@ -95,17 +96,23 @@ const IncidentContextHistory = ({
                     :
                   </Typography>
                   <RelativeDateField
-                    source={incident.resolvedAt ? "resolvedAt" : "lastOccurrence"}
+                    source={
+                      incident.resolvedAt ? "resolvedAt" : "lastOccurredAt"
+                    }
                     record={incident}
                   />
-                  {incident.targetPath && (
-                    <BasenameContextProvider basename="">
-                      <Link to={incident.targetPath}>
-                        <Typography component="span" variant="caption">
-                          {translate("contextualIncidents.viewDetails")}
-                        </Typography>
-                      </Link>
-                    </BasenameContextProvider>
+                  {incident.affectedResource && (
+                    <Link
+                      to={createPath({
+                        resource: incident.affectedResource.type,
+                        type: "show",
+                        id: incident.affectedResource.id,
+                      })}
+                    >
+                      <Typography component="span" variant="caption">
+                        {translate("contextualIncidents.viewDetails")}
+                      </Typography>
+                    </Link>
                   )}
                 </Stack>
               </Stack>

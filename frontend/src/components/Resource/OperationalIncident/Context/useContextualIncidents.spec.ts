@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type OperationalIncidentRecord } from "../incidentContract";
 import useContextualIncidents, {
-  parseTargetKey,
+  aboutRecord,
 } from "./useContextualIncidents";
 
 vi.mock("react-admin", () => ({
@@ -24,21 +24,22 @@ const state = vi.hoisted(() => ({
 }));
 
 const incident = (
-  overrides: Partial<OperationalIncidentRecord> & { id: string | number },
+  overrides: Partial<OperationalIncidentRecord> & { id: string },
 ): OperationalIncidentRecord => ({
-  code: "harvest.chord_stalled",
-  sourceType: "harvesting",
+  code: "harvesting_run_all_records",
+  source: "harvesting",
   severity: "warning",
-  state: "retrying",
+  status: "active",
+  scope: "resource",
   summary: "the endpoint did not answer",
   occurrenceCount: 1,
-  firstOccurrence: "2026-11-14T10:00:00Z",
-  lastOccurrence: "2026-11-14T10:00:00Z",
-  targetPath: "/HarvestingJob/42/show",
+  firstOccurredAt: "2026-11-14T10:00:00Z",
+  lastOccurredAt: "2026-11-14T10:00:00Z",
+  affectedResource: { type: "HarvestingJob", id: "42" },
   ...overrides,
 });
 
-/** the two windows the hook reads, keyed by the `state` facet it filters on */
+/** the two windows the hook reads, keyed by the `status` facet it filters on */
 const windows = (
   active: OperationalIncidentRecord[],
   resolved: OperationalIncidentRecord[],
@@ -49,9 +50,9 @@ const windows = (
   } as unknown as ReturnType<typeof useDataProvider>);
   vi.mocked(useGetList).mockImplementation((_resource, params) => {
     const filter = (
-      params as unknown as { filter: { state: string } }
+      params as unknown as { filter: { status: string } }
     ).filter;
-    const rows = filter.state === "resolved" ? resolved : active;
+    const rows = filter.status === "resolved" ? resolved : active;
     return {
       data: rows,
       total: rows.length,
@@ -59,33 +60,31 @@ const windows = (
       error: null,
       // the spy of its own window, so a bus event is traceable to the query
       refetch:
-        filter.state === "resolved"
+        filter.status === "resolved"
           ? state.refetch.resolved
           : state.refetch.active,
     } as unknown as ReturnType<typeof useGetList>;
   });
 };
 
-describe("parseTargetKey", () => {
-  it("reads the resource and id a show path names", () => {
-    expect(parseTargetKey("/HarvestingJob/42/show")).toEqual({
-      resource: "HarvestingJob",
-      id: "42",
-    });
-    expect(parseTargetKey("/CatalogueService/5/show/records")).toEqual({
-      resource: "CatalogueService",
-      id: "5",
-    });
-    expect(parseTargetKey("/WebMapService/9/show?tab=alerts")).toEqual({
-      resource: "WebMapService",
-      id: "9",
-    });
+describe("aboutRecord", () => {
+  it("matches the type and id the api answered for the incident", () => {
+    const record = incident({ id: "a" });
+    expect(aboutRecord(record, "HarvestingJob", 42)).toBe(true);
+    expect(aboutRecord(record, "HarvestingJob", "42")).toBe(true);
+    // the type of an incident is exact: a job is not the service it harvested
+    expect(aboutRecord(record, "WebMapService", 42)).toBe(false);
+    expect(aboutRecord(record, "HarvestingJob", 7)).toBe(false);
+    expect(aboutRecord(record, undefined, 42)).toBe(false);
   });
 
-  it("names nothing for a path without a show segment or no path at all", () => {
-    expect(parseTargetKey("/HarvestingJob/42/edit")).toBeNull();
-    expect(parseTargetKey(undefined)).toBeNull();
-    expect(parseTargetKey(null)).toBeNull();
+  it("never matches a system incident, which answers no resource", () => {
+    const system = incident({
+      id: "s",
+      scope: "system",
+      affectedResource: null,
+    });
+    expect(aboutRecord(system, "HarvestingJob", 42)).toBe(false);
   });
 });
 
@@ -93,9 +92,15 @@ describe("useContextualIncidents", () => {
   it("keeps only the incidents about the record of the screen", () => {
     windows(
       [
-        incident({ id: "a", targetPath: "/HarvestingJob/42/show" }),
-        incident({ id: "b", targetPath: "/HarvestingJob/7/show" }),
-        incident({ id: "c", targetPath: "/WebMapService/42/show" }),
+        incident({ id: "a" }),
+        incident({
+          id: "b",
+          affectedResource: { type: "HarvestingJob", id: "7" },
+        }),
+        incident({
+          id: "c",
+          affectedResource: { type: "WebMapService", id: "42" },
+        }),
       ],
       [],
     );
@@ -105,11 +110,14 @@ describe("useContextualIncidents", () => {
     expect(result.current.active.map((r) => r.id)).toEqual(["a"]);
   });
 
-  it("never surfaces an incident whose target path was withheld", () => {
+  it("never surfaces a system incident or one about another record", () => {
     windows(
       [
-        incident({ id: "secret", targetPath: null }),
-        incident({ id: "mine", targetPath: "/HarvestingJob/42/show" }),
+        // every row here is one this reader may see - the list itself is
+        // narrowed by visible_for_user - so only the identity match decides
+        // what belongs on this page; a system incident names no resource
+        incident({ id: "system", scope: "system", affectedResource: null }),
+        incident({ id: "mine" }),
       ],
       [],
     );
@@ -120,13 +128,7 @@ describe("useContextualIncidents", () => {
   });
 
   it("draws one entry per incident though the window repeats it", () => {
-    windows(
-      [
-        incident({ id: "dup", targetPath: "/HarvestingJob/42/show" }),
-        incident({ id: "dup", targetPath: "/HarvestingJob/42/show" }),
-      ],
-      [],
-    );
+    windows([incident({ id: "dup" }), incident({ id: "dup" })], []);
     const { result } = renderHook(() =>
       useContextualIncidents({ resource: "HarvestingJob", id: 42 }),
     );
@@ -139,17 +141,17 @@ describe("useContextualIncidents", () => {
         incident({
           id: "warn-new",
           severity: "warning",
-          lastOccurrence: "2026-11-14T12:00:00Z",
+          lastOccurredAt: "2026-11-14T12:00:00Z",
         }),
         incident({
           id: "err-old",
           severity: "error",
-          lastOccurrence: "2026-11-14T09:00:00Z",
+          lastOccurredAt: "2026-11-14T09:00:00Z",
         }),
         incident({
           id: "warn-old",
           severity: "warning",
-          lastOccurrence: "2026-11-14T08:00:00Z",
+          lastOccurredAt: "2026-11-14T08:00:00Z",
         }),
       ],
       [],
@@ -166,18 +168,17 @@ describe("useContextualIncidents", () => {
 
   it("reports the resolved window about the record separately", () => {
     windows(
-      [incident({ id: "active", targetPath: "/HarvestingJob/42/show" })],
+      [incident({ id: "active" })],
       [
         incident({
           id: "resolved",
-          state: "resolved",
+          status: "resolved",
           resolvedAt: "2026-11-13T10:00:00Z",
-          targetPath: "/HarvestingJob/42/show",
         }),
         incident({
           id: "resolved-other",
-          state: "resolved",
-          targetPath: "/HarvestingJob/99/show",
+          status: "resolved",
+          affectedResource: { type: "HarvestingJob", id: "99" },
         }),
       ],
     );
@@ -198,12 +199,12 @@ describe("useContextualIncidents", () => {
       const filter = (
         params as unknown as { filter: Record<string, string> }
       ).filter;
-      expect(Object.keys(filter)).toEqual(["state"]);
-      expect(filter.state).not.toMatch(/[Tt]arget/);
+      expect(Object.keys(filter)).toEqual(["status"]);
+      expect(filter.status).toMatch(/^(active|resolved)$/);
     }
   });
 
-  it("stays silent while the api is not there: an error is reported, not swallowed", () => {
+  it("stays silent when the api cannot be read: an error is reported, not swallowed", () => {
     vi.mocked(useDataProvider).mockReturnValue({
       subscribe: vi.fn(),
       unsubscribe: vi.fn(),
@@ -214,7 +215,7 @@ describe("useContextualIncidents", () => {
           data: undefined,
           total: 0,
           isPending: false,
-          error: new Error("unknown resource"),
+          error: new Error("Service Unavailable"),
           refetch: vi.fn(),
         }) as unknown as ReturnType<typeof useGetList>,
     );

@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import {
-  BasenameContextProvider,
   Link,
+  useCreatePath,
   useTranslate,
 } from "react-admin";
 
@@ -9,6 +9,7 @@ import { Alert, Stack, Typography } from "@mui/material";
 
 import RelativeDateField from "../../../Field/RelativeDateField";
 import {
+  incidentDisplayState,
   type IncidentSeverity,
   type OperationalIncidentRecord,
 } from "../incidentContract";
@@ -40,15 +41,19 @@ const IncidentLine = ({
   incident: OperationalIncidentRecord;
 }): ReactNode => {
   const translate = useTranslate();
-  const source = translate(`contextualIncidents.sources.${incident.sourceType}`, {
-    _: incident.sourceType,
+  const createPath = useCreatePath();
+  const source = translate(`contextualIncidents.sources.${incident.source}`, {
+    _: incident.source,
   });
-  const state = translate(`contextualIncidents.states.${incident.state}`);
+  const state = translate(
+    `contextualIncidents.states.${incidentDisplayState(incident)}`,
+  );
   const severity = translate(
     `serviceAlerts.${SEVERITY_WORD[incident.severity]}`,
   );
-  // the retry state is answered only when it is known; its absence is not zero
-  const hasRetry = incident.retryAttempt != null;
+  // the retry state is answered only when it is known; a count of zero is
+  // what the reported operation told, not a hidden first attempt
+  const hasRetries = incident.retryCount != null && incident.retryCount > 0;
   const hasOccurrence = incident.occurrenceCount > 1;
 
   return (
@@ -64,21 +69,22 @@ const IncidentLine = ({
       <Typography component="span" variant="body2">
         {incident.summary}
       </Typography>
-      {hasRetry && (
+      {(hasRetries || incident.retryScheduledUntil) && (
         <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
-          <Typography component="span" variant="caption" color="text.secondary">
-            {translate("contextualIncidents.retry", {
-              attempt: incident.retryAttempt as number,
-              total: incident.retryTotal ?? "?",
-            })}
-          </Typography>
-          {incident.nextRetryAt && (
+          {hasRetries && (
+            <Typography component="span" variant="caption" color="text.secondary">
+              {translate("contextualIncidents.retry", {
+                smart_count: incident.retryCount as number,
+              })}
+            </Typography>
+          )}
+          {incident.retryScheduledUntil && (
             <Typography component="span" variant="caption" color="text.secondary">
               {translate("contextualIncidents.nextAttempt")}:
             </Typography>
           )}
-          {incident.nextRetryAt && (
-            <RelativeDateField source="nextRetryAt" record={incident} />
+          {incident.retryScheduledUntil && (
+            <RelativeDateField source="retryScheduledUntil" record={incident} />
           )}
         </Stack>
       )}
@@ -89,18 +95,23 @@ const IncidentLine = ({
           })}
         </Typography>
       )}
-      {incident.targetPath && (
-        // the destination is the path the api answered for this incident and
-        // only when it answered one - a client never derives a link it was not
-        // given; the empty basename keeps the href exactly that path, however
-        // deeply this screen is nested under its own tab
-        <BasenameContextProvider basename="">
-          <Link to={incident.targetPath}>
-            <Typography component="span" variant="caption">
-              {translate("contextualIncidents.viewDetails")}
-            </Typography>
-          </Link>
-        </BasenameContextProvider>
+      {incident.affectedResource && (
+        // the destination is the resource the api itself named for this
+        // incident - answered for the incidents of resources this reader may
+        // view alone (#1319), so the show view of the answered pair is always
+        // open to him; a system incident names no resource and gets no link,
+        // and the client never derives a destination it was not given
+        <Link
+          to={createPath({
+            resource: incident.affectedResource.type,
+            type: "show",
+            id: incident.affectedResource.id,
+          })}
+        >
+          <Typography component="span" variant="caption">
+            {translate("contextualIncidents.viewDetails")}
+          </Typography>
+        </Link>
       )}
     </Stack>
   );

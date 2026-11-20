@@ -1,0 +1,98 @@
+# Release promotion (#1584, epic #1577)
+#
+# The protected path a planned version of develop takes onto master as a
+# stable release. The tool it dispatches, scripts/release_promotion.py, is
+# the brain - five idempotent steps, each its own run, each refusing to
+# repeat or overwrite what is already in place. This workflow is deliberately
+# almost nothing: a human dispatch with a reviewed version, one job behind
+# the `release-stable` environment whose required reviewers ARE the manual
+# approval gate, no scheduled or push trigger that could promote anything on
+# its own.
+#
+# Two facts an operator must know before the first run:
+#
+#   * The environment must EXIST before this workflow is first used, created
+#     by an administrator with "required reviewers" set, because GitHub
+#     auto-creates a referenced-but-missing environment UNPROTECTED on the
+#     first run. The dispatch answer that reveals the gap: Settings ->
+#     Environments -> release-stable must name at least one required
+#     reviewer before any mode is dispatched.
+#   * GITHUB_TOKEN pushes of tags emit no workflow_run/workflow_dispatch
+#     events, so nothing here may hinge on the tag the finalize step pushes;
+#     the release body, the digests and the attestation are all written in
+#     the SAME run that pushes the tag, and the planner re-anchors on the tag
+#     itself (docs/source/development/release-planning.rst), not on an event.
+#
+# `evidence` and `preflight` are deliberately NOT modes here: they consume
+# what release-gates.yml produces (gate report artifacts, CI conclusions) and
+# belong where those run; the attestation file they print is an INPUT to
+# finalize (the operator pastes its path), and finalizing without one still
+# publishes digests, so the audit trail names what was attested where.
+#
+# Design and the measurements behind it:
+# docs/source/development/release-promotion.rst
+name: Release promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "promotion step to run"
+        required: true
+        type: choice
+        options: [plan, status, gate, open-release-pr, finalize, sync]
+      version:
+        description: "the reviewed version, e.g. 0.2.0 (empty = VERSION of the candidate)"
+        required: false
+        type: string
+      sha:
+        description: "candidate sha on develop (empty = current develop tip)"
+        required: false
+        type: string
+      artifacts:
+        description: "for finalize: name=sha256:<64 hex> lines, one per first-party image"
+        required: false
+        type: string
+
+# One promotion runs at a time, and a re-dispatch never cancels the run that
+# may already have pushed a tag (serialized concurrency of the acceptance
+# criteria).
+concurrency:
+  group: release-promotion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment: release-stable
+    permissions:
+      # finalize pushes a tag and creates the release; everything else could
+      # do with less, but splitting the permission across modes would mean
+      # splitting the job, and one job is what the environment approval
+      # covers.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # finalize compares the candidate tree with master's tip; tags are
+          # the planner's anchor. A depth-1 checkout sees neither.
+          fetch-depth: 0
+      - name: Run the promotion step
+        env:
+          MODE: ${{ inputs.mode }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ inputs.sha }}
+          ARTIFACTS: ${{ inputs.artifacts }}
+        run: |
+          args=(--root . --develop-ref origin/develop --master-ref origin/master)
+          [ -n "$VERSION" ] && args+=(--version "$VERSION" --expect-version "$VERSION")
+          [ -n "$SHA" ] && args+=(--sha "$SHA")
+          if [ "$MODE" = "finalize" ] || [ "$MODE" = "evidence" ]; then
+            while IFS= read -r line; do
+              [ -n "$line" ] && args+=(--artifact "$line")
+            done <<< "$ARTIFACTS"
+          fi
+          python3 scripts/release_promotion.py "$MODE" "${args[@]}"

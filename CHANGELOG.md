@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.x.x] - UNRELEASED
+## Unreleased
+
+Curated entries for changes without a classifiable carrier, kept above the
+generated releases; entries move into a release when that release is prepared
+(#1581, epic #1577). The heading is written without a version and without
+brackets on purpose: the release planner inserts a generated release before
+the first heading that starts a version entry, and this heading must not
+look like one.
 
 ### Added
 - The web tier's process shape is now resolved in one place and has a selectable low-memory mode: `backend/.bash_scripts/process_defaults.sh`, which both startup scripts of the backend container source, answers the gunicorn worker/thread counts a container boots with - 4 workers x 4 threads HTTP and one ASGI websocket worker as shipped (#1032), or **1 worker x 2 threads** when `MRMAP_LOW_MEMORY` is on (#1617, epic #1612) - while docker-compose.yml passes every `GUNICORN_*` knob and the mode through untouched, so the shape is answered by one file whether the container came from compose, `docker run` or a test, and an explicit `GUNICORN_WORKERS`/`GUNICORN_THREADS` always wins over the profile. The mode changes nothing else: the websocket server, `DJANGO_DEBUG` and the production defaults are untouched, so selecting it can never reduce production throughput by accident. `GUNICORN_PRELOAD` (off by default) additionally lets the HTTP workers fork one pre-imported application - the websocket server is deliberately never preloaded. What the two knobs are worth was measured against the deployed gunicorn shape, which #1613's baseline page had left explicitly unmeasured: `scripts/http_process_bench` drives the workload (weighted unauthenticated list burst, a cheap unrouted peer every quarter second, held authenticated websockets over the load) while `scripts/stack_memory_profile` samples the RAM of the same phase; the table, the fork-safety audit behind the preload flag (no `ready()` hook touches the database, GDAL is imported and not opened, the psycopg pool and the channels layer connect per process after the fork) and the measured verdict are in `docs/source/development/http-process-profiles.rst`; the offline suite `scripts/test_http_process_bench.py` pins the resolver, the RFC 6455 client, the statistics and the compose pass-through without docker.

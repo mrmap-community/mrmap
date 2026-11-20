@@ -10,9 +10,9 @@ runbook page - and fails the moment description and tooling drift apart.
 
 Runs without docker, without network and without a GitHub token: every check
 reads repository files, one parses the tag-selection regex out of
-docs/source/conf.py and exercises it against sample refs, and the git check
-inspects committed refs through the git CLI the same way the migration-graph
-suite does.
+docs/source/conf.py and exercises it against sample refs, and the branch model
+is bound to .github/workflows/branch-policy.yml - the committed enforcer that
+holds it - rather than to remote-tracking refs a checkout need not carry.
 
 Run from the repository root: `python3 scripts/test_release_lifecycle.py`.
 Exit 0 when every check passes, 1 with the failed ones listed.
@@ -20,14 +20,12 @@ Exit 0 when every check passes, 1 with the failed ones listed.
 
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LIFECYCLE_PATH = ROOT / "scripts" / "release_lifecycle.json"
 CONF = ROOT / "docs" / "source" / "conf.py"
-RUNBOOK = ROOT / "docs" / "source" / "administration" / "release-operator-runbook.rst"
 PROMOTION_WORKFLOW = ROOT / ".github" / "workflows" / "release-promotion.yml"
 
 failures = []
@@ -55,14 +53,6 @@ def doc_labels():
 
 def argparse_subcommands(path):
     return set(re.findall(r'add_parser\("([\w-]+)"', read(path)))
-
-
-def git_ref_exists(ref):
-    proc = subprocess.run(
-        ["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", ref],
-        capture_output=True, text=True, timeout=30,
-    )
-    return proc.returncode == 0
 
 
 def main():
@@ -176,11 +166,22 @@ def main():
     check("release-please owns the changelog (config and manifest committed)",
           (ROOT / "release-please-config.json").is_file()
           and (ROOT / ".release-please-manifest.json").is_file())
-    check("the branch model exists: origin/develop and origin/master",
-          git_ref_exists("origin/develop") and git_ref_exists("origin/master"))
-    check("the described channel branches match the branch model",
+    # The branch model is not held by whoever happens to have fetched which ref -
+    # a PR merge-checkout on CI sees only the merge commit, no origin/develop. It is
+    # held by branch-policy.yml, which refuses every PR but develop's onto master.
+    # Binding the described channels to that committed enforcer is what survives any
+    # checkout; binding them to a local ref would only pass on a full clone.
+    policy = read(ROOT / ".github" / "workflows" / "branch-policy.yml")
+    policy_enforces = ('HEAD_BRANCH" != "develop"' in policy
+                       and re.search(r"pull_request:\s*\n\s*branches:\s*\n\s*-\s*master", policy)
+                       and "Only develop may target master" in policy)
+    check("branch-policy.yml enforces develop->master as the model",
+          policy_enforces)
+    check("the described channel branches are the ones the policy enforces",
           life["channels"]["development"]["branch"] == "develop"
-          and life["channels"]["stable"]["branch"] == "master")
+          and life["channels"]["stable"]["branch"] == "master",
+          f"json={life['channels']['development']['branch']}/"
+          f"{life['channels']['stable']['branch']}")
 
     print(f"\n{len(failures)} failed of the checks above" if failures
           else "\nall checks passed")

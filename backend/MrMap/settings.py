@@ -360,8 +360,10 @@ PERMISSION_FILTERED_LIST_MODELS = [
 # Database settings
 # https://docs.djangoproject.com/en/2.1/ref/settings/#databases
 ################################################################
-RESERVED_CONNECTION_SPACE = 10
-MAX_BACKEND_RESERVED_CONNECTIONS = 10
+# There used to be a second pair of numbers here (RESERVED_CONNECTION_SPACE
+# and a MAX_BACKEND_RESERVED_CONNECTIONS of 10) which no code read while the
+# environment of the same name answered 20 - #1621 removed the copy, one
+# source of truth is below.
 DATABASES = {
     "default": {
         "ENGINE": os.environ.get("SQL_ENGINE", "django.contrib.gis.db.backends.postgis"),
@@ -373,14 +375,78 @@ DATABASES = {
         "CONN_HEALTH_CHECKS": True,
     }
 }
+
+
 # -------------------------
 # Pooling for normale Requests
 # -------------------------
+def _pool_int_from_env(name, environ, default):
+    """One bound of the HTTP tier's connection pool, read from the deployment.
+
+    An absent or empty value answers ``default``; anything else has to be an
+    integer of at least 1, and both other answers raise while the settings
+    load. #1615's lesson applies to this knob class as well: a number the
+    deployment sets and the process then reads differently than meant is
+    worse than no knob, because it is the number an operator trusts. The
+    floor is the pool's own - psycopg refuses a min or max size below 1.
+    """
+    raw = (environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"{name}={raw!r} is not an integer") from None
+    if value < 1:
+        raise ValueError(
+            f"{name}={raw!r} is below 1: the psycopg pool refuses 0, so this "
+            "knob has no spelling of 'off' - leave it empty for the default "
+            "of the selected mode "
+            "(docs/source/development/environment.rst)")
+    return value
+
+
+def _db_pool_bounds_from_env(environ):
+    """The pool bounds of every non-celery process, from one place (#1621).
+
+    ``MRMAP_LOW_MEMORY`` selects the mode with the spellings
+    ``backend/.bash_scripts/process_defaults.sh`` uses, so the web tier's
+    process shape and its per-process connection reservation move together
+    and cannot drift apart: the shipped shape runs four HTTP workers which
+    each reserve four pooled connections at rest, the low-memory shape runs
+    one worker with two request threads and reserves one, capped at four.
+    Explicit bounds win over the mode, exactly as an explicit
+    ``GUNICORN_WORKERS`` wins over it.
+
+    The ceiling bounds the growth of one process, not the deployment's
+    total: four HTTP workers with max_size 20 could together outgrow the 100
+    connections PostGIS answers by default, which is why a capacity-aware
+    deployment sets the pair rather than trusting the preset. The live
+    readings of idle and loaded pool sizes and of PostgreSQL's own memory
+    per connection are in
+    ``docs/source/development/db-pool-memory.rst``.
+    """
+    low_memory = (environ.get("MRMAP_LOW_MEMORY") or "").strip().lower() \
+        in ("1", "true", "yes", "on")
+    default_min, default_max = (1, 4) if low_memory else (4, 20)
+    min_size = _pool_int_from_env(
+        "MIN_BACKEND_RESERVED_CONNECTIONS", environ, default_min)
+    max_size = _pool_int_from_env(
+        "MAX_BACKEND_RESERVED_CONNECTIONS", environ, default_max)
+    if min_size > max_size:
+        raise ValueError(
+            f"MIN_BACKEND_RESERVED_CONNECTIONS={min_size} exceeds "
+            f"MAX_BACKEND_RESERVED_CONNECTIONS={max_size}: the pool cannot "
+            "reserve more connections than it is allowed to open")
+    return min_size, max_size
+
+
+_DB_POOL_MIN_SIZE, _DB_POOL_MAX_SIZE = _db_pool_bounds_from_env(os.environ)
 if not is_celery_process():
     DATABASES["default"]["OPTIONS"] = {
         "pool": {
-            "min_size": 4,
-            "max_size": int(os.environ.get("MAX_BACKEND_RESERVED_CONNECTIONS", 20)),
+            "min_size": _DB_POOL_MIN_SIZE,
+            "max_size": _DB_POOL_MAX_SIZE,
             "timeout": 30,
         }
     }

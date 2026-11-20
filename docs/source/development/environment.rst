@@ -106,6 +106,26 @@ Used to configure the ip/dns name of the redis host.
 Used to configure the port of the redis host.
 
 
+``REDIS_MAXMEMORY``
+*******************
+
+The memory ceiling of the redis instance, passed to ``redis-server`` as
+``--maxmemory`` by the ``redis`` service of ``docker-compose.yml``. Defaults to
+``768mb`` when unset.
+
+One instance is the celery broker, the celery result backend and the Django
+cache, and redis cannot bound a single one of those - the ceiling covers the
+whole instance, and ``maxmemory-policy volatile-lru``
+(``docker/redis/redis.conf``) decides what gives way: only keys which already
+carry an expiry may be evicted, so cache entries and celery result keys give
+way while the broker's queue lists cannot. Raise the value when the deployment
+measures evictions of result keys under normal load (``INFO stats``:
+``evicted_keys``); ``0`` removes the ceiling and lets redis be OOM-killed
+together with the broker, which is the failure this variable exists to avoid.
+See ``docs/source/development/runtime-memory-baselines.rst`` for the measured
+Redis footprint and what a deployment of a different size should set.
+
+
 ``MAPSERVER_URL``
 *****************
 

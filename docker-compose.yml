@@ -73,10 +73,22 @@ services:
   redis:
     image: library/redis:8.10.3-alpine
     restart: unless-stopped
+    # #1618: the eviction policy comes from docker/redis/redis.conf (see there
+    # for why volatile-lru is the policy which cannot drop broker keys); the
+    # maxmemory is the deployment's number and overridable per .env. The
+    # command-line form outranks the config file, so this is THE bound.
+    # A compose variable cannot name the image's own `redis-server` binary
+    # path, hence `sh -c`. Read-only rootfs is not added here: the service
+    # writes its RDB snapshots and its temp files to /data (the named volume).
+    command: ["sh", "-c", "exec redis-server /usr/local/etc/redis/redis.conf --maxmemory \"${REDIS_MAXMEMORY:-768mb}\""]
     volumes:
       - type: volume
         source: mem-db-data
         target: /data
+      - type: bind
+        source: ./docker/redis/redis.conf
+        target: /usr/local/etc/redis/redis.conf
+        read_only: true
     networks:
       - mrmap-internal
     environment:

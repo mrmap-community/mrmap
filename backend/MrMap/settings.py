@@ -752,6 +752,25 @@ CAPACITY_TELEMETRY_RETRY_COOLDOWN_SECONDS = 60
 CAPACITY_TELEMETRY_RETENTION_DAYS = 14
 CAPACITY_TELEMETRY_MAX_ATTEMPTS = 200_000
 CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
+# the bounded opt-in root-cause profiling of slow tasks (#1389, epic #1387
+# V2): OFF by default and only ever on for an allowlist of task names, so a
+# deployment enables it deliberately per operator decision. Categories are
+# process-local and read in batches - enabling this never adds a synchronous
+# per-task database write.
+TASK_PROFILING_ENABLED = os.environ.get(
+    "MRMAP_TASK_PROFILING", "").strip().lower() in ("on", "1", "true")
+# comma separated celery task names to profile; empty means nothing, even
+# when the mode is on (fail-safe default)
+TASK_PROFILING_TASKS = [
+    name.strip() for name in os.environ.get(
+        "MRMAP_TASK_PROFILING_TASKS", "").split(",") if name.strip()]
+# fraction of a profiled task's attempts which get a profile, decided
+# stably from the task uuid (#1389: sampled, not everything)
+TASK_PROFILING_SAMPLE_RATE = float(
+    os.environ.get("MRMAP_TASK_PROFILING_SAMPLE_RATE", "0.05") or 0.0)
+# buffered profiles per worker process; an overflow marks the dropped
+# profile partial and counts the drop, never blocks the task
+TASK_PROFILING_BUFFER_LIMIT = 200
 # the broker round trip of the topology inspect and how long its answer is
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60

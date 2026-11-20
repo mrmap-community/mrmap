@@ -11,12 +11,14 @@ import importlib.machinery
 import importlib.util
 import io
 import json
+import signal
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -339,6 +341,85 @@ class WiringTests(unittest.TestCase):
                        check=True)
         self.assertIn("test_stack_memory_profile.py",
                       [p.name for p in (ROOT / "scripts").glob("test_*.py")])
+
+
+class CommandTests(unittest.TestCase):
+    def test_pss_is_read_in_bytes_and_unavailable_is_null(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp) / "42"
+            directory.mkdir()
+            (directory / "smaps_rollup").write_text(
+                "Rss: 123 kB\nPss: 87 kB\nPss_Anon: 80 kB\n")
+            self.assertEqual(87 * 1024, profile.read_proc_pss(42, tmp))
+            self.assertIsNone(profile.read_proc_pss(99, tmp))
+        with patch("builtins.open", side_effect=PermissionError):
+            self.assertIsNone(profile.read_proc_pss(42))
+
+    def test_each_command_has_its_own_rss_peak(self):
+        large = profile.measure_command(
+            [sys.executable, "-c", "x = bytearray(64 * 1024 * 1024)"])
+        small = profile.measure_command([sys.executable, "-c", "pass"])
+        self.assertEqual(0, large["returncode"])
+        self.assertEqual(0, small["returncode"])
+        self.assertGreater(large["rss_peak"], small["rss_peak"] + 32 * 1024 * 1024)
+        self.assertGreater(large["cpu_seconds"], 0)
+        self.assertGreater(large["wall_seconds"], 0)
+
+    def test_fast_failure_is_recorded_without_pss(self):
+        with patch.object(profile, "read_proc_pss", return_value=None):
+            measured = profile.measure_command([sys.executable, "-c", "raise SystemExit(7)"])
+        self.assertEqual(7, measured["returncode"])
+        self.assertFalse(measured["timed_out"])
+        self.assertIsNone(measured["pss_sampled_peak"])
+        self.assertEqual(0, measured["pss_samples"])
+        self.assertGreater(measured["rss_peak"], 0)
+
+    def test_hung_command_is_killed_and_reaped(self):
+        measured = profile.measure_command(
+            [sys.executable, "-c", "while True: pass"], timeout=0.1)
+        self.assertTrue(measured["timed_out"])
+        self.assertEqual(-9, measured["returncode"])
+        self.assertLess(measured["wall_seconds"], 5)
+
+    def test_command_cli_preserves_failure_and_report_handles_null_pss(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "commands.jsonl")
+            with patch.object(profile, "environment", return_value={}), \
+                    patch.object(profile, "read_proc_pss", return_value=None):
+                rc = profile.main([
+                    "command", "--phase", "broker-down", "--runs", "2",
+                    "--revision", "abc123", "--out", path, "--",
+                    sys.executable, "-c", "raise SystemExit(7)"])
+            self.assertEqual(1, rc)
+            run = json.loads(Path(path).read_text())
+            self.assertEqual("abc123", run["environment"]["git_commit"])
+            self.assertEqual([7, 7], [m["returncode"] for m in run["measurements"]])
+            output = io.StringIO()
+            with redirect_stdout(output):
+                self.assertEqual(0, profile.main(["report", "--in", path]))
+            self.assertIn("broker-down", output.getvalue())
+            self.assertIn("readable 0/2", output.getvalue())
+
+    def test_invalid_limits_do_not_launch_commands(self):
+        with patch.object(profile, "measure_command") as measure:
+            for options in (["--runs", "0"], ["--timeout", "0"], ["--interval", "0"],
+                            ["--timeout", "nan"], ["--interval", "inf"]):
+                with self.subTest(options=options), redirect_stderr(io.StringIO()), \
+                        self.assertRaises(SystemExit):
+                    profile.main(["command", "--phase", "invalid", *options, "--", "unused"])
+            measure.assert_not_called()
+
+    def test_runner_termination_unwinds_the_measurement_and_restores_handler(self):
+        previous = signal.getsignal(signal.SIGTERM)
+
+        def terminate(*args):
+            signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+        with patch.object(profile, "measure_command", side_effect=terminate):
+            with self.assertRaises(SystemExit) as raised:
+                profile.main(["command", "--phase", "interrupted", "--", "unused"])
+        self.assertEqual(143, raised.exception.code)
+        self.assertEqual(previous, signal.getsignal(signal.SIGTERM))
 
 
 if __name__ == "__main__":

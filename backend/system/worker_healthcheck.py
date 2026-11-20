@@ -1,7 +1,9 @@
-"""Candidate worker probe for #1616; not enabled in Compose until measured.
+"""Worker healthcheck of the deployment (#1616), run as ``python -m``.
 
-Use Celery's own directed inspect ping without initializing Django or loading
-the CLI or MrMap's task registry. Run with ``python -m system.worker_healthcheck``.
+Celery's own directed inspect ping, without initializing Django or loading
+the CLI or MrMap's task registry. ``docker-compose.yml`` runs it for
+``celery-worker``; the measurement which justified the change is
+``docs/source/development/celery-healthcheck-overhead.rst``.
 """
 
 import os

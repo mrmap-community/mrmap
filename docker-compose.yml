@@ -255,7 +255,12 @@ services:
     cap_add:
       - SYS_PTRACE
     healthcheck:
-      test: ["CMD-SHELL", "celery -A MrMap inspect ping --destination celery@$$HOSTNAME --timeout 2"]
+      # the module probe instead of the celery CLI: the same directed inspect
+      # ping without Django startup, about a quarter less CPU per probe. The
+      # CLI arm spent this whole timeout when the broker was paused, where the
+      # probe reports the same loss in under 4 s (#1616). Interval, timeout,
+      # retries and start_period are the values both arms were measured with.
+      test: ["CMD-SHELL", "python -m system.worker_healthcheck"]
       interval: 15s
       timeout: 10s
       retries: 3

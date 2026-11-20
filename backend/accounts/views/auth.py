@@ -158,9 +158,9 @@ class WhoAmIView(generics.GenericAPIView):
     serializer_class = UserSerializer
 
     def get(self, *args, **kwargs):
-        return self.retreive(*args, **kwargs)
+        return self.retrieve(*args, **kwargs)
 
-    def retreive(self, request, *args, **kwargs):
+    def retrieve(self, request, *args, **kwargs):
         user = request.user
         if user.is_anonymous:
             user = User.get_anonymous()

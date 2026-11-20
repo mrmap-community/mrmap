@@ -18,7 +18,10 @@ implementation actually has:
   keeps its own prefix and never touches a retained failed reference;
 * deleting a process takes its rows and stored documents with it and leaves
   the permanent records alone; the API answers the work paged and filtered
-  without ever handing out a claim token.
+  without ever handing out a claim token;
+* the recovery addressed by name is published with the queue on the call -
+  a bare name is a remote call, and asserting only the declaration stayed
+  green while such a delivery went elsewhere (#1455).
 
 Successful couplings, kind classification, the transport attempt semantics
 and the manual-retry counter arithmetic are pinned in ``tests_service``
@@ -29,15 +32,19 @@ adds the plan-, recovery-, cleanup- and API-level guarantees around them.
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from celery.app.trace import build_tracer
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.db import connection
-from django.test import TransactionTestCase, override_settings
+from django.test import (SimpleTestCase, TransactionTestCase,
+                         override_settings)
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from MrMap import celery_queues
+from MrMap.celery import app
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
@@ -50,11 +57,13 @@ from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
 from registry.models.service import (FeatureType, Layer, WebFeatureService,
                                      WebMapService)
 from registry.tasks import service as service_tasks
-from registry.tasks.harvest import cleanup_harvesting_job_temp_files
+from registry.tasks.harvest import (cleanup_harvesting_job_temp_files,
+                                    sweep_ended_harvest_temp_files)
 from registry.tasks.service import (collect_reference,
                                     finish_metadata_collection,
                                     plan_registration_references,
                                     recover_registration_reference_work,
+                                    recover_registration_references_after_restart,
                                     sweep_registration_orphan_files)
 from requests import Session
 from rest_framework.test import APIClient
@@ -759,3 +768,66 @@ class ReferenceWorkApiTests(MediaStorageMixin, TransactionTestCase):
         self.assertEqual(
             len(one), len(many),
             msg='the collection must not read more per row than per request')
+
+
+class NameAddressedDispatchRoutingTests(SimpleTestCase):
+    """The recovery is addressed by name: the queue must ride on the call.
+
+    ``app.send_task('name')`` is a remote call, and for a remote call the
+    queue is part of the call (Celery's calling docs). A celery version may
+    consult its task registry for the name - but only in a process which
+    happens to have imported the task module, and a publishing process
+    which did not is the deployment's right, not a bug to work around;
+    what makes the answer independent of that accident is the ``queue=``
+    on the call. Both publishers of the reference recovery - the worker
+    start and the hourly sweep - therefore name the queue of #1263's
+    isolation on the call. This asks the router where the recorded call
+    lands, not what the declaration says: asserting only the declaration
+    stayed green while the name-addressed delivery went elsewhere (#1455).
+    """
+
+    TASK = 'registry.tasks.service.recover_registration_reference_work'
+
+    def _routed_queue(self, options, name):
+        """The queue the app's AMQP router delivers a call with these
+        options onto - the answer a publish gets, from the queue table the
+        settings declare."""
+        route = app.amqp.router.route(dict(options), name)
+        queue = route.get('queue')
+        return getattr(queue, 'name', queue)
+
+    def _assert_published_to_its_queue(self, publish):
+        (name,), options = publish.call_args
+        self.assertEqual(name, self.TASK)
+        self.assertEqual(
+            self._routed_queue(options, name), celery_queues.DB_ROUTINES,
+            'the queue named on the call must route onto the queue of the '
+            'task - where the message waits, not only what it declares')
+        self.assertEqual(
+            recover_registration_reference_work.queue,
+            self._routed_queue(options, name),
+            'the declared queue is the delivered queue (#1455)')
+
+    def test_a_bare_name_routes_to_the_default_queue(self):
+        """the counterfactual the queue on the call exists for: the router's
+        answer for the name alone is the broker default - away from the
+        isolation of #1263 - whatever the sending process happens to have
+        imported"""
+        self.assertEqual(
+            self._routed_queue({}, self.TASK), celery_queues.DEFAULT)
+
+    def test_the_worker_start_publishes_the_recovery_to_its_queue(self):
+        sender = SimpleNamespace(app=app)
+        with patch.object(app, 'send_task') as publish:
+            recover_registration_references_after_restart(sender)
+        publish.assert_called_once()
+        self._assert_published_to_its_queue(publish)
+
+    def test_the_hourly_sweep_publishes_the_recovery_to_its_queue(self):
+        with patch.object(app, 'send_task') as publish, \
+                patch('registry.tasks.harvest.'
+                      'dispatch_cleanup_of_ended_harvest_backlogs',
+                      return_value=[]):
+            sweep_ended_harvest_temp_files.run()
+        publish.assert_called_once()
+        self._assert_published_to_its_queue(publish)

@@ -17,37 +17,22 @@ import {
  *  the poll below is the floor (#1321: the incident api may not push at all) */
 const INCIDENT_REALTIME_TOPIC = `resource/${INCIDENT_RESOURCE}`;
 
-/** the (resource, id) a `targetPath` names, or nothing when it names none
- *
- *  The api answers `targetPath` as the show path of the affected resource -
- *  the same answer `ListServiceAlert` navigates on - as
- *  `/<Resource>/<id>/show`, optionally continued by a tab. Only that identity
- *  is read here; the client never derives a path it was not given. */
-export const parseTargetKey = (
-  targetPath?: string | null,
-): { resource: string; id: string } | null => {
-  if (!targetPath) return null;
-  const match = /\/([^/]+)\/([^/]+)\/show(?:[/?#]|$)/.exec(targetPath);
-  if (!match) return null;
-  return { resource: match[1], id: match[2] };
-};
-
 /** whether an incident is about this very record
  *
- *  A row whose `targetPath` is absent is not about anything this client may
- *  open - #1319 answers the path only when the reader is permitted to the
- *  affected resource - so it is never a match, which is how a private incident
- *  cannot surface on a page it does not belong to. */
-const targetsRecord = (
+ *  The api answers `affectedResource` as the type and id of the resource the
+ *  incident stands for, and it answers the incidents of resources this caller
+ *  may view alone - the narrowing of `visible_for_user` is the list itself
+ *  (#1319) - so an answered pair is always one this screen may show, and a
+ *  system incident, which answers no pair, is never a match. The client never
+ *  derives a destination it was not answered. */
+export const aboutRecord = (
   record: OperationalIncidentRecord,
   resource?: string,
   id?: string | number,
 ): boolean => {
-  if (!resource || id === undefined || id === null) return false;
-  const key = parseTargetKey(record.targetPath);
-  return (
-    !!key && key.resource === resource && key.id === String(id)
-  );
+  const affected = record.affectedResource;
+  if (!resource || id === undefined || id === null || !affected) return false;
+  return affected.type === resource && String(affected.id) === String(id);
 };
 
 const SEVERITY_RANK: Record<IncidentSeverity, number> = { error: 0, warning: 1 };
@@ -60,8 +45,8 @@ const bySeverityThenRecent = (
   const severity = SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
   if (severity !== 0) return severity;
   return (
-    new Date(b.lastOccurrence).getTime() -
-    new Date(a.lastOccurrence).getTime()
+    new Date(b.lastOccurredAt).getTime() -
+    new Date(a.lastOccurredAt).getTime()
   );
 };
 
@@ -91,19 +76,22 @@ export interface ContextualIncidents {
 /**
  * The operational incidents about one record, for its detail page (#1322).
  *
- * The two windows of the incident api - the active and the resolved one - are
- * read with the ONE filter facet the api declares (`state`) and matched to the
- * record of the screen client-side by the `targetPath` the api answers. This is
- * deliberate: a `filter[target]` this screen invented would be an api contract
- * #1319 has not declared, and an undeclared facet is answered with a 400, never
- * ignored (#1080). Permission filtering stays entirely server side - a row this
- * reader may not see is not in the window at all, and a row whose `targetPath`
- * is withheld matches nothing - so no private incident, count or path reaches a
- * client through this hook.
+ * The two windows of the incident api - the active and the resolved one -
+ * are read with the ONE lifecycle facet the api declares (`status`, #1319)
+ * and matched to the record of the screen client-side by the
+ * `affectedResource` the api answers. Permission filtering stays entirely
+ * server side - a row this reader may not see is not in the window at all
+ * (`visible_for_user`), and a system incident answers no resource to match
+ * against - so no private incident, count or destination reaches a client
+ * through this hook. The filterset also declares the typed resource facets
+ * which would scope these queries server-side; asking them is a #1322
+ * follow-up bounded by a behave scenario, not an assumption made here
+ * (#1080).
  *
- * Until #1319 is merged every read ends in an error; the caller treats that as
- * silence, exactly as the Incident Center (#1321) does, so a detail page gains
- * nothing invisible rather than a broken banner.
+ * A read which fails - the service briefly unreachable, the session ended -
+ * is reported to the caller as silence, exactly as the Incident Center
+ * (#1321) treats it, so a detail page gains nothing invisible rather than a
+ * broken banner.
  */
 const useContextualIncidents = ({
   resource,
@@ -158,7 +146,7 @@ const useContextualIncidents = ({
     () =>
       uniqueById(
         (activeWindow.data ?? []).filter((record) =>
-          targetsRecord(record, resource, id),
+          aboutRecord(record, resource, id),
         ),
       ).sort(bySeverityThenRecent),
     [activeWindow.data, resource, id],
@@ -167,7 +155,7 @@ const useContextualIncidents = ({
     () =>
       uniqueById(
         (resolvedWindow.data ?? []).filter((record) =>
-          targetsRecord(record, resource, id),
+          aboutRecord(record, resource, id),
         ),
       ).sort(bySeverityThenRecent),
     [resolvedWindow.data, resource, id],

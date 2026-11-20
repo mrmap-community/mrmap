@@ -587,6 +587,14 @@ OPERATION_URLS_HELP_TEXT = _("this are the urls to use for the ogc operations.")
 OPERATION_URLS_LABEL = _("operation urls")
 
 
+#: The WMS answers the fields that its list and its detail share from this
+#: base, which is the convention of the project: a field is declared once on
+#: the list serializer and the detail inherits it. The serializers of the WFS
+#: and of the CSW answer list and detail with one class, so they have no
+#: common base to split off and a ListSerializer of their own is not needed -
+#: the asymmetry is which class carries the shared fields, not which fields
+#: are answered (#1479). A list screen of a different shape for one of them
+#: is the point at which it gets a ListSerializer like this one.
 class WebMapServiceListSerializer(
     ServiceAlertSerializerMixin,
     VisibilitySerializerMixin,

@@ -29,6 +29,7 @@ from extras.locks import SingleFlight
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
 from lxml.etree import XMLParser
+from MrMap import celery_queues
 from MrMap.celery import app
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from registry.enums.harvesting import (CollectingStatenEnum,
@@ -39,9 +40,9 @@ from registry.enums.metadata import (DocumentAcquisitionStateEnum,
                                      ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
-from registry.managers.havesting import (HarvestedMetadataRelationQuerySet,
-                                         HarvestingJobManager,
-                                         TemporaryMdMetadataFileManager)
+from registry.managers.harvesting import (HarvestedMetadataRelationQuerySet,
+                                          HarvestingJobManager,
+                                          TemporaryMdMetadataFileManager)
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.utils import make_instance_key
@@ -528,6 +529,10 @@ class HarvestingJob(ProcessingData):
         # Note:
         # The maximum number of revoked tasks to keep in memory can be specified using the
         # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
+        # The release raises that window on the worker itself: docker-compose.yml
+        # hands CELERY_WORKER_REVOKES_MAX (2000000) to the celery-worker service,
+        # because celery reads that name from the environment in
+        # celery/worker/state.py and not from the app configuration (#1615).
         # The revocation only names the tasks which could still be stopped, as
         # the tasks which reported in removed their ids themselves (#892).
 
@@ -2624,7 +2629,9 @@ class PeriodicHarvestingJob(PeriodicTask):
             if not self.task:
                 self.task = "registry.tasks.harvest.create_harvesting_job"
             if not self.queue:
-                self.queue = "default"
+                # named by the one module which holds the queue names; it
+                # must stay what the task this row fires declares (#1455)
+                self.queue = celery_queues.DEFAULT
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':

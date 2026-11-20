@@ -78,9 +78,16 @@ as a bind mount: the version must travel inside `backend/` to reach the
 runtime without git or a working directory. Drift against `VERSION` is a CI
 failure; the fix is to edit `VERSION` and re-run the generator, never to
 edit this file.
+
+The version line carries the marker `x-release-please-version` (#1581): the
+release planner of epic #1577 rewrites `VERSION` and this projection together
+in its pull request, so the projection cannot drift on a release branch. The
+marker is a comment; the generator writes it, `--check` regenerates the whole
+file including the marker, and `--check` therefore also fails on a projection
+whose version moved without `VERSION` moving with it.
 """
 
-VERSION = '{version}'
+VERSION = '{version}'  # x-release-please-version
 '''
 
 

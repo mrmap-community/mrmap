@@ -161,6 +161,21 @@ Used to configure how many hours an unfinished service-update job may stand in a
 
 Used to configure how many slots a celery worker process runs with. docker-compose.yml passes it to ``celery-worker``; unset or empty, the compose file defaults the worker to 4 slots (#1454 - celery's own default of one slot per CPU core counts the host's cores, not the container's share, and that mismatch was the OOM path behind stuck jobs), and ``auto`` sizes the prefork pool by the cgroup quota of the container. It is the knob for a bigger worker, so that changing worker concurrency never makes a deployment override the worker command and thereby restate - and freeze - the queue list of the release the override was written for; see :ref:`celery-queues` (#1040). What the slots imply for redelivery (one prefetched message per slot) and for long attempts (the global task time limits and the one per-task budget) is documented with the worker configuration in :ref:`celery-queues`.
 
+``CELERY_WORKER_MAX_TASKS_PER_CHILD``
+*************************************
+
+Used to configure how many tasks one prefork child of a worker runs before the pool replaces it. docker-compose.yml passes it to ``celery-worker`` and the release defaults it to **1000**; empty means exactly that 1000. There is no value of this variable which means "never": the celery worker command reads the same variable from the environment itself (``--max-tasks-per-child``) and hands it to the prefork pool as it stands, and the pool refuses 0 ("maxtasksperchild must be a positive int or None"), so a deployment which sets 0 gets a worker which does not start rather than one which never recycles. ``MrMap/settings.py`` therefore rejects a value below 1 while the settings load, naming the knob, and 1 is the smallest recycling the variable can ask for. Recycling is what keeps a slot which parsed and imported a few thousand documents from carrying that work's memory into its next thousand. Before #1615 this knob was spelled ``CELERY_MAX_TASKS_PER_CHILD`` in ``MrMap/settings.py``, a name celery 5.7 does not read, so the fleet never replaced a child whatever the deployment asked for. What the number costs in worker start-ups, and how the value was chosen, is measured in :ref:`celery-queues`.
+
+``CELERY_WORKER_MAX_MEMORY_PER_CHILD``
+**************************************
+
+Used to configure the peak memory of one prefork child in kB at which the pool replaces it. The release ships it **off** - docker-compose.yml passes an empty value and no bound applies - because of what celery measures: the quantity is ``getrusage().ru_maxrss``, the highest resident set the child ever reached, shared pages included, a fresh child of this project already peaks near 170 MB of that, and the same import path plateaus at 211 MB after 2400 documents (:ref:`celery-queues` has the curve). A bound below the measured peak of the deployment's own biggest import therefore bounds nothing - it replaces the child after every task. The check also runs only after a completed task, which makes it no OOM guard: an attempt which allocates past its container never meets the bound. A deployment which has watched its children names the kB it wants; like the knob above it has to be an integer of at least 1, and anything else stops the deployment while the settings load instead of being quietly ignored.
+
+``CELERY_WORKER_REVOKES_MAX``
+*****************************
+
+Used to configure how many revoked task ids a worker keeps in memory. celery reads this variable from the *environment* of the worker (``celery/worker/state.py``), not from the application configuration, so docker-compose.yml hands it to ``celery-worker`` directly; the release defaults it to 2000000 against celery's own 50000, because the abort of a big catalogue revokes far more ids than that - ``registry/models/harvest.py`` names over 600000 queued ids for the BKG catalogue - and a revocation the window forgot is a message which runs again. A spelling of this name in ``MrMap/settings.py`` configures nothing, which is what #1615 found and removed.
+
 
 The web tier
 ############
@@ -168,7 +183,15 @@ The web tier
 The HTTP of the ``backend`` container is served by ``gunicorn`` with ``gthread``
 workers and the WSGI application; its websockets by a second, small ``gunicorn``
 with ASGI workers on port 8002, which the edge of the frontend forwards ``/ws``
-to. The split is #1032. Every view of MrMap is sync, so under an ASGI worker the
+to. The split is #1032. The numbers that shape the two servers resolve in
+``backend/.bash_scripts/process_defaults.sh``, which both startup scripts
+source: docker-compose.yml passes every ``GUNICORN_*`` knob through untouched,
+so the shape a container boots with is answered by one file, whether the
+container came from compose, from ``docker run`` or from a test.
+``MRMAP_LOW_MEMORY`` selects the low-memory shape of #1617 and
+``GUNICORN_PRELOAD`` opts the HTTP workers into forking one pre-imported
+application; the measured tradeoffs of both are in
+:ref:`http-process-profiles`. Every view of MrMap is sync, so under an ASGI worker the
 view work runs on threads off the event loop while that loop keeps the sockets of
 the same worker - one GIL for the two of them - and the bill arrives twice: the
 view is slower and its neighbours wait. Which worker of a burst did how much also
@@ -204,8 +227,9 @@ invocation and once by starting that script itself.
 ``GUNICORN_WORKERS``
 ********************
 
-How many HTTP worker *processes* the backend runs; docker-compose.yml passes it
-to ``backend`` with a default of 4. CPU bound views parallelize per process and
+How many HTTP worker *processes* the backend runs; docker-compose.yml passes
+it to ``backend`` and the default of 4 resolves in
+``backend/.bash_scripts/process_defaults.sh``. CPU bound views parallelize per process and
 not per thread, because the interpreter runs one of them at a time - so a
 deployment whose API traffic is CPU bound gets its lanes from this number, and
 the honest way to size it is the number of cores it gives to the web tier. The
@@ -216,8 +240,9 @@ a backend may hold at once.
 ``GUNICORN_THREADS``
 ********************
 
-How many requests one HTTP worker answers at a time; docker-compose.yml passes it
-to ``backend`` with a default of 4. This is the depth of the queue in front of one
+How many requests one HTTP worker answers at a time; docker-compose.yml passes
+it to ``backend`` and the default of 4 resolves in
+``backend/.bash_scripts/process_defaults.sh``. This is the depth of the queue in front of one
 worker, and it is what keeps a cheap request from waiting behind a slow one: a
 request which arrives at a worker whose threads are all taken waits in that
 worker's own queue, behind whatever it is already doing, while a worker with a
@@ -232,8 +257,34 @@ them in one process - so a deployment which measures CPU and not queueing raises
 ``GUNICORN_WS_WORKERS``
 ***********************
 
-How many ASGI worker processes serve the websockets on port 8002; docker-compose.yml
-passes it to ``backend`` with a default of 1. Open websockets are idle and I/O
+How many ASGI worker processes serve the websockets on port 8002;
+docker-compose.yml passes it to ``backend`` and the default of 1 resolves in
+``backend/.bash_scripts/process_defaults.sh``. Open websockets are idle and I/O
 bound, so one event loop carries the connections of a whole deployment; the
 variable is there for a deployment with an unusual number of simultaneous
 connections.
+
+``MRMAP_LOW_MEMORY``
+********************
+
+Selects the low-memory shape of the web tier (#1617, epic #1612): with
+``1``/``true``/``yes``/``on`` the HTTP server boots with **1 worker and 2
+threads** instead of 4 and 4, which is what a container that must share its
+host with an editor, an agent or another stack pays for with web-tier
+throughput. The mode changes nothing else - not the websocket server, not
+``DJANGO_DEBUG``, not any queue depth an explicit ``GUNICORN_WORKERS`` or
+``GUNICORN_THREADS`` pins - and an unset value keeps the shipped production
+shape, so selecting the mode can never reduce production throughput by
+accident. Measured cost and saving: :ref:`http-process-profiles`.
+
+``GUNICORN_PRELOAD``
+********************
+
+Off by default. With ``1``/``true``/``yes``/``on`` the HTTP gunicorn imports
+the WSGI application once in its master and the workers fork it, so the pages
+of the imports are shared copy-on-write and a failed import kills the boot
+instead of surfacing per worker. It applies to the HTTP server only: the
+websocket server runs one worker (there is nothing to share) and #1617's
+acceptance names stuck websockets as the failure mode a preload must not
+introduce. The fork-safety audit behind the flag - and the measured memory it
+does and does not buy - is in :ref:`http-process-profiles`.

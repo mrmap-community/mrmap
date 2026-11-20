@@ -19,16 +19,19 @@ from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
 from django.utils.timezone import now
+from django_celery_beat.models import CrontabSchedule
+from guardian.shortcuts import assign_perm
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
-from registry.models.harvest import HarvestingJob, TemporaryMdMetadataFile
+from registry.models.harvest import TemporaryMdMetadataFile
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework.viewsets import GenericViewSet
 
 from extras.viewsets import ObjectPermissionCheckerViewSetMixin
 from registry.enums.harvesting import CollectingStatenEnum as State
-from registry.managers.havesting import (METADATA_RECORD_COUNTS,
-                                         metadata_count_annotation)
-from registry.models.harvest import HarvestedMetadataRelation, HarvestingJob
+from registry.managers.harvesting import (METADATA_RECORD_COUNTS,
+                                          metadata_count_annotation)
+from registry.models.harvest import (HarvestedMetadataRelation, HarvestingJob,
+                                     PeriodicHarvestingJob)
 from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
                                       ServiceMetadataRecord)
 from registry.models.service import CatalogueService
@@ -494,6 +497,28 @@ class CatalogueServiceQueryPerformance(QueryMeasurementMixin, TestCase):
             1, len([q['sql'] for q in queries if COUNT in q['sql']]),
             'the page answers one count of its rows')
 
+    def test_the_history_answers_are_prefetched_only_when_asked(self):
+        """The audit-row prefetch of the list hangs off the fieldset (#1479).
+
+        HistoryInformationViewSetMixin reads the first and last change of a
+        service only while the request asks the created/last-modified answers;
+        the fieldset arrives through the single parser of the project, so the
+        pin covers the converged state of all its readers.
+        """
+        _status, _body, plain = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]': 'id,title'})
+        self.assertFalse(
+            [q for q in plain if 'historicalcatalogueservice' in q['sql']],
+            'a fieldset without the created answers reads the audit rows')
+        _status, _body, asked = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]': 'id,title,createdAt'})
+        self.assertTrue(
+            [q for q in asked if 'historicalcatalogueservice' in q['sql']],
+            'the created answers of the catalogues lost their audit prefetch '
+            '- the camel name of createdAt must reach the python gate')
+
 
 class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
     """The harvesting jobs know the service and the schedule they belong to."""
@@ -804,6 +829,90 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertEqual(without[1], with_[1],
                          'the page answers the same jobs with and without '
                          'the statistics')
+
+    def test_the_untouched_statistics_stay_out_of_the_statement(self):
+        """A fieldset which names none of the durations annotates none.
+
+        SparseFieldMixin gates the annotation of each duration on the fieldset
+        of the request; the page of a screen that shows none of them must not
+        carry any of the sums CTE (#1479, cf. #885 for the COUNT half).
+        """
+        status, _body, queries = self.request(
+            '/api/registry/harvesting/harvesting-jobs',
+            **{'fields[HarvestingJob]': 'id'})
+        self.assertEqual(status, 200)
+        sql = ' '.join(query['sql'] for query in queries).lower()
+        for marker in ('fetch_record_duration',
+                       'md_metadata_file_to_db_duration',
+                       'records_per_minute'):
+            self.assertNotIn(
+                marker, sql,
+                f'the page annotates {marker} although the fieldset did not '
+                'ask for it')
+
+    def test_a_sparse_fieldset_gates_the_same_written_camel_or_snake(self):
+        """The parser is one for both writings of a field name (#1479).
+
+        parse_sparse_fieldsets turns the names of the api into the names of
+        python and SparseFieldMixin answers them back with format_field_name,
+        so a fieldset written with snake names annotates exactly what the
+        same fieldset written with camel names annotates - which the old raw
+        read only answered for the writing it happened to convert.
+        """
+        answers = {}
+        for fields in ('id,fetchRecordDuration', 'id,fetch_record_duration'):
+            status, _body, queries = self.request(
+                '/api/registry/harvesting/harvesting-jobs',
+                **{'fields[HarvestingJob]': fields})
+            self.assertEqual(status, 200)
+            sql = ' '.join(query['sql'] for query in queries).lower()
+            self.assertIn(
+                '"fetch_record_duration"', sql,
+                f'the fieldset {fields} lost the annotation it asks for')
+            answers[fields] = table_counter(queries)
+        self.assertEqual(answers['id,fetchRecordDuration'],
+                         answers['id,fetch_record_duration'],
+                         'the two writings of one fieldset read different '
+                         'tables')
+
+    def test_the_schedule_that_shows_no_next_run_pays_no_answer_for_it(self):
+        """The next-run answers of a schedule hang off its fieldset (#1479).
+
+        The viewset of the schedules knows sparse fieldsets through the same
+        parser (SparseFieldMixin); a screen which shows no next run asks none
+        of the warning evidence and gets no estimate - the request of the
+        minimal fieldset is the cheap one its budget is pinned for.
+        """
+        crontab = CrontabSchedule.objects.create(
+            minute='*/5', hour='*', day_of_week='*', day_of_month='*',
+            month_of_year='*')
+        periodic = PeriodicHarvestingJob.objects.create(
+            service=self.job.service, crontab=crontab, enabled=True)
+        # the list is answered through the scoped read; the anonymous request
+        # of this module is the database user named "AnonymousUser"
+        assign_perm('view_periodicharvestingjob',
+                    get_user_model().objects.get(username='AnonymousUser'),
+                    periodic)
+        status, body, _queries = self.request(
+            '/api/registry/harvesting/periodic-harvesting-jobs',
+            **{'fields[PeriodicHarvestingJob]': 'id'})
+        self.assertEqual(status, 200, body)
+        self.assertEqual(self.ids_of(body), [str(periodic.pk)])
+        self.assertNotIn(
+            'timeUntilNextRun', body['data'][0].get('attributes', {}),
+            'a fieldset which names no next run still serializes the estimate')
+        status, asked, _queries = self.request(
+            '/api/registry/harvesting/periodic-harvesting-jobs',
+            **{'fields[PeriodicHarvestingJob]': 'id,timeUntilNextRun'})
+        self.assertEqual(status, 200, asked)
+        self.assertIsNot(
+            asked['data'][0]['attributes']['timeUntilNextRun'], None,
+            'a fieldset which names the next run no longer answers it')
+        # measured baseline of the minimal request on this fixture: 2 -
+        # the count and the page, the schedule table read once
+        self.assertQueriesDoNotExceed(
+            4, '/api/registry/harvesting/periodic-harvesting-jobs',
+            **{'fields[PeriodicHarvestingJob]': 'id'})
 
 
 class HarvestingRunCountersQueryPerformance(QueryMeasurementMixin, TestCase):
@@ -1355,4 +1464,44 @@ class HistoryQueryPerformance(QueryMeasurementMixin, TestCase):
     def test_historical_wms_include_history_user_does_not_grow(self):
         self.assertQueriesIndependentOfRows(
             '/api/registry/historical-wms', single=self.ONE_ROW,
+            **{'include': 'historyUser'})
+
+    def page_statements(self, queries):
+        """The paged SELECT statements over the history rows of an answer."""
+        return [
+            query['sql'] for query in queries
+            if 'registry_historicalwebmapservice' in query['sql'].lower()
+            and ' limit ' in query['sql'].lower()]
+
+    def test_the_history_user_is_deferred_until_the_include_asks(self):
+        """Without the include the account columns stay in the database.
+
+        The include decision of the history endpoints reads the include
+        through get_included_resources of the framework since #1479 - the
+        same parser the view mixins use. A list which shows no user still
+        joins the account row (the id of the history user is serialized) but
+        defers its columns; only the include of the user answers them.
+        """
+        _status, _body, plain = self.request(
+            '/api/registry/historical-wms', user='user')
+        pages = self.page_statements(plain)
+        self.assertTrue(pages, 'no page of history rows was read')
+        for sql in pages:
+            self.assertNotIn(
+                '"accounts_user"."password"', sql.lower(),
+                msg=f'the page loads the full account row without the '
+                    f'include of the user: {sql[:400]}')
+        _status, _body, included = self.request(
+            '/api/registry/historical-wms', user='user',
+            **{'include': 'historyUser'})
+        pages = self.page_statements(included)
+        self.assertTrue(
+            any('"accounts_user"."password"' in sql.lower() for sql in pages),
+            msg='the include of the history user lost its full account join '
+                f'(the camel name must reach the defer decision): {pages}')
+        # measured baseline on this fixture: 10 - the include adds the
+        # columns of the account, never a read per row (row-independence
+        # is pinned by the test above)
+        self.assertQueriesDoNotExceed(
+            12, '/api/registry/historical-wms', user='user',
             **{'include': 'historyUser'})

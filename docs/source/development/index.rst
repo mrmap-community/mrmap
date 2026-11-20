@@ -37,9 +37,15 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    agent-capacity
    runtime-memory-baselines
    celery-healthcheck-overhead
+   http-process-profiles
+   compose-profiles
    decision-requests
    release-versioning-baseline
    canonical-version
+   commit-classification
+   release-planning
+   versioned-images
+   release-compatibility-gates
    schedule-optimization-v3
    code-quality
    keyword-triggers

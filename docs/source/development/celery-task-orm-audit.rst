@@ -1147,7 +1147,7 @@ rewrite PR.
      - 1 row
    * - ``TemporaryMdMetadataFile.for_harvest_import()``
      - ``TemporaryMdMetadataFileManager``
-       (``registry/managers/havesting.py:514``)
+       (``registry/managers/harvesting.py:514``)
      - ``import_md_metadata_file`` (both chunk and single importers)
      - ``select_related("job","job__service","job__service__auth")``
        chainable; ``select_for_update(of=("self",))`` stays an explicit,

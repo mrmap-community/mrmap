@@ -142,7 +142,10 @@ the entrypoint compares ``package.json`` + ``package-lock.json`` + ``node -v`` +
 in the project's ``node_modules`` volume. A fresh, matching volume is seeded by
 copying from the image; a changed lockfile on a stale image falls back to a
 real ``npm ci``. A changed lockfile can therefore never run on stale modules,
-and an unchanged one never reinstalls.
+and an unchanged one never reinstalls. The plain ``node:26-alpine`` service
+uses the same bootstrap: without a baked dependency tree it runs ``npm ci``
+on first use or a fingerprint change. Passing an explicit command, including
+the VS Code development server task, still initializes dependencies first.
 
 GHCR access: anonymous pull, and the current visibility
 =======================================================

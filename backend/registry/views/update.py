@@ -31,7 +31,7 @@ from rest_framework_json_api.views import ModelViewSet
 from simple_history.utils import get_history_manager_for_model
 
 
-class WebMapServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
+class WebMapServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = WebMapServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebMapServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -40,13 +40,13 @@ class WebMapServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
 
 
 class WebMapServiceUpdateSettingViewSet(
-        WebMapServiceUpdateSettingViewSetMixing,
+        WebMapServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `WebMapServiceUpdateSetting`"""
 
 
 class NestedWebMapServiceUpdateSettingViewSet(
-        WebMapServiceUpdateSettingViewSetMixing,
+        WebMapServiceUpdateSettingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `WebMapServiceUpdateSetting` """
 
@@ -290,7 +290,10 @@ class LayerMappingViewSetMixin(PreloadNotIncludesMixin):
     select_for_includes = {
         "job": ["job"],
     }
-    http_method_names = ["get", "patch"]  # disable PUT
+    # PUT is refused; HEAD and OPTIONS are the verbs of the request itself -
+    # HEAD answers the headers of the GET (drf delegates it in setup) and
+    # OPTIONS answers the Allow header the api declares (#1479)
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class LayerMappingViewSet(
@@ -305,7 +308,7 @@ class NestedLayerMappingViewSet(
     """ Nested list endpoint for resource `LayerMapping` """
 
 
-class WebFeatureServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
+class WebFeatureServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = WebFeatureServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = WebFeatureServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -314,13 +317,13 @@ class WebFeatureServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
 
 
 class WebFeatureServiceUpdateSettingViewSet(
-        WebFeatureServiceUpdateSettingViewSetMixing,
+        WebFeatureServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `WebFeatureServiceUpdateSetting`"""
 
 
 class NestedWebFeatureServiceUpdateSettingViewSet(
-        WebFeatureServiceUpdateSettingViewSetMixing,
+        WebFeatureServiceUpdateSettingViewSetMixin,
         NestedModelViewSet):
     """ Nested list endpoint for resource `WebFeatureServiceUpdateSetting` """
 
@@ -380,7 +383,10 @@ class FeatureTypeMappingViewSetMixin(PreloadNotIncludesMixin):
     select_for_includes = {
         "job": ["job"],
     }
-    http_method_names = ["get", "patch"]  # disable PUT
+    # PUT is refused; HEAD and OPTIONS are the verbs of the request itself -
+    # HEAD answers the headers of the GET (drf delegates it in setup) and
+    # OPTIONS answers the Allow header the api declares (#1479)
+    http_method_names = ["get", "patch", "head", "options"]
 
 
 class FeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, ModelViewSet):
@@ -391,7 +397,7 @@ class NestedFeatureTypeMappingViewSet(FeatureTypeMappingViewSetMixin, NestedMode
     """Nested list endpoint for resource `FeatureTypeMapping`"""
 
 
-class CatalogueServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
+class CatalogueServiceUpdateSettingViewSetMixin(ScheduleWarningsViewsetMixin):
     queryset = CatalogueServiceUpdateSetting.objects.select_related('crontab')
     serializer_class = CatalogueServiceUpdateSettingSerializer
     permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
@@ -400,7 +406,7 @@ class CatalogueServiceUpdateSettingViewSetMixing(ScheduleWarningsViewsetMixin):
 
 
 class CatalogueServiceUpdateSettingViewSet(
-        CatalogueServiceUpdateSettingViewSetMixing,
+        CatalogueServiceUpdateSettingViewSetMixin,
         ModelViewSet):
     """ Endpoints for resource `CatalogueServiceUpdateSetting`"""
 

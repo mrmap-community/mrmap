@@ -23,10 +23,10 @@ export interface ContextualIncidentsProps {
  * of the app bar (#1321), and the links they show go to the permitted service or
  * job the incident names - never to a synthetic job state.
  *
- * It is deliberately silent while the read is pending, while the api cannot be
- * read (its endpoint may not exist until #1319 is merged), and when nothing is
- * active: an idle workflow and a page which has nothing to report look exactly
- * alike, and neither raises an alarm.
+ * It is deliberately silent while the read is pending, while the api cannot
+ * be read (a transient failure, an ended session), and when nothing is
+ * active: an idle workflow and a page which has nothing to report look
+ * exactly alike, and neither raises an alarm.
  */
 const ContextualIncidents = ({
   showHistory = true,

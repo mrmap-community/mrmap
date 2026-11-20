@@ -26,6 +26,12 @@ source /opt/venv/bin/activate
 # a cheap peer at 4.1 s, 8 threads gave 2.1 - 3.4 cores and a peer at 45 - 95 ms.
 # 4 is the shipped middle, and GUNICORN_WORKERS is the knob for cores. The whole
 # reading is in docs/source/development/environment.rst.
+#
+# The defaults live in process_defaults.sh (#1617): it resolves the shipped
+# production shape (4 workers x 4 threads, preload off) and the selectable
+# low-memory shape (MRMAP_LOW_MEMORY), and an explicit GUNICORN_WORKERS or
+# GUNICORN_THREADS always wins.
+source /opt/mrmap/.bash_scripts/process_defaults.sh
 
 # The websockets go first, in the background, so that the HTTP server below can
 # stay PID 1 and own the exit of the container the way it did before.
@@ -50,6 +56,12 @@ while ! python -c "import socket; socket.create_connection(('127.0.0.1', 8002), 
     sleep 1
 done
 
+# GUNICORN_PRELOAD_FLAG is deliberately unquoted: it is either empty (and must
+# add no word) or the single word --preload, which lets the master import the
+# WSGI application once and fork the workers - a failed import then kills the
+# boot instead of surfacing per worker. It applies to this server only; the
+# websocket server below is never preloaded (#1617).
 exec gunicorn -b 0.0.0.0:8001 -k gthread \
-    --workers=${GUNICORN_WORKERS:-4} --threads=${GUNICORN_THREADS:-4} \
+    --workers="$GUNICORN_WORKERS" --threads="$GUNICORN_THREADS" \
+    $GUNICORN_PRELOAD_FLAG \
     --log-level=info --timeout=0 MrMap.wsgi:application

@@ -18,6 +18,7 @@ from django_celery_beat.models import PeriodicTask
 from epsg_cache.utils import adjust_axis_order
 from extras.scheduling import next_run_expected_at
 from lxml import etree
+from MrMap import celery_queues
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
 from PIL import Image, UnidentifiedImageError
 from registry.managers.monitoring import (MonitoringRunManager,
@@ -87,7 +88,10 @@ class MonitoringSettingMixin:
             if not self.task:
                 self.task = self.MONITORING_TASK
             if not self.queue:
-                self.queue = "monitoring"
+                # the queue of the monitoring work, named by the one module
+                # which holds the names; it must stay what the task behind
+                # MONITORING_TASK declares (#1455)
+                self.queue = celery_queues.MONITORING
             if not self.name:
                 self.name = str(uuid4())
             if not self.kwargs or self.kwargs == '{}':

@@ -1,9 +1,15 @@
 """The celery queue names of the deployment, declared in one place.
 
-The names are used by three things which must not drift apart: the ``Queue``
-declarations of ``MrMap/settings.py``, the ``queue=`` of the task
+The names are used by several things which must not drift apart: the
+``Queue`` declarations of ``MrMap/settings.py``, the ``queue=`` of the task
 declarations (this project routes through the task declarations, there are
-no ``CELERY_TASK_ROUTES``) and the broker introspection of the harvest
+no ``CELERY_TASK_ROUTES``), the ``queue=`` which the calls addressing a
+task by name carry - a name-addressed ``send_task`` is a remote call, and
+for a remote call the queue is part of the call, not of the declaration
+(#1455) -, the ``queue`` column which the beat rows of ``PeriodicTask``
+carry - beat hands it to the producer and it overrides the declaration, so
+where a row carries one it must say the same thing the task declares
+(#1455) - and the broker introspection of the harvest
 (``registry.tasks.harvest.HARVEST_BROKER_QUEUES``). What the workers
 consume is, by default, everything declared here: the celery command of
 the docker-compose files passes no ``-Q``, so a release which adds a

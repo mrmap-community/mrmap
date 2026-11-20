@@ -95,7 +95,12 @@ def run_wms_monitoring(self, run_pk=None, *args, **kwargs):
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+# the create_* tasks are what beat fires: the monitoring settings write the
+# "monitoring" queue into their PeriodicTask rows, and since #1455 the task
+# declarations carry the same queue - a beat row and an api-triggered run
+# of one task must not ride two different queues (the tasks of the run
+# itself keep their declarations as they are)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_wms_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (WebMapServiceMonitoringRun,
                                             WebMapServiceMonitoringSetting)
@@ -117,7 +122,7 @@ def run_wfs_monitoring(self, run_pk=None, *args, **kwargs):
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_wfs_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (WebFeatureServiceMonitoringRun,
                                             WebFeatureServiceMonitoringSetting)
@@ -139,7 +144,7 @@ def run_csw_monitoring(self, run_pk=None, *args, **kwargs):
     return start_run(run=run, probes=probes, task=run_probe_check)
 
 
-@shared_task(bind=True)
+@shared_task(queue=celery_queues.MONITORING, bind=True)
 def create_csw_monitoring_run(self, name, *args, **kwargs):
     from registry.models.monitoring import (CatalogueServiceMonitoringRun,
                                             CatalogueServiceMonitoringSetting)

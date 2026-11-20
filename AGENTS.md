@@ -67,6 +67,15 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   that adds a migration and it names both leaves, the file of each and the number to renumber to.
   Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
   one throw-away git repository; needs neither docker nor the network).
+  `scripts/release_gates.py` decides what a release candidate may claim (#1583, epic #1577): the
+  OpenAPI/JSON:API contract diff against the committed baseline (today `pre-baseline`, measured 0
+  tags, with the reviewed 0.x reading declared in the manifest), the version bump and the
+  `### Migration notes` the range owes, the migration graph plus the staged #1180 boundaries and
+  fake or unapproved-destructive migrations, and the promotion attestation binding a candidate
+  SHA to its tests/Sonar/dependency/artifact evidence; the baseline, ledger and #1180 constraint
+  files in `scripts/` are reviewed content — the PR that edits one is the review (`python3
+  scripts/test_release_gates.py` runs the 63-check suite offline; `.github/workflows/
+  release-gates.yml` runs the gates; docs: `docs/source/development/release-compatibility-gates.rst`).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's
@@ -230,6 +239,14 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   The job-local override is needed here: `docker-compose.prebuilt-frontend.yml` does not reset the
   `container_name` pinned by `docker-compose.dev.yml`, so add
   `frontend-tests: { container_name: ${COMPOSE_PROJECT_NAME}-frontend-tests }` to it.
+
+- A host short of memory can layer `docker-compose.lightweight.yml` LAST to run a stack without the
+  observability (VictoriaLogs, Grafana) and admin (pgAdmin, Flower) tier, and with the four check
+  containers profiled so a plain `up -d` cannot boot whole suites as background services (#1614). It
+  changes nothing that already runs and nothing CI does: `docker compose run <service>` starts a named
+  service regardless of its profile, so every command above is unaffected. Validate a combination
+  before starting it with `python3 scripts/compose_profiles_smoke.py` (config only, starts nothing);
+  `docs/source/development/compose-profiles.rst` is the service matrix and says what each tier is worth.
 
 - Never combine `run --build` with the prebuilt files. Their `build:` sections are `!reset`, so
   `--build` is a **silent no-op** that keeps running the pinned image — compose reports no error,

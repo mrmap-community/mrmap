@@ -56,6 +56,15 @@ expiry value, nothing to keep. The relevant settings in
 | `CSRF_COOKIE_HTTPONLY` | `False` | The SPA must read the CSRF cookie to repeat it in the `X-CSRFToken` header (see the CSRF paragraph). |
 | `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` | `DJANGO_COOKIE_SECURE`, defaulting to `MRMAP_PRODUCTION` | TLS-only cookies. On an http-only deployment set `DJANGO_COOKIE_SECURE=False`, or the browser refuses to store the session and no login sticks; a https deployment that is not flagged production can opt in. |
 
+**Local development.** With `MRMAP_PRODUCTION=False`, the backend permits
+credentialed CORS requests from `http://localhost:5173` and
+`http://127.0.0.1:5173`, the local Vite frontend origins. Both origins are
+also trusted for CSRF. `DJANGO_CORS_ALLOWED_ORIGINS` and
+`DJANGO_CSRF_TRUSTED_ORIGINS` replace their respective default origin lists;
+include the frontend's complete origin, including its port, when overriding
+them. Production defaults are unchanged; nginx serves the frontend and API
+from the same origin.
+
 **CSRF.** DRF's `SessionAuthentication` (first in
 `DEFAULT_AUTHENTICATION_CLASSES`) demands the `X-CSRFToken` header beside the
 cookie for every state-changing request the session authenticates. The SPA

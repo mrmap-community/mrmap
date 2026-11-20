@@ -91,6 +91,15 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   `python3 scripts/test_release_promotion.py` runs the 31-check offline suite (synthetic
   repositories, journaling `gh` shim) via `scripts/check_repo_tooling.sh`; docs:
   `docs/source/development/release-promotion.rst`).
+  `scripts/release_lifecycle.json` is the machine-readable release lifecycle — the
+  #1585 interface the documentation automation (#1604) generates from and the interface
+  tests (#1586) verify against: channels, phases with their actors, the protected
+  promotion environment, the Sphinx `sphinx_multiversion` tag selection that documents
+  released versions. `python3 scripts/test_release_lifecycle.py` (offline, part of
+  `scripts/check_repo_tooling.sh`) fails when the description drifts from the workflows,
+  the scripts or `docs/source/conf.py` it names. The operator-facing prose it feeds is
+  `docs/source/administration/release-operator-runbook.rst`, the entry page of the new
+  `docs/source/administration/` portal section.
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's

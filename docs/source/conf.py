@@ -105,7 +105,12 @@ StandaloneHTMLBuilder.supported_image_types = [
 ]
 
 
-smv_tag_whitelist = r'^v\d+\.\d+$'                # Include tags like "v2.1"
+# Include released tags: the two component names the repository published
+# before the semver policy (v0.1, v0.2, ...) and the full names promotion
+# creates today (v0.2.0, v0.2.1, ...). Release candidates are excluded;
+# prereleases have no published documentation. The machine-readable
+# description of this selection is scripts/release_lifecycle.json.
+smv_tag_whitelist = r'^v\d+(\.\d+){1,2}$'         # "v0.2" (historical) and "v0.2.0" (released)
 smv_branch_whitelist = r'^develop$'              # Include develop branch
 # Use branches from all remotes
 smv_remote_whitelist = None

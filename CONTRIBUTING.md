@@ -114,11 +114,21 @@ will then mark the issue as "accepted."
 
 * When submitting a pull request, please be sure to work off of the `develop`
 branch, rather than `master`. The `develop` branch is used for ongoing
-development, while `master` is used for tagging stable releases.
+development. `master` holds stable releases and only ever advances through a
+human-merged release pull request coming from `develop` - the release process
+is described in
+[`docs/source/development/release-promotion.rst`](docs/source/development/release-promotion.rst)
+and the operator runbook in
+[`docs/source/administration/release-operator-runbook.rst`](docs/source/administration/release-operator-runbook.rst).
 
-* In most cases, it is not necessary to add a changelog entry: A maintainer will
-take care of this when the PR is merged. (This helps avoid merge conflicts
-resulting from multiple PRs being submitted simultaneously.)
+* Do not edit `CHANGELOG.md` and do not edit version numbers: the changelog is
+generated and maintained by the release tooling
+([`release-please`](https://github.com/googleapis/release-please)) from the
+change class of each merged pull request. That makes the *pull request title*
+the class declaration: write `<type>[(scope)][!]: <summary>` there, with a
+type the classifier accepts (`python3 scripts/pr_classify types`), and CI's
+classification check enforces it. A summary of the classes lives in
+[`docs/source/development/commit-classification.rst`](docs/source/development/commit-classification.rst).
 
 * All code submissions should meet the following criteria (CI will enforce
 these checks):

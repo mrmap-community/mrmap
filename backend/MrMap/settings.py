@@ -416,6 +416,23 @@ BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
 # Use local redis installation as cache
 # The "regular" redis cache will be set to work in redis table 1 (see LOCATION)
 # The default table (0) is preserved for celery task management
+#
+# Memory policy of the shared instance (#1618): the redis service runs bounded
+# with maxmemory-policy volatile-lru (docker/redis/redis.conf, maxmemory from
+# REDIS_MAXMEMORY in docker-compose.yml). Redis cannot bound a single table, so
+# one policy covers the whole instance and the separation is done by what
+# expires: every writer of this cache passes a finite timeout - the leases of
+# ``extras.locks``, the capacity snapshots of ``system``, the harvesting
+# fingerprint - so all cache keys are evictable and give way under pressure,
+# while the broker's queue and unacked lists of table 0 carry no expiry and can
+# therefore never become eviction victims. Two caches are deliberately not on
+# Redis and so not at risk of the bound at all: the schema document of
+# ``extras.schema_views`` is a ``timeout=None`` write and lives in
+# ``local-memory`` below, and the XML cache of the mappers is process-local. A
+# store with ``timeout=None`` on Redis would be exempt from eviction - none of
+# this project's Redis writers does that today, and one added later must be
+# weighed against the bound. ``IGNORE_EXCEPTIONS`` is deliberately not enabled:
+# a cache write refused at the limit has to surface, not be swallowed as a miss.
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",

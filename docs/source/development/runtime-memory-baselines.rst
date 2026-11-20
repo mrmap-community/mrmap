@@ -231,6 +231,40 @@ broke off after 200 requests on a bug in the load script, and the first
 ``suite-targeted`` run exited on a mistyped test label before running
 anything. Both are kept in the raw file for honesty; neither is quoted.
 
+Redis after #1618: before number, and what to re-measure
+=========================================================
+
+#1618 bounds the shared Redis instance: the ``redis`` service of
+``docker-compose.yml`` now passes ``--maxmemory`` (``REDIS_MAXMEMORY``, default
+``768mb``, documented in ``environment.rst``) and loads
+``docker/redis/redis.conf``, which sets ``maxmemory-policy volatile-lru``. The
+before-picture of that change is the ``redis`` row above: 12 M charged at
+warm idle, 13 M peak, 10 M committed - across the cold-start, boot-settle,
+warm-idle, api-load, work-behave and both suite phases the table records, the
+container never moved into the double digits of growth and never OOMed. That is
+why the default is a headroom number and not a measured need: the ceiling
+exists to keep a runaway consumer (an unbounded result backend, a cache
+written by a schema bug) from taking the broker down with the host, not to
+cap a footprint observed at 12 M.
+
+What #1618 did **not** measure is the after-picture: the sampler was not run
+again against a bounded Redis, so no phase number in this page describes the
+new runtime. A deployment owner who wants that number owes one re-run of the
+same commands against a stack which carries the bound:
+
+.. code:: console
+
+    scripts/stack_memory_profile sample --project <compose-project> --phase warm-idle --duration 600 --out after.jsonl
+    scripts/stack_memory_profile report --in after.jsonl
+
+Read two things in that report: the ``redis`` ``committed peak`` (the bound
+trades a rising charge for a plateau, so the charge column should now stop at
+or under ``REDIS_MAXMEMORY`` in a phase which fills the keyspace) and
+``redis-cli INFO stats`` ``evicted_keys`` - non-zero under a workload the
+deployment considers normal means the ceiling is too low for it, and the
+answer is to raise ``REDIS_MAXMEMORY``, not to relax the policy
+(``volatile-lru`` is what keeps a broker queue from being evicted).
+
 The data state behind the load numbers
 ======================================
 

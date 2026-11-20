@@ -27,7 +27,9 @@ from registry.models.metadata import (ApplicationMetadataRecord, DatasetMetadata
                                       ReferenceSystem, ServiceMetadataRecord,
                                       Style, TimeExtent)
 from registry.models.service import CatalogueService, FeatureType, Layer
-from rest_framework.fields import CharField, SerializerMethodField
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.fields import (BooleanField, CharField, IntegerField,
+                                   SerializerMethodField)
 from rest_framework.relations import (Hyperlink, HyperlinkedIdentityField)
 from rest_framework_gis.fields import GeometryField
 from rest_framework_json_api.relations import ResourceRelatedField
@@ -291,19 +293,240 @@ class MetadataProfileRelatedField(ResourceRelatedField):
 
 CSW_SERIALIZER_PATH = "registry.serializers.service.CatalogueServiceSerializer"
 
+#: the serializer names of the columns which hold a described element; the
+#: mirror of registry.models.metadata.MetadataRelation.DESCRIBED_OBJECT_FIELDS
+RELATION_ELEMENT_FIELDS = ("layer", "feature_type", "wms", "wfs", "csw")
+
+#: the described elements which may be coupled to a DATASET metadata record:
+#: the ones the check constraint `one_related_object_selected` allows with a
+#: dataset. The api refuses the combination the database would refuse, with a
+#: message that names it, instead of an IntegrityError (#985).
+RELATION_DATASET_ELEMENTS = ("layer", "feature_type")
+
+
+def relation_write_allowed(user, objects, checker=None) -> bool:
+    """Whether ``user`` may declare or take back the coupling of ``objects``.
+
+    D11 of docs/metadata-identity.md hands the write of a coupling to the
+    CHANGE permission over the records it couples: at least one metadata
+    record end must be changeable by the user - the declaring side - while
+    every other end, the opposite record and the described element alike,
+    must at least be viewable: a curator links what they may see and what
+    they co-own, and the answer never depends on a permission over the join
+    row itself, which no role of the catalogue holds.
+    """
+    from extras.permissions import allowed
+
+    records = [obj for obj in objects
+               if isinstance(obj, (DatasetMetadataRecord,
+                                   ServiceMetadataRecord))]
+    others = [obj for obj in objects if obj not in records]
+    if not records:
+        return False
+    return (
+        any(allowed(user, f"registry.change_{record._meta.model_name}",
+                    record, checker=checker)
+            for record in records)
+        and all(
+            allowed(user, f"registry.view_{obj._meta.model_name}", obj,
+                    checker=checker)
+            for obj in records + others)
+    )
+
 
 class MetadataRelationSerializer(ModelSerializer):
+    """The relation row and its write semantics (#985).
+
+    The read side is what #1268 built: the row with its included ends. The
+    write side is the curator's declaration of a coupling, and it answers the
+    rules of D5 and D7 of docs/metadata-identity.md:
+
+    * every row the api writes is the curator's own kind - ``is_internal``
+      plus ``origin=EDITOR`` - which is the kind a re-harvest never touches
+      (D7.1); a payload naming either answers a 400 instead of the silent
+      drop of a ``read_only`` field, the posture #1241 established for
+      server-owned members;
+    * only the established relationship kinds are declarable (D5), see
+      :meth:`MetadataRelationSerializer.validate` for the matrix;
+    * the write needs the change permission over one coupled record, not a
+      permission over the join row, see :func:`relation_write_allowed`;
+    * a created pair of a service record with a dataset record republishes
+      that record's document, which is where a locally authored operatesOn
+      declaration becomes the ``srv:operatesOn`` row the CSW serves (and the
+      AC that an export carries what the curator declared).
+    """
     included_serializers = {
         "layer": "registry.serializers.service.LayerSerializer",
         "feature_type": "registry.serializers.service.FeatureTypeSerializer",
         "wms": "registry.serializers.service.WebMapServiceSerializer",
         "wfs": "registry.serializers.service.WebFeatureServiceSerializer",
         "csw": CSW_SERIALIZER_PATH,
+        # the two ends of a pair are includable like the five elements: the
+        # relations screen of a record shows the partner record by its title,
+        # which is what the pair row publishes as `srv:operatesOn` (#985)
+        "service_metadata": (
+            "registry.serializers.metadata.ServiceMetadataRecordSerializer"),
+        "dataset_metadata": (
+            "registry.serializers.metadata.DatasetMetadataRecordSerializer"),
     }
+
+    # the provenance pair is read_only for DRF - a named member would pass
+    # the field gate as the server's value; the refusal of a payload which
+    # names one is answered by _reject_server_owned_members from the wire
+    # data, and the stamping of the curator's kind by the model methods
+    is_internal = BooleanField(read_only=True)
+    origin = IntegerField(read_only=True)
+
+    # the model's own answer which rows this endpoint may take back: only the
+    # curator's kind, never the harvested evidence (D7). Read-only like the
+    # provenance pair it is derived from - the screen asks it instead of
+    # mirroring the origin enum of the backend (#985)
+    is_publishable = BooleanField(read_only=True)
 
     class Meta:
         model = MetadataRelation
         fields = "__all__"
+
+    def _perm_checker(self):
+        """The request's one checker, built on first use (#734)."""
+        request = self.context.get("request")
+        if request is None:
+            return None
+        checker = getattr(request, "shared_perm_checker", None)
+        if checker is None:
+            checker = ObjectPermissionChecker(request.user)
+            setattr(request, "shared_perm_checker", checker)
+        return checker
+
+    def _reject_server_owned_members(self):
+        """Refuse a payload which names ``is_internal`` or ``origin``.
+
+        Those two columns ARE the provenance a curator can not claim: every
+        declaration of this endpoint is an editor's one (D7.1). Reading the
+        members through ``_member_form`` is what lets both the json:api
+        casing (``isInternal``) and the plain one answer the same 400.
+        """
+        incoming = getattr(self, "initial_data", None)
+        if not isinstance(incoming, dict):
+            return
+        owned = {"is_internal", "origin"}
+        forms = {_member_form(name): name for name in owned}
+        offenders = sorted({
+            forms[_member_form(member)]
+            for member in incoming
+            if _member_form(member) in forms
+        })
+        if offenders:
+            raise ValidationError({
+                name: _("This field is answered by the server and can not "
+                        "be written.")
+                for name in offenders
+            })
+
+    def validate(self, attrs):
+        """The matrix of declarable couplings and the write permission.
+
+        What the database refuses as a violated
+        ``one_related_object_selected``, this answers as a 400 naming the
+        members: at most one described element; a dataset record only beside
+        a layer or a feature type; a metadata record on every row (the row of
+        an element alone declares no coupling); and never both records beside
+        an element.
+        """
+        self._reject_server_owned_members()
+
+        elements = [name for name in RELATION_ELEMENT_FIELDS
+                    if attrs.get(name)]
+        dataset = attrs.get("dataset_metadata")
+        service = attrs.get("service_metadata")
+
+        if len(elements) > 1:
+            raise ValidationError(_(
+                "A relation couples one described element; it names "
+                "'%s'.") % ", ".join(elements))
+        if dataset is None and service is None:
+            raise ValidationError(_(
+                "A relation couples a metadata record; neither "
+                "datasetMetadata nor serviceMetadata was given."))
+        if dataset is not None and service is not None and elements:
+            raise ValidationError(_(
+                "A relation couples two metadata records or one element with "
+                "one metadata record; it names both records and an element."))
+        if (dataset is None) != (service is None) and not elements:
+            # a record alone names no partner: the row it would fill is the
+            # legacy "record without relation" state which no api write
+            # introduces - a declaration states WHO it couples to (#985)
+            raise ValidationError(_(
+                "A relation couples its metadata record to a described "
+                "element or to the other kind of metadata record; it names "
+                "neither."))
+        if dataset is not None and elements \
+                and elements[0] not in RELATION_DATASET_ELEMENTS:
+            raise ValidationError({
+                elements[0]: _(
+                    "A dataset metadata record is coupled to a layer or a "
+                    "feature type, not to a whole service.")})
+
+        objects = [attrs.get(name) for name in
+                   RELATION_ELEMENT_FIELDS + ("dataset_metadata",
+                                              "service_metadata")]
+        request = self.context["request"]
+        if not relation_write_allowed(request.user,
+                                      [obj for obj in objects if obj],
+                                      checker=self._perm_checker()):
+            raise PermissionDenied(_(
+                "Writing a relation requires the change permission over one "
+                "of the records it couples, and the view permission over "
+                "every end."))
+        return attrs
+
+    def create(self, validated_data):
+        """Declare one coupling, asserted idempotently, and publish the document.
+
+        The pair of two records goes through
+        :meth:`registry.models.metadata.MetadataRecord.add_record_relation`,
+        the element coupling through :meth:`...add_metadata_relation` - both
+        get_or_create keyed on the filled columns plus the flags, so
+        re-linking an already linked pair re-asserts the standing row and
+        answers it instead of stacking a second one. A pair of a service
+        metadata record with a dataset record is an operatesOn declaration:
+        the service record's document is republished and gains the
+        ``srv:operatesOn`` row (#985); a row without a service metadata end
+        writes no document - the capabilities side already publishes a
+        curated element coupling as its metadata reference today.
+        """
+        dataset = validated_data.pop("dataset_metadata", None)
+        service = validated_data.pop("service_metadata", None)
+        element = next(
+            (validated_data.pop(name) for name in RELATION_ELEMENT_FIELDS
+             if validated_data.get(name)),
+            None)
+
+        with transaction.atomic():
+            if dataset is not None and service is not None:
+                relation = service.add_record_relation(
+                    dataset, origin=MetadataOriginEnum.EDITOR.value,
+                    is_internal=True)
+            else:
+                record = dataset if dataset is not None else service
+                relation = record.add_metadata_relation(
+                    related_object=element,
+                    origin=MetadataOriginEnum.EDITOR.value, is_internal=True)
+            if relation.service_metadata_id and relation.dataset_metadata_id:
+                try:
+                    publish_document(relation.service_metadata)
+                except PublishRefused:
+                    # fail-closed like every publish of #1244: a coupling
+                    # whose declaring document can not be derived is refused
+                    # whole - no row stands without its served reference
+                    logger.exception(
+                        "the operatesOn declaration of record %s could not "
+                        "be published", relation.service_metadata_id)
+                    raise ValidationError(_(
+                        "The service record's document could not be "
+                        "published; the relation is refused and nothing "
+                        "changed."))
+        return relation
 
 
 class RecordPermissionsSerializerMixin(HistoryInformationSerializer):

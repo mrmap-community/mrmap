@@ -1,14 +1,18 @@
-import { createElement, useMemo, useState, type ReactNode } from "react";
+import { createElement, useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   BasenameContextProvider,
   BooleanField,
   Datagrid,
+  DeleteButton,
   FunctionField,
   ReferenceField,
   ResourceContextProvider,
   SearchInput,
+  WrapperField,
   useGetList,
+  useNotify,
   useRecordContext,
+  useRefresh,
   useResourceContext,
   useResourceDefinition,
   useTranslate,
@@ -35,6 +39,7 @@ import {
 import ListGuesser from "../../../../jsonapi/components/ListGuesser";
 import { useFieldsForOperation } from "../../../../jsonapi/hooks/useFieldsForOperation";
 import { choiceLabel } from "./RecordFields";
+import RecordRelationCreate from "./RecordRelationCreate";
 
 import "@xyflow/react/dist/style.css";
 
@@ -52,6 +57,40 @@ const RECORD_COLUMNS: Record<string, string> = {
   ServiceMetadataRecord: "service_metadata",
 };
 
+// the same columns as the member of a response and of a write body, which
+// json:api names in camelCase: `recordColumn` is what a filter asks with, this
+// is what a declaration fills (#985)
+const RECORD_SOURCES: Record<string, string> = {
+  DatasetMetadataRecord: "datasetMetadata",
+  ServiceMetadataRecord: "serviceMetadata",
+};
+
+// One group of the relations of a record: which column of the table its rows
+// fill, how that column is asked for, and what the row asserts. `edge` and
+// `column` are filled by the screen, which knows the language: the two column
+// lists below are the mirror of the model and state no wording.
+export interface RelationGroup {
+  /** the member of a response which the rows of this group fill */
+  source: string;
+  /** the term the api declares to filter for that column */
+  filter: string;
+  /** the JSON:API type of the element or record the row names */
+  resource: string;
+  /** a row which couples two metadata records; absent means the element
+   * coupling of `DESCRIBED_COLUMNS` (#985) */
+  kind?: "element" | "record";
+  /** for a pair row, which end of the coupling operates: the record the screen
+   * shows (`own`) or the partner it names (`partner`). ISO serves the pair as
+   * `srv:operatesOn` inside the operating record's document, so the sentence of
+   * the group reads in that direction and differs between the two screens which
+   * show the very same row (#985) */
+  operator?: "own" | "partner";
+  /** the sentence of the group, as an edge label and a heading */
+  edge?: string;
+  /** the same sentence as the heading of a table column */
+  column?: string;
+}
+
 // the columns which hold a described element; the mirror of
 // registry.models.metadata.MetadataRelation.DESCRIBED_OBJECT_FIELDS. The type of a
 // relation IS which of these is filled - the model has no relation kind - so the
@@ -59,7 +98,7 @@ const RECORD_COLUMNS: Record<string, string> = {
 // being chosen by the kind of the record: what the two-way branch this replaced hid
 // is a service record which describes a layer or a feature type (#1268).
 // `source` names the relation in a response, `filter` the term the api declares.
-const DESCRIBED_COLUMNS = [
+const DESCRIBED_COLUMNS: RelationGroup[] = [
   { source: "layer", filter: "layer", resource: "Layer" },
   { source: "featureType", filter: "feature_type", resource: "FeatureType" },
   { source: "wms", filter: "wms", resource: "WebMapService" },
@@ -67,9 +106,66 @@ const DESCRIBED_COLUMNS = [
   { source: "csw", filter: "csw", resource: "CatalogueService" },
 ];
 
-export type RelationGroup = (typeof DESCRIBED_COLUMNS)[number];
+// the OTHER kind of metadata record, which is the pair group of a record
+// screen (#985). A pair row is the only row filling both record columns - no
+// combination of VALID_RELATIONS fills an element beside both - so the
+// screen's own column together with the partner column `__isnull: false`
+// answers exactly its pair rows, from either side of the coupling.
+const PARTNER_COLUMNS: Record<string, RelationGroup> = {
+  DatasetMetadataRecord: {
+    source: "serviceMetadata",
+    filter: "service_metadata",
+    resource: "ServiceMetadataRecord",
+    kind: "record",
+    operator: "partner",
+  },
+  ServiceMetadataRecord: {
+    source: "datasetMetadata",
+    filter: "dataset_metadata",
+    resource: "DatasetMetadataRecord",
+    kind: "record",
+    operator: "own",
+  },
+};
+
+// the four sentences of the pair row, keyed by the end of the coupling the
+// screen is and by the shape of the assertion; a table instead of nested
+// ternaries, because the four sentences differ ONLY in their key (#985)
+const PAIR_SENTENCE_KEYS = {
+  own: { edge: "operatesOnEdge", column: "operatesOnColumn" },
+  partner: { edge: "operatedOnByEdge", column: "operatedOnByColumn" },
+} as const;
 
 export const recordColumn = (resource: string) => RECORD_COLUMNS[resource];
+
+export const recordSource = (resource: string) => RECORD_SOURCES[resource];
+
+export const partnerColumn = (resource: string) => PARTNER_COLUMNS[resource];
+
+// every column a row of this screen can fill: the described elements and, for a
+// kind with a column of its own, the other kind of record
+export const relationGroups = (resource: string): RelationGroup[] => {
+  const partner = PARTNER_COLUMNS[resource];
+  return partner === undefined ? DESCRIBED_COLUMNS : [...DESCRIBED_COLUMNS, partner];
+};
+
+// the couplings a curator of this screen may declare, which is the matrix of D5
+// of docs/metadata-identity.md: a dataset record is described by a layer or a
+// feature type and coupled to one service record, a service record by any of the
+// five elements and coupled to one dataset record. The api answers anything else
+// with a 400; the screen offers only what the model can store (#985)
+export const declarableGroups = (resource: string): RelationGroup[] => {
+  const partner = PARTNER_COLUMNS[resource];
+  if (partner === undefined) return [];
+  if (resource === "DatasetMetadataRecord")
+    return [
+      ...DESCRIBED_COLUMNS.filter((group) =>
+        ["layer", "featureType"].includes(group.source),
+      ),
+      partner,
+    ];
+  return [...DESCRIBED_COLUMNS, partner];
+};
 
 // the query of one group: the relations of the record, narrowed to the column which
 // is filled. The count of the group and its table answer the very same query, so
@@ -82,10 +178,11 @@ export const groupFilter = (
 
 // the groups which are actually stored for a page of relations, in the order of the
 // columns of the table; a column no row fills is no group of this record
-export const filledGroups = (relations: RaRecord[]) =>
-  DESCRIBED_COLUMNS.filter((group) =>
-    relations.some((relation) => relation[group.source]),
-  );
+export const filledGroups = (
+  relations: RaRecord[],
+  groups: RelationGroup[] = DESCRIBED_COLUMNS,
+) =>
+  groups.filter((group) => relations.some((relation) => relation[group.source]));
 
 const TargetLink = ({
   source,
@@ -143,6 +240,7 @@ export const relationGraph = (
   describe: (resource: string) => string = (resource) => resource,
   originChoices?: { id: unknown; name: string }[],
   harvestedLabel = "Harvested through",
+  groups: RelationGroup[] = DESCRIBED_COLUMNS,
 ) => {
   const nodes: Node[] = [
     {
@@ -152,7 +250,7 @@ export const relationGraph = (
     },
   ];
   const edges: Edge[] = [];
-  filledGroups(relations).forEach((group, groupIndex) => {
+  filledGroups(relations, groups).forEach((group, groupIndex) => {
     relations
       .filter((relation) => relation[group.source])
       .forEach((relation, index) => {
@@ -169,13 +267,14 @@ export const relationGraph = (
           },
         });
         // the edge names what the filled column asserts - that this record
-        // describes that element - and where the coupling came from, instead of
-        // an undirected "related" (#1268)
+        // describes that element, or that the service record operates on that
+        // dataset - and where the coupling came from, instead of an
+        // undirected "related" (#1268, #985)
         edges.push({
           id: `edge:${relation.id}`,
           source: id,
           target: "record",
-          label: `${describe(group.resource)} · ${choiceLabel(relation.origin, originChoices) ?? "—"}`,
+          label: `${group.edge ?? describe(group.resource)} · ${choiceLabel(relation.origin, originChoices) ?? "—"}`,
           data: { isInternal: relation.isInternal },
         });
       });
@@ -202,6 +301,41 @@ export const relationGraph = (
       });
     });
   return { nodes, edges };
+};
+
+// The row action of a relations table: only a row the curator declared is this
+// endpoint's to take back — the api refuses a harvested coupling, because the
+// document which declared it owns it (D7 of docs/metadata-identity.md) — so the
+// screen offers nothing for those rows. Which row that is comes from the api as
+// `isPublishable` instead of a copy of the backend's origin enum (#985).
+// Exported for its spec: inside a table it reads the row's own context.
+export const TakeBackButton = () => {
+  const row = useRecordContext();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  if (!row?.isPublishable) return null;
+  return (
+    <DeleteButton
+      // the take back rewrites the declaring record's document: an undoable
+      // snackbar which promises to bring a deleted coupling back would promise
+      // something the api never does
+      mutationMode="pessimistic"
+      label="recordShow.takeBack"
+      confirmTitle="recordShow.takeBackConfirm"
+      mutationOptions={{
+        onSuccess: () => {
+          notify("recordShow.takeBackDeleted", { type: "success" });
+          // the row was published inside the declaring record's document, so
+          // what changed is more than the list of rows: every query of the
+          // screen goes with its own filter — the count of a facet, the rows of
+          // a table, the page of the graph, the record itself — and all of them
+          // are asked again (#985)
+          refresh();
+        },
+        onError: () => notify("recordShow.takeBackFailed", { type: "error" }),
+      }}
+    />
+  );
 };
 
 // One group of the relations of a record: the sentence the filled column tells,
@@ -243,7 +377,7 @@ const RelationGroupFacet = ({
         sx={{ alignItems: "center", flexWrap: "wrap" }}
       >
         <Typography variant="h6" component={onShowAll ? "span" : "h3"}>
-          {describe(group.resource)}
+          {group.edge ?? describe(group.resource)}
         </Typography>
         {total != null && (
           <Typography variant="body2" color="text.secondary">
@@ -264,9 +398,11 @@ const RelationGroupFacet = ({
 const RelationGraph = ({
   filter,
   describe,
+  groups,
 }: {
   filter: Record<string, unknown>;
   describe: (resource: string) => string;
+  groups: RelationGroup[];
 }) => {
   const record = useRecordContext();
   const translate = useTranslate();
@@ -283,9 +419,9 @@ const RelationGraph = ({
     sort: { field: "id", order: "ASC" },
     meta: {
       jsonApiParams: {
-        include: DESCRIBED_COLUMNS.map((group) => group.source).join(","),
+        include: groups.map((group) => group.source).join(","),
         ...Object.fromEntries(
-          DESCRIBED_COLUMNS.map((group) => [
+          groups.map((group) => [
             `fields[${group.resource}]`,
             "title,string_representation",
           ]),
@@ -303,9 +439,10 @@ const RelationGraph = ({
             fields.find((field) => field.props.source === "origin")?.props
               .choices,
             translate("recordShow.harvestedThrough"),
+            groups,
           )
         : { nodes: [], edges: [] },
-    [record, data, describe, fields, translate],
+    [record, data, describe, fields, translate, groups],
   );
   if (error)
     return <Alert severity="error">{translate("recordShow.loadFailed")}</Alert>;
@@ -334,7 +471,10 @@ const RelationGraph = ({
   );
 };
 
-const RecordRelations = () => {
+// The relations tab of a record. `readOnly` is what the record editor's pane
+// states: relations are managed on the record's own page, and the editor shows
+// them as the record answers them (#985).
+const RecordRelations = ({ readOnly = false }: { readOnly?: boolean }) => {
   const resource = useResourceContext();
   const record = useRecordContext();
   const translate = useTranslate();
@@ -356,14 +496,61 @@ const RecordRelations = () => {
     },
     { enabled: filter !== undefined },
   );
-  if (!record) return null;
-  // what a relation of this screen asserts, in the words of the model: the record
-  // describes the element whose column is filled, and the origin says where the
-  // coupling came from. No relation kind is offered which the model cannot store.
-  const kindName = (reference: string) =>
-    translate(`resources.${reference}.name`, { smart_count: 1, _: reference });
-  const describe = (reference: string) =>
-    translate("recordShow.describesEdge", { kind: kindName(reference) });
+  // what a relation of this screen asserts, in the words of the model: the
+  // record describes the element whose column is filled, a pair of records
+  // states that the service record operates on the dataset one, and the origin
+  // says where the coupling came from. No relation kind is offered which the
+  // model cannot store.
+  const kindName = useCallback(
+    (reference: string) =>
+      translate(`resources.${reference}.name`, { smart_count: 1, _: reference }),
+    [translate],
+  );
+  const describe = useCallback(
+    (reference: string) =>
+      translate("recordShow.describesEdge", { kind: kindName(reference) }),
+    [translate, kindName],
+  );
+  // the sentence of a pair row: the row IS the same row on both screens, but the
+  // document which publishes it is the operating record's, so the screen on the
+  // operating end says "operates on" and the other end names its operator (#985)
+  const pairSentence = useCallback(
+    (group: RelationGroup, edge: boolean) => {
+      const keys = PAIR_SENTENCE_KEYS[group.operator ?? "own"];
+      return translate(`recordShow.${keys[edge ? "edge" : "column"]}`, {
+        kind: kindName(group.resource),
+      });
+    },
+    [translate, kindName],
+  );
+  // the groups of the screen with their sentences: the column lists mirror the
+  // model and state no wording, so the labels are filled here (#985)
+  const groups = useMemo<RelationGroup[]>(
+    () =>
+      relationGroups(resource ?? "").map((group) => ({
+        ...group,
+        edge:
+          group.kind === "record"
+            ? pairSentence(group, true)
+            : describe(group.resource),
+        column:
+          group.kind === "record"
+            ? pairSentence(group, false)
+            : translate("recordShow.describesColumn", {
+                kind: kindName(group.resource),
+              }),
+      })),
+    [resource, translate, kindName, describe, pairSentence],
+  );
+  // the couplings this screen may declare, in the order the model can store
+  // them and with the very same sentences the tables state — the dialog of the
+  // declaration and the table of the row never say two different things (#985)
+  const declarable = useMemo(() => {
+    if (readOnly) return [];
+    return declarableGroups(resource ?? "")
+      .map((group) => groups.find((candidate) => candidate.source === group.source))
+      .filter((group): group is RelationGroup => group !== undefined);
+  }, [readOnly, resource, groups]);
   const catalogues = (
     <>
       <Typography variant="h6">
@@ -372,10 +559,10 @@ const RecordRelations = () => {
       <ResourceContextProvider value="CatalogueService">
         <ListGuesser
           resource="CatalogueService"
-          relatedResource={{ resource, id: record.id }}
+          relatedResource={{ resource, id: record?.id }}
           defaultSelectedColumns={["title"]}
           disableSyncWithLocation
-          storeKey={`${resource}.${record.id}.catalogues`}
+          storeKey={`${resource}.${record?.id}.catalogues`}
           rowActions={<span />}
           aside={undefined}
           dataGridProps={{ bulkActionButtons: false, rowClick: "show" }}
@@ -383,9 +570,22 @@ const RecordRelations = () => {
       </ResourceContextProvider>
     </>
   );
+  if (!record) return null;
+  // a curator's screen states what it can declare, and does so before the
+  // first row exists: the record which stores nothing yet is exactly the one
+  // a coupling is worth declaring for (#985)
+  const declare =
+    declarable.length === 0 ? null : (
+      <RecordRelationCreate
+        ownColumn={recordSource(resource ?? "")}
+        record={record}
+        groups={declarable}
+      />
+    );
   // a kind without a column of its own has no MetadataRelation filter to ask: its
   // section is the catalogues it was harvested through and nothing else
-  if (!column) return <Stack spacing={2} sx={{ minWidth: 0 }}>{catalogues}</Stack>;
+  if (!column)
+    return <Stack spacing={2} sx={{ minWidth: 0 }}>{catalogues}</Stack>;
   // a record which could have relations but stores none says so plainly, without
   // claiming that no relation could ever exist for it, and keeps showing the
   // catalogues it was harvested through: the origin of a record proves neither the
@@ -394,7 +594,10 @@ const RecordRelations = () => {
     return (
       <Stack spacing={2} sx={{ minWidth: 0 }}>
         {total === 0 ? (
-          <Alert severity="info">{translate("recordShow.noRelations")}</Alert>
+          <>
+            <Alert severity="info">{translate("recordShow.noRelations")}</Alert>
+            {declare}
+          </>
         ) : (
           <Typography variant="body2" color="text.secondary">
             {translate("ra.message.loading")}
@@ -403,12 +606,12 @@ const RecordRelations = () => {
         {catalogues}
       </Stack>
     );
-  const groups = openedGroup
-    ? DESCRIBED_COLUMNS.filter((group) => group.source === openedGroup)
-    : DESCRIBED_COLUMNS;
+  const shown = openedGroup
+    ? groups.filter((group) => group.source === openedGroup)
+    : groups;
   const facets = (onShowAll?: (group: RelationGroup) => void) => (
     <Stack direction="row" useFlexGap spacing={3} sx={{ flexWrap: "wrap" }}>
-      {DESCRIBED_COLUMNS.map((group) => (
+      {groups.map((group) => (
         <Box key={group.source}>
           <RelationGroupFacet
             group={group}
@@ -422,25 +625,28 @@ const RecordRelations = () => {
   );
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
-      <ToggleButtonGroup
-        exclusive
-        value={view}
-        onChange={(_, value) => {
-          if (!value) return;
-          // the switch by hand is the reader asking for every group again; only the
-          // facet of the graph opens a single one
-          setOpenedGroup(undefined);
-          setView(value);
-        }}
-        aria-label={translate("recordShow.relationView")}
-      >
-        <ToggleButton value="tables">
-          {translate("recordShow.tables")}
-        </ToggleButton>
-        <ToggleButton value="graph">
-          {translate("recordShow.graph")}
-        </ToggleButton>
-      </ToggleButtonGroup>
+      <Stack direction="row" useFlexGap spacing={1} sx={{ flexWrap: "wrap" }}>
+        <ToggleButtonGroup
+          exclusive
+          value={view}
+          onChange={(_, value) => {
+            if (!value) return;
+            // the switch by hand is the reader asking for every group again; only
+            // the facet of the graph opens a single one
+            setOpenedGroup(undefined);
+            setView(value);
+          }}
+          aria-label={translate("recordShow.relationView")}
+        >
+          <ToggleButton value="tables">
+            {translate("recordShow.tables")}
+          </ToggleButton>
+          <ToggleButton value="graph">
+            {translate("recordShow.graph")}
+          </ToggleButton>
+        </ToggleButtonGroup>
+        {declare}
+      </Stack>
       <Typography variant="body2" color="text.secondary">
         {translate("recordShow.relationMeaning")}
       </Typography>
@@ -450,7 +656,11 @@ const RecordRelations = () => {
             setOpenedGroup(group.source);
             setView("tables");
           })}
-          <RelationGraph filter={filter ?? {}} describe={describe} />
+          <RelationGraph
+            filter={filter ?? {}}
+            describe={describe}
+            groups={groups}
+          />
         </>
       ) : (
         <>
@@ -461,7 +671,7 @@ const RecordRelations = () => {
               </Button>
             </Box>
           )}
-          {groups.map((group) => (
+          {shown.map((group) => (
             <RelationGroupFacet
               key={group.source}
               group={group}
@@ -477,9 +687,7 @@ const RecordRelations = () => {
                       <TargetLink
                         source={group.source}
                         reference={group.resource}
-                        label={translate("recordShow.describesColumn", {
-                          kind: kindName(group.resource),
-                        })}
+                        label={group.column}
                       />
                       <RelationOrigin
                         source="origin"
@@ -493,10 +701,29 @@ const RecordRelations = () => {
                   }
                   disableSyncWithLocation
                   storeKey={`${resource}.${record.id}.${group.source}`}
-                  additionalFilters={[
-                    {component: SearchInput, props:{source: "search", alwaysOn: true}}
-                  ]}
-                  rowActions={<span />}
+                  // the search term of this endpoint searches the titles of the
+                  // described elements; a pair row has no element and the model
+                  // stores at most one pair of a kind per record, so the group
+                  // of the pair asks nothing (#985)
+                  additionalFilters={
+                    group.kind === "record"
+                      ? undefined
+                      : [
+                          {
+                            component: SearchInput,
+                            props: { source: "search", alwaysOn: true },
+                          },
+                        ]
+                  }
+                  rowActions={
+                    readOnly ? (
+                      <span />
+                    ) : (
+                      <WrapperField label={translate("ra.list.actions")}>
+                        <TakeBackButton />
+                      </WrapperField>
+                    )
+                  }
                   aside={undefined}
                   dataGridProps={{ bulkActionButtons: false, rowClick: false }}
                 />

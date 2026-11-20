@@ -1356,6 +1356,18 @@ class MetadataRelation(models.Model):
                 name="unique_dataset_metadata_representation_for_feature_type",
                 fields=["is_internal", "origin", "dataset_metadata",
                         "feature_type"]
+            ),
+            # the pair of one service metadata record and one dataset metadata
+            # record is stored once per kind of coupling (#985), the same key
+            # #1483 established for the element couplings: the table keeps the
+            # imported evidence and the curator's declaration of one pair as
+            # separate rows on purpose, and the declaration itself is asserted
+            # idempotently by add_metadata_relation - re-linking an already
+            # linked pair re-asserts the row instead of stacking a second one.
+            models.UniqueConstraint(
+                name="unique_service_metadata_operates_on_dataset_metadata",
+                fields=["is_internal", "origin", "service_metadata",
+                        "dataset_metadata"]
             )
         ]
 
@@ -1376,6 +1388,49 @@ class MetadataRelation(models.Model):
     def is_publishable(self) -> bool:
         """ Return True if a curator added this relation with the intention to publish it. """
         return self.publication_kind == MetadataRelationPublicationEnum.CURATED_PUBLICATION
+
+    def coupled_objects(self) -> list:
+        """The registered objects this row couples, records and element alike.
+
+        The ends a permission decision asks about (#985): the row fills one
+        or two record columns and at most one described-element column; an
+        empty column answers no object. Unfilled columns never reach the
+        database - the FK descriptor of a null id answers None.
+        """
+        columns = list(self.DESCRIBED_OBJECT_FIELDS.values()) + \
+            list(self.RECORD_FIELDS.values())
+        return [obj for obj in (getattr(self, column) for column in columns)
+                if obj is not None]
+
+    def take_back(self):
+        """Take this curator's coupling back and republish the declaring document.
+
+        The ``srv:operatesOn`` row which this pair serialized leaves the
+        service metadata record's document WITH the relation: the publish
+        names the removal of exactly the entry this pair contributes, and the
+        write mapper then removes exactly that row - the evidence which the
+        harvested document brought in beside it is not named and stays, which
+        is D7's ownership of harvested facts (#985). A row without a service
+        metadata end has no document to heal: the capabilities reference of
+        an element coupling is answered live by
+        :attr:`registry.models.service.ServiceElement.published_metadata_links`.
+        """
+        from registry.mappers.publish import publish_document
+
+        entry = None
+        service = self.service_metadata
+        dataset = self.dataset_metadata
+        if service is not None and dataset is not None and dataset.origin_url:
+            # exactly the entry the pair serializes; a pair without a
+            # printable location serialized nothing, so there is no row to
+            # take out and no document to publish
+            entry = {"uuidref": str(dataset.file_identifier),
+                     "href": dataset.origin_url}
+        with atomic():
+            self.delete()
+            if entry is not None:
+                publish_document(service,
+                                 {"operates_on": {"remove": [entry]}})
 
     @property
     def publication_url(self) -> str:
@@ -1592,7 +1647,11 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
             related_object, self)
         if described_field is not None:
             kwargs[described_field] = related_object
-            kwargs["origin"] = origin if origin else MetadataOriginEnum.CAPABILITIES.value
+        # the origin is a filled column of every row, also of the record to
+        # record pairs of #985 which name no described element: defaulting it
+        # inside the element branch only left a pair insert without a value
+        # for the NOT NULL column (#985).
+        kwargs["origin"] = origin if origin else MetadataOriginEnum.CAPABILITIES.value
         kwargs[record_field] = self
 
         with atomic():
@@ -1618,6 +1677,69 @@ class MetadataRecord(MetadataTermsOfUse, AbstractMetadata):
                 "remove_metadata_relation must be cited the described "
                 "element whose coupling is taken back.")
         kwargs = {described_field: related_object, record_field: self}
+        MetadataRelation.objects.select_for_update().filter(
+            is_internal=internal,
+            origin=origin,
+            **kwargs
+        ).delete()
+
+    def add_record_relation(self, other_record, origin=None, is_internal=False):
+        """Assert the coupling of this record to another metadata record (#985).
+
+        The record to record pair of D5's "service metadata to dataset
+        metadata" kind: one row, filled in the SERVICE column with the service
+        metadata record and in the DATASET column with the dataset metadata
+        record, no matter which of the two declares it - which is how "each
+        declared directional relationship is stored once" holds when both
+        screens can link the same pair. Idempotent and locked like
+        :meth:`add_metadata_relation`; two records of the SAME kind have no
+        combination in the table and raise instead of writing a half row.
+
+        The declaration direction lives in the request, not in the row: the
+        row answers the pair, the api answers the created row to the declaring
+        side either way.
+        """
+        records = {self.__class__.__name__: self,
+                   other_record.__class__.__name__: other_record}
+        columns = [MetadataRelation.RECORD_FIELDS.get(name) for name in records]
+        if None in columns or len(set(columns)) != 2:
+            raise ValueError(
+                "add_record_relation couples a service metadata record with a "
+                "dataset metadata record; any other combination has no place "
+                "in MetadataRelation.")
+
+        kwargs = {
+            MetadataRelation.RECORD_FIELDS[name]: records[name]
+            for name in records
+        }
+        kwargs["origin"] = origin if origin else MetadataOriginEnum.EDITOR.value
+        kwargs["is_internal"] = is_internal
+
+        with atomic():
+            relation, _ = MetadataRelation.objects.select_for_update().get_or_create(
+                **kwargs
+            )
+        return relation
+
+    def remove_record_relation(self, other_record, internal, origin):
+        """Take back the coupling of this record to another metadata record.
+
+        Keyed on the pair plus `internal` and `origin` exactly like
+        :meth:`remove_metadata_relation` keys on element plus flags: a
+        curator's declaration is taken back through these flags only, never
+        beside them (#985).
+        """
+        columns = {MetadataRelation.RECORD_FIELDS.get(cls.__name__)
+                   for cls in (self.__class__, other_record.__class__)}
+        if None in columns or len(columns) != 2:
+            raise ValueError(
+                "remove_record_relation takes back the coupling of a service "
+                "metadata record with a dataset metadata record.")
+        kwargs = {
+            MetadataRelation.RECORD_FIELDS[cls.__name__]: cls_instance
+            for cls, cls_instance in
+            ((record.__class__, record) for record in (self, other_record))
+        }
         MetadataRelation.objects.select_for_update().filter(
             is_internal=internal,
             origin=origin,

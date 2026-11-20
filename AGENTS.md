@@ -76,6 +76,21 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   files in `scripts/` are reviewed content — the PR that edits one is the review (`python3
   scripts/test_release_gates.py` runs the 63-check suite offline; `.github/workflows/
   release-gates.yml` runs the gates; docs: `docs/source/development/release-compatibility-gates.rst`).
+  `scripts/release_promotion.py` is the protected path a planned version takes from develop to
+  master (#1584, epic #1577): five idempotent human-gated steps — `plan` reads the planned candidate
+  (VERSION, its projection, the manifest and the folded changelog section must agree), `evidence`
+  plus `preflight` bind CI's conclusions and the gate reports into the one attestation of
+  `release_gates.py promote`, `open-release-pr` freezes `release/v<version>` at the candidate and
+  opens the PR to master (a person merges — that merge IS the release decision), `finalize`
+  tree-checks master against the tested candidate before pushing the annotated tag and the GitHub
+  release in the same run, and `sync` opens the reviewed master→develop sync PR; it never pushes a
+  permanent branch, never moves a tag or release branch that stands elsewhere, and refuses rolling
+  aliases while Q1 of #1578 is Pending. `.github/workflows/release-promotion.yml` dispatches the
+  steps behind the protected `release-stable` environment (an administrator must create it WITH
+  required reviewers before the first run — GitHub auto-creates a missing environment unprotected);
+  `python3 scripts/test_release_promotion.py` runs the 31-check offline suite (synthetic
+  repositories, journaling `gh` shim) via `scripts/check_repo_tooling.sh`; docs:
+  `docs/source/development/release-promotion.rst`).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's

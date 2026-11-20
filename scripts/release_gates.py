@@ -716,9 +716,9 @@ def new_required_config(root, merge_base):
 
 def unreleased_section(root):
     text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-    match = re.search(r"^## \[0\.x\.x\] - UNRELEASED$", text, re.M)
+    match = re.search(r"^## Unreleased$", text, re.M)
     if not match:
-        raise GateCannotRun("CHANGELOG.md has no '## [0.x.x] - UNRELEASED' "
+        raise GateCannotRun("CHANGELOG.md has no '## Unreleased' "
                             "heading - the migration-notes gate has no place "
                             "to look and refuses to invent one")
     nxt = re.search(r"^## \[", text[match.end():], re.M)

@@ -27,9 +27,12 @@ arguments, headers and payloads are never read off the request, and the
 correlation keys are the same task/root/parent ids #1330 already carries.
 
 Part of epic #1387 V2; it reuses the lifecycle clock of #1330 and adds no
-second one. Persistence of profiles, threshold/budget selection of which
-attempts to report, EXPLAIN-side analysis and the operator runbook are the
-following steps of the same issue - this module defines what they read.
+second one. The operator runbook - how to enable this safely, what a report
+means and a sample - is the development documentation page
+``celery-task-root-cause-profiling``. Persistence of profiles,
+threshold/budget selection of which attempts to report and EXPLAIN-side
+analysis are the following steps of the same issue - this module defines
+what they read.
 """
 
 import hashlib
@@ -48,7 +51,7 @@ logger = settings.ROOT_LOGGER
 #: joins its attempt row without a second identity scheme.
 _profiles = {}
 
-_stats = {"profiled": 0, "dropped": 0}
+_stats = {"profiled": 0, "dropped": 0, "duplicate_delivery": 0}
 
 
 def _setting(name, default):
@@ -92,20 +95,27 @@ def should_profile(task_name, task_id):
 class _Profile:
     """The category observations of one attempt, inside one process."""
 
-    __slots__ = ("task_id", "attempt_no", "task_name", "root_id",
-                 "mono_start", "sql_seconds", "sql_queries",
-                 "http_seconds", "http_calls")
+    __slots__ = ("task_id", "attempt_no", "task_name", "root_id", "queue",
+                 "sample_rate", "mono_start", "sql_seconds", "sql_queries",
+                 "http_seconds", "http_calls", "partial")
 
-    def __init__(self, task_id, attempt_no, task_name, root_id):
+    def __init__(self, task_id, attempt_no, task_name, root_id,
+                 queue=None, sample_rate=0.0):
         self.task_id = task_id
         self.attempt_no = attempt_no
         self.task_name = task_name
         self.root_id = root_id or ""
+        self.queue = queue or ""
+        self.sample_rate = sample_rate
         self.mono_start = time.monotonic()
         self.sql_seconds = 0.0
         self.sql_queries = 0
         self.http_seconds = 0.0
         self.http_calls = 0
+        #: why this profile may be missing time (``duplicate_delivery``);
+        #: never a number, only the reason a reader must not take the
+        #: categories as the complete picture (#1389: partial stays visible)
+        self.partial = []
 
     def report(self, active_seconds=None):
         """The category split of this profile.
@@ -115,6 +125,11 @@ class _Profile:
         categories nest inside each other, e.g. SQL issued from within a
         retried HTTP handler's error path) - the report never rebalances
         the categories to close the sum.
+
+        ``sample_probability`` is the configured rate the attempt was
+        selected under, so one report says how representative it is;
+        ``partial`` names why time may be missing from the categories
+        instead of leaving a reader to assume the split is complete.
         """
         accounted = self.sql_seconds + self.http_seconds
         report = {
@@ -122,17 +137,58 @@ class _Profile:
             "attempt_no": self.attempt_no,
             "task_name": self.task_name,
             "root_id": self.root_id,
+            "queue": self.queue,
+            "sample_probability": self.sample_rate,
             "sql_seconds": round(self.sql_seconds, 6),
             "sql_queries": self.sql_queries,
             "http_seconds": round(self.http_seconds, 6),
             "http_calls": self.http_calls,
             "accounted_seconds": round(accounted, 6),
+            "partial": list(self.partial),
         }
         if active_seconds is not None:
             report["active_seconds"] = round(active_seconds, 6)
             report["unaccounted_seconds"] = round(
                 active_seconds - accounted, 6)
+            report["shape"] = self.shape(active_seconds)
         return report
+
+    def shape(self, active_seconds):
+        """The one-word diagnosis of the attempt, or None if unknown.
+
+        The whole point of the categories: a reader must see *which* of the
+        shapes the acceptance criteria of #1389 name - slow SQL, slow
+        external HTTP, CPU-bound processing, or a delay that happened
+        outside the worker at all - an attempt had. The category threshold
+        is a fraction of the attempt's own active time, so the reading is
+        scale-free; the slow threshold (``TASK_PROFILING_SLOW_SECONDS``,
+        the issue's configurable budget) is what separates "this attempt
+        occupied the worker for too long" from "this attempt was fine".
+
+        A long attempt without SQL or HTTP is CPU-bound, lock-waiting or
+        bookkeeping - named ``cpu_or_unaccounted``, never renamed to a fake
+        CPU total. A short attempt is not the slow one at all: when the
+        end-to-end delay an operator observed is not in its active time, it
+        waited in the broker, and #1330's ``wait_seconds`` row carries that
+        number - this is why no second lifecycle clock exists here.
+        ``None`` answers for an attempt never measured against an active
+        time; that stays unknown and is never guessed.
+        """
+        if active_seconds is None or active_seconds <= 0:
+            return None
+        accounted = self.sql_seconds + self.http_seconds
+        threshold = active_seconds * _setting(
+            "TASK_PROFILING_SHAPE_THRESHOLD", 0.5)
+        if self.sql_seconds >= threshold:
+            return "sql_bound"
+        if self.http_seconds >= threshold:
+            return "http_bound"
+        if accounted <= active_seconds * 0.05:
+            if active_seconds < _setting(
+                    "TASK_PROFILING_SLOW_SECONDS", 30.0):
+                return "queue_only_or_fast"
+            return "cpu_or_unaccounted"
+        return "mixed"
 
 
 #: the profile of the attempt this process is currently executing, or None.
@@ -247,9 +303,13 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
             # worker which reloaded its config): install the HTTP seam now,
             # once - it stays a no-op outside a profiled attempt
             _wrap_session_send()
+        delivery = getattr(request, "delivery_info", None) or {}
         profile = _Profile(
             str(task_id)[:64], attempt_no, task_name[:255],
-            str(getattr(request, "root_id", "") or ""))
+            str(getattr(request, "root_id", "") or ""),
+            queue=delivery.get("routing_key") or "",
+            sample_rate=float(_setting("TASK_PROFILING_SAMPLE_RATE", 0.0)
+                              or 0.0))
         key = (profile.task_id, profile.attempt_no)
         if len(_profiles) >= int(
                 _setting("TASK_PROFILING_BUFFER_LIMIT", 200) or 200):
@@ -259,6 +319,14 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
             _stats["dropped"] += 1
             _current = None
             return
+        previous = _profiles.get(key)
+        if previous is not None:
+            # same attempt identity seen twice in one process: a duplicate
+            # delivery. This profile covers only this observation's run, so
+            # saying so beats presenting a partial split as the complete one
+            # (#1389: partial stays visible, never silently merged)
+            profile.partial.append("duplicate_delivery")
+            _stats["duplicate_delivery"] += 1
         _profiles[key] = profile
         _stats["profiled"] += 1
         _current = profile

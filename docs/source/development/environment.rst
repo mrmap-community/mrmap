@@ -168,7 +168,15 @@ The web tier
 The HTTP of the ``backend`` container is served by ``gunicorn`` with ``gthread``
 workers and the WSGI application; its websockets by a second, small ``gunicorn``
 with ASGI workers on port 8002, which the edge of the frontend forwards ``/ws``
-to. The split is #1032. Every view of MrMap is sync, so under an ASGI worker the
+to. The split is #1032. The numbers that shape the two servers resolve in
+``backend/.bash_scripts/process_defaults.sh``, which both startup scripts
+source: docker-compose.yml passes every ``GUNICORN_*`` knob through untouched,
+so the shape a container boots with is answered by one file, whether the
+container came from compose, from ``docker run`` or from a test.
+``MRMAP_LOW_MEMORY`` selects the low-memory shape of #1617 and
+``GUNICORN_PRELOAD`` opts the HTTP workers into forking one pre-imported
+application; the measured tradeoffs of both are in
+:ref:`http-process-profiles`. Every view of MrMap is sync, so under an ASGI worker the
 view work runs on threads off the event loop while that loop keeps the sockets of
 the same worker - one GIL for the two of them - and the bill arrives twice: the
 view is slower and its neighbours wait. Which worker of a burst did how much also
@@ -204,8 +212,9 @@ invocation and once by starting that script itself.
 ``GUNICORN_WORKERS``
 ********************
 
-How many HTTP worker *processes* the backend runs; docker-compose.yml passes it
-to ``backend`` with a default of 4. CPU bound views parallelize per process and
+How many HTTP worker *processes* the backend runs; docker-compose.yml passes
+it to ``backend`` and the default of 4 resolves in
+``backend/.bash_scripts/process_defaults.sh``. CPU bound views parallelize per process and
 not per thread, because the interpreter runs one of them at a time - so a
 deployment whose API traffic is CPU bound gets its lanes from this number, and
 the honest way to size it is the number of cores it gives to the web tier. The
@@ -216,8 +225,9 @@ a backend may hold at once.
 ``GUNICORN_THREADS``
 ********************
 
-How many requests one HTTP worker answers at a time; docker-compose.yml passes it
-to ``backend`` with a default of 4. This is the depth of the queue in front of one
+How many requests one HTTP worker answers at a time; docker-compose.yml passes
+it to ``backend`` and the default of 4 resolves in
+``backend/.bash_scripts/process_defaults.sh``. This is the depth of the queue in front of one
 worker, and it is what keeps a cheap request from waiting behind a slow one: a
 request which arrives at a worker whose threads are all taken waits in that
 worker's own queue, behind whatever it is already doing, while a worker with a
@@ -232,8 +242,34 @@ them in one process - so a deployment which measures CPU and not queueing raises
 ``GUNICORN_WS_WORKERS``
 ***********************
 
-How many ASGI worker processes serve the websockets on port 8002; docker-compose.yml
-passes it to ``backend`` with a default of 1. Open websockets are idle and I/O
+How many ASGI worker processes serve the websockets on port 8002;
+docker-compose.yml passes it to ``backend`` and the default of 1 resolves in
+``backend/.bash_scripts/process_defaults.sh``. Open websockets are idle and I/O
 bound, so one event loop carries the connections of a whole deployment; the
 variable is there for a deployment with an unusual number of simultaneous
 connections.
+
+``MRMAP_LOW_MEMORY``
+********************
+
+Selects the low-memory shape of the web tier (#1617, epic #1612): with
+``1``/``true``/``yes``/``on`` the HTTP server boots with **1 worker and 2
+threads** instead of 4 and 4, which is what a container that must share its
+host with an editor, an agent or another stack pays for with web-tier
+throughput. The mode changes nothing else - not the websocket server, not
+``DJANGO_DEBUG``, not any queue depth an explicit ``GUNICORN_WORKERS`` or
+``GUNICORN_THREADS`` pins - and an unset value keeps the shipped production
+shape, so selecting the mode can never reduce production throughput by
+accident. Measured cost and saving: :ref:`http-process-profiles`.
+
+``GUNICORN_PRELOAD``
+********************
+
+Off by default. With ``1``/``true``/``yes``/``on`` the HTTP gunicorn imports
+the WSGI application once in its master and the workers fork it, so the pages
+of the imports are shared copy-on-write and a failed import kills the boot
+instead of surfacing per worker. It applies to the HTTP server only: the
+websocket server runs one worker (there is nothing to share) and #1617's
+acceptance names stuck websockets as the failure mode a preload must not
+introduce. The fork-safety audit behind the flag - and the measured memory it
+does and does not buy - is in :ref:`http-process-profiles`.

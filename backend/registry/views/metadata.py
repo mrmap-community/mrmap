@@ -27,9 +27,10 @@ from registry.serializers.metadata import (ApplicationMetadataRecordSerializer,
                                            ReferenceSystemDefaultSerializer,
                                            ReferenceSystemRetrieveSerializer,
                                            ServiceMetadataRecordSerializer,
-                                           StyleSerializer)
+                                           StyleSerializer,
+                                           relation_write_allowed)
 from rest_framework import mixins
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
@@ -677,16 +678,68 @@ class IsoCategoryViewSet(ReadOnlyModelViewSet):
     ordering_fields = ["id", "value", "label"]
 
 
-class MetadataRelationViewSet(PreloadNotIncludesMixin, ReadOnlyModelViewSet):
+class MetadataRelationApiPermissions(DjangoObjectPermissionsOrAnonReadOnly):
+    """The api gate of the relation endpoint, reads as before (#985).
+
+    No role of the catalogue holds ``add_metadatarelation`` and no flow ever
+    grants a user over a join row - the join row is written by the flows, not
+    shared. D11 of docs/metadata-identity.md therefore hands the WRITE of a
+    coupling to the change permission over the records it couples, which the
+    inherited model gate can not answer:
+
+    * reads keep the inherited answer untouched;
+    * POST and DELETE pass the endpoint gate with authentication alone; the
+      decision over the coupled records happens where the row or the payload
+      is in hand - :func:`registry.serializers.metadata.
+      relation_write_allowed` in the serializer for a create, the object gate
+      below for a destroy;
+    * a DELETE additionally refuses every row which is not the curator's own
+      kind: a harvested coupling is the document's, and only the flows which
+      processed that document take it back (#1261).
+    """
+
+    def has_permission(self, request, view):
+        if request.method in SAFE_METHODS:
+            return super().has_permission(request, view)
+        return bool(request.user and request.user.is_authenticated)
+
+    def has_object_permission(self, request, view, obj):
+        if request.method in SAFE_METHODS:
+            return super().has_object_permission(request, view, obj)
+        if not obj.is_publishable:
+            self.message = _(
+                "Only relations which an editor added can be taken back "
+                "through this endpoint; a harvested coupling belongs to the "
+                "document which declared it.")
+            return False
+        return relation_write_allowed(
+            request.user, obj.coupled_objects(),
+            checker=getattr(request, "shared_perm_checker", None))
+
+
+class MetadataRelationViewSet(PreloadNotIncludesMixin, ModelViewSet):
+    # GET + POST + DELETE, and no PATCH: a coupling is declared or taken
+    # back, never edited - the row has no content beside its ends and its
+    # server-owned provenance (#985)
+    http_method_names = ["get", "post", "delete", "head", "options"]
     queryset = MetadataRelation.objects.order_by("id")
-    select_for_includes = {source: [source] for source in ("wms", "wfs", "csw", "feature_type")}
+    select_for_includes = {
+        source: [source] for source in (
+            "wms", "wfs", "csw", "feature_type",
+            # the partner of a pair row is a record like the screen's own one,
+            # and its title is the label of the row (#985)
+            "service_metadata", "dataset_metadata")}
     prefetch_for_includes = {
         "layer": [Prefetch("layer", queryset=Layer.objects.with_inherited_attributes_cte())],
     }
     serializer_class = MetadataRelationSerializer
     filterset_fields = {
-        "dataset_metadata": ["exact"],
-        "service_metadata": ["exact"],
+        # the record columns answer `isnull` too: a screen of one record asks
+        # its own column for the rows and the OTHER record column for whether
+        # the row is a pair - no VALID_RELATIONS row fills an element beside
+        # both records, so that pair of terms is exactly the pair group (#985)
+        "dataset_metadata": ["exact", "isnull"],
+        "service_metadata": ["exact", "isnull"],
         "layer": ["isnull"],
         "feature_type": ["isnull"],
         "wms": ["isnull"],
@@ -695,4 +748,11 @@ class MetadataRelationViewSet(PreloadNotIncludesMixin, ReadOnlyModelViewSet):
     }
     search_fields = ("layer__title", "feature_type__title", "wms__title", "wfs__title", "csw__title")
     ordering_fields = ["id", "origin", "is_internal"]
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    permission_classes = [MetadataRelationApiPermissions,
+                          MetadataRecordWritesEnabled]
+
+    def perform_destroy(self, instance):
+        """Thin: the model answer takes back the coupling and republishes
+        the declaring document (#985), see
+        :meth:`registry.models.metadata.MetadataRelation.take_back`."""
+        instance.take_back()

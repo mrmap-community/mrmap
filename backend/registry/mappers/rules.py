@@ -74,6 +74,11 @@ OVERLAYABLE_FIELDS = frozenset({
     # through their config's _reverse_parser, so the write mapper can
     # carry the row's values into the document
     "bounding_geometry", "time_extents",
+    # the srv:operatesOn rows of a service record (#985): the value is the
+    # publish diff of the record's publishable record to record couplings,
+    # already in the shape the write mapper reads (see
+    # registry.mappers.publish)
+    "operates_on",
 })
 
 #: the fields a rule may still name although no payload can patch them:
@@ -251,6 +256,13 @@ def _convert_value(name, value):
         # bounding box or polygon fragment the path names (#1246)
         from django.contrib.gis.geos import GEOSGeometry
         return value if isinstance(value, GEOSGeometry) else _UNCHANGED
+    if name == "operates_on" and isinstance(value, dict):
+        # the publish diff of the record to record couplings of #985: it
+        # arrives from the relation flow already in the shape the write
+        # mapper reads ({"add": [...], "remove": [...]}), so nothing is
+        # converted - the branch only lets it pass the overlay gate;
+        # anything which is not the diff falls through to _UNCHANGED
+        return value
     if name == "time_extents":
         # rows arrive as instances (the row, the validated relationship);
         # answer the dict shape the extraction answered, which is what

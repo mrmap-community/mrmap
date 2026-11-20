@@ -61,6 +61,7 @@ from lxml import etree
 from lxml.etree import XMLSyntaxError
 
 from registry.exceptions.metadata import PublishRefused
+from registry.enums.metadata import MetadataOriginEnum
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.parsers.value import string_to_datetime
@@ -218,6 +219,57 @@ def _locate_record(records, record):
     return positions[0]
 
 
+def _operates_on_values(record, values: dict) -> dict:
+    """The ``srv:operatesOn`` write of one service record's publish (#985).
+
+    The ADDITIONS are derived from the row on every construction: each
+    publishable coupling of the record to a dataset metadata record
+    (``is_internal`` plus ``origin=EDITOR``, the curator's declaration which
+    ``publication_kind`` answers as CURATED_PUBLICATION) contributes one row
+    naming the dataset's DOCUMENT identity and location - ``uuidref`` the
+    fileIdentifier, ``href`` the origin_url the publication policy already
+    prints as the relation's ``publication_url``. Deriving them on every
+    publish is what heals a document a later harvest replaced: the served
+    document of the next committed write carries the declarations again.
+
+    The REMOVALS can only come from the caller: the relation delete publishes
+    the entry its row would have serialized, which is the one row the write
+    then takes out. A row the harvested document brought in beside them - the
+    evidence of a reference this record's rows do not declare - stays
+    untouched, which is D7's ownership of harvested facts.
+
+    A coupled dataset record without ``origin_url`` has no printable location
+    - the same blocker that keeps it out of the capabilities publication -
+    and serializes nothing.
+    """
+    additions, seen = [], set()
+    relations = (
+        record.resource_relations
+        .filter(dataset_metadata__isnull=False,
+                is_internal=True,
+                origin=MetadataOriginEnum.EDITOR.value)
+        .select_related("dataset_metadata")
+        .order_by("dataset_metadata__id"))
+    for relation in relations:
+        dataset = relation.dataset_metadata
+        if dataset.pk in seen:
+            continue
+        seen.add(dataset.pk)
+        if not dataset.origin_url:
+            # no printable location: the same publication blocker that keeps
+            # the coupling out of the capabilities document - a uuidref
+            # without a resolvable href is not a standards reference (D4)
+            continue
+        additions.append({
+            "uuidref": str(dataset.file_identifier),
+            "href": dataset.origin_url,
+        })
+    declared = values.get("operates_on")
+    removals = (list(declared.get("remove") or [])
+                if isinstance(declared, dict) else [])
+    return {"add": additions, "remove": removals}
+
+
 def build_resulting_document(record, attrs=None,
                              seed_missing=True) -> bytes | None:
     """The document this record's stored fields would serve, as bytes.
@@ -251,7 +303,13 @@ def build_resulting_document(record, attrs=None,
             return None
         content = seed_document(kind)
     try:
-        records = MDMetadataXmlMapper.extract_mapped_values(content)
+        # the kind travels from the ROW, not from the document: the stored
+        # backup of a record answers exactly one record and the row states
+        # its kind authoritatively - a catalogue document which omits its
+        # hierarchyLevel (real-world stubs do) must not make this record
+        # unpublishable, and detection would refuse it
+        records = MDMetadataXmlMapper.extract_mapped_values(
+            content, hierarchy_level=kind)
     except Exception:
         logger.exception(
             "the document of record %s can not be mapped for the publish",
@@ -264,11 +322,17 @@ def build_resulting_document(record, attrs=None,
     overlay_write_values(entry["values"], _row_values(record))
     if attrs:
         overlay_write_values(entry["values"], attrs)
+    if kind == "service":
+        # the srv:operatesOn rows the record's couplings declare (#985),
+        # written AFTER the overlays because the row - not the payload -
+        # owns them: a payload can name a removal (the relation delete
+        # publishes one), but no payload can add or hide a declaration
+        entry["values"]["operates_on"] = _operates_on_values(record, entry["values"])
     _force_header(entry["values"], record)
     records[position] = entry
     try:
         document, warnings = MDMetadataXmlMapper.write_mapped_records(
-            content, records)
+            content, records, hierarchy_level=kind)
     except Exception:
         logger.exception(
             "the write mapper refused the resulting document of record %s",

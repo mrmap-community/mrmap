@@ -14,10 +14,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import i18nProvider from "../../../../providers/i18nProvider";
 import RecordRelations, {
+  TakeBackButton,
+  declarableGroups,
   filledGroups,
   groupFilter,
   recordColumn,
+  recordSource,
   relationGraph,
+  relationGroups,
 } from "./RecordRelations";
 
 vi.mock("../../../../jsonapi/components/ListGuesser", () => ({
@@ -64,6 +68,7 @@ const setup = (
   rows: RaRecord[] = [],
   perColumn: Record<string, number> = { layer: 2 },
   recordTotal = 2,
+  options: { readOnly?: boolean } = {},
 ) => {
   const getList = vi.fn(async (_resource: string, params: { filter?: Record<string, unknown> }) =>
     answer(params?.filter, rows, perColumn, recordTotal),
@@ -84,12 +89,22 @@ const setup = (
               hasList: true,
               options: {},
             },
+            // the screen's create and its relation tables read this resource,
+            // like every resource the api answers and MrMapFrontend registers
+            MetadataRelation: {
+              name: "MetadataRelation",
+              hasShow: false,
+              hasList: true,
+              hasCreate: true,
+              hasEdit: false,
+              options: { type: "MetadataRelation" },
+            },
           }}
         >
           <ResourceContextProvider value={resource}>
             <RecordContextProvider value={record}>
               {/* the body of the relations tab, as RecordShow renders it */}
-              <RecordRelations />
+              <RecordRelations readOnly={options.readOnly} />
             </RecordContextProvider>
           </ResourceContextProvider>
         </ResourceDefinitionContextProvider>
@@ -142,6 +157,67 @@ describe("the meaning of a relation is the filled column", () => {
     ).toEqual({ service_metadata: "record-1", feature_type__isnull: false });
   });
 
+  // the pair of two metadata records is the second sentence the table can state,
+  // and both screens write the very same row (#985)
+  it("adds the other kind of record as the pair group of a record screen", () => {
+    expect(
+      relationGroups("DatasetMetadataRecord").map((group) => group.source),
+    ).toEqual([
+      "layer",
+      "featureType",
+      "wms",
+      "wfs",
+      "csw",
+      "serviceMetadata",
+    ]);
+    expect(relationGroups("DatasetMetadataRecord")[5]).toMatchObject({
+      source: "serviceMetadata",
+      // the pair row is one row for both screens, but only the service record
+      // publishes it, so the two ends state it in opposite directions
+      operator: "partner",
+    });
+    expect(relationGroups("ServiceMetadataRecord")[5]).toMatchObject({
+      source: "datasetMetadata",
+      filter: "dataset_metadata",
+      resource: "DatasetMetadataRecord",
+      kind: "record",
+      operator: "own",
+    });
+    // a kind without a column of its own has no pair to ask for
+    expect(relationGroups("Layer")).toHaveLength(5);
+    expect(recordSource("ServiceMetadataRecord")).toBe("serviceMetadata");
+  });
+
+  it("asks the pair group by the partner column of the row", () => {
+    const partner = relationGroups("DatasetMetadataRecord")[5];
+    expect(groupFilter("dataset_metadata", "record-1", partner)).toEqual({
+      dataset_metadata: "record-1",
+      service_metadata__isnull: false,
+    });
+    expect(filledGroups([{ id: 1, serviceMetadata: { id: "s" } }], [partner]))
+      .toHaveLength(1);
+  });
+
+  it("offers to declare only what the model can store", () => {
+    // D5 of docs/metadata-identity.md, answered by the api with a 400 for
+    // anything else — the screen never shows a choice the row cannot hold
+    expect(
+      declarableGroups("DatasetMetadataRecord").map((group) => group.source),
+    ).toEqual(["layer", "featureType", "serviceMetadata"]);
+    expect(
+      declarableGroups("ServiceMetadataRecord").map((group) => group.source),
+    ).toEqual([
+      "layer",
+      "featureType",
+      "wms",
+      "wfs",
+      "csw",
+      "datasetMetadata",
+    ]);
+    expect(declarableGroups("Layer")).toEqual([]);
+    expect(declarableGroups("ApplicationMetadataRecord")).toEqual([]);
+  });
+
   it("labels an edge with what the coupling asserts", () => {
     const graph = relationGraph(
       { id: "same-id", title: "Metadata" },
@@ -181,6 +257,61 @@ describe("the meaning of a relation is the filled column", () => {
     );
     expect(graph.nodes[1].data.label).toBe("Harvest catalogue");
     expect(graph.edges[0].label).toBe("Harvested through");
+  });
+
+  it("draws a pair with the sentence of the pair, not of a description", () => {
+    const groups = [
+      {
+        source: "datasetMetadata",
+        filter: "dataset_metadata",
+        resource: "DatasetMetadataRecord",
+        kind: "record" as const,
+        edge: "operates on DatasetMetadataRecord",
+      },
+    ];
+    const graph = relationGraph(
+      { id: "service", title: "Service" },
+      [{ id: 1, datasetMetadata: { id: "d", title: "Dataset" }, origin: 4 }],
+      (resource) => `describes ${resource}`,
+      [{ id: 4, name: "Editor" }],
+      "Harvested through",
+      groups,
+    );
+    expect(graph.edges[0].label).toBe(
+      "operates on DatasetMetadataRecord · Editor",
+    );
+  });
+});
+
+describe("the take back of a declared row", () => {
+  const renderRow = (row: RaRecord) =>
+    render(
+      <TestMemoryRouter>
+        <AdminContext
+          i18nProvider={i18nProvider}
+          dataProvider={testDataProvider({})}
+        >
+          <ResourceContextProvider value="MetadataRelation">
+            <RecordContextProvider value={row}>
+              <TakeBackButton />
+            </RecordContextProvider>
+          </ResourceContextProvider>
+        </AdminContext>
+      </TestMemoryRouter>,
+    );
+
+  it("offers nothing for a coupling the harvest declared", () => {
+    // the document which stated the coupling owns it: the api answers 403 and
+    // the screen states no promise it cannot keep (D7)
+    renderRow({ id: 1, origin: 5, isInternal: false, isPublishable: false });
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("offers the take back for the row a curator declared", () => {
+    renderRow({ id: 2, origin: 4, isInternal: true, isPublishable: true });
+    expect(
+      screen.getByRole("button", { name: /take back/i }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -275,5 +406,67 @@ describe("the relations tab of a record", () => {
     const tables = screen.getAllByText(/MetadataRelation/);
     expect(tables).toHaveLength(1);
     expect(tables[0].textContent).toContain('"layer__isnull":false');
+  });
+
+  it("groups the pair of a record beside the elements it describes", async () => {
+    // the row of the pair fills the partner column, so the group of the pair
+    // appears with its own sentence and its own query (#985)
+    setup(
+      "DatasetMetadataRecord",
+      datasetRecord,
+      [{ id: 1, serviceMetadata: { id: "s", title: "Service" }, origin: 4 }],
+      { layer: 2, service_metadata: 1 },
+      3,
+    );
+    expect(
+      await screen.findByText("operated on by ServiceMetadataRecord"),
+    ).toBeInTheDocument();
+    const tables = screen.getAllByText(/MetadataRelation/);
+    expect(
+      tables.some(
+        (table) =>
+          (table.textContent ?? "").includes(
+            '"dataset_metadata":"dataset-1","service_metadata__isnull":false',
+          ),
+      ),
+    ).toBe(true);
+  });
+
+  it("offers the declaration of a coupling where a coupling can stand", async () => {
+    // the record which stores nothing yet is exactly the one a coupling is
+    // worth declaring for, so the offer is not gated on an existing row
+    setup("DatasetMetadataRecord", datasetRecord, [], {}, 0);
+    expect(
+      await screen.findByRole("button", { name: /declare a relation/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("declares nothing for a kind which can store no coupling", async () => {
+    setup(
+      "ApplicationMetadataRecord",
+      { id: "app-1", title: "Application", harvestedThrough: [] },
+      [{ id: 1, layer: { id: "l" } }],
+      { layer: 2 },
+      2,
+    );
+    await screen.findByText(/CatalogueService/);
+    // the offer follows the matrix of the model, not the emptiness of a screen
+    expect(
+      screen.queryByRole("button", { name: /declare a relation/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("states no declaration and no take back while read-only", async () => {
+    // the record editor's pane says relations belong to the record's own page,
+    // and shows exactly that (#985)
+    setup("DatasetMetadataRecord", datasetRecord, [], {}, 0, {
+      readOnly: true,
+    });
+    expect(
+      await screen.findByText("No relation is stored for this record."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /declare a relation/i }),
+    ).not.toBeInTheDocument();
   });
 });

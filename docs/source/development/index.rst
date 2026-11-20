@@ -41,6 +41,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    db-pool-memory
    compose-profiles
    decision-requests
+   epic-integration-contract
    release-versioning-baseline
    canonical-version
    commit-classification

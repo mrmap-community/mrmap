@@ -529,6 +529,10 @@ class HarvestingJob(ProcessingData):
         # Note:
         # The maximum number of revoked tasks to keep in memory can be specified using the
         # CELERY_WORKER_REVOKES_MAX environment variable, which defaults to 50000.
+        # The release raises that window on the worker itself: docker-compose.yml
+        # hands CELERY_WORKER_REVOKES_MAX (2000000) to the celery-worker service,
+        # because celery reads that name from the environment in
+        # celery/worker/state.py and not from the app configuration (#1615).
         # The revocation only names the tasks which could still be stopped, as
         # the tasks which reported in removed their ids themselves (#892).
 

@@ -221,6 +221,24 @@ services:
       # sizes by the container's cgroup quota; see
       # docs/source/development/environment.rst
       CELERY_WORKER_CONCURRENCY: "${CELERY_WORKER_CONCURRENCY:-4}"
+      # recycling of one prefork child (#1615): how many tasks a slot runs
+      # before it is replaced, and the kB of peak resident memory (celery
+      # compares ru_maxrss, after a completed task) at which it is replaced.
+      # Empty is the 1000 of the release, not "never": the worker reads this
+      # variable itself and the pool refuses 0, so a value below 1 stops the
+      # worker at start-up. The memory bound ships off because a fresh child
+      # already peaks near 170 MB of the quantity celery compares (ru_maxrss)
+      # and the import path plateaus at 211 MB; the measurement, and which
+      # quantity a deployment has to watch to name a bound, is in
+      # docs/source/development/celery-queues.rst
+      CELERY_WORKER_MAX_TASKS_PER_CHILD: "${CELERY_WORKER_MAX_TASKS_PER_CHILD:-1000}"
+      CELERY_WORKER_MAX_MEMORY_PER_CHILD: "${CELERY_WORKER_MAX_MEMORY_PER_CHILD:-}"
+      # celery reads the revocation window from the environment, not from the
+      # app configuration (celery/worker/state.py), so it belongs to the
+      # service and not to the settings of the project - where the same name
+      # measured inert for years (#1615). The value is the old intent of those
+      # settings: a big catalogue revokes past celery's 50000 default.
+      CELERY_WORKER_REVOKES_MAX: "${CELERY_WORKER_REVOKES_MAX:-2000000}"
     env_file:
       - ./docker/backend/.mrmap.env
     depends_on:

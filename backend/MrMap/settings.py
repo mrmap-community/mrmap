@@ -429,6 +429,35 @@ CACHES = {
 ################################################################
 # Celery settings
 ################################################################
+def _worker_int_from_env(name, environ, default=None):
+    """One integer knob of the worker fleet, read from the deployment.
+
+    An absent or empty value answers ``default``. Anything else has to be an
+    integer of at least 1, and both other answers raise while the settings
+    load. The floor is not a preference: the worker command reads the very same
+    variable from the environment itself (the click option
+    ``--max-tasks-per-child``, ``celery/bin/worker.py``) and hands it to the
+    prefork pool as it stands, where 0 is refused with "maxtasksperchild must
+    be a positive int or None" - measured with the celery 5.7.0 of the image,
+    and the reason 0 is not this project's spelling of "off". A number a
+    deployment sets and the fleet then reads differently than the deployment
+    meant is the failure #1615 is about, so it is worth the loud start-up.
+    """
+    raw = (environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"{name}={raw!r} is not an integer") from None
+    if value < 1:
+        raise ValueError(
+            f"{name}={raw!r} is below 1: the prefork pool refuses 0, so this "
+            "knob has no spelling of 'off' - leave it empty for the default of "
+            "the release (docs/source/development/environment.rst)")
+    return value
+
+
 CELERY_BROKER_URL = BROKER_URL
 # Celery's native Redis result backend (celery.backends.redis:RedisBackend),
 # on the table the comment above preserves for celery task management: task
@@ -468,9 +497,49 @@ RESPONSE_CACHE_TIME = 60 * 30  # 30 minutes
 CELERY_TASK_DEFAULT_QUEUE = celery_queues.DEFAULT
 CELERY_TASK_DEFAULT_EXCHANGE = celery_queues.DEFAULT
 
-CELERY_MAX_TASKS_PER_CHILD = 1000
-# default is only 50000; is not enough for harvesting jobs for example
-CELERY_WORKER_REVOKES_MAX = 2000000
+# Recycling of one prefork child (#1615). The name this file carried for the
+# knob, CELERY_MAX_TASKS_PER_CHILD, is not a setting of the celery the project
+# runs: measured against the installed celery 5.7.0, the key of
+# celery.app.defaults.DEFAULTS is 'worker_max_tasks_per_child' and there is no
+# 'max_tasks_per_child' at all, so the namespace CELERY wrote the value onto a
+# key no reader exists for while app.conf answered the live name as None. The
+# fleet therefore never replaced a child, whatever the deployment believed it
+# asked for. The knob below is spelled the way celery spells it and is a
+# deployer knob like the number of slots (#1454): the release asks for 1000 and
+# a deployment may name any other positive number. There is no number of this
+# variable which means "never" - the worker command reads the variable from the
+# environment itself and 0 stops the pool at start-up - so turning recycling
+# off is not what an empty value does here; empty is the 1000 of the release.
+CELERY_WORKER_MAX_TASKS_PER_CHILD = _worker_int_from_env(
+    "CELERY_WORKER_MAX_TASKS_PER_CHILD", os.environ, 1000)
+# The memory of one child, in kB, at which the pool replaces it. Off in the
+# release for two measured reasons. The quantity celery compares is
+# getrusage(RUSAGE_SELF).ru_maxrss - the highest resident set the child ever
+# reached, shared pages included (billiard/compat.py) - and a fresh child of
+# this project already peaks near 170 MB of it, so a bound below the peak the
+# deployment's own import reaches (211 MB over 2400 imported documents, see
+# docs/source/development/celery-queues.rst) bounds nothing: it replaces the
+# child after every task. And the check runs only after a COMPLETED task
+# (billiard/pool.py), so it is no OOM guard either - the attempt which
+# allocates past its container never meets the bound. That one child holds 211
+# MB and no more after the biggest import the release measured is what lets the
+# fleet run without this bound. A deployment which has watched its children
+# names the kB it wants; the tests of
+# tests.django.test_celery_worker_config keep both recycling names on celery's
+# real table, so a renamed knob can not go inert a second time.
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = _worker_int_from_env(
+    "CELERY_WORKER_MAX_MEMORY_PER_CHILD", os.environ)
+# The window of revoked task ids is deliberately NOT a setting of this file.
+# celery builds it in celery/worker/state.py from the environment variable of
+# this name (`REVOKES_MAX = _int_env('CELERY_WORKER_REVOKES_MAX', 50000)`), so
+# the CELERY_WORKER_REVOKES_MAX = 2000000 this file carried was inert like the
+# recycling knob above: the window stayed at celery's 50000. That is not a
+# number only bookkeepers care about - the abort of a BKG sized harvest revokes
+# well past it (over 600000 queued ids, registry/models/harvest.py), and a
+# revocation the window already forgot is a message which runs again.
+# docker-compose.yml hands the variable to the worker service, which is where
+# state.py reads it.
+
 # One un-acked message per slot at any time (#1454). The long work of this
 # fleet runs with acks_late (HarvestingTask of registry/tasks/harvest.py,
 # the WMS update job of registry/tasks/update.py): its message stays

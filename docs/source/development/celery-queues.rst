@@ -54,6 +54,41 @@ Every task attempt is bounded by ``CELERY_TASK_SOFT_TIME_LIMIT`` (2700 s) and ``
 
 The one task which declared a budget of its own - the external ETF conformity check, which waited synchronously on a third-party validator whose run takes hours by nature - was deleted with #1458 (#1454 had given it that budget, deliberately below the abandon grace of the attempt samples of :ref:`celery-capacity-telemetry`); every attempt of the fleet now runs under the global bounds. A hard-killed attempt is visible in the telemetry the way it is: an attempt row which never gets its end and is flagged ``abandoned`` by the nightly sweep - the fallout the queue capacity of #1326 reports as uncertain. Time limits are enforced by the prefork pool, which is what the stock ``celery-worker`` runs; ``backend/tests/django/test_celery_worker_config.py`` pins the numbers and the per-task resolution.
 
+Child recycling
+###############
+
+A prefork slot is a forked process, and the work of this fleet leaves something behind in it: the parse tree of a metadata document, the instances a mapping builds from it, the ORM objects a task keeps referenced. ``worker_max_tasks_per_child`` replaces a child after a number of tasks so that residue is not carried into the next batch of work. Before #1615 the project configured this knob under a name celery does not read, and no child was ever replaced - whatever the deployment believed it asked for. The guard which keeps the whole class of that failure out of the settings is the last section of this page.
+
+The deployer knob is ``CELERY_WORKER_MAX_TASKS_PER_CHILD``, which ``docker-compose.yml`` hands to ``celery-worker`` (see :ref:`development-environment`); the release defaults it to **1000** - the number ``MrMap/settings.py`` had named for years, now on a name the worker actually reads. Empty is that 1000, not "never": the celery worker command reads the same variable from the environment itself (``--max-tasks-per-child``) and gives it to the prefork pool unchanged, and the pool refuses 0 with "maxtasksperchild must be a positive int or None" (measured with the celery 5.7.0 of the image, on a bare celery app as well as on this project's). A deployment which names 0 therefore gets a worker which does not start at all; ``MrMap/settings.py`` refuses a value below 1 while the settings load, naming the knob, so the refusal is explained rather than a crash loop with a library message. 1 is the smallest recycling the variable can ask for, and no value of it means "never".
+
+What the number costs was measured on the path which does the accumulating: the real chord member ``registry.tasks.harvest.call_md_metadata_files_to_db`` - the task a harvesting run's import chord builds - over 240 stored documents, the three spike documents of the harvest test data with a fresh file identifier on every copy so that each one imports as a new record, in chunks of ten records. One worker, one slot unless stated::
+
+    =====  =====  ======  =========  =============
+         K  slots  wall s  pids seen  peak child kB
+    =====  =====  ======  =========  =============
+         1      1  407.22        510        178348
+         5      1   80.99         54        183116
+        25      1   52.01         11        188048
+      1000      1   46.10          1        206880
+      1000      4   12.96          4        187764
+    =====  =====  ======  =========  =============
+
+The gap between the first row and the fourth - 407 s against 46 s for the same 240 documents - is the pool's churn, not the import: those documents take 46 s when one child keeps them all. Fitted across the four single-slot rows, one replacement costs about 0.6 s, so a child which recycles after 1000 tasks pays it six times in a million records. "pids seen" counts every pid the sampler saw under that worker's master; the 510 of the first row is the pool replacing the slot again and again, not 24 tasks.
+
+The same sampler over 240 tasks of ten records in one child, 2400 documents and 478 s, without ever reaching the bound, answers what a child actually keeps: it starts at 172 MB of resident set, sits at 211 MB from its first minute, and the curve is flat from there - its slope over the second half of the run measures 0 kB/s. The 40 MB are the warm-up of the interpreter, the ORM caches and the geo stack, not an accumulation which grows with the work. This is the measurement behind two decisions of the release: the 1000 of the default, and the memory bound below.
+
+That bound, ``CELERY_WORKER_MAX_MEMORY_PER_CHILD``, ships **off**, and what it measures is the reason. Celery compares ``getrusage(RUSAGE_SELF).ru_maxrss`` - the highest resident set the child ever reached, shared pages included (``billiard/compat.py``) - against the kB the deployment names, and a fresh child of this project is already near 170 MB of that quantity. A bound below the peak of the deployment's own biggest import (211 MB on the path above) does not bound anything: it replaces the child after every task and pays the 0.6 s each time. The check also runs only *after a completed task* (``billiard/pool.py``), so the document which allocates past its container never meets the bound before it dies - it is no OOM guard, and the memory of the fleet is ``CELERY_WORKER_CONCURRENCY`` times whatever a child holds, which is the slot question of this page and not this one. A deployment which has watched its own children and wants the replacement anyway names the kB it wants.
+
+The revocation window
+#####################
+
+``CELERY_WORKER_REVOKES_MAX`` is not a setting of ``MrMap/settings.py`` and can not be one: celery builds the window in ``celery/worker/state.py`` from the *environment* of the worker process (``REVOKES_MAX = _int_env('CELERY_WORKER_REVOKES_MAX', 50000)``), before any application configuration is read. The name this file carried for it measured inert for the same reason the recycling knob did (#1615) - and its absence is not harmless, because the abort of a big catalogue revokes far past celery's 50000: ``registry/models/harvest.py`` names over 600000 queued ids for the BKG catalogue, and a revocation the window already forgot is a message which runs again. ``docker-compose.yml`` therefore hands the variable to ``celery-worker`` with **2000000**, the old intent of the inert setting, and ``backend/tests/django/test_celery_worker_config.py`` pins both halves of what a unit test can see: that celery really reads the environment, and that the project carries no second, inert copy of the name. Which value the variable reaches the service with is the half a compose question, not a test question: ``docker compose config`` renders it.
+
+The guard against the whole class
+#################################
+
+Both findings of #1615 are one failure: a ``CELERY_*`` name in ``MrMap/settings.py`` for which celery has no reader is configured, answered by ``celery -A MrMap inspect conf`` and ignored by the worker - a number an operator trusts. The namespace does not warn about it; it writes the value onto a key nobody reads. ``NoInertCelerySettingTests`` therefore asks every ``CELERY_`` attribute of the project against ``celery.app.defaults.DEFAULTS`` and names the near misses when one is not on that table, so a renamed knob can not go inert a second time. It is the guard for the class and not for the last spelling, and a deployment's own settings override is subject to the same rule.
+
 The start-up check
 ##################
 

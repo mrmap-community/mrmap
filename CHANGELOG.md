@@ -163,6 +163,67 @@ look like one.
 - Removed pycharm run configurations, cause there are outdated and the common development environment is vscode.
 - migrate to docker compose cli plugin v2.x.x
 
+## [0.2.0](https://github.com/mrmap-community/mrmap/compare/v0.1.0...v0.2.0) (2026-11-21)
+
+
+### Added
+
+* anonymous read-only access to published services ([4752082](https://github.com/mrmap-community/mrmap/commit/4752082129f2011d1c3e9dc1787441b8be274cdb))
+* anonymous read-only access to published services ([#833](https://github.com/mrmap-community/mrmap/issues/833)) ([cb34409](https://github.com/mrmap-community/mrmap/commit/cb34409f8a746d8fc1e54b2df0106c347ccfb03d))
+* configure advertised WMS dimensions in the map viewer [epic-617] ([89a3e7f](https://github.com/mrmap-community/mrmap/commit/89a3e7fa42c6924771cb5a6486184ebad7fbbb2a))
+* export, import, share and reload-safe drafts for composed maps [epic-617] ([fe4bbac](https://github.com/mrmap-community/mrmap/commit/fe4bbacbe676b29a7cba12bf76e4a82ebbada526))
+* incident center in the app bar ([#1321](https://github.com/mrmap-community/mrmap/issues/1321)) ([cc0c371](https://github.com/mrmap-community/mrmap/commit/cc0c3716a06ddece468f33c1c4f6542c6f73d30b))
+* **mcp:** add read-only SonarQube Cloud MCP via OAuth ([dc286e3](https://github.com/mrmap-community/mrmap/commit/dc286e37c3c07f2c0e0288b6f8c2d075fd1a8258))
+* **project:** add safe GitHub Project 3 sync ([28a0522](https://github.com/mrmap-community/mrmap/commit/28a05228a63fc6feefab9319f7015443470a7bb4))
+* **project:** add safe GitHub Project 3 sync ([35e2e76](https://github.com/mrmap-community/mrmap/commit/35e2e765e837b13bfef0e20e3478d72782455ed4))
+* **project:** add safe GitHub Project 3 sync ([0193193](https://github.com/mrmap-community/mrmap/commit/0193193d4a3de0f707c10496b483f4f277c4f3c1))
+* promote planned releases on a protected path ([#1584](https://github.com/mrmap-community/mrmap/issues/1584)) ([8bb9368](https://github.com/mrmap-community/mrmap/commit/8bb93683003ad9c55fd4d5e254c37f66ceec8f11))
+* quality, licence and coverage indicators with facets in the metadata explorers [epic-617] ([60c0768](https://github.com/mrmap-community/mrmap/commit/60c076868217d683e195703c482533419322e095))
+* read-oriented access rules summary with area map in the service access tabs [epic-617] ([39e73c9](https://github.com/mrmap-community/mrmap/commit/39e73c99fca2a8b602af8574aaf2a0f0eabf2da0))
+* **schema:** emit x-enum-labels beside every documented choice enum ([79c05a2](https://github.com/mrmap-community/mrmap/commit/79c05a2faf4db5b22310a0d7c1714cc44e9c384c))
+* **schema:** emit x-enum-labels, read choices from the extension ([e36cd81](https://github.com/mrmap-community/mrmap/commit/e36cd81b601cd6309cb78472eaa6e8bbc53062c9))
+* synchronize MrMap issues into GitHub Project [#3](https://github.com/mrmap-community/mrmap/issues/3) ([255c5e5](https://github.com/mrmap-community/mrmap/commit/255c5e52a66068bdc4231c5ae071f318fd55867b))
+* the curator declares the metadata record pair and iso serves operatesOn ([#985](https://github.com/mrmap-community/mrmap/issues/985)) ([7030227](https://github.com/mrmap-community/mrmap/commit/70302272d11a26dac8f754ae82ddee4f51362f23))
+
+
+### Fixed
+
+* answer nothing when the role catalogue is gone ([0790368](https://github.com/mrmap-community/mrmap/commit/0790368266105fbf866e2d9407427702dfc81e48))
+* answer the incomplete harvest alert as two exists probes ([#1426](https://github.com/mrmap-community/mrmap/issues/1426)) ([019f17a](https://github.com/mrmap-community/mrmap/commit/019f17a4224662d3dda8312d925d43a18691f59b))
+* answer the new access and auth hooks in the specs of gated screens ([76dcc20](https://github.com/mrmap-community/mrmap/commit/76dcc2006288340e3b4db12292eee8296497dd05))
+* bound redis runtime memory across broker, results, cache and channels ([70e957c](https://github.com/mrmap-community/mrmap/commit/70e957c1409d944ea9987f34c98cbd53579c01ba))
+* bound redis runtime memory across broker, results, cache and channels ([f281bc6](https://github.com/mrmap-community/mrmap/commit/f281bc674c7ae49be809638456bcaf400945a6f1))
+* **celery:** recycles worker children on the names celery reads ([#1615](https://github.com/mrmap-community/mrmap/issues/1615)) ([c5f5cb8](https://github.com/mrmap-community/mrmap/commit/c5f5cb89eb9ffb732f71f327315c6878a834c9b0))
+* **celery:** route name-addressed send_task calls explicitly; align beat queue columns ([#1455](https://github.com/mrmap-community/mrmap/issues/1455)) ([3a55629](https://github.com/mrmap-community/mrmap/commit/3a55629429961fbd856c5801b724166b7c0115a0))
+* **celery:** runs the worker healthcheck without Django startup ([#1616](https://github.com/mrmap-community/mrmap/issues/1616)) ([133ca56](https://github.com/mrmap-community/mrmap/commit/133ca5625f4ec85b4dfe0f2a98b073daa79a8f6d))
+* compare page ids against the full alert statement, not its outer text ([3782a0c](https://github.com/mrmap-community/mrmap/commit/3782a0cd748193ffcb8c11e99f40fe4766cb6c20))
+* **frontend:** keep the geojson hint from covering map controls and follow the drawing ([a4a9448](https://github.com/mrmap-community/mrmap/commit/a4a94485df4b96e26386dc9fe05ec83ca3433e43))
+* **frontend:** moves the geojson hint below leaflet's zoom control band ([6ea233c](https://github.com/mrmap-community/mrmap/commit/6ea233cd3744cab56634cd3e2c2c2b3ad1533647))
+* **frontend:** normalize geojson values before handing them to leaflet in featuregroupeditor ([4f0ff02](https://github.com/mrmap-community/mrmap/commit/4f0ff02c3f37ac4ceb29a9aabd74339f1af01d5f)), closes [#947](https://github.com/mrmap-community/mrmap/issues/947)
+* **i18n:** translate with one token pass instead of a compiled template ([b3767a5](https://github.com/mrmap-community/mrmap/commit/b3767a5610e65b9a6a54123103fa4cb9a577bc57))
+* **mcp:** use official SonarQube Cloud endpoint and read-only OAuth scope ([37e486a](https://github.com/mrmap-community/mrmap/commit/37e486a9f743863f8f54e72ae784a6bf8ddda50c))
+* **notify:** caps done_steps and stops the phantom record payload ([#1261](https://github.com/mrmap-community/mrmap/issues/1261)) ([fd217af](https://github.com/mrmap-community/mrmap/commit/fd217af292b8e6ff66a22e6508ce7df99c670ba7))
+* **project:** do not import historical closed issues ([8ea69c6](https://github.com/mrmap-community/mrmap/commit/8ea69c60bc4df33b6fb505a9f2217427dad61b21))
+* **project:** do not run privileged sync on pull requests ([82082a9](https://github.com/mrmap-community/mrmap/commit/82082a9985b591ac8dd913edc0aceda031379f33))
+* **project:** remove accidental literal newline escaping ([1539947](https://github.com/mrmap-community/mrmap/commit/1539947f4c811bdf404009db629c2e8826be4628))
+* **project:** request custom field values for idempotent sync ([824ae03](https://github.com/mrmap-community/mrmap/commit/824ae0355b41b6e5159362707582282221d07d6e))
+* protect service-authentication viewsets; password write_only, drop key_file ([fe6a529](https://github.com/mrmap-community/mrmap/commit/fe6a52999bd0b1ef3c68a14c4dc96504667d0fed))
+* read the captured query list directly in the page shape guard ([c201b8b](https://github.com/mrmap-community/mrmap/commit/c201b8b7b0f04b0bc409d270be1b6d849f581345))
+* **registry:** scope wfs allowed-area union to the requesting user ([b22f510](https://github.com/mrmap-community/mrmap/commit/b22f510a5c5b6289c679925751a17b2ab763c771)), closes [#1470](https://github.com/mrmap-community/mrmap/issues/1470)
+* **release-gates:** accept the curated Unreleased heading ([18f9ebf](https://github.com/mrmap-community/mrmap/commit/18f9ebfcd53f94b8316d009d0bef7ba9e4dd7664))
+* resolve the guardian pair without reading content types ([ea194a8](https://github.com/mrmap-community/mrmap/commit/ea194a86e423dc196f26057a4fa812eb91d36567))
+* **schema:** answer labels where allOf sites and blank members hide them ([a7d1026](https://github.com/mrmap-community/mrmap/commit/a7d1026b596c330cb21cdd3ec8d3984e16c4c5ce))
+* **settings:** makes the database pool bounds one env-driven decision ([#1621](https://github.com/mrmap-community/mrmap/issues/1621)) ([97c12b7](https://github.com/mrmap-community/mrmap/commit/97c12b7559cf89cdc25003e2993630ec0f53eda7))
+* settle the two sonar findings on the permission paths ([098da6f](https://github.com/mrmap-community/mrmap/commit/098da6f7fa149f18003098c127bd3dd6291f86af))
+* **wfs-proxy:** filter the allowed-area union by the requesting user ([664ceee](https://github.com/mrmap-community/mrmap/commit/664ceeef2805719fcb4ed54c584bcacf60ad2091))
+
+
+### Changed
+
+* **jsonapi:** build choices from x-enum-labels, not description prose ([05381cc](https://github.com/mrmap-community/mrmap/commit/05381cc880dd63dfcac2a1a900e1ea782f601f0a))
+* **schema:** cut the complexity and the nested ternary sonar flagged ([2e77efa](https://github.com/mrmap-community/mrmap/commit/2e77efaeb8f3b74b6a8d4dba1c246a1a7e03e9e5))
+* what the save paths decide, no more than that ([#1482](https://github.com/mrmap-community/mrmap/issues/1482)) ([0aeec58](https://github.com/mrmap-community/mrmap/commit/0aeec58d3e69cbbe77d3c1f103c5e086a6721209))
+
 ## [0.1.0] - 2023-03-23
 
 Initial versioning starts here. Just to start versioning and track all changes. Some basic features which are extensive tested are described at the added section.

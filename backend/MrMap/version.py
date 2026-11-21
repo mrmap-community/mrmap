@@ -17,4 +17,4 @@ file including the marker, and `--check` therefore also fails on a projection
 whose version moved without `VERSION` moving with it.
 """
 
-VERSION = '0.1.0'  # x-release-please-version
+VERSION = '0.2.0'  # x-release-please-version

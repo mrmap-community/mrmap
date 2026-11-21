@@ -126,6 +126,22 @@ def changed_paths(root, *revisions):
     ).split(b"\0") if path]
 
 
+#: the XML parser policy check (#1468), host-side like this runner itself
+XML_PARSE_GUARD = "scripts/xml_parse_guard.py"
+
+
+def xml_guard_paths(paths):
+    """The changed paths which make the XML parse guard run.
+
+    The guard sweeps whole files, so any change under ``backend/`` re-reads
+    them. A deletion is kept rather than filtered away as flake8's lint list
+    does: removing the last hardened call of a module is exactly what the guard
+    must re-read. Documentation cannot open a parser.
+    """
+    return [path for path in paths if path.startswith("backend/")
+            and not path.endswith((".md", ".rst"))]
+
+
 def push_trees(root, lines, remote="origin"):
     """Git supplies one update per line, including deletions and new refs.
 
@@ -293,8 +309,40 @@ class Containers:
                 raise RuntimeError(f"{self.project} left {resource} resources: {leftovers}")
 
 
+def check_xml_parse_policy(root, stage, tree, paths):
+    """Re-read the changed backend modules against the XML parser policy (#1468).
+
+    The guard is a host-side script like this runner: the backend is not
+    importable without GDAL, so the check reads sources with ``ast`` and needs
+    no container. Only the changed modules are handed over, read from the index
+    (commit) or the pushed tree (push) rather than the working directory, so a
+    partially staged file is judged as it is committed and a staged deletion is
+    judged too. A branch without the guard script cannot run it; the wrappers in
+    .githooks already say so for the runner itself.
+    """
+    guard = root / XML_PARSE_GUARD
+    changed = xml_guard_paths(paths)
+    if not guard.is_file() or not changed:
+        return
+    source = ":" if stage == "commit" else f"{tree}:"
+    with tempfile.TemporaryDirectory(prefix="mrmap-xml-guard-") as tmp:
+        snapshot = Path(tmp)
+        for path in changed:
+            try:
+                content = git(root, "show", f"{source}{path}")
+            except subprocess.CalledProcessError:
+                # deleted by this change: nothing left to parse
+                continue
+            target = snapshot / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(content)
+        print("git checks: checking the XML parser policy", flush=True)
+        run([sys.executable, str(guard), "--root", str(snapshot)], cwd=root)
+
+
 def check_tree(root, stage, tree, paths, remote_ref=""):
     backend, frontend = selection(paths, stage)
+    check_xml_parse_policy(root, stage, tree, paths)
     sonar = None
     if (stage == "push" and remote_ref.startswith("refs/heads/")
             and (backend or frontend or "sonar-project.properties" in paths)):

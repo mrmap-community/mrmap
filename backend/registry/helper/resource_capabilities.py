@@ -22,6 +22,7 @@ import logging
 from copy import deepcopy
 
 from lxml import etree
+from registry.helper.xml import parse_untrusted
 from rest_framework.reverse import reverse
 
 logger = logging.getLogger(__name__)
@@ -116,11 +117,8 @@ def _children(element, name) -> list:
 
 def _parse(document) -> etree._Element:
     """The root of a capabilities document which was asked for as bytes or string."""
-    if isinstance(document, str):
-        document = document.encode("utf-8")
-    parser = etree.XMLParser(resolve_entities=False, no_network=True)
     try:
-        root = etree.fromstring(document, parser=parser)
+        root = parse_untrusted(document)
     except (etree.XMLSyntaxError, ValueError, TypeError):
         raise CapabilitiesError(
             MALFORMED,

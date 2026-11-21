@@ -12,9 +12,12 @@ The entry used to be built out of ``record.xml_backup`` -- the stored document o
 record that has one; the values below are read from the record itself.
 """
 
-from django.contrib.gis.geos import MultiPolygon, Polygon
-from django.test import TestCase
+import json
 
+from django.contrib.gis.geos import MultiPolygon, Polygon
+from django.test import RequestFactory, TestCase
+
+from mapbender_compatibility.views import MapBenderSearchApi
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, Keyword,
                                       MetadataContact, ServiceMetadataRecord)
@@ -153,3 +156,111 @@ class MapBenderSearchTest(TestCase):
 
         self.assertEqual(0, answer['md']['nresults'])
         self.assertEqual([], answer['srv'])
+
+
+class MapBenderCqlTest(TestCase):
+    """The CQL filter the search forwards to the catalogue of ``catalogueId``.
+
+    The filter is executed by a service the client names, not by this
+    application, so a single quote of a search word closed the literal it was
+    interpolated into and everything behind it became a predicate of the
+    remote service. These tests are about the shape of the forwarded string
+    (#1469), and a valid input is answered exactly as it was before.
+    """
+
+    def cql(self, **query_params):
+        """The filter of a request, as ``remote_search`` would send it."""
+        view = MapBenderSearchApi()
+        view.request = RequestFactory().get('/mapbender/search', query_params)
+        return view.build_cql_filter()
+
+    def test_the_filter_of_an_ordinary_search_is_the_ordinary_filter(self):
+        """The baseline the hardened filter must not move away from."""
+        self.assertEqual(
+            "Type LIKE 'dataset' And AnyText LIKE 'wald'"
+            "AND BBOX(the_geom, 7.181,50.282,7.267,50.350)",
+            self.cql(searchText='wald', searchBbox='7.181,50.282,7.267,50.350'))
+        self.assertEqual(
+            "Type LIKE 'service' And AnyText LIKE 'wald' And AnyText LIKE 'wasser'",
+            self.cql(searchText='wald,wasser', searchResources='service'))
+
+    def test_a_quote_of_a_search_word_is_doubled_inside_its_literal(self):
+        """before: the quote closed the literal, so ``Or`` was parsed as CQL."""
+        self.assertEqual(
+            "Type LIKE 'dataset' And AnyText LIKE 'wald'' Or AnyText LIKE ''%'''",
+            self.cql(searchText="wald' Or AnyText LIKE '%'"))
+
+    def test_a_quote_of_the_resource_kind_is_doubled_inside_its_literal(self):
+        self.assertEqual(
+            "Type LIKE 'dataset'' Or 1=1--' And AnyText LIKE ''",
+            self.cql(searchText='*', searchResources="dataset' Or 1=1--"))
+
+    def test_a_bbox_of_four_coordinates_is_the_bbox_it_names(self):
+        """Signed and fractional coordinates are coordinates, and a rejected
+        bbox is no filter at all - a search is never widened by its own bbox."""
+        for bbox in ('7.181,50.282,7.267,50.350', '-7.18,+50.28,7.26,50.35',
+                     '.5,.6,7.2,50.3', ' 7.1 , 50.2 , 7.2 , 50.3 '):
+            with self.subTest(searchBbox=bbox):
+                self.assertEqual(
+                    f"Type LIKE 'dataset' And AnyText LIKE ''"
+                    f"AND BBOX(the_geom, {bbox})",
+                    self.cql(searchText='*', searchBbox=bbox))
+
+    def test_a_bbox_which_is_no_bbox_is_not_forwarded(self):
+        """A predicate behind the coordinates is dropped with the coordinates."""
+        for bbox in ("1,2,3,4) Or (1=1", '1,2,3', '1,2,3,4,5',
+                     '1,2,3,4;DROP TABLE ows', 'a,b,c,d', '1,2,3,unknown'):
+            with self.subTest(searchBbox=bbox):
+                self.assertEqual(
+                    "Type LIKE 'dataset' And AnyText LIKE 'wald'",
+                    self.cql(searchText='wald', searchBbox=bbox))
+
+
+class MapBenderEchoTest(TestCase):
+    """The parameters the answer echoes back into its search filter.
+
+    The MapBender widget writes the filter of the answer into its HTML, so a
+    parameter with markup came back as markup of the page which rendered the
+    answer (#1469).
+    """
+
+    def echo(self, **query_params):
+        response = self.client.get('/mapbender/search', query_params)
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()
+
+    def test_the_answer_of_an_ordinary_request_echoes_its_parameters(self):
+        """The baseline: an ordinary request is echoed as it was before."""
+        answer = self.echo(searchText='wald', catalogueId='4', target='webclient')
+
+        search_filter = answer['searchFilter']
+        self.assertEqual(
+            'searchText=wald&catalogueId=4&target=webclient',
+            search_filter['origUrl'])
+        self.assertEqual(
+            'searchText=*&catalogueId=4&target=webclient',
+            search_filter['searchText']['delLink'])
+        self.assertEqual(
+            'searchText=wald&catalogueId=4&target=webclient',
+            search_filter['searchResources']['delLink'])
+        self.assertEqual(
+            'wald', search_filter['searchText']['item'][0]['title'])
+
+    def test_markup_of_a_parameter_never_echoes_as_markup(self):
+        payload = '<img src=x onerror=alert(1)>'
+
+        answer = self.echo(searchText=payload, searchResources=payload)
+
+        self.assertNotIn('<', response_body := json.dumps(answer))
+        self.assertIn('&lt;img src=x onerror=alert(1)&gt;', response_body)
+        # the search itself still runs over the words of the parameter, which
+        # match no record - and the answer is keyed by the escaped kind
+        escaped = payload.replace('<', '&lt;').replace('>', '&gt;')
+        self.assertEqual(0, answer[escaped]['md']['nresults'])
+
+    def test_a_quote_of_a_parameter_echoes_unchanged(self):
+        """A quote is not markup - only the characters which open markup go."""
+        answer = self.echo(searchText="wald'suche")
+
+        self.assertEqual(
+            "searchText=wald'suche", answer['searchFilter']['origUrl'])

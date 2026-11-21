@@ -71,6 +71,42 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
             .filter(_matched_count=len(identifiers))
         )
 
+    @staticmethod
+    def requesting_user_group_pks(request: OGCRequest):
+        """The primary keys of the groups the requesting user acts in.
+
+        An anonymous request acts in the groups of the database user named
+        ``AnonymousUser``, which is the same read guardian applies to a request
+        which never identified itself.
+        """
+        user = request._django_request.user
+        if user.username == "AnonymousUser":
+            return Group.objects.filter(
+                user__username="AnonymousUser").values_list("pk", flat=True)
+        return user.groups.values_list("pk", flat=True)
+
+    def user_entitled_q(self, request: OGCRequest, prefix: str = "") -> Q:
+        """The rules which the requesting user acts through.
+
+        Args:
+            request: OGCRequest object naming the requesting user
+            prefix: relation path to the allowed operation, when the predicate
+                is read from a related model instead of from the allowed
+                operation itself. Use ``"allowed_operation"`` to read it from a
+                feature type, which is also the path a ``Union`` of
+                ``allowed_area`` aggregates over.
+
+        Returns:
+            Q matching a rule without any allowed group, which is the rule
+            serving every caller, or a rule of one of the user's groups.
+        """
+        prefix = f"{prefix}__" if prefix else ""
+        return (
+            Q(**{f"{prefix}allowed_groups": None})
+            | Q(**{
+                f"{prefix}allowed_groups__pk__in": self.requesting_user_group_pks(request)})
+        )
+
     def filter_by_request(self, request: OGCRequest, filter_entities: bool = True):
         """Filter operations allowed for the authenticated user and service.
 
@@ -82,18 +118,11 @@ class AllowedOgcServiceOperationQuerySet(ABC, models.QuerySet):
         Returns:
             QuerySet filtered for user permissions and requested entities
         """
-        group_pks = (
-            Group.objects.filter(
-                user__username="AnonymousUser").values_list("pk", flat=True)
-            if request._django_request.user.username == "AnonymousUser"
-            else request._django_request.user.groups.values_list("pk", flat=True)
-        )
-
         allowed = (
             self.filter(
                 operations__value=OGCOperationEnum(request.operation),
             )
-            .filter(Q(allowed_groups=None) | Q(allowed_groups__pk__in=group_pks))
+            .filter(self.user_entitled_q(request))
         )
         return allowed.filter_by_requested_entity(request=request) if filter_entities else allowed
 
@@ -341,12 +370,16 @@ class WebFeatureServiceSecurityManager(models.Manager.from_queryset(AllowedWebFe
             from registry.models.service import (FeatureType,
                                                  FeatureTypeProperty)
 
-            # FUTURE: filter for requesting user
+            # the union is read over the rules the requesting user acts
+            # through, like the WMS path reads its relevant_allowed_operations
+            # (#1470). all predicates are one filter() call, so they constrain
+            # the same join of allowed_operation
             security_info = FeatureType.objects.filter(
-                service__pk=OuterRef("pk"),
-                identifier__in=request.requested_entities,
-                allowed_operation__operations__value=OGCOperationEnum(
-                    request.operation),
+                Q(service__pk=OuterRef("pk")),
+                Q(identifier__in=request.requested_entities),
+                Q(allowed_operation__operations__value=OGCOperationEnum(
+                    request.operation)),
+                self.user_entitled_q(request, prefix="allowed_operation")
             ).annotate(
                 allowed_area_union=Union("allowed_operation__allowed_area"),
                 geometry_property_name=Subquery(FeatureTypeProperty.objects.filter(

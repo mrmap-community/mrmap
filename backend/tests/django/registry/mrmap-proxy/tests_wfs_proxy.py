@@ -26,6 +26,10 @@ class WebMapServiceProxyTest(XpathTestCase):
 
         call_command(
             "loaddata", "test_allowed_wfs_operation.json", verbosity=0)
+        # rules of a second group, of the feature types of this service, for the
+        # scoping of the allowed area union (#1470)
+        call_command(
+            "loaddata", "test_allowed_wfs_operation_scoping.json", verbosity=0)
 
         wfs: WebFeatureService = WebFeatureService.objects.get(
             pk="73cf78c9-6605-47fd-ac4f-1be59265df65")
@@ -138,6 +142,22 @@ class WebMapServiceProxyTest(XpathTestCase):
             allowed_area.overlaps(bounded_by_geometry),
             msg="configured allowed area does not overlaps the responsed bounding box"
         )
+
+    def test_secured_get_feature_restricts_to_the_area_of_the_requesting_user(self):
+        """A user of another group is not answered the area of the first rule.
+
+        The GetFeature annotation unioned the allowed area over ALL rules of the
+        feature type (#1470), so User1 was restricted to an extent including the
+        area Group2 configured. ``ms:Countries`` has one rule per group; the
+        Group2 area is the empty ocean box of rule 1236, far off any country of
+        the layer, so User2 must be answered nothing where User1 is answered
+        the 4 features of the Group1 area.
+        """
+        self.client.login(username="User2", password="User2")
+
+        response = self.client.get(self.wfs_url, self.query_params)
+
+        self.assert_feature_collection(response, "0", "0")
 
     def assert_feature_collection(self, response, number_matched: str = None,
                                   number_returned: str = None):

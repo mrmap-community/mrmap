@@ -4,6 +4,7 @@ The store lives in the default cache; like the login throttle tests
 (``tests/django/accounts/test_login_throttle.py``) these run on a private locmem
 cache so nothing wanders into the Redis of a development deployment.
 """
+from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -135,7 +136,7 @@ class WebsocketHandshakeAuthTestCase(TransactionTestCase):
         self.assertFalse(connected)
 
     async def test_a_query_token_opens_the_socket_in_development(self):
-        _instance, token = AuthToken.objects.create(self.user)
+        _instance, token = await database_sync_to_async(AuthToken.objects.create)(self.user)
         connected, _ = await self._connect(f'/ws/default/?token={token}')
         self.assertTrue(connected)
 
@@ -143,7 +144,7 @@ class WebsocketHandshakeAuthTestCase(TransactionTestCase):
     async def test_a_query_token_is_refused_in_production(self):
         # the audit finding this issue closes: a token in the URL survives in
         # the proxy access log, so a production deployment must not take it
-        _instance, token = AuthToken.objects.create(self.user)
+        _instance, token = await database_sync_to_async(AuthToken.objects.create)(self.user)
         connected, _ = await self._connect(f'/ws/default/?token={token}')
         self.assertFalse(connected)
 

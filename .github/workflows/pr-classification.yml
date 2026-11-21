@@ -67,7 +67,7 @@ jobs:
         with:
           # 3.13 is what the orchestration host runs scripts/ with; the tool is stdlib
           # only and needs neither GDAL nor the application.
-          python-version: '3.13'
+          python-version: '3.15'
 
       # The commits of the pull request are what makes a hidden breaking change visible:
       # the marker may be written on a commit and never on the title, and then the merge

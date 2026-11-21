@@ -450,7 +450,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
         :return: the response to answer the request with
         :rtype: dict
         """
-        logger.info(
+        logging.info(
             "the GetFeatureInfo of service %s was refused: %s names a layer which is "
             "unknown to the service, deactivated or not allowed for the requesting user",
             self.service.pk, param
@@ -548,7 +548,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                         return False
             return True
         except Exception:
-            logger.warning(
+            logging.warning(
                 "the GetFeatureInfo response of service %s could not be checked against the "
                 "allowed area and was refused", self.service.pk, exc_info=True
             )

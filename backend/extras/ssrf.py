@@ -5,7 +5,7 @@ document and metadata reference rewrites it. Before this module nothing but the 
 bounded *where* such a URL made the backend connect, so whoever may register a service could
 aim the backend at an internal endpoint - the cloud metadata service at 169.254.169.254, the
 docker socket API, the database - and read the answer back as a metadata document, a preview
-map, or the detail of an error response.
+map or the detail of an error response.
 
 The policy is deliberately not a blanket ban; hosting a service inside the own network is a
 normal Mr.Map deployment. It answers one question per address, in this order:
@@ -13,33 +13,37 @@ normal Mr.Map deployment. It answers one question per address, in this order:
 ``MRMAP_FETCH_DENY_NETWORKS``
     an explicit fence of the deployment wins over everything else.
 ``MRMAP_FETCH_ALLOW_NETWORKS``
-    an explicit grant wins over the default ranges. It is the one and only way any refused
+    an explicit grant wins over the default ranges. It is the one and only way a refused
     range is ever reached, so there is exactly one way to open the policy and it is an entry
-    somebody has to write down. Outside production the loopback and private ranges are
-    granted too, by `_development_allowance()`.
+    somebody has to write down. ``0.0.0.0/0`` and ``::/0`` together are the documented way
+    to switch the policy off for a deployment which is its own network. Outside production
+    the loopback and private ranges are granted as well, see `_development_allowance()`.
 the default ranges
-    loopback, private, link-local and the IPv4 carrier-grade NAT range, multicast, reserved,
-    unspecified, the benchmarking block and the rest of the 0/8 block are refused. Everything
-    else is a public address and is allowed.
+    every address of the IANA special-purpose registry which is not routable on the public
+    internet: loopback, private, unique-local, link-local, the IPv4 carrier-grade NAT range,
+    multicast, reserved, unspecified, the benchmarking block of RFC 2544 and the
+    documentation blocks. Everything else is a public address and is allowed. A public
+    address keeps its verdict in every spelling; an address of a refused range is refused in
+    every spelling which encodes it, see `_embedded`.
 
-For a URL carrying an IP literal that verdict is final, and `host_is_allowed` answers it
-without touching DNS. For a host name it is only the first half: the transport re-answers the
-same question for **every** address the name resolves to, at the moment the socket to that
-address is created. That is the only place a DNS rebinding answer is still caught - the
-answer of the second lookup may differ from the answer of the first, and a pooled socket may
-be older than any check - and it is why the guard is a connection class and not a request
-hook.
+For a URL carrying an IP literal that verdict is final and `host_is_allowed` answers it
+without touching DNS. For a host name `host_is_allowed` answers True - a name is not an
+address, and what it means is decided at the moment of connecting - and the transport answers
+the same question for **every** address the name resolves to, at the moment the connection to
+it is created. That is the only place a DNS rebinding answer is still caught: the second
+lookup may answer differently from the first, and a pooled socket may be older than any
+check. It also means a refused address is never connected to at all: the lookup is judged
+before the socket is created.
 
-Checking once the socket exists costs one TCP handshake to an address which is refused before
-a single byte of the request is written. It buys the verdict about the address which is
-actually connected to instead of the verdict about an address an earlier lookup claimed. For
-https through a tunneling proxy both ends are judged: the proxy as the peer, the tunnel target
-as the endpoint. A *forwarding* proxy is judged as the peer only - it is the deployment's own
-choice, and the endpoint behind it is judged by the request the proxy itself forwards.
+Through a proxy both ends are judged: the proxy as the peer, and - for a tunneling proxy -
+the tunnel target as the endpoint. A *forwarding* proxy is judged as the peer only; it is the
+deployment's own choice, and the endpoint behind it is judged by that proxy.
 
 A refusal is raised as ``requests.exceptions.ConnectionError``, the error every caller which
 already copes with an unreachable endpoint catches: a refused endpoint reads as unreachable,
 which is what the operator sees and what the registration reports.
+
+The semantics of this module and its settings are documented in ``POLICY_DOC``.
 """
 import ipaddress
 import logging
@@ -54,26 +58,40 @@ from urllib3 import connectionpool
 
 logger = logging.getLogger(__name__)
 
-#: the semantics of this module and the settings which open it again
+#: where the semantics below are described for the person who configures them
 POLICY_DOC = "docs/source/administration/fetch-host-policy.md"
 
-#: the benchmarking block of RFC 2544, which ``is_private`` does not answer for and which
-#: no service is served from
+#: the benchmarking block of RFC 2544, which no service is served from and whose absence from
+#: ``is_private`` is the one gap the default ranges would otherwise leave open
 BENCHMARKING = ipaddress.ip_network('198.18.0.0/15')
 #: the carrier-grade NAT range of RFC 6598: what a Tailscale network and the IPv4 fabric of a
-#: provider answer from, and where an internal-only service of the *infrastructure* lives
+#: provider answer from, where an internal-only service of the *infrastructure* lives. It is
+#: deliberately not global and therefore not ``is_private``, but it is refused the same way.
 CARRIER_GRADE_NAT = ipaddress.ip_network('100.64.0.0/10')
+#: the documentation block of RFC 3849, which sits *inside* the Teredo prefix and must not be
+#: decoded as one
+DOCUMENTATION_V6 = ipaddress.ip_network('2001:db8::/32')
+#: the prefixes which carry an IPv4 address inside an IPv6 one, as ``(prefix, offset,
+#: inverted)``: every address of one of them is judged as the address it carries too, see
+#: `_embedded` and `address_is_allowed`
+EMBEDDING_PREFIXES = (
+    (ipaddress.ip_network('2002::/16'), 2, False),        # 6to4
+    (ipaddress.ip_network('64:ff9b::/96'), 12, False),    # NAT64 well known prefix
+    (ipaddress.ip_network('::ffff:0:0/96'), 12, False),   # IPv4 mapped
+    (ipaddress.ip_network('::/96'), 12, False),           # IPv4 compatible
+    (ipaddress.ip_network('2001::/32'), 4, True),         # Teredo, server half inverted
+)
 
 
 def _development_allowance():
     """The ranges a deployment outside production may fetch from without being granted
 
-    The unit tests of the registry run against loopback listeners, and the services of the
+    The unit tests of the registry run against loopback listeners and the services of the
     development compose stack reach each other by name over the private network of the stack.
     Both are refused by the default ranges, which are the ranges of a deployment serving the
     public web - which a development stack is not. So its own ranges are granted while
-    ``MRMAP_PRODUCTION`` is off, and only then: production refuses them and an internally
-    hosted service needs a ``MRMAP_FETCH_ALLOW_NETWORKS`` entry.
+    ``MRMAP_PRODUCTION`` is off, and only then: a production deployment refuses them, and an
+    internally hosted service needs a ``MRMAP_FETCH_ALLOW_NETWORKS`` entry there.
     """
     if getattr(settings, 'MRMAP_PRODUCTION', True):
         return []
@@ -82,85 +100,99 @@ def _development_allowance():
 
 
 def _networks(entries):
-    """The network objects of the given CIDR strings, with unparseable entries dropped
+    """The network objects of the given CIDR entries, as a list, with unparseable entries dropped
+
+    The deployment supplies the lists through its environment, which is one string with the
+    entries separated by commas; a settings file or a test may as well hand over a list or a
+    tuple, so all three spellings mean the same thing.
 
     A broken entry in a list an operator edits by hand must not break every fetch of the
     deployment. Refusing the addresses that entry would have granted is the price of that,
     and the warning names the entry so the operator finds it.
     """
+    if isinstance(entries, str):
+        entries = entries.replace(';', ',').split(',')
     networks = []
-    for entry in entries:
-        entry = entry.strip() if isinstance(entry, str) else entry
+    for entry in entries or ():
+        entry = entry.strip() if isinstance(entry, str) else str(entry)
         if not entry:
             continue
         try:
             networks.append(ipaddress.ip_network(entry, strict=False))
         except ValueError:
             logger.warning('mrmap.fetch: ignoring unparseable network %r', entry)
-    return tuple(networks)
+    return networks
 
 
-def _policy():
-    """The configured allow- and deny-lists, read from the current configuration
+def _configured(kind):
+    """The parsed networks of one configured list, read from the current configuration
 
-    Read per judged address rather than once at import time: a deployment supplies them
-    through its environment and a test overrides them with ``@override_settings``, neither of
-    which takes effect while something holds an older answer. Parsing a handful of CIDRs
-    costs far less than the DNS lookup of the host it judges, and this is the only place the
-    settings are read at all.
+    The allow list always includes `_development_allowance()`; the deny list is exactly what
+    the deployment wrote. Read per judged address rather than once at import time: a
+    deployment supplies the lists through its environment and a test overrides them with
+    ``@override_settings``, neither of which takes effect while something holds an older
+    answer. Parsing a handful of CIDRs costs far less than the lookup of the host it judges.
     """
-    return {
-        'allow': _networks(_development_allowance()
-                           + list(getattr(settings, 'MRMAP_FETCH_ALLOW_NETWORKS', ()) or ())),
-        'deny': _networks(getattr(settings, 'MRMAP_FETCH_DENY_NETWORKS', ()) or ()),
-    }
+    if kind == 'allow':
+        return (_networks(_development_allowance())
+                + _networks(getattr(settings, 'MRMAP_FETCH_ALLOW_NETWORKS', None)))
+    return _networks(getattr(settings, 'MRMAP_FETCH_DENY_NETWORKS', None))
 
 
-def _refused_range(address):
-    """Whether the address belongs to a range no registered service is fetched from
+def _is_public(address):
+    """Whether the address is a global address of a range the policy fetches from by default
 
-    The stdlib properties cover the IANA special-use registry: ``is_private`` answers for
-    loopback, unique-local, site-local, the 0/8 block and the carrier-grade NAT range, and
-    link-local, multicast, reserved, unspecified and loopback answer for themselves. Both
-    address families are asked, because an endpoint is allowed or refused as one address even
-    when it is reachable through the other.
+    ``is_global`` is the answer of the IANA special-purpose registry to exactly this question,
+    so it covers loopback, private, unique-local, link-local, the 0/8 block, the carrier-grade
+    NAT range, the benchmarking block, the documentation blocks, reserved and unspecified in
+    one call and in both families. Multicast is the one range it does *not* cover - a group
+    address is routable - and no OGC service is addressed to a group, so it is refused as
+    well. The benchmarking block and the carrier-grade NAT range are named as constants above
+    because they are the two entries an operator is most likely to ask about: neither is
+    ``is_private``, both are refused.
     """
-    return (address.is_private or address.is_link_local or address.is_loopback
-            or address.is_multicast or address.is_reserved or address.is_unspecified
-            or address in BENCHMARKING
-            or (address.version == 4 and address in CARRIER_GRADE_NAT))
+    return (address.is_global and not address.is_multicast
+            and address not in BENCHMARKING)
 
 
-def _sixtofour(address):
-    """The IPv4 address carried by a 6to4 address (RFC 3056), if this is one"""
-    if address in ipaddress.ip_network('2002::/16'):
-        return ipaddress.IPv4Address(address.packed[2:6])
+def _embedded(address):
+    """The IPv4 address an IPv6 address carries, None for an address which carries none
 
+    ``::ffff:127.0.0.1``, a 6to4 address of ``2002::/16``, a NAT64 address of
+    ``64:ff9b::/96`` and the server half of a Teredo address of ``2001::/32`` are how an
+    internal address is spelled so that a filter looking at the *text* of a URL does not
+    recognise it. The first three carry the address in a readable form at a fixed offset, the
+    fourth stores it bitwise inverted. The documentation block is excluded: it lies inside the
+    Teredo prefix and names no address at all. Only an address which is refused on its own
+    reaches the decoder (see `address_is_allowed`), so a public address never changes its
+    verdict through a transition form.
 
-def _teredo_server(address):
-    """The IPv4 address of the Teredo server of a Teredo address (RFC 4380), if there is one
-
-    RFC 4380 stores the server address bitwise inverted, which is what makes it readable
-    here. The client address in the same packet is obfuscated with an XOR key and is not
-    recovered: the server is the address reachable through the relay.
+    The *client* half of a Teredo address is obfuscated with a key and is not recovered; what
+    is reachable through the relay is the server half.
     """
-    if address in ipaddress.ip_network('2001::/32'):
-        return ipaddress.IPv4Address(bytes(byte ^ 0xFF for byte in address.packed[4:8]))
+    if address.version == 4 or address in DOCUMENTATION_V6:
+        return None
+    for prefix, offset, inverted in EMBEDDING_PREFIXES:
+        if address in prefix:
+            packed = address.packed[offset:offset + 4]
+            if inverted:
+                packed = bytes(byte ^ 0xFF for byte in packed)
+            return ipaddress.IPv4Address(packed)
+    return None
 
 
-def _hidden_forms(address):
-    """The address itself plus every other-family form of it which exists
+def _forms(address):
+    """The address and, for an embedding form, the address it carries
 
-    ``::ffff:127.0.0.1``, a Teredo and a 6to4 address are how an internal address is written
-    down so that a filter looking only at the text of a URL does not recognise it. All of
-    them are judged as the address they encode.
+    Both are judged by every rule of the policy, so an entry of either list is understood in
+    both spellings and no spelling of an internal address answers as a different question than
+    the address itself. An embedding form can therefore never *widen* what is allowed: a
+    refused form refuses the whole address.
     """
-    forms = [address]
-    forms.append(address.ipv4_mapped)
-    if address.version == 6:
-        forms.append(_sixtofour(address))
-        forms.append(_teredo_server(address))
-    return [form for form in forms if form is not None]
+    embedded = _embedded(address)
+    if embedded is None:
+        return (address,)
+    return (address, embedded)
 
 
 def address_is_allowed(address):
@@ -172,22 +204,24 @@ def address_is_allowed(address):
     Returns:
         bool: True for an allowed address, False for a refused one
     """
-    policy = _policy()
-    if any(address in network for network in policy['deny']):
+    forms = _forms(address)
+    deny = _configured('deny')
+    if any(form in network for form in forms for network in deny):
         return False
-    if any(address in network for network in policy['allow']):
+    allow = _configured('allow')
+    if any(form in network for form in forms for network in allow):
         return True
-    return not any(_refused_range(form) for form in _hidden_forms(address))
+    return all(_is_public(form) for form in forms)
 
 
 def host_is_allowed(host):
     """Whether the policy lets a fetch be aimed at the given host name or IP literal
 
     A host *name* is answered with True: what the policy judges are the addresses of a name,
-    and those are judged by the transport once the lookup is answered (see
-    `checked_addresses`). Only a literal can be judged without a lookup, and that is what
-    makes this usable as a field validator: a name is never refused here, so no screen gets
-    slower or noisier than the endpoint it validates, and a rebinding answer is still caught.
+    and those are judged by the transport once the lookup is answered (see `check_targets`).
+    Only a literal can be judged without a lookup, and that is what makes this usable as a
+    serializer validator: a name is never refused here, so no screen becomes slower or
+    noisier than the endpoint it validates, and a rebinding answer is still caught.
     """
     address = _literal(host)
     if address is None:
@@ -236,7 +270,7 @@ def _addresses_of(host, port):
     return tuple(dict.fromkeys(info[4][0] for info in infos))
 
 
-def checked_addresses(host, port, peer=None, tunnel=None):
+def check_targets(host, port, tunnel=None):
     """Refuse the first target address of a connection which the policy does not allow
 
     Every address the name resolves to is judged and not only the first: an endpoint which
@@ -246,18 +280,14 @@ def checked_addresses(host, port, peer=None, tunnel=None):
     Args:
         host (str): the host the request names
         port (int): the port the request names
-        peer (str): the address the socket is actually connected to, when it is connected
-        tunnel (tuple): ``(host, port)`` a proxied connection tunnels to, when it tunnels
+        tunnel (tuple): ``(host, port)`` a tunneling proxy is asked to reach, when it tunnels
 
     Raises:
         requests.exceptions.ConnectionError: on the first refused target
     """
-    targets = []
-    if peer:
-        targets.append(peer)
+    targets = _addresses_of(host, port)
     if tunnel:
-        targets.extend(_addresses_of(tunnel[0], tunnel[1]))
-    targets.extend(_addresses_of(host, port))
+        targets = targets + _addresses_of(tunnel[0], tunnel[1])
     for address in dict.fromkeys(targets):
         if address is None:
             raise ConnectionError(f'{host}: the host does not resolve to any address.')
@@ -266,24 +296,17 @@ def checked_addresses(host, port, peer=None, tunnel=None):
 
 
 class HostPolicyMixin:
-    """The host policy of one connection, applied where its socket is created
+    """The host policy of one connection, applied before its socket is created
 
     A mixin over the urllib3 connection classes rather than a hook on ``Session.send``: a
     response hook runs after the request was written, and an adapter only ever sees the name
     of the prepared request. Both would judge the *intent* of a fetch instead of the
-    connection it actually opened, which is the whole point: a name is not an address.
+    connection it actually opens, which is the whole point: a name is not an address.
     """
 
     def _new_conn(self):
-        sock = super()._new_conn()
-        try:
-            checked_addresses(self.host, self.port, peer=sock.getpeername()[0],
-                              **self._tunnel_target())
-        except BaseException:
-            # the refused socket must not stay open and the caller must see the refusal
-            sock.close()
-            raise
-        return sock
+        check_targets(self.host, self.port, **self._tunnel_target())
+        return super()._new_conn()
 
     def _tunnel_target(self):
         """The endpoint of a tunneling proxy, as ``set_tunnel`` stored it"""
@@ -309,23 +332,22 @@ class GuardedHTTPSConnectionPool(connectionpool.HTTPSConnectionPool):
 
 
 #: the pools of a guarded manager, so that only the connections of a `GuardedSession` and
-#: never those of a plain `requests.Session` in the same process are judged
+#: never those of a plain ``requests.Session`` in the same process are judged
 GUARDED_POOL_CLASSES = {'http': GuardedHTTPConnectionPool, 'https': GuardedHTTPSConnectionPool}
 
 
 class GuardedHTTPAdapter(HTTPAdapter):
-    """An adapter whose pools create their sockets through the host policy
+    """An adapter whose pools create their connections through the host policy
 
     The pool classes are swapped on the pool manager instead of handed over as a connection
     keyword argument, because urllib3 builds its pool cache key from exactly the keywords it
     knows: an unknown one is a TypeError on the first request instead of a guarded
-    connection.
+    connection. The proxy managers get the same swap, which is what judges the proxy itself.
     """
 
     def init_poolmanager(self, *args, **kwargs):
-        manager = super().init_poolmanager(*args, **kwargs)
-        manager.pool_classes_by_scheme = GUARDED_POOL_CLASSES
-        return manager
+        super().init_poolmanager(*args, **kwargs)
+        self.poolmanager.pool_classes_by_scheme = GUARDED_POOL_CLASSES
 
     def proxy_manager_for(self, *args, **kwargs):
         manager = super().proxy_manager_for(*args, **kwargs)

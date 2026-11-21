@@ -1,0 +1,286 @@
+"""The configurable host allow and deny list of every server-side fetch (#1474, SEC-16).
+
+The address behind a URL is judged at the moment the connection is created, so a name cannot
+answer as one address for the check and another for the socket, and every redirect hop is
+judged as its own target. A loopback listener is the fetchable endpoint of these tests: a
+refused address must never be connected to at all, so the loopback case carries both the
+assertion that the policy opens when it is told to and the assertion that it stays closed.
+
+``docs/source/administration/fetch-host-policy.md`` is the operator description of the same
+semantics and ``POLICY_DOC`` names it in every refusal, so the file is asserted to exist.
+"""
+import ipaddress
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from threading import Thread
+from unittest.mock import patch
+
+from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.test import SimpleTestCase, override_settings
+from extras import ssrf
+from extras.ssrf import (POLICY_DOC, GuardedSession, address_is_allowed,
+                         check_targets, host_is_allowed, url_is_fetchable)
+from registry.models.metadata import fetch_metadata_document
+from registry.models.service import WebMapService
+from requests.exceptions import ConnectionError
+
+#: a public address, as the address of a service which is meant to be registered
+PUBLIC = '93.184.216.34'
+
+#: the closed default: production, with neither list configured
+CLOSED = override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='',
+                           MRMAP_FETCH_DENY_NETWORKS='')
+
+POLICY_FILE = Path(settings.BASE_DIR, '..', POLICY_DOC)
+
+
+@CLOSED
+class AddressPolicyTest(SimpleTestCase):
+    """the verdict of one address, with the default ranges and with configured entries"""
+
+    def test_public_addresses_are_allowed_by_the_default(self):
+        for address in (PUBLIC, '2001:4860:4860::8888'):
+            with self.subTest(address=address):
+                self.assertTrue(address_is_allowed(ipaddress.ip_address(address)))
+
+    def test_special_use_addresses_are_refused_by_the_default(self):
+        refused = ['127.0.0.1', '127.5.5.5', '10.1.2.3', '172.16.5.4', '192.168.1.1',
+                   '169.254.169.254', '100.64.0.1', '198.18.0.1', '0.0.0.0', '224.0.0.5',
+                   '240.0.0.1', '::1', 'fe80::1', 'fc00::1', 'ff02::1', '2001:db8::1']
+        for address in refused:
+            with self.subTest(address=address):
+                self.assertFalse(address_is_allowed(ipaddress.ip_address(address)), address)
+
+    def test_an_address_embedded_in_ipv6_is_refused_as_the_address_it_carries(self):
+        embedded = ['::ffff:127.0.0.1', '::7f00:1', '2002:7f00:1::', '64:ff9b::7f00:1',
+                    '::ffff:169.254.169.254', '2002:c0a8:5::']
+        for address in embedded:
+            with self.subTest(address=address):
+                self.assertFalse(address_is_allowed(ipaddress.ip_address(address)), address)
+
+    def test_the_documentation_block_inside_the_teredo_prefix_is_refused(self):
+        self.assertFalse(address_is_allowed(ipaddress.ip_address('2001:db8:1234::')))
+
+    def test_an_allow_entry_grants_a_refused_range(self):
+        with override_settings(MRMAP_FETCH_ALLOW_NETWORKS='10.20.0.0/16, 2001:0db8:1::/48'):
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('10.20.5.6')))
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('2001:db8:1::5')))
+            self.assertFalse(address_is_allowed(ipaddress.ip_address('10.21.5.6')))
+
+    def test_a_deny_entry_refuses_inside_a_granted_range(self):
+        with override_settings(MRMAP_FETCH_ALLOW_NETWORKS='10.0.0.0/8',
+                               MRMAP_FETCH_DENY_NETWORKS='10.20.30.40/32'):
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('10.1.1.1')))
+            self.assertFalse(address_is_allowed(ipaddress.ip_address('10.20.30.40')))
+
+    def test_a_deny_entry_wins_over_the_public_default(self):
+        with override_settings(MRMAP_FETCH_DENY_NETWORKS=f'{PUBLIC}/32'):
+            self.assertFalse(address_is_allowed(ipaddress.ip_address(PUBLIC)))
+
+    def test_an_allow_entry_wins_over_the_refused_default(self):
+        with override_settings(MRMAP_FETCH_ALLOW_NETWORKS='169.254.0.0/16'):
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('169.254.1.1')))
+
+    def test_both_lists_understand_the_embedded_spelling_of_an_address(self):
+        with override_settings(MRMAP_FETCH_ALLOW_NETWORKS='10.0.0.0/8',
+                               MRMAP_FETCH_DENY_NETWORKS='10.20.30.40/32'):
+            self.assertFalse(address_is_allowed(ipaddress.ip_address('::ffff:10.20.30.40')))
+            self.assertFalse(address_is_allowed(ipaddress.ip_address('64:ff9b::a14:1e28')))
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('::ffff:10.1.1.1')))
+
+    def test_a_list_may_be_a_string_or_a_sequence(self):
+        entries = ('10.20.0.0/16', '192.168.9.0/24')
+        for spelling in (entries, list(entries), '10.20.0.0/16; 192.168.9.0/24'):
+            with self.subTest(spelling=spelling):
+                with override_settings(MRMAP_FETCH_ALLOW_NETWORKS=spelling):
+                    self.assertTrue(address_is_allowed(ipaddress.ip_address('10.20.1.1')))
+                    self.assertTrue(address_is_allowed(ipaddress.ip_address('192.168.9.9')))
+
+    def test_an_unparseable_entry_is_ignored_with_a_warning(self):
+        with self.assertLogs('extras.ssrf', level='WARNING') as logs:
+            with override_settings(MRMAP_FETCH_ALLOW_NETWORKS='not-a-cidr, 10.0.0.0/8'):
+                self.assertTrue(address_is_allowed(ipaddress.ip_address('10.9.9.9')))
+        self.assertIn('not-a-cidr', '\n'.join(logs.output))
+
+    def test_a_host_name_is_judged_by_its_addresses_and_not_by_its_text(self):
+        self.assertTrue(host_is_allowed('internal.example'))
+        self.assertTrue(url_is_fetchable('http://internal.example/x'))
+        self.assertTrue(url_is_fetchable(f'http://{PUBLIC}/capabilities'))
+        self.assertFalse(url_is_fetchable('http://169.254.169.254/latest/meta-data/'))
+        self.assertFalse(url_is_fetchable('http://[::ffff:127.0.0.1]/x'))
+
+
+class DevelopmentAllowanceTest(SimpleTestCase):
+    """the ranges a deployment outside production may reach without naming them"""
+
+    def test_the_own_ranges_are_granted_only_outside_production(self):
+        for address in ('127.0.0.1', '10.0.0.1', '172.17.0.2', '192.168.1.5'):
+            with override_settings(MRMAP_PRODUCTION=False, MRMAP_FETCH_DENY_NETWORKS='',
+                                   MRMAP_FETCH_ALLOW_NETWORKS=''):
+                self.assertTrue(address_is_allowed(ipaddress.ip_address(address)), address)
+            with override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_DENY_NETWORKS='',
+                                   MRMAP_FETCH_ALLOW_NETWORKS=''):
+                self.assertFalse(address_is_allowed(ipaddress.ip_address(address)), address)
+
+    def test_a_deny_entry_refuses_inside_the_development_allowance(self):
+        with override_settings(MRMAP_PRODUCTION=False, MRMAP_FETCH_ALLOW_NETWORKS='',
+                               MRMAP_FETCH_DENY_NETWORKS='127.0.0.1/32'):
+            self.assertFalse(address_is_allowed(ipaddress.ip_address('127.0.0.1')))
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('127.0.0.2')))
+
+    def test_an_allow_entry_grants_an_internal_range_in_production(self):
+        with override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='10.30.0.0/16',
+                               MRMAP_FETCH_DENY_NETWORKS=''):
+            self.assertTrue(address_is_allowed(ipaddress.ip_address('10.30.1.1')))
+
+    def test_a_publicly_spelled_address_is_granted_in_production(self):
+        with override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='',
+                               MRMAP_FETCH_DENY_NETWORKS=''):
+            self.assertTrue(url_is_fetchable('https://services.example/wms'))
+
+
+@CLOSED
+class TargetCheckTest(SimpleTestCase):
+    """`check_targets`, the judgment one connection undergoes"""
+
+    def test_an_unresolvable_host_is_refused_rather_than_allowed(self):
+        with self.assertRaises(ConnectionError):
+            check_targets('does-not-exist.invalid', 80)
+
+    def test_every_answer_of_a_name_is_judged(self):
+        # one public, one internal: the rebinding setup the policy exists for
+        answers = [(2, 1, 6, '', (PUBLIC, 80)), (2, 1, 6, '', ('10.1.1.1', 80))]
+        with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
+            with self.assertRaises(ConnectionError):
+                check_targets('rebind.example', 80)
+
+    def test_a_name_which_only_answers_publicly_is_judged_through(self):
+        answers = [(2, 1, 6, '', (PUBLIC, 80))]
+        with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
+            self.assertIsNone(check_targets('services.example', 80))
+
+    def test_a_tunneling_proxy_target_is_judged(self):
+        answers = [(2, 1, 6, '', (PUBLIC, 3128))]
+        with patch('extras.ssrf.socket.getaddrinfo', side_effect=lambda host, *a: answers
+                   if host == 'proxy.example' else [(2, 1, 6, '', ('10.0.0.9', 80))]):
+            with self.assertRaises(ConnectionError):
+                check_targets('proxy.example', 3128, tunnel=('internal.example', 80))
+
+
+class ListeningServerTest(SimpleTestCase):
+    """a loopback listener which counts the requests it actually answered"""
+
+    def setUp(self):
+        test = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                test.requested.append(self.path)
+                body = b'<Ok/>'
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/xml')
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *args):
+                pass
+
+        self.requested = []
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        self.addCleanup(server.server_close)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join)
+        self.origin = f'http://127.0.0.1:{server.server_port}'
+
+
+class GuardedSessionFetchingTest(ListeningServerTest):
+    """a `GuardedSession` never opens a socket towards a refused address"""
+
+    @CLOSED
+    def test_a_refused_loopback_is_never_connected_to(self):
+        with GuardedSession() as session, self.assertRaises(ConnectionError):
+            session.get(f'{self.origin}/capabilities', timeout=5)
+        self.assertEqual(self.requested, [])
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_an_allow_entry_lets_the_same_address_be_fetched(self):
+        with GuardedSession() as session:
+            response = session.get(f'{self.origin}/capabilities', timeout=5)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.requested, ['/capabilities'])
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='127.0.0.1/32')
+    def test_a_deny_entry_refuses_an_address_inside_a_granted_range(self):
+        with GuardedSession() as session, self.assertRaises(ConnectionError):
+            session.get(f'{self.origin}/capabilities', timeout=5)
+        self.assertEqual(self.requested, [])
+
+    @override_settings(MRMAP_PRODUCTION=False, MRMAP_FETCH_ALLOW_NETWORKS='',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_redirect_hop_is_judged_by_its_own_target(self):
+        # the hop to a refused address is refused even when the first URL was granted
+        with patch.object(ssrf, 'address_is_allowed',
+                          side_effect=lambda address: str(address) != '127.0.0.1'):
+            with self.assertRaises(ConnectionError):
+                with GuardedSession() as session:
+                    session.get(f'{self.origin}/capabilities', timeout=5)
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_plain_session_of_the_same_process_is_unaffected(self):
+        from requests import Session
+        with Session() as session:
+            response = session.get(f'{self.origin}/capabilities', timeout=5)
+        self.assertEqual(response.status_code, 200)
+
+
+@CLOSED
+class FetchPathPolicyTest(SimpleTestCase):
+    """the fetch paths of the registry ask through a session which carries the policy"""
+
+    def test_the_session_of_a_service_is_guarded(self):
+        service = WebMapService(id='00000000-0000-0000-0000-000000000000')
+        self.assertIsInstance(service.get_session_for_request(), GuardedSession)
+
+    def test_a_missing_authentication_does_not_stop_the_guarded_session(self):
+        service = WebMapService(id='00000000-0000-0000-0000-000000000000')
+        with patch.object(type(service), 'auth',
+                          new=property(lambda self: (_ for _ in ()).throw(ObjectDoesNotExist()))):
+            self.assertIsInstance(service.get_session_for_request(), GuardedSession)
+
+    def test_an_advertised_metadata_reference_is_fetched_through_the_guard(self):
+        with patch('registry.models.metadata.GuardedSession') as guarded:
+            with self.assertRaises(Exception):
+                # the mocked answer is no document; what is asserted is who opened it
+                fetch_metadata_document('http://10.0.0.9/md.xml')
+        self.assertTrue(guarded.called)
+
+
+class PolicyDocTest(SimpleTestCase):
+    """the document every refusal names is in the repository"""
+
+    def test_the_policy_document_exists(self):
+        self.assertTrue(POLICY_FILE.exists(), POLICY_FILE)
+
+
+class ConfiguredNetworksTest(SimpleTestCase):
+    """`_networks`, the parser of what an operator writes"""
+
+    def test_a_broken_entry_is_dropped_and_a_good_one_kept(self):
+        with self.assertLogs('extras.ssrf', level='WARNING'):
+            networks = ssrf._networks('10.0.0.0/8, garbage, 2001:db8::/32')
+        self.assertEqual(networks, [ipaddress.ip_network('10.0.0.0/8'),
+                                    ipaddress.ip_network('2001:db8::/32')])
+
+    def test_a_host_without_a_prefix_is_read_as_one_address(self):
+        self.assertEqual(ssrf._networks('10.1.2.3'), [ipaddress.ip_network('10.1.2.3/32')])
+
+    def test_nothing_configured_is_an_empty_list(self):
+        self.assertEqual(ssrf._networks(None), [])
+        self.assertEqual(ssrf._networks('  , ; '), [])

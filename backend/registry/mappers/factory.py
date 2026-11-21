@@ -2,6 +2,7 @@ from lxml import etree
 
 from registry import models
 from registry.exceptions.metadata import UnknownMetadataKind
+from registry.helper.xml import parse_untrusted
 from registry.mappers.cache import LocalXmlCache
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.utils import load_file
@@ -14,7 +15,7 @@ class OGCServiceXmlMapper(XmlMapper):
     def from_xml(cls, xml):
         # Root-Element extrahieren
         content = load_file(xml)
-        root = etree.fromstring(content)
+        root = parse_untrusted(content)
 
         # Service-Typ anhand des Root-Tags
         tag = etree.QName(root).localname.lower()
@@ -78,7 +79,7 @@ class MDMetadataXmlMapper(XmlMapper):
                 type raises just like the detection path does (#981).
         """
         content = load_file(xml)
-        root = etree.fromstring(content)
+        root = parse_untrusted(content)
 
         md_nodes = root.xpath("//*[local-name()='MD_Metadata']")
         if not md_nodes:
@@ -103,8 +104,7 @@ class MDMetadataXmlMapper(XmlMapper):
                 # answers the deterministic paths of a standalone document -
                 # and the backup of one record only carries its own record -
                 # after the serialize-and-reparse copy.
-                md_root = etree.fromstring(
-                    etree.tostring(md, encoding="utf-8"))
+                md_root = parse_untrusted(etree.tostring(md, encoding="utf-8"))
 
             if hierarchy_level is None:
                 detected = cls._detect_hierarchy_level(md_root)
@@ -196,7 +196,7 @@ class MDMetadataXmlMapper(XmlMapper):
                 as.
         """
         content = load_file(xml)
-        root = etree.fromstring(content)
+        root = parse_untrusted(content)
 
         md_nodes = root.xpath("//*[local-name()='MD_Metadata']")
         if not md_nodes:

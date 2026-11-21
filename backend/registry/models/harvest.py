@@ -28,7 +28,6 @@ from django_celery_beat.models import PeriodicTask
 from extras.locks import SingleFlight
 from extras.models import AdditionalTimeFieldsHistoricalModel
 from lxml import etree
-from lxml.etree import XMLParser
 from MrMap import celery_queues
 from MrMap.celery import app
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
@@ -40,6 +39,7 @@ from registry.enums.metadata import (DocumentAcquisitionStateEnum,
                                      ReferenceErrorKind,
                                      ReferenceWorkStateEnum)
 from registry.exceptions.harvesting import InternalServerError
+from registry.helper.xml import parse_untrusted
 from registry.managers.harvesting import (HarvestedMetadataRelationQuerySet,
                                           HarvestingJobManager,
                                           TemporaryMdMetadataFileManager)
@@ -1020,7 +1020,7 @@ class HarvestingJob(ProcessingData):
         """the document a remote service answered with, or None when it is no XML at all; entities
         and the network are off, because this document is not ours"""
         try:
-            return etree.fromstring(content, XMLParser(resolve_entities=False, no_network=True))
+            return parse_untrusted(content)
         except Exception:
             return None
 

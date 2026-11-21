@@ -15,6 +15,7 @@ from django.utils.timezone import now
 from epsg_cache.utils import adjust_axis_order
 from guardian.core import ObjectPermissionChecker
 from lxml import etree
+from registry.helper.xml import parse_untrusted
 from PIL import Image
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum, OGCServiceVersionEnum
 from registry.mappers.factory import MDMetadataXmlMapper
@@ -117,7 +118,7 @@ def operation_request(service, params, method="GET", data=None):
 
 def parse_xml(content):
     try:
-        root = etree.fromstring(content, etree.XMLParser(resolve_entities=False, no_network=True))
+        root = parse_untrusted(content)
     except etree.XMLSyntaxError:
         raise PreviewError("malformed")
     if root.xpath("//*[local-name()='ExceptionReport' or local-name()='ServiceExceptionReport']"):

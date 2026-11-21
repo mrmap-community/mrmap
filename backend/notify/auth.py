@@ -10,6 +10,24 @@ from notify.ws_ticket import consume_ticket
 from rest_framework.exceptions import AuthenticationFailed
 
 
+async def _user_from_query_tokens(tokens):
+    """The first user of the deprecated ``?token=`` values, else ``None``.
+
+    A development-only path of ``TokenAuthMiddleware`` (#1472): a repeated query
+    parameter is tried in order, a value which authenticates nobody is skipped.
+    """
+    knox_auth = TokenAuthentication()
+    for token in tokens:
+        if isinstance(token, str):
+            token = token.encode()
+        try:
+            user, _ = await database_sync_to_async(knox_auth.authenticate_credentials)(token)
+        except AuthenticationFailed:
+            continue
+        return user
+    return None
+
+
 class TokenAuthMiddleware:
     """
     Token authorization middleware for Django Channels 2
@@ -41,30 +59,24 @@ class TokenAuthMiddleware:
 
     async def __call__(self, scope, *args, **kwargs):
         user = scope.get("user")
-        if (user and user.is_anonymous) or not user:
-            # no successfull authentication before. try to authenticate by ticket
-            query_string = scope["query_string"]
-            if isinstance(query_string, bytes):
-                query_string = query_string.decode()
-            query_params = parse_qs(query_string)
-            ticket = query_params.get("ticket", [None])[0]
-            user = await database_sync_to_async(consume_ticket)(ticket)
-            if user is not None:
-                scope["user"] = user
-            elif not settings.MRMAP_PRODUCTION:
-                # the deprecated query token, kept for development only (#1472)
-                tokens = query_params.get('token', '')
-                knox_auth = TokenAuthentication()
-                for token in tokens:
-                    if isinstance(token, str):
-                        token = token.encode()
-                    try:
-                        user, _ = await database_sync_to_async(knox_auth.authenticate_credentials)(token)
-                        scope['user'] = user
-                        break
-                    except AuthenticationFailed:
-                        pass
+        if not user or user.is_anonymous:
+            # no successfull authentication before. try the query credentials
+            await self._authenticate_by_query(scope)
         return await self.inner(dict(scope,), *args, **kwargs)
+
+    async def _authenticate_by_query(self, scope):
+        """Resolves the ``?ticket=``, or in development the ``?token=``, of the scope."""
+        query_string = scope["query_string"]
+        if isinstance(query_string, bytes):
+            query_string = query_string.decode()
+        query_params = parse_qs(query_string)
+        ticket = query_params.get("ticket", [None])[0]
+        user = await database_sync_to_async(consume_ticket)(ticket)
+        if user is None and not settings.MRMAP_PRODUCTION:
+            # the deprecated query token, kept for development only (#1472)
+            user = await _user_from_query_tokens(query_params.get('token', []))
+        if user is not None:
+            scope['user'] = user
 
 
 # Handy shortcut for applying all three layers at once

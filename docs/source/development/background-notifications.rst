@@ -52,7 +52,7 @@ The integration contract
 ########################
 
 Transport
-    ``/ws/default/`` of the ASGI application (``MrMap/asgi.py``), authenticated like the API: a knox ``?token=`` query parameter (``notify/auth.py``) or the session cookie. An anonymous connection is refused at connect; ``RealtimeBus`` builds the URL from the ``VITE_API_*`` configuration and passes the stored token.
+    ``/ws/default/`` of the ASGI application (``MrMap/asgi.py``), authenticated like the API (``notify/auth.py``): the browser sends nothing but its same-origin session cookie (#835); a client whose identity is a knox token mints a single-use, 10-second ticket at ``POST /api/notify/websocket-ticket`` and sends that as ``?ticket=`` (#1472), because a credential in the handshake URL is kept verbatim by the proxy access log. The deprecated ``?token=`` of a live knox token is only accepted where ``MRMAP_PRODUCTION`` is false. An anonymous connection is refused at connect; ``RealtimeBus`` builds the URL from the ``VITE_API_*`` configuration.
 
 Subscription
     The channel layer is one flat namespace, so a connection must *ask* for what it wants. ``notify/consumers.py`` accepts and undoes subscriptions with JSON frames::
@@ -122,7 +122,7 @@ Everything on the chain is quiet by default - a missing redis, a dropped websock
    * - Symptom
      - First thing to check
    * - Panel/list update only on reload (or only every 20 s)
-     - The polling fallback is answering. Check the browser's network tab for the ``/ws/default/`` socket: refused anonymous → token handling; never opened → the ASGI server does not route websockets (``daphne`` fronts ``MrMap/asgi.py``; plain WSGI cannot serve it).
+     - The polling fallback is answering. Check the browser's network tab for the ``/ws/default/`` socket: refused anonymous → credential handling (session cookie, or a ticket which expired unused); never opened → the ASGI server does not route websockets (``daphne`` fronts ``MrMap/asgi.py``; plain WSGI cannot serve it).
    * - Some clients receive, others never do
      - ``CHANNEL_LAYERS`` must be the *same* redis at every process which publishes or consumes (web servers *and* celery workers). ``InMemoryChannelLayer`` in a multi-process deployment delivers only within one process and is otherwise silent - it belongs in tests only.
    * - ``WARNING can't send websocket message, ... is no topic`` in the backend log

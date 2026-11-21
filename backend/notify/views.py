@@ -7,7 +7,11 @@ from notify.permissions import CanChangeRelatedResource
 from notify.serializers import (
     BackgroundProcessLogSerializer, BackgroundProcessSerializer,
     OperationalIncidentSerializer)
+from notify.ws_ticket import TICKET_TTL_SECONDS, mint_ticket
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_json_api.views import ModelViewSet, ReadOnlyModelViewSet
 
 
@@ -154,3 +158,36 @@ class OperationalIncidentViewSet(
             return queryset
         return OperationalIncident.objects.visible_for_user(
             getattr(self.request, 'user', None), queryset=queryset)
+
+
+class WebsocketTicketView(APIView):
+    """Mint the one-time credential of one WebSocket handshake (#1472).
+
+    ``POST /api/notify/websocket-ticket`` answers ``{"ticket": ..., "expires_in":
+    10}`` for the authenticated caller. It exists for the clients whose identity
+    is a knox token rather than a browser session - those previously opened
+    ``/ws/default/?token=<knox token>``, which wrote a credential valid for
+    ``REST_KNOX["TOKEN_TTL"]`` into every proxy access log which records the URL.
+    What that log keeps now is a random value which the very next handshake burns
+    and which expires unspent after ten seconds (``notify/ws_ticket.py``).
+
+    Authentication is the plain API stack, so the caller proves itself here with
+    the credential it already has - ``Authorization: Token ...`` for a machine
+    client, the session cookie (and its CSRF header) for a browser. The ticket
+    inherits nothing: it names no user, and a refused request answers nothing.
+
+    Answering plain JSON instead of the JSON:API envelope follows the auth
+    endpoints of ``accounts/views/auth.py``: the payload is not a resource, and a
+    client fetching a ticket is booting a socket, not reading the registry.
+    """
+
+    renderer_classes = [JSONRenderer]
+    permission_classes = [IsAuthenticated]
+    # minting is the only verb; a ticket is never read back, refreshed or revoked
+    http_method_names = ["post"]
+
+    def post(self, request):
+        return Response({
+            "ticket": mint_ticket(request.user.pk),
+            "expires_in": TICKET_TTL_SECONDS,
+        })

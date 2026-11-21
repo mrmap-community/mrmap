@@ -92,9 +92,17 @@ which is the login-CSRF guard Django's own login view provides.
 The WebSocket carries the same credential: the handshake is same-origin, and
 `channels`' `AuthMiddlewareStack` resolves the user from the session cookie.
 No token travels in the query string any more — there is none to put there.
-(The backend still accepts the legacy `?token=` parameter for old clients; it
-is deprecated in `backend/notify/auth.py` and should disappear with the last
-pre-#835 client.)
+
+**A machine client which wants a WebSocket exchanges its token for a ticket**
+(#1472): `POST /api/notify/websocket-ticket` (authenticated like every other
+API call, so `Authorization: Token …`) answers `{"ticket": …, "expires_in":
+10}`, and the handshake opens `/ws/default/?ticket=…`. The ticket is random,
+names no user, authenticates exactly one handshake and expires unspent after
+ten seconds, so what the proxy access log of the handshake keeps is worthless
+afterwards — unlike a `?token=` of the live knox token, which that log would
+keep for the whole `TOKEN_TTL`. Since #1472 a **production** deployment
+(`MRMAP_PRODUCTION`) refuses the legacy `?token=` parameter altogether; only a
+development one still accepts it (`backend/notify/auth.py`).
 
 ## Machine / API token lifetime and revocation
 

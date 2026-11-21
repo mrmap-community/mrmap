@@ -3,25 +3,55 @@ from urllib.parse import parse_qs
 from channels.auth import AuthMiddlewareStack as DefaultAuthMiddlewareStack
 from channels.db import database_sync_to_async
 from channels.generic.websocket import JsonWebsocketConsumer
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from knox.auth import TokenAuthentication
+from notify.ws_ticket import consume_ticket
 from rest_framework.exceptions import AuthenticationFailed
+
+
+async def _user_from_query_tokens(tokens):
+    """The first user of the deprecated ``?token=`` values, else ``None``.
+
+    A development-only path of ``TokenAuthMiddleware`` (#1472): a repeated query
+    parameter is tried in order, a value which authenticates nobody is skipped.
+    """
+    knox_auth = TokenAuthentication()
+    for token in tokens:
+        if isinstance(token, str):
+            token = token.encode()
+        try:
+            user, _ = await database_sync_to_async(knox_auth.authenticate_credentials)(token)
+        except AuthenticationFailed:
+            continue
+        return user
+    return None
 
 
 class TokenAuthMiddleware:
     """
     Token authorization middleware for Django Channels 2
 
-    Deprecated credential path (#835, accepted decision Q8=B): a token read from
-    the query string is a live credential in server access logs, browser history
-    and any referer the page leaks it to. The browser does not use it any more:
-    ``channels.auth.AuthMiddlewareStack`` underneath this middleware resolves the
-    same-origin ``sessionid`` cookie, so a WebSocket of a logged-in browser
-    authenticates without a credential in its URL (pinned by
-    ``tests/django/notify/test_consumers.py``). The token branch stays for the
-    clients which still carry a knox token while the browser migration rolls out,
-    and goes away with the machine-token decision of
-    ``docs/source/administration/authentication.md``.
+    Two credentials are answered here, and they are deliberately not equal
+    (#1472):
+
+    * ``?ticket=`` - a random, single-use, 10-second value the client minted at
+      ``POST /api/notify/websocket-ticket`` with its token (``notify/ws_ticket.py``,
+      ``notify/views.py``). It is what a non-browser client which only holds a
+      knox token uses: it may be logged by the proxy and it still authenticates
+      at most one handshake.
+    * ``?token=`` - a live knox token in the URL, which the proxy access logs
+      keep verbatim for the whole lifetime of that token (#10 h of
+      ``REST_KNOX["TOKEN_TTL"]``). Deprecated by #835: the browser does not use
+      it any more, because ``channels.auth.AuthMiddlewareStack`` underneath this
+      middleware resolves the same-origin ``sessionid`` cookie (pinned by
+      ``tests/django/notify/test_consumers.py``). Since #1472 a production
+      deployment refuses it - ``MRMAP_PRODUCTION`` - and only a development one
+      still accepts it, so that a local machine client can open a socket without
+      the ticket round trip.
+
+    A handshake with neither is anonymous and refused by
+    ``NonAnonymousJsonWebsocketConsumer`` below.
     """
 
     def __init__(self, inner):
@@ -29,24 +59,24 @@ class TokenAuthMiddleware:
 
     async def __call__(self, scope, *args, **kwargs):
         user = scope.get("user")
-        if (user and user.is_anonymous) or not user:
-            # no successfull authentication before. try to authenticate by token
-            query_string = scope["query_string"]
-            if isinstance(query_string, bytes):
-                query_string = query_string.decode()
-            query_params = parse_qs(query_string)
-            tokens = query_params.get('token', '')
-            knox_auth = TokenAuthentication()
-            for token in tokens:
-                if isinstance(token, str):
-                    token = token.encode()
-                try:
-                    user, _ = await database_sync_to_async(knox_auth.authenticate_credentials)(token)
-                    scope['user'] = user
-                    break
-                except AuthenticationFailed:
-                    pass
+        if not user or user.is_anonymous:
+            # no successfull authentication before. try the query credentials
+            await self._authenticate_by_query(scope)
         return await self.inner(dict(scope,), *args, **kwargs)
+
+    async def _authenticate_by_query(self, scope):
+        """Resolves the ``?ticket=``, or in development the ``?token=``, of the scope."""
+        query_string = scope["query_string"]
+        if isinstance(query_string, bytes):
+            query_string = query_string.decode()
+        query_params = parse_qs(query_string)
+        ticket = query_params.get("ticket", [None])[0]
+        user = await database_sync_to_async(consume_ticket)(ticket)
+        if user is None and not settings.MRMAP_PRODUCTION:
+            # the deprecated query token, kept for development only (#1472)
+            user = await _user_from_query_tokens(query_params.get('token', []))
+        if user is not None:
+            scope['user'] = user
 
 
 # Handy shortcut for applying all three layers at once

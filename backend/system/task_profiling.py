@@ -36,15 +36,19 @@ what they read.
 """
 
 import hashlib
+import re
 import time
 from weakref import WeakSet
 
-from celery.signals import task_postrun, task_prerun
+from celery.signals import (task_failure, task_postrun, task_prerun,
+                            task_retry)
 from django.conf import settings
 from django.db import connections
 from django.db.backends.signals import connection_created
 from requests import PreparedRequest
 from requests.sessions import Session as RequestsSession
+
+from system.models import AttemptOutcome
 
 logger = settings.ROOT_LOGGER
 
@@ -53,7 +57,8 @@ logger = settings.ROOT_LOGGER
 #: joins its attempt row without a second identity scheme.
 _profiles = {}
 
-_stats = {"profiled": 0, "dropped": 0, "duplicate_delivery": 0}
+_stats = {"profiled": 0, "dropped": 0, "duplicate_delivery": 0,
+          "partial": 0}
 
 
 def _setting(name, default):
@@ -94,32 +99,108 @@ def should_profile(task_name, task_id):
     return attempt_is_sampled(task_id)
 
 
+#: literal redaction of a statement signature (#1389: attribution without
+#: leaking payload). Django's own placeholders survive; quoted literals and
+#: bare numbers do not, so a slow statement names its shape, never its data.
+#: only single quotes carry values; double quotes carry identifiers, which
+#: stay readable so a signature still names the table it is slow on. A value
+#: with an apostrophe arrives doubled and matches as one literal.
+_STRING_LITERAL = re.compile(r"'(?:''|[^'])*'")
+_NUMBER_LITERAL = re.compile(r"\b\d+(?:\.\d+)?\b")
+_WHITESPACE = re.compile(r"\s+")
+
+
+def redact_sql(sql, limit=200):
+    """The safe signature of a statement: structure only, never values.
+
+    Quoted values and bare numbers become ``?``; Django's ``%s``
+    placeholders and the double quoted identifiers of the ORM's own
+    statements survive, so a slow statement names its shape and never its
+    data. Over-redaction is the safe direction: nothing here invents
+    structure the statement did not have.
+    """
+    signature = _STRING_LITERAL.sub("?", sql or "")
+    signature = _NUMBER_LITERAL.sub("?", signature)
+    signature = _WHITESPACE.sub(" ", signature).strip()
+    return signature[:limit]
+
+
 class _Profile:
     """The category observations of one attempt, inside one process."""
 
-    __slots__ = ("task_id", "attempt_no", "task_name", "root_id", "queue",
-                 "sample_rate", "mono_start", "sql_seconds", "sql_queries",
-                 "http_seconds", "http_calls", "partial")
+    __slots__ = ("task_id", "attempt_no", "task_name", "root_id", "parent_id",
+                 "queue", "sample_rate", "mono_start", "sql_seconds",
+                 "sql_queries", "slow_sql_seconds", "slow_statements",
+                 "http_seconds", "http_calls", "http_errors", "outcome",
+                 "closed", "partial")
 
     def __init__(self, task_id, attempt_no, task_name, root_id,
-                 queue=None, sample_rate=0.0):
+                 queue=None, sample_rate=0.0, parent_id=""):
         self.task_id = task_id
         self.attempt_no = attempt_no
         self.task_name = task_name
         self.root_id = root_id or ""
+        self.parent_id = parent_id or ""
         self.queue = queue or ""
         self.sample_rate = sample_rate
         self.mono_start = time.monotonic()
         self.sql_seconds = 0.0
         self.sql_queries = 0
+        #: the share of ``sql_seconds`` the slow statements account for, and
+        #: the bounded list of their redacted signatures (#1389: slow
+        #: statement attribution, parameter redaction)
+        self.slow_sql_seconds = 0.0
+        self.slow_statements = []
         self.http_seconds = 0.0
         self.http_calls = 0
+        #: count of calls that came back with 4xx/5xx or a transport error -
+        #: the difference between "the remote was slow" and "we retried it",
+        #: read off the status class only, never off a URL or a body
+        self.http_errors = 0
+        #: outcome observed by the signal receivers ("" / "retry" /
+        #: "failure"); #1330's row owns the authoritative outcome, this only
+        #: marks a split as partial when its attempt did not run to the end
+        self.outcome = ""
+        #: whether the postrun of this attempt was seen in this process
+        self.closed = False
         #: why this profile may be missing time (``duplicate_delivery``);
         #: never a number, only the reason a reader must not take the
         #: categories as the complete picture (#1389: partial stays visible)
         self.partial = []
 
-    def report(self, active_seconds=None):
+    def note_sql(self, seconds, sql="", queries=1):
+        self.sql_seconds += max(0.0, seconds)
+        self.sql_queries += queries
+        slow_at = float(_setting("TASK_PROFILING_SLOW_SQL_SECONDS", 0.5)
+                        or 0.0)
+        if slow_at <= 0 or seconds < slow_at:
+            return
+        self.slow_sql_seconds += max(0.0, seconds)
+        limit = int(_setting("TASK_PROFILING_MAX_SLOW_STATEMENTS", 10) or 10)
+        if len(self.slow_statements) < limit:
+            self.slow_statements.append({
+                "sql": redact_sql(sql),
+                "seconds": round(seconds, 6),
+            })
+
+    def note_http(self, seconds, error=False):
+        self.http_seconds += max(0.0, seconds)
+        self.http_calls += 1
+        if error:
+            self.http_errors += 1
+
+    def mark_partial(self, reason):
+        """Record why this split cannot be the complete picture.
+
+        Idempotent per reason: a retried attempt which also arrived twice
+        reads as two reasons, the same reason twice reads as one.
+        """
+        if reason in self.partial:
+            return False
+        self.partial.append(reason)
+        return True
+
+    def report(self, active_seconds=None, wait_seconds=None):
         """The category split of this profile.
 
         ``unaccounted_seconds`` is what the measured categories do not
@@ -132,6 +213,10 @@ class _Profile:
         selected under, so one report says how representative it is;
         ``partial`` names why time may be missing from the categories
         instead of leaving a reader to assume the split is complete.
+
+        ``slow_statements`` carries the redacted signature of each statement
+        over the slow threshold, so a reader can point at a code path without
+        the report ever carrying a value that was bound into the statement.
         """
         accounted = self.sql_seconds + self.http_seconds
         report = {
@@ -139,23 +224,32 @@ class _Profile:
             "attempt_no": self.attempt_no,
             "task_name": self.task_name,
             "root_id": self.root_id,
+            "parent_id": self.parent_id,
             "queue": self.queue,
             "sample_probability": self.sample_rate,
             "sql_seconds": round(self.sql_seconds, 6),
             "sql_queries": self.sql_queries,
+            "slow_sql_seconds": round(self.slow_sql_seconds, 6),
+            "slow_statements": [dict(s) for s in self.slow_statements],
             "http_seconds": round(self.http_seconds, 6),
             "http_calls": self.http_calls,
+            "http_errors": self.http_errors,
             "accounted_seconds": round(accounted, 6),
             "partial": list(self.partial),
         }
+        if self.outcome:
+            report["outcome"] = self.outcome
         if active_seconds is not None:
             report["active_seconds"] = round(active_seconds, 6)
             report["unaccounted_seconds"] = round(
                 active_seconds - accounted, 6)
-            report["shape"] = self.shape(active_seconds)
+            report["shape"] = self.shape(active_seconds,
+                                         wait_seconds=wait_seconds)
+            if wait_seconds is not None:
+                report["wait_seconds"] = round(wait_seconds, 6)
         return report
 
-    def shape(self, active_seconds):
+    def shape(self, active_seconds, wait_seconds=None):
         """The one-word diagnosis of the attempt, or None if unknown.
 
         The whole point of the categories: a reader must see *which* of the
@@ -167,17 +261,28 @@ class _Profile:
         the issue's configurable budget) is what separates "this attempt
         occupied the worker for too long" from "this attempt was fine".
 
-        A long attempt without SQL or HTTP is CPU-bound, lock-waiting or
+        The queue shape is decided from #1330's ``wait_seconds`` rather than
+        from anything measured here: an attempt whose broker wait is over
+        budget while its own run is not slow was never a slow task, it was a
+        message which waited - the distinction the issue asks for, and the
+        reason the profiler reuses the lifecycle row instead of adding a
+        second clock. Without the wait number a short attempt reads as
+        ``fast``, which is all that is honestly known about it.
+
+        A slow attempt without SQL or HTTP is CPU-bound, lock-waiting or
         bookkeeping - named ``cpu_or_unaccounted``, never renamed to a fake
-        CPU total. A short attempt is not the slow one at all: when the
-        end-to-end delay an operator observed is not in its active time, it
-        waited in the broker, and #1330's ``wait_seconds`` row carries that
-        number - this is why no second lifecycle clock exists here.
-        ``None`` answers for an attempt never measured against an active
-        time; that stays unknown and is never guessed.
+        CPU total. A slow attempt whose categories are present but none
+        dominates is ``mixed``. ``None`` answers for an attempt never
+        measured against an active time; that stays unknown and is never
+        guessed.
         """
         if active_seconds is None or active_seconds <= 0:
             return None
+        slow_at = float(_setting("TASK_PROFILING_SLOW_SECONDS", 30.0) or 0.0)
+        if active_seconds < slow_at:
+            if wait_seconds is not None and wait_seconds >= slow_at:
+                return "queue_wait"
+            return "fast"
         accounted = self.sql_seconds + self.http_seconds
         threshold = active_seconds * _setting(
             "TASK_PROFILING_SHAPE_THRESHOLD", 0.5)
@@ -186,9 +291,6 @@ class _Profile:
         if self.http_seconds >= threshold:
             return "http_bound"
         if accounted <= active_seconds * 0.05:
-            if active_seconds < _setting(
-                    "TASK_PROFILING_SLOW_SECONDS", 30.0):
-                return "queue_only_or_fast"
             return "cpu_or_unaccounted"
         return "mixed"
 
@@ -203,20 +305,27 @@ def _active_profile():
     return _current
 
 
-def _record_sql(seconds, queries=1):
+def _record_sql(seconds, sql="", queries=1):
     profile = _active_profile()
     if profile is None:
         return
-    profile.sql_seconds += max(0.0, seconds)
-    profile.sql_queries += queries
+    profile.note_sql(seconds, sql=sql, queries=queries)
 
 
-def _record_http(seconds):
+def _record_http(seconds, error=False):
     profile = _active_profile()
     if profile is None:
         return
-    profile.http_seconds += max(0.0, seconds)
-    profile.http_calls += 1
+    profile.note_http(seconds, error=error)
+
+
+def _http_was_error(result):
+    """Did this call come back as 4xx/5xx? Status class only, never content."""
+    status_code = getattr(result, "status_code", None)
+    try:
+        return status_code is not None and int(status_code) >= 400
+    except (TypeError, ValueError):
+        return False
 
 
 class _SqlTimingWrapper:
@@ -225,7 +334,9 @@ class _SqlTimingWrapper:
     Django calls an entry as ``wrapper(execute, sql, params, many, context)``
     and returns what the wrapped executor returns. Counts and times only
     while a profiled attempt is executing; outside a profiled attempt it
-    passes straight through.
+    passes straight through. The statement text is handed to the profile for
+    slow-statement attribution, where it is reduced to a redacted signature -
+    ``params`` is never read by the profiler at all.
     """
 
     def __call__(self, execute, sql, params, many, context):
@@ -236,7 +347,7 @@ class _SqlTimingWrapper:
             return execute(sql, params, many, context)
         finally:
             try:
-                _record_sql(time.monotonic() - start)
+                _record_sql(time.monotonic() - start, sql)
             except Exception:  # fail open, never break the query path
                 pass
 
@@ -250,6 +361,11 @@ def _wrap_session_send():
     the HTTP attribution. Installed once, only when the mode is enabled,
     and a no-op (one identity check, no timer) whenever no profiled attempt
     is running in this process.
+
+    A transport error is timed too - a catalogue which answers after thirty
+    seconds and one which refuses the connection are both external delay for
+    the purpose of the split - and a 4xx/5xx response is counted as an error
+    call so a reader can tell a slow service from a service being retried.
     """
     original = RequestsSession.send
 
@@ -258,12 +374,19 @@ def _wrap_session_send():
             return original(self, request, **kwargs)
         start = time.monotonic()
         try:
-            return original(self, request, **kwargs)
-        finally:
+            result = original(self, request, **kwargs)
+        except Exception:
             try:
-                _record_http(time.monotonic() - start)
+                _record_http(time.monotonic() - start, error=True)
             except Exception:  # fail open, never break the request path
                 pass
+            raise
+        try:
+            _record_http(time.monotonic() - start,
+                         error=_http_was_error(result))
+        except Exception:  # fail open, never break the request path
+            pass
+        return result
 
     send._mrmap_task_profiling = True
     RequestsSession.send = send
@@ -320,7 +443,8 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
             str(getattr(request, "root_id", "") or ""),
             queue=delivery.get("routing_key") or "",
             sample_rate=float(_setting("TASK_PROFILING_SAMPLE_RATE", 0.0)
-                              or 0.0))
+                              or 0.0),
+            parent_id=str(getattr(request, "parent_id", "") or ""))
         key = (profile.task_id, profile.attempt_no)
         if len(_profiles) >= int(
                 _setting("TASK_PROFILING_BUFFER_LIMIT", 200) or 200):
@@ -336,8 +460,9 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
             # delivery. This profile covers only this observation's run, so
             # saying so beats presenting a partial split as the complete one
             # (#1389: partial stays visible, never silently merged)
-            profile.partial.append("duplicate_delivery")
+            profile.mark_partial("duplicate_delivery")
             _stats["duplicate_delivery"] += 1
+            _stats["partial"] += 1
         _profiles[key] = profile
         _stats["profiled"] += 1
         _current = profile
@@ -347,7 +472,7 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
 
 
 @task_postrun.connect
-def _end_profile(sender=None, **kwargs):
+def _end_profile(sender=None, task=None, **kwargs):
     """Close the profile of the attempt which just ran.
 
     ``task_postrun`` fires for success and failure alike, so a failed
@@ -356,9 +481,55 @@ def _end_profile(sender=None, **kwargs):
     """
     global _current
     try:
+        profile = _current
+        if profile is not None:
+            profile.closed = True
         _current = None
     except Exception as error:  # never break the task (#1330 rule)
         logger.debug("task profiling end skipped: %s", error)
+
+
+@task_retry.connect
+def _note_retry(sender=None, request=None, **kwargs):
+    """Mark the profile of an attempt which asked for its retry.
+
+    Celery fires ``task_retry`` before ``task_postrun``, so the retry is seen
+    while the profile is still active. A retried attempt's split is complete
+    for itself and incomplete for the task: it stops mid-work and the next
+    attempt redoes the parts before its idempotent seam. That difference is
+    recorded, not smoothed over - and the next attempt is a profile of its
+    own under the same task uuid with a raised attempt counter, which is what
+    lets a retry chain be read per attempt instead of blurred into one
+    execution (#1330's rule, kept).
+    """
+    try:
+        profile = _current
+        if profile is None:
+            return
+        profile.outcome = AttemptOutcome.RETRY.value
+        if profile.mark_partial("retry"):
+            _stats["partial"] += 1
+    except Exception as error:  # never break or fail the task (#1330 rule)
+        logger.debug("task profiling retry skipped: %s", error)
+
+
+@task_failure.connect
+def _note_failure(sender=None, **kwargs):
+    """Mark a profile whose attempt raised.
+
+    The categories measured up to the raise stay readable - that is the
+    partial answer a crashing task still gives - so the split is marked
+    partial and kept rather than discarded (#1389: partial stays visible).
+    """
+    try:
+        profile = _current
+        if profile is None:
+            return
+        profile.outcome = AttemptOutcome.FAILURE.value
+        if profile.mark_partial("failure"):
+            _stats["partial"] += 1
+    except Exception as error:  # never break or fail the task (#1330 rule)
+        logger.debug("task profiling failure skipped: %s", error)
 
 
 def active_profile():
@@ -379,23 +550,54 @@ def profile_report(active_seconds=None):
     return profile.report(active_seconds=active_seconds)
 
 
-def drain_reports(active_seconds_map=None):
+def drain_reports(lifecycle=None):
     """Return and forget the buffered reports of this process (#1389).
 
     The batched read side of the bounded mode, mirroring #1330's flush: a
-    report is produced per buffered profile, and the attempt's own measured
-    ``active_seconds`` (when the caller has it - #1330's row owns that
-    number) closes the split with a named *unaccounted* remainder. Attempts
+    report is produced per buffered profile. ``lifecycle`` maps an attempt
+    identity ``(task_id, attempt_no)`` to the pair
+    ``(active_seconds, wait_seconds)`` of #1330's attempt row; those two
+    numbers close the split with a named *unaccounted* remainder and decide
+    whether a slow attempt was slow in the worker or slow waiting for one. A
+    caller without the row drains without them and gets the categories
+    without a shape, which is honest about what it does not know. Attempts
     dropped by a full buffer are counted in :func:`profiling_stats`, never
     silently missing.
     """
-    active_seconds_map = active_seconds_map or {}
+    lifecycle = lifecycle or {}
     reports = []
     for (task_id, attempt_no), profile in list(_profiles.items()):
+        active_seconds, wait_seconds = lifecycle.get(
+            (task_id, attempt_no), (None, None))
         reports.append(profile.report(
-            active_seconds=active_seconds_map.get((task_id, attempt_no))))
+            active_seconds=active_seconds, wait_seconds=wait_seconds))
     _profiles.clear()
     return reports
+
+
+def lifecycle_map(rows):
+    """Attempt identity to ``(active_seconds, wait_seconds)`` of #1330's rows.
+
+    The join the issue asks for: the profiler's categories read against the
+    lifecycle row of the same attempt, keyed exactly as both buffers are
+    keyed. Accepts model instances or ``values()`` dicts.
+    """
+    out = {}
+    for row in rows or ():
+        if isinstance(row, dict):
+            task_id = row.get("task_id")
+            attempt_no = row.get("attempt_no")
+            active = row.get("active_seconds")
+            wait = row.get("wait_seconds")
+        else:
+            task_id = getattr(row, "task_id", None)
+            attempt_no = getattr(row, "attempt_no", None)
+            active = getattr(row, "active_seconds", None)
+            wait = getattr(row, "wait_seconds", None)
+        if task_id is None or attempt_no is None:
+            continue
+        out[(str(task_id)[:64], int(attempt_no))] = (active, wait)
+    return out
 
 
 def profiling_stats():
@@ -404,10 +606,17 @@ def profiling_stats():
 
 
 def reset_profiling_state():
-    """Forget every buffered profile and the active one (tests, restarts)."""
+    """Forget every buffered profile, the active one and the counters.
+
+    The counters describe what this process's profiler did since the last
+    reset, so a reset which left them standing would let one test read the
+    drops of its predecessors.
+    """
     global _current
     _profiles.clear()
     _current = None
+    for key in _stats:
+        _stats[key] = 0
 
 
 if profiling_enabled():

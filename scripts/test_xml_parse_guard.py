@@ -430,6 +430,40 @@ def test_no_backend_site_serializes_with_method_text():
     check("no backend module serializes with method=text", not hits, ", ".join(hits[:5]))
 
 
+def test_text_serialization_is_why_no_site_may_use_it():
+    """Keeps the reason of the check above true.
+
+    Text serialization re-expands an internal declaration which the hardened
+    option pair refused, while a SYSTEM literal stays unfetched there too. Both
+    halves are measured, because the refusal of the tree is only justified while
+    the behaviour is real - and it is the *text* method, not the hardened parse,
+    which decides whether an internal entity is expanded.
+    """
+    if etree is None:
+        return  # skipped by main() without lxml
+    internal = ('<?xml version="1.0"?>\n'
+                '<!DOCTYPE root [ <!ENTITY a "&b;&b;"> <!ENTITY b "B"> ]>\n'
+                '<root>&a;</root>\n')
+    hardened = etree.fromstring(internal.encode(),
+                                parser=hardened_options_parser())
+    check("a hardened tree keeps an internal declaration unexpanded",
+          "BB" not in _xml(hardened) and "BB" not in "".join(hardened.itertext()),
+          _xml(hardened))
+    check("serializing that tree as text expands the declaration anyway",
+          etree.tostring(hardened, encoding="unicode", method="text") == "BB",
+          "the text method no longer expands, so its refusal needs a new reason")
+
+    with tempfile.TemporaryDirectory(prefix="mrmap-xml-canary-") as tmp:
+        secret = Path(tmp) / "canary-secret.txt"
+        secret.write_text(CANARY_MARKER, encoding="utf-8")
+        external = etree.fromstring((XXE_DOCUMENT % secret.as_uri()).encode(),
+                                    parser=hardened_options_parser())
+        check("text serialization does not fetch a SYSTEM literal either",
+              CANARY_MARKER not in etree.tostring(
+                  external, encoding="unicode", method="text"),
+              "a SYSTEM literal reached the text of a hardened document")
+
+
 def _xml(element):
     return etree.tostring(element, encoding="unicode")
 

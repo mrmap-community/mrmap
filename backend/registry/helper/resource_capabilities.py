@@ -117,6 +117,12 @@ def _children(element, name) -> list:
 
 def _parse(document) -> etree._Element:
     """The root of a capabilities document which was asked for as bytes or string."""
+    if isinstance(document, str):
+        # a capabilities document of this deployment is serialized as UTF-8, so
+        # encoding the string here keeps the declaration it carries true; a
+        # decoded string can not reach parse_untrusted with a declaration, which
+        # the policy refuses (#1468)
+        document = document.encode("utf-8")
     try:
         root = parse_untrusted(document)
     except (etree.XMLSyntaxError, ValueError, TypeError):

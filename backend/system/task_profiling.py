@@ -412,6 +412,22 @@ def _attach_sql_wrapper(sender, connection=None, **kwargs):
 connection_created.connect(_attach_sql_wrapper)
 
 
+def _ensure_seams():
+    """Install both measurement seams on a process which missed their setup.
+
+    A connection opened before the mode was switched on never saw the
+    ``connection_created`` receiver, and a worker which switched the mode on
+    after import never installed the HTTP seam. Both are idempotent, so this
+    runs on every profiled attempt (#1330's toggle-after-import case).
+    """
+    for alias in connections:
+        _attach_sql_wrapper(None, connection=connections[alias])
+    if not getattr(getattr(RequestsSession, "send", None),
+                   "_mrmap_task_profiling", False):
+        # the HTTP seam stays a no-op outside a profiled attempt
+        _wrap_session_send()
+
+
 @task_prerun.connect
 def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
     """Open a profile for a sampled, allowlisted attempt (fail-open)."""
@@ -424,19 +440,9 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
         if not should_profile(task_name, task_id):
             _current = None
             return
-        # a connection opened before the mode was switched on never saw the
-        # connection_created receiver - attach it here too, like the HTTP
-        # seam below is installed late (#1330's toggle-after-import case)
-        for alias in connections:
-            _attach_sql_wrapper(None, connection=connections[alias])
+        _ensure_seams()
         request = getattr(task, "request", None)
         attempt_no = int(getattr(request, "retries", 0) or 0)
-        if not getattr(getattr(RequestsSession, "send", None),
-                       "_mrmap_task_profiling", False):
-            # the mode was switched on after import (settings override, a
-            # worker which reloaded its config): install the HTTP seam now,
-            # once - it stays a no-op outside a profiled attempt
-            _wrap_session_send()
         delivery = getattr(request, "delivery_info", None) or {}
         profile = _Profile(
             str(task_id)[:64], attempt_no, task_name[:255],
@@ -566,7 +572,7 @@ def drain_reports(lifecycle=None):
     """
     lifecycle = lifecycle or {}
     reports = []
-    for (task_id, attempt_no), profile in list(_profiles.items()):
+    for (task_id, attempt_no), profile in _profiles.items():
         active_seconds, wait_seconds = lifecycle.get(
             (task_id, attempt_no), (None, None))
         reports.append(profile.report(

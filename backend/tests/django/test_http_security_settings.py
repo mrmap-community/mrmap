@@ -69,7 +69,7 @@ class CsrfTrustedOriginsTests(SimpleTestCase):
         self.assertEqual(
             _csrf_trusted_origins_from_env(
                 {"DJANGO_CSRF_TRUSTED_ORIGINS": "https://geo.example"}, False),
-            ["https://geo.example", *VITE])
+            [*VITE, "https://geo.example"])
 
 
 class CorsDecisionTests(SimpleTestCase):

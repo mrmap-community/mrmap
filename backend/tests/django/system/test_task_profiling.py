@@ -17,6 +17,7 @@ promises of the issue:
 """
 
 import uuid
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 from celery.app.task import Context
@@ -47,18 +48,33 @@ def make_task(task_id=None, attempt=0, task=TASK_NAME):
 
 
 def run_attempt(task_id=None, attempt=0, task=TASK_NAME, body=None):
-    """Drive prerun/postrun around a body; return the profile it opened."""
+    """Drive prerun/postrun around a body; return the profile it opened.
+
+    MrMap's connection-lifecycle receivers (``MrMap/celery.py``) are right
+    in a worker and fatal inside a TestCase, which keeps its data in an
+    atomic block on the very connection they close - silenced for the
+    dispatch only, exactly as ``test_capacity_telemetry.py`` does.
+    """
+    @contextmanager
+    def signal_seam():
+        with patch("MrMap.celery.close_old_connections"), \
+                patch("MrMap.celery.connections.close_all"):
+            yield
+
     task_obj = make_task(task_id=task_id, attempt=attempt, task=task)
-    task_prerun.send(sender=task_obj, task_id=task_obj.request["task_id"],
-                     task=task_obj, args=(), kwargs={},
-                     parent_id=None, elapsed=None, retries=attempt)
+    with signal_seam():
+        task_prerun.send(sender=task_obj, task_id=task_obj.request.task_id,
+                         task=task_obj, args=(), kwargs={},
+                         parent_id=None, elapsed=None, retries=attempt)
     opened = profiling.active_profile()
     try:
         if body is not None:
             body()
     finally:
-        task_postrun.send(sender=task_obj, task_id=task_obj.request["task_id"],
-                          task=task_obj, args=(), kwargs={}, retval=None)
+        with signal_seam():
+            task_postrun.send(
+                sender=task_obj, task_id=task_obj.request.task_id,
+                task=task_obj, args=(), kwargs={}, retval=None)
     return opened
 
 

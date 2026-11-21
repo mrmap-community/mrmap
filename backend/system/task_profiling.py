@@ -37,9 +37,11 @@ what they read.
 
 import hashlib
 import time
+from weakref import WeakSet
 
 from celery.signals import task_postrun, task_prerun
 from django.conf import settings
+from django.db import connections
 from django.db.backends.signals import connection_created
 from requests import PreparedRequest
 from requests.sessions import Session as RequestsSession
@@ -220,16 +222,18 @@ def _record_http(seconds):
 class _SqlTimingWrapper:
     """``connection.execute_wrappers`` entry attributing cursor time (#1389).
 
-    Counts and times only while a profiled attempt is executing; outside a
-    profiled attempt it passes straight through.
+    Django calls an entry as ``wrapper(execute, sql, params, many, context)``
+    and returns what the wrapped executor returns. Counts and times only
+    while a profiled attempt is executing; outside a profiled attempt it
+    passes straight through.
     """
 
-    def execute(self, sql, params, many, context):
+    def __call__(self, execute, sql, params, many, context):
         if _current is None:
-            return context["executor"](sql, params, many, context)
+            return execute(sql, params, many, context)
         start = time.monotonic()
         try:
-            return context["executor"](sql, params, many, context)
+            return execute(sql, params, many, context)
         finally:
             try:
                 _record_sql(time.monotonic() - start)
@@ -265,19 +269,21 @@ def _wrap_session_send():
     RequestsSession.send = send
 
 
-_wrapped_connections = set()
+#: connections which already carry the wrapper; weakly held, because a
+#: worker closes and reopens them constantly and an id() would be recycled
+_wrapped_connections = WeakSet()
 
 
 def _attach_sql_wrapper(sender, connection=None, **kwargs):
     """Add the SQL timing wrapper to every new DB connection."""
     if connection is None or not profiling_enabled():
         return
-    if id(connection) in _wrapped_connections:
+    if connection in _wrapped_connections:
         return
     if not any(isinstance(w, _SqlTimingWrapper)
                for w in connection.execute_wrappers):
         connection.execute_wrappers.append(_SqlTimingWrapper())
-    _wrapped_connections.add(id(connection))
+    _wrapped_connections.add(connection)
 
 
 connection_created.connect(_attach_sql_wrapper)
@@ -295,6 +301,11 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
         if not should_profile(task_name, task_id):
             _current = None
             return
+        # a connection opened before the mode was switched on never saw the
+        # connection_created receiver - attach it here too, like the HTTP
+        # seam below is installed late (#1330's toggle-after-import case)
+        for alias in connections:
+            _attach_sql_wrapper(None, connection=connections[alias])
         request = getattr(task, "request", None)
         attempt_no = int(getattr(request, "retries", 0) or 0)
         if not getattr(getattr(RequestsSession, "send", None),

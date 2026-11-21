@@ -29,7 +29,7 @@ Pillow==13.0.0
 # http client lib
 requests==2.34.2
 # wsgi application server
-gunicorn==26.2.0
+gunicorn==27.0.1
 # asgi application server
 uvicorn==0.54.0
 # adds rest based views

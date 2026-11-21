@@ -40,6 +40,14 @@ Used to configure the secrete key which is used by django. See `django docs <htt
 .. warning::
     use a strong secret and never the default from the repository!
 
+.. note::
+    Since #1473 the application **refuses to start** when this variable is
+    missing and ``MRMAP_PRODUCTION`` is ``True``. The fallback used to be a new
+    random key on every import, which works until the next restart and then
+    invalidates every session, knox token and signed payload at once -- so a
+    deployment which believed it had set the key but had not could not tell.
+    Outside production the random fallback stays, for throwaway checkouts and CI.
+
 ``DJANGO_ALLOWED_HOSTS``
 ************************
 

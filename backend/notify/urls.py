@@ -1,3 +1,4 @@
+from django.urls import path
 from extras.routers import NestedDefaultRouter
 from notify import views
 
@@ -28,4 +29,10 @@ router.register(
     views.OperationalIncidentViewSet,
     basename='operationalincident')
 
-urlpatterns = router.urls
+urlpatterns = [
+    # the one-time credential of a WebSocket handshake (#1472): a client whose
+    # identity is a knox token mints a ticket here instead of putting that token
+    # into the URL of the handshake, where the proxy access log would keep it
+    path('websocket-ticket', views.WebsocketTicketView.as_view(),
+         name='websocket-ticket'),
+] + router.urls

@@ -169,6 +169,40 @@ TEMPLATES = [
 
 DEBUG_TOOLBAR_MIDDLEWARE = "debug_toolbar.middleware.DebugToolbarMiddleware"
 
+# Which clients may see the debug toolbar when it is installed at all. The
+# toolbar answers SQL, settings, request bodies and the environment of the
+# request; the callback used to be ``lambda request: True``, which skipped even
+# django-debug-toolbar's own INTERNAL_IPS gate and showed all of that to whoever
+# reached the deployment first. Loopback only, and never under
+# MRMAP_PRODUCTION - DJANGO_DEBUG alone does not make a deployment a
+# development one (#1473, audit SEC-12). A developer behind a proxy which
+# rewrites the client address, or a remote development machine, names its
+# addresses in DJANGO_DEBUG_TOOLBAR_INTERNAL_IPS.
+DEBUG_TOOLBAR_INTERNAL_IPS_DEFAULT = "127.0.0.1;::1"
+
+
+def _debug_toolbar_internal_ips_from_env(environ) -> list:
+    return _split_env_list(
+        environ.get("DJANGO_DEBUG_TOOLBAR_INTERNAL_IPS", DEBUG_TOOLBAR_INTERNAL_IPS_DEFAULT))
+
+
+DEBUG_TOOLBAR_INTERNAL_IPS = _debug_toolbar_internal_ips_from_env(os.environ)
+
+
+def show_debug_toolbar(request, production=MRMAP_PRODUCTION, internal_ips=None):
+    """Whether the debug toolbar may render for one request.
+
+    The two arguments default to the module's own values so that the decision is
+    testable without re-importing the settings; django-debug-toolbar calls the
+    callback with the request alone.
+    """
+    if production:
+        return False
+    if internal_ips is None:
+        internal_ips = DEBUG_TOOLBAR_INTERNAL_IPS
+    return request.META.get("REMOTE_ADDR") in internal_ips
+
+
 if DEBUG and not TESTING:
     INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE.append(DEBUG_TOOLBAR_MIDDLEWARE)
@@ -193,7 +227,7 @@ if DEBUG and not TESTING:
             # Problematisches Panel für binary content
             "debug_toolbar.panels.alerts.AlertsPanel",
         },
-        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+        "SHOW_TOOLBAR_CALLBACK": "MrMap.settings.show_debug_toolbar",
         "PRETTIFY_SQL": True,
     }
 

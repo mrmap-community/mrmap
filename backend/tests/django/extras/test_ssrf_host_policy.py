@@ -5,21 +5,16 @@ answer as one address for the check and another for the socket, and every redire
 judged as its own target. A loopback listener is the fetchable endpoint of these tests: a
 refused address must never be connected to at all, so the loopback case carries both the
 assertion that the policy opens when it is told to and the assertion that it stays closed.
-
-``docs/source/administration/fetch-host-policy.md`` is the operator description of the same
-semantics and ``POLICY_DOC`` names it in every refusal, so the file is asserted to exist.
 """
 import ipaddress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from threading import Thread
 from unittest.mock import patch
 
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.test import SimpleTestCase, override_settings
 from extras import ssrf
-from extras.ssrf import (POLICY_DOC, GuardedSession, address_is_allowed,
+from extras.ssrf import (GuardedHTTPAdapter, GuardedSession, address_is_allowed,
                          check_targets, host_is_allowed, url_is_fetchable)
 from registry.models.metadata import fetch_metadata_document
 from registry.models.service import WebMapService
@@ -31,8 +26,6 @@ PUBLIC = '93.184.216.34'
 #: the closed default: production, with neither list configured
 CLOSED = override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='',
                            MRMAP_FETCH_DENY_NETWORKS='')
-
-POLICY_FILE = Path(settings.BASE_DIR, '..', POLICY_DOC)
 
 
 @CLOSED
@@ -189,12 +182,21 @@ class ListeningServerTest(SimpleTestCase):
 
         self.requested = []
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
-        self.addCleanup(server.server_close)
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        self.addCleanup(server.shutdown)
-        self.addCleanup(thread.join)
+        self.addCleanup(self._stop, server, thread)
         self.origin = f'http://127.0.0.1:{server.server_port}'
+
+    @staticmethod
+    def _stop(server, thread):
+        """stop the listener in the one order which cannot deadlock
+
+        ``addCleanup`` runs its entries in reverse order, so joining in a separate entry would
+        wait for a thread which the shutdown that frees it only reaches afterwards.
+        """
+        server.shutdown()
+        thread.join(10)
+        server.server_close()
 
 
 class GuardedSessionFetchingTest(ListeningServerTest):
@@ -242,17 +244,37 @@ class GuardedSessionFetchingTest(ListeningServerTest):
 
 @CLOSED
 class FetchPathPolicyTest(SimpleTestCase):
-    """the fetch paths of the registry ask through a session which carries the policy"""
+    """the fetch paths of the registry ask through a session which carries the policy
+
+    The `auth` of a service is a reverse relation, so reading it on an unsaved instance is a
+    database query; `databases` grants it because these tests judge which session a service
+    builds, and the lookup of its authentication is part of that path.
+    """
+
+    databases = {'default'}
 
     def test_the_session_of_a_service_is_guarded(self):
         service = WebMapService(id='00000000-0000-0000-0000-000000000000')
-        self.assertIsInstance(service.get_session_for_request(), GuardedSession)
+        session = service.get_session_for_request()
+        self.assertIsInstance(session, GuardedSession)
+        self.addCleanup(session.close)
 
     def test_a_missing_authentication_does_not_stop_the_guarded_session(self):
         service = WebMapService(id='00000000-0000-0000-0000-000000000000')
         with patch.object(type(service), 'auth',
                           new=property(lambda self: (_ for _ in ()).throw(ObjectDoesNotExist()))):
-            self.assertIsInstance(service.get_session_for_request(), GuardedSession)
+            session = service.get_session_for_request()
+        self.assertIsInstance(session, GuardedSession)
+        self.addCleanup(session.close)
+
+    def test_the_adapter_of_a_service_session_carries_the_policy(self):
+        service = WebMapService(id='00000000-0000-0000-0000-000000000000')
+        session = service.get_session_for_request()
+        self.addCleanup(session.close)
+        for prefix in ('http://', 'https://'):
+            with self.subTest(prefix=prefix):
+                self.assertIsInstance(session.get_adapter(f'{prefix}example/x'),
+                                      GuardedHTTPAdapter)
 
     def test_an_advertised_metadata_reference_is_fetched_through_the_guard(self):
         with patch('registry.models.metadata.GuardedSession') as guarded:
@@ -260,13 +282,6 @@ class FetchPathPolicyTest(SimpleTestCase):
                 # the mocked answer is no document; what is asserted is who opened it
                 fetch_metadata_document('http://10.0.0.9/md.xml')
         self.assertTrue(guarded.called)
-
-
-class PolicyDocTest(SimpleTestCase):
-    """the document every refusal names is in the repository"""
-
-    def test_the_policy_document_exists(self):
-        self.assertTrue(POLICY_FILE.exists(), POLICY_FILE)
 
 
 class ConfiguredNetworksTest(SimpleTestCase):

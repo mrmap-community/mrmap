@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # 3.13 is what the orchestration host runs scripts/ with; the tool is stdlib
           # only and needs neither GDAL nor the application.

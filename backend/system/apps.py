@@ -116,6 +116,9 @@ class SystemConfig(AppConfig):
         # the settings at every signal, so a process which is not a worker
         # (or a deployment which turned the telemetry off) stays inert
         import system.capacity_telemetry  # noqa
+        # the opt-in root-cause profiler of #1389 attaches the same way and
+        # stays equally inert unless its mode is enabled for a task allowlist
+        import system.task_profiling  # noqa
         post_migrate.connect(
             create_slow_request_dump_cleanup_task,
             sender=self

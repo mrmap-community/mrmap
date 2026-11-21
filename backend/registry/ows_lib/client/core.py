@@ -2,6 +2,7 @@ from abc import ABC
 from urllib.parse import urlparse
 
 from lxml import etree
+from registry.helper.xml import parse_untrusted
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.exceptions import (InitialError,
                                                 RedirectChainError)
@@ -78,7 +79,7 @@ class OgcClient(ABC):
             raise TypeError(
                 f"capabilities has to be GetCapabilities URL or parsed capabilites of type str or bytes not {type(capabilities)}")
 
-        self._capabilities_etree = etree.fromstring(self._capabilities)
+        self._capabilities_etree = parse_untrusted(self._capabilities)
 
     @property
     def service_type(self):

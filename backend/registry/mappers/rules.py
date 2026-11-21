@@ -47,9 +47,9 @@ from logging import Logger
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-from lxml import etree
 from lxml.etree import XMLSyntaxError
 from lxml.etree import XPathEvalError
+from registry.helper.xml import parse_untrusted
 from rest_framework_json_api.utils import format_field_name
 
 logger: Logger = settings.ROOT_LOGGER
@@ -128,7 +128,7 @@ def evaluate_rules(rules, xml):
         save, see the module docstring)
     :returns: list of RuleFinding for every rule that did not hold
     """
-    root = etree.fromstring(xml)
+    root = parse_untrusted(xml)
     findings = []
     for rule in rules:
         try:

@@ -11,6 +11,7 @@ from django.db import models as db_models
 from django.db.models import ForeignKey, JSONField
 from lxml import etree
 from registry import models
+from registry.helper.xml import parse_untrusted
 from registry.mappers.cache import GlobalXmlCache
 from registry.mappers.utils import (build_concrete_xpath, create_mapped_row,
                                     ensure_element_for_instance,
@@ -100,7 +101,7 @@ class XmlMapper:
         else:
             # Store raw XML data as string
             self.xml_str = load_file(xml)
-            self.xml_root = etree.fromstring(self.xml_str)
+            self.xml_root = parse_untrusted(self.xml_str)
             self.current_element = self.xml_root
         self.cache = cache if cache is not None else GlobalXmlCache
         self.data = []

@@ -17,6 +17,7 @@ from epsg_cache.utils import adjust_axis_order
 from extras.utils import execute_threads
 from lxml import etree
 from PIL import Image, ImageDraw, ImageFont
+from registry.helper.xml import parse_untrusted
 from registry.models.service import WebMapService
 from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
@@ -468,7 +469,7 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     xml_response = self.get_remote_response(request=request)
                     requested_response = xml_response
 
-                xml = etree.fromstring(xml_response.content)
+                xml = parse_untrusted(xml_response.content)
                 gml = xml.xpath(
                     "//gml:boundedBy/gml:*",
                     namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}

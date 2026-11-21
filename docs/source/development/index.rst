@@ -26,6 +26,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    wfs-describe-batching-verdict
    queryset-manager-conventions
    celery-task-sql-regression
+   celery-task-profiling
    etf-conformity-retirement
    metadata-transform-inventory
    orm-static-analysis

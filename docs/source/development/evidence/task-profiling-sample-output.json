@@ -1,0 +1,103 @@
+{
+  "attempts": [
+    {
+      "accounted_seconds": 61.2,
+      "active_seconds": 61.6,
+      "attempt_no": 1,
+      "http_calls": 0,
+      "http_errors": 0,
+      "http_seconds": 0.2,
+      "parent_id": "root-9f2c",
+      "partial": [],
+      "queue": "harvest",
+      "root_id": "root-9f2c",
+      "sample_probability": 0.05,
+      "shape": "sql_bound",
+      "slow_sql_seconds": 44.2,
+      "slow_statements": [
+        {
+          "seconds": 44.2,
+          "sql": "SELECT \"reg_layer\".\"id\" FROM \"reg_layer\" WHERE \"reg_layer\".\"name\" = %s"
+        }
+      ],
+      "sql_queries": 41,
+      "sql_seconds": 61.0,
+      "task_id": "a1f0-4d3b",
+      "task_name": "registry.tasks.build_webmapservice",
+      "unaccounted_seconds": 0.4
+    },
+    {
+      "accounted_seconds": 59.1,
+      "active_seconds": 59.5,
+      "attempt_no": 1,
+      "http_calls": 9,
+      "http_errors": 4,
+      "http_seconds": 58.0,
+      "parent_id": "root-9f2c",
+      "partial": [],
+      "queue": "harvest",
+      "root_id": "root-9f2c",
+      "sample_probability": 0.05,
+      "shape": "http_bound",
+      "slow_sql_seconds": 0.0,
+      "slow_statements": [],
+      "sql_queries": 40,
+      "sql_seconds": 1.1,
+      "task_id": "b7c2-11ae",
+      "task_name": "registry.tasks.harvest_csw_records",
+      "unaccounted_seconds": 0.4
+    },
+    {
+      "accounted_seconds": 0.4,
+      "active_seconds": 0.6,
+      "attempt_no": 1,
+      "http_calls": 0,
+      "http_errors": 0,
+      "http_seconds": 0.1,
+      "parent_id": "root-9f2c",
+      "partial": [],
+      "queue": "harvest",
+      "root_id": "root-9f2c",
+      "sample_probability": 0.05,
+      "shape": "queue_wait",
+      "slow_sql_seconds": 0.0,
+      "slow_statements": [],
+      "sql_queries": 40,
+      "sql_seconds": 0.3,
+      "task_id": "c3d8-66f0",
+      "task_name": "registry.tasks.update_wfs_capabilities",
+      "unaccounted_seconds": 0.2,
+      "wait_seconds": 412.0
+    },
+    {
+      "accounted_seconds": 0.3,
+      "active_seconds": 0.8,
+      "attempt_no": 2,
+      "http_calls": 0,
+      "http_errors": 0,
+      "http_seconds": 0.1,
+      "outcome": "retry",
+      "parent_id": "root-9f2c",
+      "partial": [
+        "retry"
+      ],
+      "queue": "harvest",
+      "root_id": "root-9f2c",
+      "sample_probability": 0.05,
+      "shape": "fast",
+      "slow_sql_seconds": 0.0,
+      "slow_statements": [],
+      "sql_queries": 40,
+      "sql_seconds": 0.2,
+      "task_id": "d9e4-02cc",
+      "task_name": "registry.tasks.monitor_probe",
+      "unaccounted_seconds": 0.5
+    }
+  ],
+  "stats": {
+    "dropped": 0,
+    "duplicate_delivery": 0,
+    "partial": 0,
+    "profiled": 0
+  }
+}

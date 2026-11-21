@@ -16,6 +16,7 @@ from datetime import timedelta
 from glob import glob
 from warnings import warn
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
@@ -74,13 +75,64 @@ MEDIA_ROOT = MEDIA_ROOT if check_path_access(
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
-
 # SECURITY WARNING: don't run with debug turned on in production!
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
+
+
+def _secret_key_from_env(environ, production: bool) -> str:
+    """The signing key for one environment (#1473, audit SEC-12).
+
+    A missing ``DJANGO_SECRET_KEY`` used to fall back to
+    ``get_random_secret_key()`` on *every* import, which is per process and per
+    boot. Under ``MRMAP_PRODUCTION`` that fallback is fatal instead: it silently
+    invalidates every session, knox token and signed payload of a restarted
+    deployment (a rolling restart logs all users out and rejects in-flight
+    tokens), and it destroys the contents of any cache whose keys derive from
+    the key. Worse, a deployment which *believes* it set the key but did not
+    (renamed variable, missing ``.env``) cannot tell, because a random key works
+    until the next restart. A production deployment must therefore hand over the
+    key explicitly; compose already refuses to start without it
+    (``${DJANGO_SECRET_KEY:?...}``), this is the same rule for every other way
+    of running the application image.
+
+    Outside production the random fallback stays: throwaway checkout and CI
+    deployments which have no value to keep.
+    """
+    key = environ.get("DJANGO_SECRET_KEY")
+    if key:
+        return key
+    if production:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is required when MRMAP_PRODUCTION is True: a "
+            "random key per boot invalidates every session, token and signed "
+            "payload of a restarted deployment. Set it in the deployment's "
+            "environment (docs/source/development/environment.rst).")
+    return get_random_secret_key()
+
+
+SECRET_KEY = _secret_key_from_env(os.environ, MRMAP_PRODUCTION)
+
+
+def _split_env_list(raw: str) -> list:
+    """The entries of a ";"/"," separated env value, without surrounding blanks."""
+    return [entry.strip() for entry in raw.replace(",", ";").split(";") if entry.strip()]
+
+
+def _flag_from_env(environ, name: str, default: bool) -> bool:
+    """A boolean deployment flag spelled ``"True"``/``"False"``, else the default.
+
+    Same spelling as ``MRMAP_PRODUCTION`` itself: compose passes these values as
+    strings, and any non-empty string reads as true in Python, so the string
+    comparison - never ``bool(value)`` - is the whole of the parsing (#1141).
+    """
+    value = environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip() == "True"
+
 
 # The username of the superuser this deployment seeds on migrate (accounts/
 # apps.py) - a deployment value, not a code value. Named once here, because
@@ -274,8 +326,8 @@ ALLOWED_HOSTS_PRESET = "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;tes
 
 
 def _split_host_list(raw: str) -> list:
-    """The entries of a ";"/"," separated env value, without surrounding blanks."""
-    return [host.strip() for host in raw.replace(",", ";").split(";") if host.strip()]
+    """The hosts of a ";"/"," separated env value, without surrounding blanks."""
+    return _split_env_list(raw)
 
 
 def _bare_host(entry: str) -> str:
@@ -306,26 +358,109 @@ ALLOWED_HOST_DEFAULTS = _split_host_list(os.environ.get(
     "DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
 ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS]
-        + ([] if MRMAP_PRODUCTION else ["http://localhost:5173", "http://127.0.0.1:5173"]))
-).split(";")
+# The vite dev server never speaks TLS, so the loopback origins of the
+# development frontend are http. An http origin in the list of a *production*
+# deployment is what lets a CSRF token cross the wire in clear text, which is
+# why the preset only joins outside production.
+CSRF_DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
-# The Vite development frontend authenticates with the backend's session cookie.
-# Keep credentialed development requests restricted to the local frontend origins.
-CORS_ALLOW_CREDENTIALS = not MRMAP_PRODUCTION
-if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get(
-        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
-elif not MRMAP_PRODUCTION:
-    CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
-else:
-    warn("all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
-    CORS_ALLOW_ALL_ORIGINS = True
+
+def _csrf_trusted_origins_from_env(environ, production: bool) -> list:
+    """The origins whose same-origin POSTs may carry this site's CSRF token.
+
+    These used to be derived from the merged host allow-list, for *every* entry
+    and both schemes: one ``DJANGO_ALLOWED_HOSTS`` entry of a deployment added
+    ``http://internal-host`` next to ``https://internal-host``, and the whole
+    preset of service host names (``mrmap-appserver``, ``172.17.0.1``, ...)
+    became trusted browser origins - a plaintext trust nobody chose, next to the
+    http trust a production deployment must never carry (audit SEC-12, #1473).
+    The explicit ``DJANGO_CSRF_TRUSTED_ORIGINS`` is now the only source a
+    production deployment has, and every scheme it names is honoured - a
+    deployment which serves plain https only spells out exactly that, and one
+    behind a TLS terminator which forwards plain http names that origin itself.
+    An unset value means django's own same-origin check and nothing else, which
+    is what the same-origin topology of ``docker/nginx/mrmap.conf`` needs.
+    Outside production the vite origins of the development frontend join: those
+    log in through the session of this backend (#835, decision Q8=B).
+    """
+    origins = _split_env_list(environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", ""))
+    if not production:
+        origins = origins + CSRF_DEV_ORIGINS
+    return sorted(set(origins))
+
+
+CSRF_TRUSTED_ORIGINS = _csrf_trusted_origins_from_env(os.environ, MRMAP_PRODUCTION)
+
+
+def _cors_decisions_from_env(environ, production: bool):
+    """Where cross-origin requests to the API may come from for one environment.
+
+    ``DJANGO_CORS_ALLOWED_ORIGINS`` is the only source of origins. When it is
+    set, it answers in every deployment mode: the development frontend on the
+    vite port and any split-origin deployment both set it. When it is empty:
+
+    * development gets the vite loopback origins - the development frontend
+      authenticates with this backend's session cookie and therefore needs
+      credentialed CORS (#835);
+    * production gets no cross-origin allowance at all. The shipped topology is
+      same-origin - the nginx of ``docker/nginx/mrmap.conf`` serves the SPA and
+      proxies ``/api``, ``/csw`` and ``/ws`` on the very host and port the SPA is
+      loaded from - so there is no cross-origin consumer left to serve, and the
+      previous ``CORS_ALLOW_ALL_ORIGINS = True`` let any website read the API as
+      the logged-in user of any browser which visited it (audit SEC-17, #1473):
+      requests authenticated by an ``Authorization`` header need no cookies at
+      all, so the credentialed flag was never the guard.
+
+    Returns ``(origins, allow_all, credentials)``. ``allow_all`` is always
+    ``False``: every origin is no longer a default, it is a decision.
+    """
+    explicit = _split_env_list(environ.get("DJANGO_CORS_ALLOWED_ORIGINS", ""))
+    if explicit:
+        return sorted(set(explicit)), False, not production
+    if not production:
+        return sorted(set(CSRF_DEV_ORIGINS)), False, True
+    return [], False, False
+
+
+CORS_ALLOWED_ORIGINS, CORS_ALLOW_ALL_ORIGINS, CORS_ALLOW_CREDENTIALS = _cors_decisions_from_env(
+    os.environ, MRMAP_PRODUCTION)
+if not CORS_ALLOWED_ORIGINS:
+    warn(
+        "no CORS origins are allowed: no cross-origin consumer may call the API. "
+        "Set DJANGO_CORS_ALLOWED_ORIGINS if a frontend is served from another "
+        "origin than the backend (docs/source/development/environment.rst).")
 
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+################################################################
+# HTTP transport security (#1473, audit SEC-12)
+################################################################
+# The hardening Django ships, gated on MRMAP_PRODUCTION: the deployment this
+# repository ships runs behind nginx and TLS, so a production deployment gets
+# the whole block by default and an http-only development stack must not even
+# try it - a redirect to https the dev stack does not speak would just break
+# it. Each setting is overridable on its own, because a deployment in front of
+# a TLS terminator which cannot serve HSTS, or one which terminates TLS
+# itself, needs to narrow the block without dropping the rest.
+SECURE_SSL_REDIRECT = _flag_from_env(os.environ, "DJANGO_SECURE_SSL_REDIRECT", MRMAP_PRODUCTION)
+SECURE_HSTS_SECONDS = int(os.environ.get(
+    "DJANGO_SECURE_HSTS_SECONDS", str(31536000) if MRMAP_PRODUCTION else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _flag_from_env(
+    os.environ, "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", MRMAP_PRODUCTION)
+SECURE_HSTS_PRELOAD = _flag_from_env(os.environ, "DJANGO_SECURE_HSTS_PRELOAD", False)
+SECURE_CONTENT_TYPE_NOSNIFF = _flag_from_env(
+    os.environ, "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", True)
+SECURE_REFERRER_POLICY = os.environ.get("DJANGO_SECURE_REFERRER_POLICY", "same-origin")
+# A browser must only ever frame this application's own pages. Django's
+# middleware answers the header; the edge of the frontend repeats it
+# (docker/nginx/mrmap.conf) for the answers it serves itself.
+X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "DENY")
+if SECURE_SSL_REDIRECT and SECURE_HSTS_SECONDS == 0:
+    warn(
+        "SECURE_SSL_REDIRECT is active with an HSTS max-age of 0: the browser "
+        "may still talk plain http to this deployment tomorrow. Set "
+        "DJANGO_SECURE_HSTS_SECONDS or disable the redirect.")
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"

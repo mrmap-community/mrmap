@@ -1,4 +1,5 @@
 import datetime
+import re
 from typing import Any
 from urllib import parse
 
@@ -16,6 +17,50 @@ from registry.expressions.search import client_search_query
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.models.service import CatalogueService as DBCatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
+
+# One coordinate of a searchBbox: digits with at most one decimal point and an
+# optional sign, with the whitespace a float() takes, and nothing else. A bbox
+# is sent on by the remote CSW into a CQL BBOX() predicate, whose parser takes a
+# bare number, so a value which is not one is dropped rather than forwarded.
+BBOX_COORDINATE = re.compile(r"\s*[-+]?(?:\d+(?:\.\d*)?|\.\d+)\s*")
+
+
+def cql_literal(value: str) -> str:
+    """The value of a CQL string literal, doubled inside its own quotes.
+
+    The predicate is forwarded verbatim to the catalogue the client names with
+    ``catalogueId``, and a single quote of the search word closed the literal it
+    was interpolated into - everything behind it was parsed as CQL by the
+    remote service, not as a word of the search (#1469).
+    """
+    return str(value).replace("'", "''")
+
+
+def echoed_value(value: str) -> str:
+    """A request parameter as the answer echoes it back to the client.
+
+    The MapBender widget writes the search filter of the answer straight into
+    its HTML, so an angle bracket of a parameter would open a tag there. Only
+    the two characters which open markup are replaced: a real client sends them
+    percent-encoded, so every request it makes is answered byte-identically,
+    and the ``&`` of the echoed query string is the separator the widget itself
+    parses.
+    """
+    return str(value).replace("<", "&lt;").replace(">", "&gt;")
+
+
+def search_bbox_filter(search_bbox: str) -> str:
+    """The BBOX predicate of a searchBbox, or "" when it names no bbox.
+
+    Checked against the coordinates it names instead of interpolated, so
+    whatever else the parameter carries never reaches the predicate. Accepted
+    coordinates are rejoined as they were received (#1469).
+    """
+    coordinates = search_bbox.split(",")
+    if len(coordinates) != 4 or any(
+            not BBOX_COORDINATE.fullmatch(coord) for coord in coordinates):
+        return ""
+    return f"BBOX(the_geom, {search_bbox})"
 
 
 # FUTURE: log the request on this view. HTTP_Referer, searchUrl, searchText, HTTP_USER_AGENT, catalogueId
@@ -44,22 +89,25 @@ class MapBenderSearchApi(View):
 
         search_resources = self.request.GET.get("searchResources", "dataset")
 
-        cql_filter_expr = f"Type LIKE '{search_resources}'"  # noqa
+        cql_filter_expr = f"Type LIKE '{cql_literal(search_resources)}'"
 
         for any_text in any_text_filters:
             # the first_loop flag of the original implementation never
             # flipped, so every search text was ANDed - the FUTURE note
             # above owns the comma semantics
-            cql_filter_expr += f" And AnyText LIKE '{any_text}'"
+            cql_filter_expr += f" And AnyText LIKE '{cql_literal(any_text)}'"
 
         # example: &searchBbox=7.18159618172,50.2823608933,7.26750846535,50.3502633407
         search_bbox = self.request.GET.get("searchBbox")
         if search_bbox:
             # FUTURE: the_geom col name need to be checked by capabilitites of the remote csw to set the corret geometry col
+            bbox_filter = search_bbox_filter(search_bbox)
+            if bbox_filter == "":
+                return cql_filter_expr
             if cql_filter_expr != "":
-                cql_filter_expr += f"AND BBOX(the_geom, {search_bbox})"
+                cql_filter_expr += f"AND {bbox_filter}"
             else:
-                cql_filter_expr += f"BBOX(the_geom, {search_bbox})"
+                cql_filter_expr += bbox_filter
 
         # FUTURE: implement inside or outside bbox as cql filter
         # search_type_bbox = request.GET.get(
@@ -233,7 +281,12 @@ class MapBenderSearchApi(View):
         else:
             resources = self.local_search()
 
-        del_link_search_resources = "&".join([f"{key}={value}" for key, value in request.GET.items()])
+        # every parameter of the request is echoed back into the search filter
+        # below, and a MapBender client renders that filter as HTML - the echo
+        # is markup-free, a client which percent-encodes its own parameters
+        # cannot tell the difference (#1469)
+        echoed_querystring = "&".join(
+            [f"{key}={echoed_value(value)}" for key, value in request.GET.items()])
 
         resources["md"]["genTime"] = (
             datetime.datetime.now() - self.start_time).total_seconds()
@@ -241,25 +294,25 @@ class MapBenderSearchApi(View):
         search_resources = self.request.GET.get("searchResources", "dataset")
 
         data = {
-            search_resources: resources or [],
+            echoed_value(search_resources): resources or [],
             "searchFilter": {
-                "origUrl": "&".join([f"{key}={value}" for key, value in request.GET.items()]),
+                "origUrl": echoed_querystring,
                 "searchText": {
                     "title": "Suchbegriff(e):",
-                    "delLink": "&".join([f"{key}=*" if key == "searchText" else f"{key}={value}" for key, value in request.GET.items()]),  # nopep8
+                    "delLink": "&".join([f"{key}=*" if key == "searchText" else f"{key}={echoed_value(value)}" for key, value in request.GET.items()]),  # nopep8
                     "item": [{
-                        "title": f,
-                        "delLink": "&".join([f"{key}={','.join([k for k in any_text_filters if f != k]) or '*'}" if key == "searchText" else f"{key}={value}" for key, value in request.GET.items()]),
+                        "title": echoed_value(f),
+                        "delLink": "&".join([f"{key}={echoed_value(','.join([k for k in any_text_filters if f != k]) or '*')}" if key == "searchText" else f"{key}={echoed_value(value)}" for key, value in request.GET.items()]),  # nopep8
                     } for f in any_text_filters
                     ]
                 },
                 "searchResources": {
                     "title": "Art der Ressource:",
-                    "delLink": del_link_search_resources,
+                    "delLink": echoed_querystring,
                     "item": [
                         {
-                            "title": search_resources,
-                            "delLink": del_link_search_resources,
+                            "title": echoed_value(search_resources),
+                            "delLink": echoed_querystring,
                         }
                     ]
                 }

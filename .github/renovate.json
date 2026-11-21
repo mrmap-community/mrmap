@@ -65,6 +65,12 @@
       "matchManagers": ["dockerfile"],
       "matchFileNames": ["docker/docs/**"],
       "enabled": false
+    },
+    {
+      "description": "The docs pins only work as one reviewed combination: #1706 measured that bumping a sphinxcontrib extension without Sphinx (and every 4.x-only recovery on the other side) yields an unbuildable docs environment. Move these pins as a set by hand until #1597 modernizes the docs environment",
+      "matchManagers": ["pip_requirements"],
+      "matchFileNames": ["backend/.requirements/docs.txt"],
+      "enabled": false
     }
   ]
 }

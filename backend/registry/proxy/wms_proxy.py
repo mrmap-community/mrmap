@@ -1,27 +1,25 @@
-import copy
 import io
 import logging
 import platform
 from functools import partial
 from pathlib import Path
-from queue import Queue
-from threading import Thread
 
 from django.conf import settings
 from django.contrib.gis.geos import GeometryCollection, GEOSGeometry, Polygon
 from django.core.exceptions import BadRequest, PermissionDenied
-from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from epsg_cache.utils import adjust_axis_order
-from extras.utils import execute_threads
 from lxml import etree
 from PIL import Image, ImageDraw, ImageFont
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.models.service import WebMapService
+from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import Http423, OgcServiceProxyView
+from requests import Request
 
 
 def _world_to_pixel(coord, minx, miny, width, height, dx, dy):
@@ -394,45 +392,167 @@ class WebMapServiceProxy(OgcServiceProxyView):
             }
         )
 
-    def handle_get_feature_info_with_multithreading(self):
-        """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.send_request(request=self.ogc_request)
-        thread_list = []
-        results = Queue()
-        xml_request = copy.deepcopy(request)
-        xml_request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
-        # to differ the results we return a dict for the remote response
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"xml_response": self.get_remote_response(
-                        request=xml_request)},
-                    connection.close(),
-                ),
-                args=(results,),
-            )
+    # The INFO_FORMAT the spatial check of a GetFeatureInfo answer reads geometries from.
+    INFO_FORMAT_XML = "text/xml"
+
+    def _layer_names(self, param: str) -> list[str]:
+        """The layer names one comma separated WMS layer parameter of the request names.
+
+        :param param: the parameter name as WMS spells it, e.g. ``QUERY_LAYERS``
+        :type param: str
+        :return: the non empty names, in the order of the request
+        :rtype: list[str]
+        """
+        value = self.ogc_request.ogc_query_params.get(param, "") or ""
+        if not isinstance(value, str):
+            value = ",".join(str(entry) for entry in value)
+        return [name.strip() for name in value.split(",") if name.strip()]
+
+    def _permitted_layer_names(self) -> list[str]:
+        """The active layers the requesting user is entitled to ask answers from.
+
+        The allowed operations attached to the service answer which layers the
+        request may name at all, so a name outside this list is unknown to the
+        service, deactivated, or not the caller's.
+
+        :return: the distinct active layer identifiers of the allowed operations
+        :rtype: list[str]
+        """
+        return list(dict.fromkeys(
+            allowed_operation.layer.identifier
+            for allowed_operation in self.service.relevant_allowed_operations
+            if allowed_operation.layer and allowed_operation.layer.is_active
+        ))
+
+    def _layers_are_allowed(self, layers: list[str], permitted: list[str]) -> bool:
+        """Check named layers against the layers the user may ask.
+
+        :param layers: the layer names the request names
+        :type layers: list[str]
+        :param permitted: the layer names of the user's allowed operations
+        :type permitted: list[str]
+        :return: True if the list names layers and every one of them is entitled
+        :rtype: bool
+        """
+        return bool(layers) and set(layers) <= set(permitted)
+
+    def _refused_layers(self, param: str) -> dict:
+        """Refuse a GetFeatureInfo which names layers the caller may not ask.
+
+        The whole request is refused before anything is asked upstream, so a request
+        which mixes an entitled layer with an unentitled one cannot answer the
+        entitled part. The shape is the one :meth:`get_remote_response` answers for a
+        failed exchange, which :meth:`return_http_response` renders as a service
+        exception report.
+
+        :param param: the parameter which carried the disallowed names
+        :type param: str
+        :return: the response to answer the request with
+        :rtype: dict
+        """
+        logger.info(
+            "the GetFeatureInfo of service %s was refused: %s names a layer which is "
+            "unknown to the service, deactivated or not allowed for the requesting user",
+            self.service.pk, param
         )
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"requested_response": self.get_remote_response(
-                        request=request)},
-                    connection.close(),
-                ),
-                args=(results,),
-            )
+        return {
+            "status_code": 400,
+            "code": "LayerNotDefined",
+            "content": f"the layers of the request parameter {param} are unknown to the "
+                       f"service, deactivated or not allowed for the requesting user",
+        }
+
+    def _feature_info_request(self, layers: list[str], info_format: str) -> Request:
+        """Build the upstream GetFeatureInfo with the validated layer names.
+
+        The request is rebuilt from the parameters the proxy parsed rather than
+        deep-copied from the incoming one: a parameter upstream is asked with is then
+        always a parameter whose layers have been checked. LAYERS carries the same
+        layers as QUERY_LAYERS, which is what the point of the request is drawn from.
+        The identity of the caller is never forwarded, as in :meth:`get_remote_response`.
+
+        :param layers: the validated layers to ask answers from
+        :type layers: list[str]
+        :param info_format: the INFO_FORMAT the upstream answer shall be served in
+        :type info_format: str
+        :return: the request to send to the remote service
+        :rtype: :class:`requests.models.Request`
+        """
+        operation_url = self.service.operation_urls.values("url").get(
+            operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+            method=HttpMethodEnum.GET.value
         )
-        execute_threads(thread_list)
-        # Since we have no idea which result will be on which position in the query
-        xml_response = None
-        requested_response = None
-        while not results.empty():
-            result = results.get()
-            if result.get("xml_response", None):
-                xml_response = result["xml_response"]
-            elif result.get("requested_response", None):
-                requested_response = result["requested_response"]
-        return xml_response, requested_response
+        params = dict(self.ogc_request.ogc_query_params)
+        params.update({
+            "SERVICE": "WMS",
+            "REQUEST": self.remote_service.get_feature_info_operation_name,
+            "VERSION": self.remote_service.service_version,
+            "LAYERS": ",".join(layers),
+            "QUERY_LAYERS": ",".join(layers),
+            "INFO_FORMAT": info_format,
+        })
+        headers = {
+            key: value for key, value in (self.ogc_request.headers or {}).items()
+            if key.lower() not in {"authorization", "cookie", "host"}
+        }
+        return Request(
+            method="GET",
+            url=update_queryparams(url=operation_url["url"], params=params),
+            headers=headers,
+        )
+
+    def _response_features_are_within_allowed_area(self, request: Request) -> bool:
+        """Check every feature of a text/xml GetFeatureInfo answer against the allowed area.
+
+        The previous version used the boundedBy of the first feature only and answered
+        the complete response as soon as that one passed, so a second feature outside
+        the allowed area leaked with it. Here every answered feature must be within the
+        allowed area, and an answer which cannot be checked does not authorize itself:
+        an unparseable document, a remote exception report, a feature without a geometry
+        or a failed area comparison all keep the features of the response private.
+
+        :param request: the request asking the text/xml answer of the validated layers
+        :type request: :class:`requests.models.Request`
+        :return: True if the answer has features and all of them are within the allowed area
+        :rtype: bool
+        """
+        try:
+            xml_response = self.get_remote_response(request=request)
+            xml = etree.fromstring(xml_response.content)
+            # a ServiceExceptionReport of the remote service carries no feature
+            if xml.tag.endswith("ServiceExceptionReport"):
+                return False
+            # FUTURE: depends on xml wms version not on the registered service version
+            axis_order_correction = self.service.major_service_version >= 2
+            features = xml.xpath(
+                "//gml:featureMember/* | //gml:featureMembers/*",
+                namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
+            )
+            if not features:
+                # no answered feature, no feature to leak. The answer of the requested
+                # format is returned for a point where nothing answers.
+                return True
+            for feature in features:
+                geometries = feature.xpath(
+                    ".//gml:boundedBy/gml:* | .//gml:geometry/gml:* | .//gml:geom/gml:*",
+                    namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
+                )
+                if not geometries:
+                    # a feature without a geometry can not be localized and stays private
+                    return False
+                for geometry_element in geometries:
+                    geometry = GEOSGeometry.from_gml(etree.tostring(geometry_element))
+                    if axis_order_correction:
+                        geometry = adjust_axis_order(geometry)
+                    if not self.geom.contains(geometry.convex_hull):
+                        return False
+            return True
+        except Exception:
+            logger.warning(
+                "the GetFeatureInfo response of service %s could not be checked against the "
+                "allowed area and was refused", self.service.pk, exc_info=True
+            )
+            return False
 
     def handle_secured_get_feature_info(self):
         """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are contained in any allowed area.
@@ -445,46 +565,46 @@ class WebMapServiceProxy(OgcServiceProxyView):
             discretion of the service provider, but it shall pertain to the feature(s) nearest to (I,J).
             (see section 7.4.4)
 
+        LAYERS and QUERY_LAYERS are validated against the layers of the requesting user
+        before anything is asked upstream: a name which the service does not know, which
+        is deactivated or which the user is not entitled to refuses the whole request with
+        LayerNotDefined -- the answer the GetMap of an unknown layer already gives. A
+        request which omits both asks the layers of the caller, instead of drawing the
+        point from every layer of the service and 403ing an entitled user over the empty
+        layer list of :attr:`OGCRequest.requested_entities`.
+
         :return: the GetFeatureInfo response
         :rtype: :class:`request.models.Response` or dict if the request is not allowed.
         """
+        permitted = self._permitted_layer_names()
+        layers = self._layer_names("QUERY_LAYERS") or self._layer_names("LAYERS")
+        if not layers:
+            layers = permitted
+        elif not self._layers_are_allowed(layers, permitted):
+            return self._refused_layers("QUERY_LAYERS")
+
         is_spatial_secured_and_covers = len(list(filter(
             lambda ao: ao.allowed_area.covers(self.ogc_request.bbox),
             self.service.relevant_allowed_operations
         ))) > 0
+        info_format = self.ogc_request.ogc_query_params.get("INFO_FORMAT") or self.INFO_FORMAT_XML
 
         if is_spatial_secured_and_covers:
-            return self.return_http_response(response=self.get_remote_response())
-        else:
-            try:
-                request = self.remote_service.send_request(
-                    request=self.ogc_request)
-                if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
-                    (
-                        xml_response,
-                        requested_response,
-                    ) = self.handle_get_feature_info_with_multithreading()
-                else:
-                    xml_response = self.get_remote_response(request=request)
-                    requested_response = xml_response
+            # every feature upstream may answer within this bbox is within the
+            # allowed area, so the answer of the requested format can be returned
+            return self.return_http_response(
+                response=self.get_remote_response(
+                    request=self._feature_info_request(layers, info_format)))
 
-                xml = etree.fromstring(xml_response.content)
-                gml = xml.xpath(
-                    "//gml:boundedBy/gml:*",
-                    namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
-                )
-                geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
-                # FUTURE: depends on xml wms version not on the registered service version
-                axis_order_correction = (
-                    True if self.service.major_service_version >= 2 else False
-                )
-                if axis_order_correction:
-                    geometry = adjust_axis_order(geometry)
-
-                if self.geom.contains(geometry.convex_hull):
-                    return self.return_http_response(response=requested_response)
-            except Exception:
-                pass
+        # FUTURE: this uses the permission model of the service and not the
+        # allowed operation of the requesting user (#1442)
+        if self._response_features_are_within_allowed_area(
+                request=self._feature_info_request(layers, self.INFO_FORMAT_XML)):
+            # the answer of the requested format must be asked separately, since the
+            # check above used a request for the xml answer
+            return self.return_http_response(
+                response=self.get_remote_response(
+                    request=self._feature_info_request(layers, info_format)))
         raise PermissionDenied
 
     def get_and_post(self, request, *args, **kwargs):

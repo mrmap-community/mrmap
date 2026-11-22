@@ -1110,6 +1110,231 @@ def scenario_prerelease(tmp):
               cwd=w.repo).stdout.strip() == "",
           git("ls-remote", "--tags", "origin", cwd=w.repo).stdout)
 
+def bump_walk(tmp, name, message, version, *, notes=None, policy=None):
+    """One commit class, planned onto a released baseline; returns its report.
+
+    Each class gets its own walk on purpose: the version gate reads the RANGE
+    from the base to HEAD, so several classes measured from one shared base
+    would each be judged by every earlier class too, and a patch bump would read
+    as a feature. One walk per class keeps the answer about one commit.
+    `policy` overrides the 0.x knob, which is how the manifest's own reading is
+    exercised without editing the reviewed file of this checkout.
+    """
+    committed = json.loads(
+        (REPO / "scripts" / "release_contract_baseline.json").read_text(
+            encoding="utf-8"))
+    manifest = dict(committed, mode="released", version=BASE_VERSION,
+                    source="v" + BASE_VERSION, document=None)
+    if policy:
+        manifest["policy"] = dict(committed["policy"], **policy)
+    w = DryRun(tmp, name)
+    w.write({"scripts/release_contract_baseline.json":
+             json.dumps(manifest, indent=2) + "\n"})
+    w.commit("chore: the reviewed PR that flips the baseline to released")
+    git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
+    base = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
+    w.write({"VERSION": version + "\n",
+             "backend/MrMap/version.py": CANON.render_projection(version),
+             ".release-please-manifest.json":
+                 json.dumps({".": version}) + "\n",
+             "app.txt": f"state at {version}\n"})
+    if notes is not None:
+        w.write({"CHANGELOG.md": notes})
+    w.commit(message)
+    git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
+    path = w.dir / "report.json"
+    proc = w.gates("version", "--base", base, "--report", str(path))
+    return proc, json.loads(path.read_text(encoding="utf-8"))
+
+
+BREAKING_NOTES = (
+    "# Changelog\n\n## Unreleased\n\n**Breaking:** the public surface moved "
+    "(#1586)\n\n## [0.1.0] - 2023-03-23\n\n- the first shape of it all\n")
+SILENT_NOTES = ("# Changelog\n\n## Unreleased\n\n"
+                "## [0.1.0] - 2023-03-23\n\n- the first shape of it all\n")
+
+
+def scenario_bump_policy(tmp):
+    """What each commit class demands of a version, against a released baseline.
+
+    The bump question of the version gate is decidable only from a released
+    baseline, and this checkout has none (Q1 of #1578 is Pending), so the green
+    walk alone cannot show the class rules of the issue: patch, minor, major and
+    the reviewed 0.x reading. The scenario therefore runs the tools against a
+    copy of the manifest in `released` mode at 0.1.0 - the content the first
+    published release will commit - and asserts the committed pre-baseline
+    reading first, which is what stands in today.
+    """
+    committed = json.loads(
+        (REPO / "scripts" / "release_contract_baseline.json").read_text(
+            encoding="utf-8"))
+    w = DryRun(tmp, "bump-pre-baseline")
+    report = w.dir / "pre.json"
+    w.write(planned_release_files(CANDIDATE_VERSION))
+    w.commit("feat: a feature on a pre-baseline develop")
+    git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
+    proc = w.gates("version", "--base", w.baseline_commit, "--report", str(report))
+    pre = json.loads(report.read_text(encoding="utf-8"))
+    check("the committed pre-baseline manifest still reports the required class",
+          proc.returncode == 0 and pre["mode"] == "pre-baseline"
+          and committed["mode"] == "pre-baseline"
+          and pre["baseline_version"] is None and pre["required_bump"] == "minor"
+          and any("no released baseline" in note for note in pre["advisories"]),
+          f"{pre['mode']} {pre['required_bump']} {pre['advisories']}")
+
+    proc, minor = bump_walk(tmp, "bump-minor",
+                            "feat: a feature worthy of a minor bump", "0.2.0")
+    check("a feature demands a minor bump, and 0.1.0 -> 0.2.0 is one",
+          proc.returncode == 0 and minor["required_bump"] == "minor"
+          and minor["breaking"] == 0, stderr_head(proc))
+
+    proc, patch = bump_walk(tmp, "bump-patch",
+                            "fix: a fix worthy of a patch bump", "0.1.1")
+    check("a fix demands a patch bump, and 0.1.0 -> 0.1.1 is one",
+          proc.returncode == 0 and patch["required_bump"] == "patch",
+          stderr_head(proc))
+
+    proc, none = bump_walk(tmp, "bump-none",
+                           "docs: a change of no release class", "0.1.0")
+    check("a class-less range demands no bump and may keep the baseline version",
+          proc.returncode == 0 and none["required_bump"] is None,
+          stderr_head(proc))
+
+    proc, stalled = bump_walk(tmp, "bump-stalled",
+                              "fix: a fix that forgot to move the version",
+                              "0.1.0")
+    check("a patch-worthy range that keeps the baseline version is refused",
+          proc.returncode == 1
+          and "same precedence as the baseline"
+          in " ".join(stalled["problems"]), stderr_head(proc))
+
+    proc, back = bump_walk(tmp, "bump-backwards",
+                           "fix: a fix that moved the version the wrong way",
+                           "0.0.9")
+    check("a candidate behind the baseline is refused, not floored to it",
+          proc.returncode == 1
+          and "BEHIND the baseline" in " ".join(back["problems"]),
+          stderr_head(proc))
+
+    proc, zero_x = bump_walk(tmp, "bump-0x", "feat!: a breaking change below 1.0",
+                             "0.2.0", notes=BREAKING_NOTES)
+    check("a breaking change below 1.0 passes as the reviewed 0.x minor",
+          proc.returncode == 0 and zero_x["required_bump"] == "major"
+          and zero_x["breaking"] == 1, stderr_head(proc))
+
+    proc, silent = bump_walk(tmp, "bump-silent",
+                             "feat!: a breaking change whose notes stay silent",
+                             "0.2.0", notes=SILENT_NOTES)
+    check("the 0.x reading still refuses a breaking change with no Breaking line",
+          proc.returncode == 1 and "Breaking:" in " ".join(silent["problems"]),
+          stderr_head(proc))
+
+    proc, major = bump_walk(tmp, "bump-major",
+                            "feat!: the breaking change that becomes 1.0.0",
+                            "1.0.0", notes=BREAKING_NOTES)
+    check("the major path stays open for a breaking change under that reading",
+          proc.returncode == 0 and major["required_bump"] == "major"
+          and major["candidate_version"] == "1.0.0", stderr_head(proc))
+
+    proc, strict = bump_walk(tmp, "bump-strict",
+                             "feat!: a breaking change below 1.0", "0.2.0",
+                             notes=BREAKING_NOTES,
+                             policy={"breaking_below_1_0": "major"})
+    check("without the reviewed 0.x knob the same minor move is refused",
+          proc.returncode == 1
+          and "requires a major bump" in " ".join(strict["problems"]),
+          stderr_head(proc))
+    check("the class rules ran on a copy: this checkout's manifest is untouched",
+          json.loads((REPO / "scripts" / "release_contract_baseline.json")
+                     .read_text(encoding="utf-8"))["mode"] == "pre-baseline",
+          "the scenario edited reviewed content")
+
+
+def scenario_stale_candidate_document(tmp):
+    """A candidate document that is not the candidate's is refused, not diffed.
+
+    The mock documentation gate of #1584 has exactly this job: `info.version` of
+    the document must be the checkout's VERSION, so a file saved from an older
+    build cannot become the contract comparison of a new candidate. The refusal
+    happens before the report is written, so a red gate cannot leave a file the
+    promotion would consume.
+    """
+    w = DryRun(tmp, "stale-document")
+    w.advance()
+    stale = w.dir / "stale.openapi.json"
+    stale.write_text(json.dumps(openapi_doc(BASE_VERSION)), encoding="utf-8")
+    report = w.dir / "api-stale.json"
+    proc = w.gates("api", "--candidate", str(stale), "--report", str(report))
+    check("a document of another version is refused, not diffed",
+          proc.returncode == 1 and "info.version" in proc.stderr,
+          stderr_head(proc))
+    check("the refused gate leaves no report for the promotion to consume",
+          not report.exists(), report.read_text(encoding="utf-8")[:120]
+          if report.exists() else "no file")
+    # the seam is deliberate: --skip-version-check is a reviewer's inspection
+    # switch, so the promotion must not use it - and preflight does not.
+    skipped = w.dir / "api-skipped.json"
+    proc = w.gates("api", "--candidate", str(stale), "--skip-version-check",
+                   "--report", str(skipped))
+    read = json.loads(skipped.read_text(encoding="utf-8"))
+    check("--skip-version-check is the only way a stale file gets through",
+          proc.returncode == 0 and read["info_version"] == BASE_VERSION,
+          stderr_head(proc))
+    check("no promotion step passes that switch",
+          "--skip-version-check" not in PROMO.read_text(encoding="utf-8"),
+          "release_promotion.py drives the api gate with the switch on")
+    fresh = w.dir / "fresh.openapi.json"
+    fresh.write_text(json.dumps(openapi_doc(CANDIDATE_VERSION)), encoding="utf-8")
+    proc = w.gates("api", "--candidate", str(fresh),
+                   "--report", str(w.dir / "api-fresh.json"))
+    check("the candidate's own document is accepted",
+          proc.returncode == 0, stderr_head(proc))
+
+
+def scenario_concurrent_release(tmp):
+    """Two promotions of one version: the second is a conflict, and nothing moves.
+
+    #1584's rule is that the tool never moves a frozen release branch, so two
+    runs that both believe they hold the candidate is not a race the tool
+    resolves by last-write-wins: it refuses. The journal is the proof that the
+    re-runs cost one pull request, not one per attempt.
+    """
+    w = DryRun(tmp, "concurrent")
+    w.advance()
+    proc = w.promo("open-release-pr", "--sha", w.candidate)
+    expect(proc.returncode == 0, "red: concurrent release",
+           f"the first freeze failed: {stderr_head(proc)}")
+    frozen = w.remote_ref("refs/heads/release/v0.2.0")
+    git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
+    w.write({"app.txt": "a later commit that did not move the version\n"})
+    w.commit("chore: a second promotion attempt of the same version")
+    git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
+    rival = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
+    proc = w.promo("open-release-pr", "--sha", rival)
+    check("a second promotion of one version is refused as a conflict",
+          proc.returncode == 1 and "never moves a frozen" in proc.stderr,
+          stderr_head(proc))
+    check("the refusal moved nothing: branch, tags and releases stand as frozen",
+          w.remote_ref("refs/heads/release/v0.2.0") == frozen
+          and w.remote_tags() == [] and w.gh_state()["releases"] == [],
+          str(w.remote_ref("refs/heads/release/v0.2.0")))
+    proc = w.promo("open-release-pr", "--sha", w.candidate)
+    expect(proc.returncode == 0 and "already" in proc.stdout,
+           "red: concurrent release", stderr_head(proc))
+    creates = [c for c in w.journal_calls()
+               if "pr" in c and "create" in " ".join(map(str, c))]
+    check("three attempts at the freeze cost one pull request",
+          len(creates) == 1, json.dumps(creates)[:200])
+    # and the walk can still be resumed by the run that owns the freeze: the
+    # merge and the publication are unaffected by the refused attempt.
+    w.merge_release_pr(w.candidate_version)
+    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
+    check("the refused rival attempt did not poison the promotion",
+          proc.returncode == 0
+          and w.remote_tag_commit("v0.2.0") == w.remote_ref("refs/heads/master"),
+          stderr_head(proc))
+
+
 # ------------------------------------------------------------------- the run
 
 WALK = [("pre-release", phase_pre_release),
@@ -1125,7 +1350,11 @@ SCENARIOS = [("no release from class-less changes", scenario_no_release_changes)
              ("finalize's refusals", scenario_finalize_red),
              ("a range that owes its migration notes",
               scenario_missing_migration_notes),
-             ("prerelease carries no stable publication", scenario_prerelease)]
+             ("prerelease carries no stable publication", scenario_prerelease),
+             ("what each commit class demands of a version",
+              scenario_bump_policy),
+             ("a stale candidate document", scenario_stale_candidate_document),
+             ("two promotions of one version", scenario_concurrent_release)]
 
 PER_PHASE_S = float(os.environ.get("RELEASE_DRY_RUN_PHASE_TIMEOUT_S", "150"))
 

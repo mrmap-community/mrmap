@@ -225,6 +225,53 @@ instead of sitting there unnoticed.
        reserves them.
      - humans alone approve, merge and resolve
 
+What a run leaves behind
+========================
+
+The walk writes nothing outside the temp directory it runs in and removes that
+directory on every exit path, including a failed one. The ``isolation`` block of
+the report says so in machine-readable form, and these are properties of how the
+walk is built rather than promises: the git remote is a local bare repository, so
+no ref of this repository can be written by a walk; ``gh`` is the journaling shim,
+so no tag, release, pull request or issue can reach GitHub; and no credential is
+read, so nothing can be pushed even by an accident in the code. That is also how
+the acceptance criterion of #1586 that asks for no production tags, releases or
+images during validation is actually met: the walk has no path to them.
+
+The commands, the SHAs and the digests of each step are in ``exercised``, each
+step naming the command that produced it, so a run can be re-checked against its
+own report instead of against a description of it.
+
+What the promotion still expects of the repository
+==================================================
+
+The dry run exercises the tooling; these are the expectations about the
+repository itself that the tooling assumes and that an administrator has to keep
+true, because nothing in a temp directory can hold them for the real one:
+
+- ``master`` and ``develop`` are permanent branches: never deleted, renamed,
+  force-pushed or rebased, as ``AGENTS.md`` states, and only a person merges into
+  them. ``finalize`` moves a tag and a release onto a master it believes was
+  reached by a merge it did not perform, so the protection of those branches is
+  part of the promotion's safety, not an unrelated housekeeping rule.
+- the promotion workflow is dispatched behind the protected environment
+  ``release-stable`` **with required reviewers**. GitHub creates a missing
+  environment unprotected, so an administrator has to create it before the first
+  run; the lifecycle JSON names the environment and the suites assert that the
+  phase carries it, but no offline run can assert that the reviewers exist.
+- the release branches that ``open-release-pr`` freezes, ``release/v<version>``,
+  are never moved afterwards. A re-run of the step reports the branch that stands
+  rather than moving it, which is what the walk asserts; on the real repository
+  that behaviour is only useful if nothing else moves the branch either.
+
+The version equality the tools check is ``VERSION``, its projection
+``backend/MrMap/version.py``, the ``.release-please-manifest.json`` and the
+``X-CLIENT-VERSION`` of the candidate OpenAPI document. The walk asserts all four
+from both sides. What it cannot assert is the version a browser shows or the
+version of the generated documentation, because those are built by the docs
+automation of #1585 and by the frontend build, neither of which runs here; #1610
+owns the combined run over them.
+
 Reading a run
 =============
 

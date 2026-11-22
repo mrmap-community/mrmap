@@ -1,4 +1,0 @@
-{
-  "note": "The reviewed exceptions ledger of the release gates (#1583, epic #1577). Every breaking finding of 'api' and every destructive operation of a new migration must be named here, with the refs of the issue or pull request a human reviewed; an entry that matches no finding fails the gate as stale. Kinds: the finding kinds of scripts/release_gates.py (removed-operation, operation-id-change, removed-parameter, new-required-parameter, new-required-request-body, removed-response-status, removed-property, new-required-property, property-type-change, enum-narrowed) and destructive-migration. 'target' matches a finding target exactly or by an explicit trailing-* prefix.",
-  "exceptions": []
-}

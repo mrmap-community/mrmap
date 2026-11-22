@@ -1,7 +1,0 @@
-name: MrMap CodeQL configuration
-
-paths-ignore:
-  - backend/tests
-  - frontend/tests
-  - '**/*.spec.*'
-  - '**/*.test.*'

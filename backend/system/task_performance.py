@@ -126,6 +126,18 @@ def _moment(value):
     return value.isoformat() if value is not None else None
 
 
+def _sd_value(value):
+    """One record value as RFC 5424 structured data carries it: a string.
+
+    The formatter quotes whatever it is handed, so a number which was not
+    stringified here arrives in the log store as a string anyway - naming the
+    boundary once keeps the values of a published record honest about their
+    wire type, while the summary the beat task of ``system.tasks`` adds up and
+    logs stays numbers.
+    """
+    return str(value)
+
+
 def _window_fields(window):
     """The window's own fields, identical on every record of one fire.
 
@@ -268,7 +280,7 @@ def _log(record):
         "suppress_dump": True,
         "structured_data": {
             TELEMETRY_SDID: {
-                key: value for key, value in record.items()
+                key: _sd_value(value) for key, value in record.items()
                 if value is not None},
         },
     })

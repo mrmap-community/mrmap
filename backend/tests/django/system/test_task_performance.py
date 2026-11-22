@@ -149,12 +149,14 @@ class ExportOffByDefaultTests(TestCase):
 
     def test_a_fire_without_the_mode_publishes_nothing(self):
         seed()
-        with self.assertLogs(LOGGER, level="INFO") as logs:
-            summary = export_task_performance()
+        # a quiet log is the point: a deployment which never installed the
+        # dashboard should not pay records nobody reads, not even a note that
+        # it is not writing them
+        records = Records.collect(self)
+        summary = export_task_performance()
         self.assertEqual(summary["published"], 0)
         self.assertIn("off", summary["reason"])
-        self.assertFalse([line for line in logs.output
-                          if "Celery task performance" in line])
+        self.assertEqual(records, [])
 
     def test_beat_gets_no_row_while_the_mode_is_off(self):
         create_task_performance_export_task(sender=None)
@@ -191,7 +193,7 @@ class PublishedRecordsTests(TestCase):
             sorted((record["payload"]["task_class"],
                     record["payload"]["queue"])
                    for record in self.records.for_event(EVENT_CLASS_BUCKET)),
-            [("notify.tasks", "notify"),
+            [("notify.tasks.send_mail", "notify"),
              ("registry.tasks.harvest", "default")])
 
     def test_the_numbers_of_a_record_are_the_numbers_of_the_query(self):
@@ -330,9 +332,12 @@ class WindowCursorTests(TestCase):
 
     def test_the_windows_of_a_busy_period_add_up_to_what_it_measured(self):
         # a doubled, late or missing fire must not double count: what the
-        # published windows add up to is what the attempts were
-        seed(active=2.0, started_ago_seconds=30)
-        export_task_performance()
+        # published windows add up to is what the attempts were. The two fires
+        # are a minute apart, which is how a beat cadence actually arrives.
+        with patch.object(timezone, "now",
+                          return_value=timezone.now() - timedelta(minutes=1)):
+            seed(active=2.0, started_ago_seconds=30)
+            export_task_performance()
         seed(active=3.0, started_ago_seconds=5)
         export_task_performance()
         fleets = [record["payload"]

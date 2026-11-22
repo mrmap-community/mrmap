@@ -15,6 +15,7 @@ from django.utils.timezone import now
 from epsg_cache.utils import adjust_axis_order
 from guardian.core import ObjectPermissionChecker
 from lxml import etree
+from extras.ssrf import GuardedSession
 from registry.helper.xml import parse_untrusted
 from PIL import Image
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum, OGCServiceVersionEnum
@@ -33,7 +34,7 @@ from registry.helper.preview_image import render_feature_collection
 from registry.proxy.mixins import Http423, OgcServiceProxyView
 from registry.proxy.wfs_proxy import WebFeatureServiceProxy
 from registry.proxy.wms_proxy import WebMapServiceProxy
-from requests import Request, Session
+from requests import Request
 from requests.exceptions import RequestException
 
 FEATURE_LIMIT = 500
@@ -55,8 +56,13 @@ class PreviewError(Exception):
         self.status = status
 
 
-class PreviewSession(Session):
-    """Apply limits to every upstream read, including spatially secured POSTs."""
+class PreviewSession(GuardedSession):
+    """Apply limits to every upstream read, including spatially secured POSTs.
+
+    The policy of `GuardedSession` is inherited, not re-implemented: a preview of a service
+    whose endpoint sits on an internal address is refused the same way as its capabilities
+    document or its monitoring probe (#1474, SEC-16).
+    """
     def prepare_request(self, request):
         prepared = super().prepare_request(request)
         if prepared.hooks.get("response"):

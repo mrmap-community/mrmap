@@ -265,7 +265,7 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch("registry.tasks.service.Session.send",
+    @patch("registry.tasks.service.GuardedSession.send",
            side_effect=serve_capabilities)
     def test_the_service_row_arrives_with_its_owner(self, mock_send):
         # a TransactionTestCase sees the rows of other transaction tests of
@@ -287,7 +287,7 @@ class RegistrationTaskOwnerTests(TransactionTestCase):
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch("registry.tasks.service.Session.send",
+    @patch("registry.tasks.service.GuardedSession.send",
            side_effect=serve_capabilities)
     def test_a_message_without_an_owner_stays_ownerless(self, mock_send):
         """The shape of a message queued before #733 is the legacy shape.

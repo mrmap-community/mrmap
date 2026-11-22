@@ -1,2 +1,6 @@
-.output/
 node_modules/
+.output/
+.features-gen/
+test-results/
+playwright-report/
+*.trace

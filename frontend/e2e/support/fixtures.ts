@@ -1,4 +1,5 @@
-import { test as base } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test as bddTest } from "playwright-bdd";
 
 import { E2EWorld } from "./world";
 
@@ -30,10 +31,15 @@ export type BddFixtures = { world: E2EWorld };
 
 // The single fixture that hands a step the adapters and the response log.
 // playwright-bdd generates one test per scenario, so the world is per scenario.
-export const test = base.extend<BddFixtures>({
+//
+// The base is the test of playwright-bdd and not the one of @playwright/test:
+// createBdd() only accepts a test that already carries the BDD fixtures, and the
+// generated files import THIS module (the "steps" pattern of the BDD config), so
+// one test object serves both the Gherkin scenarios and the plain specs.
+export const test = bddTest.extend<BddFixtures>({
   world: async ({ page, request }, use) => {
     await use(new E2EWorld(page, request));
   },
 });
 
-export { expect } from "@playwright/test";
+export { expect };

@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { createBdd } from "playwright-bdd";
 
 import { test } from "../support/fixtures";
 import type { E2EWorld } from "../support/world";
@@ -10,7 +11,7 @@ import { expectBackgroundProcessState } from "../support/waiters";
 // (through the response log of the world, never through a re-request). The
 // asynchronous shape carries its interval and deadline in code.
 
-const { Then } = test;
+const { Then } = createBdd(test);
 
 const expectRecordsReadBack = async (world: E2EWorld, status: number) => {
   const ids = world.created.flatMap((entry) => entry.ids);

@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { createBdd } from "playwright-bdd";
 
 import { test } from "../support/fixtures";
 import { resolveFormValue } from "../support/formValues";
@@ -9,7 +10,7 @@ import { resolveFormValue } from "../support/formValues";
 // unless the mutation itself is what the UI is tested for — that exception is
 // spelled out in the contract, not left to a reader's judgement.
 
-const { When } = test;
+const { When } = createBdd(test);
 
 When("I open the {word} list", async ({ world }, resource) => {
   world.resetResponses();

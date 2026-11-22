@@ -1,3 +1,5 @@
+import { createBdd } from "playwright-bdd";
+
 import { test, CREDENTIALS } from "../support/fixtures";
 import { resolveNamedValue } from "../support/namedValues";
 
@@ -6,7 +8,7 @@ import { resolveNamedValue } from "../support/namedValues";
 // (rule R4). The secret of a role never travels through a feature file — the
 // step names a *role* and the secret is read from the stack's environment.
 
-const { Given } = test;
+const { Given } = createBdd(test);
 
 const SESSION_KEYS = ["authorization", "username", "rememberUser"];
 

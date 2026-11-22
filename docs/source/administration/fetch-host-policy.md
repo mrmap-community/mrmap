@@ -101,12 +101,22 @@ it already worked in the development stack.
 
 ## What a refusal answers
 
-A refused target is reported as an error of the request it belongs to - an ``OwsExcepion`` naming
-the refused URL for a registration, update or harvest, a failed monitoring result for a probe -
-and the URL is never fetched. The log line names the policy:
+The URL is never fetched: the policy refuses the target before a socket exists, and the refusal
+travels as a ``requests`` connection error, which every fetch path already treats as an
+unreachable endpoint. So a refused endpoint reads to the caller like an endpoint which is down,
+and nothing of its answer is ever stored:
+
+- a registration, update or harvest retries the fetch as it retries an unreachable endpoint and
+  ends with a failed process naming the URL;
+- a metadata reference of a harvest or import raises ``MetadataFetchUnreachable``;
+- a preview answers ``502`` with the ``unavailable`` error;
+- a monitoring probe records a failed result whose request error names the refused address.
+
+The warning which answers the refusal names the policy and the address, so an operator can see
+that the endpoint is refused rather than down:
 
 ```
-mrmap.fetch: <address> refused by the host policy of URL <url>
+mrmap.fetch: <host> refused by the host policy (<address>)
 ```
 
 The implementation is ``backend/extras/ssrf.py`` (``GuardedSession``). Every server-side fetch of

@@ -106,6 +106,14 @@ npm run bdd:steps          # the step grammar as documentation
 application never renders, which is the proof that a red scenario fails the run
 loudly and leaves a trace. It is opt-in by name, never part of a green tier.
 
+Every run also writes the Cucumber-compatible reports of the Gherkin layer into
+`cucumber-report/` (gitignored): `cucumber.json` for machine consumers and
+`cucumber.html` as the readable report. They live beside, not inside, `.output/`
+because Playwright wipes its `outputDir` when a run begins — the Cucumber
+wrapper opens its stream while reporters are constructed, so a file inside
+`.output/` is deleted again before anything is written to it. The trace of a red
+scenario stays where Playwright puts it: `.output/<test-dir>/trace.zip`.
+
 Where to put a scenario, and what a step may say, is specified by #1688 (step
 grammar) and #1687 (waiting and assertion invariants): a step is one of
 `Given/When/Then` of the grammar, all UI knowledge lives in

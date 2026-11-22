@@ -86,7 +86,7 @@ TOOLS = ["release_promotion.py", "release_gates.py", "canonical_version.py",
 # the runtime facts the promotion gate owes, and which nothing here may fabricate
 BACKEND_DIGEST = "sha256:" + "a" * 64
 FRONTEND_DIGEST = "sha256:" + "b" * 64
-MANUAL = [f"--manual=dependencies=https://github.example.test/dependency-audit"]
+MANUAL = ["--manual=dependencies=https://github.example.test/dependency-audit"]
 ARTIFACTS = ["--artifact=mrmap-backend=" + BACKEND_DIGEST,
              "--artifact=mrmap-frontend=" + FRONTEND_DIGEST]
 RESULTS = []
@@ -387,8 +387,8 @@ class DryRun:
         git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.repo)
         git("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.repo)
         git("branch", "master", "origin/master", cwd=self.repo)
-        self.baseline_commit = git("rev-parse", "HEAD",
-                            cwd=self.repo).stdout.strip()
+        self.baseline_commit = git(
+            "rev-parse", "HEAD", cwd=self.repo).stdout.strip()
 
     # -- recording ---------------------------------------------------------
 
@@ -439,8 +439,8 @@ class DryRun:
         self.write(planned_release_files(version, notes=notes))
         self.commit(f"chore(release): release {version}")
         git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.repo)
-        self.candidate = git("rev-parse", "HEAD",
-                                 cwd=self.repo).stdout.strip()
+        self.candidate = git(
+            "rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         self.candidate_version = version
         return self.candidate
 
@@ -515,9 +515,8 @@ class DryRun:
                                      cwd=self.repo).stdout.splitlines()]
 
 
-
-
 # ----------------------------------------------------- derived blocked items
+
 
 def blocked_items(lifecycle):
     """What a dry run cannot decide offline, derived from the tools' own names.
@@ -545,8 +544,9 @@ def blocked_items(lifecycle):
                "through the same --artifact seam but cannot pull them",
         "owner": lifecycle["channels"]["stable"]["images"]["publisher_tool"],
     })
-    constraints = json.loads((REPO / "scripts" / "release_upgrade_baseline.json")
-                            .read_text(encoding="utf-8"))
+    constraints = json.loads(
+        (REPO / "scripts" / "release_upgrade_baseline.json")
+        .read_text(encoding="utf-8"))
     items.append({
         "item": "the CI upgrade run from the oldest supported baseline",
         "why": "the upgrade gate checks the graph and the boundaries offline, "
@@ -577,8 +577,9 @@ def blocked_items(lifecycle):
         items.append({
             "item": "the human acts of those phases",
             "why": "the phases whose actor is " + "/".join(humans) + " ("
-                   + ", ".join(phase["id"] for phase in lifecycle["phases"]
-                              if phase["actor"] == "human")
+                   + ", ".join(
+                       phase["id"] for phase in lifecycle["phases"]
+                       if phase["actor"] == "human")
                    + ") are simulated by git moves the walk performs on behalf "
                    "of a person; the constraint that reserves them ("
                    + lifecycle["constraints"]["approvals"]
@@ -1110,6 +1111,7 @@ def scenario_prerelease(tmp):
               cwd=w.repo).stdout.strip() == "",
           git("ls-remote", "--tags", "origin", cwd=w.repo).stdout)
 
+
 def bump_walk(tmp, name, message, version, *, notes=None, policy=None):
     """One commit class, planned onto a released baseline; returns its report.
 
@@ -1388,7 +1390,7 @@ def run_green_walk(tmp, lifecycle):
         except PhaseFailed as failure:
             check(f"phase {phase_id} walks as described", False, str(failure))
             return w.steps, f"{phase_id} failed: {failure}"
-        except HarnessCannotRun as failure:
+        except HarnessCannotRun:
             raise
         except Exception as failure:  # a tool crash is a finding, not a pass
             check(f"phase {phase_id} walks as described", False,

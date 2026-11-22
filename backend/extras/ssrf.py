@@ -63,11 +63,11 @@ POLICY_DOC = "docs/source/administration/fetch-host-policy.md"
 
 #: the benchmarking block of RFC 2544, which no service is served from and whose absence from
 #: ``is_private`` is the one gap the default ranges would otherwise leave open
-BENCHMARKING = ipaddress.ip_network('198.18.0.0/15')
+BENCHMARKING = ipaddress.ip_network('198.18.0.0/15')  # NOSONAR RFC 2544 benchmarking block, named because the policy refuses it, never fetches it
 #: the carrier-grade NAT range of RFC 6598: what a Tailscale network and the IPv4 fabric of a
 #: provider answer from, where an internal-only service of the *infrastructure* lives. It is
 #: deliberately not global and therefore not ``is_private``, but it is refused the same way.
-CARRIER_GRADE_NAT = ipaddress.ip_network('100.64.0.0/10')
+CARRIER_GRADE_NAT = ipaddress.ip_network('100.64.0.0/10')  # NOSONAR refused by the policy, never fetched: named so an operator can find why a VPN address is refused
 #: the documentation block of RFC 3849, which sits *inside* the Teredo prefix and must not be
 #: decoded as one
 DOCUMENTATION_V6 = ipaddress.ip_network('2001:db8::/32')
@@ -95,8 +95,8 @@ def _development_allowance():
     """
     if getattr(settings, 'MRMAP_PRODUCTION', True):
         return []
-    return ['127.0.0.0/8', '::1/128', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16',
-            'fc00::/7']
+    return ['127.0.0.0/8', '::1/128', 'fc00::/7',
+            '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16']  # NOSONAR the RFC 1918 network of the compose stack, granted only while MRMAP_PRODUCTION is off and never fetched by a production deployment
 
 
 def _networks(entries):
@@ -189,10 +189,11 @@ def _forms(address):
     the address itself. An embedding form can therefore never *widen* what is allowed: a
     refused form refuses the whole address.
     """
+    forms = [address]
     embedded = _embedded(address)
-    if embedded is None:
-        return (address,)
-    return (address, embedded)
+    if embedded is not None:
+        forms.append(embedded)
+    return tuple(forms)
 
 
 def address_is_allowed(address):

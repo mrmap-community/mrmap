@@ -811,6 +811,72 @@ CAPACITY_COST_GROUP_LIMIT = 5_000
 # - a tunable threshold, not a statement that capacity above it is safe
 CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
 
+# ------------------------------------------------------------------
+# Continuous slow-task detection (#1390, epic #1387 V2)
+#
+# The V1 telemetry of #1330 measured how long attempts took; this is the
+# detection that reads it: on a beat cadence it compares each task class
+# against its own previous window, looks for executions still running past
+# their class' budget (only actionable when a worker confirms them), and
+# reports the telemetry gaps which would otherwise read as healthy. All of
+# it is read from the attempt samples - no extra instrumentation per task.
+# Off by default: the defaults below are deliberately generous so turning
+# it on never starts an incident storm; a threshold runbook is on
+# docs/source/development/celery-task-performance.rst.
+# ------------------------------------------------------------------
+# the detector's kill switch; the beat row exists either way, so enabling is
+# an environment change and not a migrate
+TASK_PERFORMANCE_ENABLED = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE", "").strip().lower() in ("on", "1", "true")
+# how often beat asks the question, and the rolling window each fire measures
+# (its comparable baseline is the equally long window before it)
+TASK_PERFORMANCE_INTERVAL_MINUTES = 15
+TASK_PERFORMANCE_WINDOW_HOURS = 24
+# how few terminal attempts a class needs to be judged at all, or to be
+# trusted as a baseline; fewer answer "insufficient" and publish nothing,
+# which is how a sparse class stays unjudged instead of guessed
+TASK_PERFORMANCE_MIN_SAMPLES = 5
+# the active-time budget a class without a policy of its own is judged
+# against, and the budget an attempt still RUNNING is judged against; the
+# long floor keeps a class with a tiny budget from reporting every ordinary
+# execution of itself
+TASK_PERFORMANCE_DEFAULT_BUDGET_SECONDS = 600
+TASK_PERFORMANCE_DEFAULT_LONG_SECONDS = 1800
+TASK_PERFORMANCE_LONG_MIN_ACTIVE_SECONDS = 60
+# how far past the abandon grace of the attempt samples an open attempt may
+# still count as live; past it the row is crash residue (#1330), never a
+# running task, and it belongs to the coverage condition
+TASK_PERFORMANCE_LONG_GRACE_SECONDS = 300
+# the regression rule: how much worse than its own previous window a class
+# must be, how much of that a heavy tail may account for on its own (an
+# isolated spike is a completed-slow finding, not a regression), and the
+# shortest baseline a ratio may be computed against at all - multiplying a
+# sub-second baseline is false precision
+TASK_PERFORMANCE_REGRESSION_FACTOR = 2.0
+TASK_PERFORMANCE_SPIKE_SHARE = 0.10
+TASK_PERFORMANCE_REGRESSION_MIN_BASELINE_SECONDS = 1.0
+# the budgets of one fire: task classes judged, incidents published, and
+# what still counts as complete telemetry. A deployment which outruns the
+# class budget reports it truncated; a mass slowdown is a bounded number of
+# incidents, not one per class.
+TASK_PERFORMANCE_MAX_CLASSES = 200
+TASK_PERFORMANCE_MAX_VERDICTS_PER_FIRE = 25
+TASK_PERFORMANCE_COVERAGE_MIN_STAMPED = 0.5
+# how long past the abandon grace unmeasured open attempts may go unremarked,
+# and how old the last sample of a class may be before it answers "no data"
+# instead of a stale "healthy"
+TASK_PERFORMANCE_ABANDON_STALE_HOURS = 6
+TASK_PERFORMANCE_STALE_AFTER_HOURS = 72
+# per-class budgets: keys are a full celery task name or "queue:<name>",
+# values may set budget_seconds, long_running_seconds, regression_factor,
+# spike_share or disabled. A policy of neither shape is refused at boot, since
+# a policy which silently never matched would look like a budget which was
+# honoured; TASK_PERFORMANCE_POLICIES is the env-friendly JSON form of the
+# same map and loses to this one key by key.
+TASK_PERFORMANCE_POLICY = {}
+TASK_PERFORMANCE_POLICIES = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_POLICIES", "") or {}
+
 ################################################################
 # django channels settings
 ################################################################

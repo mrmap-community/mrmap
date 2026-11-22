@@ -31,34 +31,51 @@ from system.models import (AttemptOutcome, AttemptQuality,
                            CeleryTaskAttempt)
 
 
-class _WaitPercentile(models.Aggregate):
-    """One percentile of the measured queue waits, as one aggregate clause.
+class PercentileWithinGroup(models.Aggregate):
+    """One percentile of a duration column of the attempt table, as one clause.
 
     Django dropped postgres' order-set aggregates with 5.0, and re-building
     the whole ``WITHIN GROUP`` machinery for this one number is not worth it:
-    the SQL here is the documented form of the question, bound to the two
-    columns the collector itself writes. The FILTER keeps the semantics of
-    the module: waiting is read from attempts which were *stamped and
-    finished* - an unknown wait never joins the distribution as a zero.
+    the SQL here is the documented form of the question, bound to a column
+    the collector itself writes. The FILTER keeps the semantics of the read
+    modules: a duration is read from attempts which *finished* and whose
+    duration was actually measured - an unknown duration never joins the
+    distribution as a zero.
+
+    The column is named by the caller, so the same expression answers the
+    queue wait of #1326 and the active seconds of #1390; only the attempt
+    table's own duration columns are readable this way.
     """
 
-    def __init__(self, quantile, **extra):
+    def __init__(self, column, quantile, **extra):
+        self.column = str(column)
         self.quantile = float(quantile)
         super().__init__(output_field=FloatField(), **extra)
 
     def as_sql(self, compiler, connection, **extra_context):
         opts = CeleryTaskAttempt._meta
+        try:
+            column = opts.get_field(self.column).column
+        except Exception:
+            raise ValueError(
+                f"'{self.column}' is no column of the attempt samples.")
         table = connection.ops.quote_name(opts.db_table)
-        wait = connection.ops.quote_name(
-            opts.get_field("wait_seconds").column)
+        column = connection.ops.quote_name(column)
         outcome = connection.ops.quote_name(
             opts.get_field("outcome").column)
         sql = (
-            "percentile_cont(%s) WITHIN GROUP (ORDER BY {table}.{wait}) "
+            "percentile_cont(%s) WITHIN GROUP (ORDER BY {table}.{column}) "
             "FILTER (WHERE {table}.{outcome} <> '' "
-            "AND {table}.{wait} IS NOT NULL)"
-        ).format(table=table, wait=wait, outcome=outcome)
+            "AND {table}.{column} IS NOT NULL)"
+        ).format(table=table, column=column, outcome=outcome)
         return sql, [self.quantile]
+
+
+class _WaitPercentile(PercentileWithinGroup):
+    """The percentile of the measured queue waits (#1326's read)."""
+
+    def __init__(self, quantile, **extra):
+        super().__init__("wait_seconds", quantile, **extra)
 
 
 #: the evidence class of epic #1324 this module answers with; a duration

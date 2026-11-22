@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { defineBddProject } from 'playwright-bdd';
+import { cucumberReporter, defineBddProject } from 'playwright-bdd';
 
 // Browser acceptance harness for the BUILT SPA served by nginx — the same
 // image the production compose files build (docker/nginx/nginx.Dockerfile),
@@ -27,8 +27,15 @@ export default defineConfig({
     ['json', { outputFile: '.output/results.json' }],
     // Cucumber-compatible feed of the Gherkin scenarios (#1689): the JSON is
     // what external BDD tooling consumes, the HTML is the readable report.
-    ['playwright-bdd/reporter/cucumber', { type: 'json', outputFile: '.output/cucumber.json' }],
-    ['playwright-bdd/reporter/cucumber', { type: 'html', outputFile: '.output/cucumber.html' }]
+    // Two things the reporter wrapper of `playwright-bdd` insists on:
+    // - the built-in reporter is named via `cucumberReporter()` — the adapter
+    //   reads it from `$type`, a plain { type: ... } makes it treat "undefined"
+    //   as a custom reporter path and die in onEnd;
+    // - the files must live OUTSIDE `outputDir`: the wrapper opens its stream
+    //   while the reporters are constructed, and Playwright wipes `.output/`
+    //   when the run starts, so anything written there before the run is gone.
+    cucumberReporter('json', { outputFile: 'cucumber-report/cucumber.json' }),
+    cucumberReporter('html', { outputFile: 'cucumber-report/cucumber.html' })
   ],
   use: {
     baseURL: BASE_URL,

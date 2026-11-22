@@ -1,8 +1,10 @@
 import { expect } from "@playwright/test";
-import { createBdd } from "playwright-bdd";
+import { createBdd, defineParameterType } from "playwright-bdd";
 
 import { test } from "../support/fixtures";
 import { resolveFormValue } from "../support/formValues";
+import { resolveNamedValue } from "../support/namedValues";
+import { SCREEN_NAMES, screenPath } from "../support/paths";
 
 // The When category of the step grammar (#1688). Exactly one action per step,
 // because an action with a different expected outcome belongs in a different
@@ -12,7 +14,22 @@ import { resolveFormValue } from "../support/formValues";
 
 const { When } = createBdd(test);
 
-When("I open the {word} list", async ({ world }, resource) => {
+// The screen names a feature file may use, as a cucumber parameter type built
+// from the same table the resolver reads. A step written with {word} would match
+// "I open the wms list screen" too, and cucumber-expressions then refuses the
+// ambiguity at load time; an enumerated type cannot overlap with {word}.
+defineParameterType({
+  name: "screen",
+  // "the dataset list" reads with a space, the table keys it with an underscore.
+  regexp: new RegExp(`(?:${[...SCREEN_NAMES].sort((a, b) => b.length - a.length).join("|")})`.replace(/_/g, "[\\s_]")),
+});
+
+When("I open the {screen} screen", async ({ world }, screen) => {
+  world.resetResponses();
+  await world.ui.goto(screenPath(screen));
+});
+
+When("I open the list of {word}", async ({ world }, resource) => {
   world.resetResponses();
   await world.ui.goto(`/${resource}`);
 });
@@ -23,7 +40,11 @@ When("I open the path {string}", async ({ world }, path) => {
 });
 
 When("I search for {string}", async ({ world }, value) => {
-  await world.ui.field("Search").fill(value);
+  await world.ui.field("Search").fill(resolveFormValue(resolveNamedValue(value)));
+});
+
+When("I expand the results of {word}", async ({ world }, group) => {
+  await world.ui.expandGroup(group);
 });
 
 When("I sort by {word} {word}", async ({ world }, field, direction) => {
@@ -50,7 +71,7 @@ When("I refresh the page", async ({ world }) => {
   await world.page.reload({ waitUntil: "domcontentloaded" });
 });
 
-When("I open the form of {word}", async ({ world }, resource) => {
+When("I open the create form of {word}", async ({ world }, resource) => {
   world.resetResponses();
   await world.ui.goto(`/${resource}/create`);
 });

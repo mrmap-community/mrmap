@@ -12,5 +12,6 @@ Feature: Portal search over the seeded catalogue
     Given the acceptance stack answers
     When I open the search screen
     And I search for "{seed.dataset.searchterm}"
+    And I expand the results of DatasetMetadataRecord
     Then I should see "{seed.dataset.title}"
     And every API call of the scenario is answered below 400

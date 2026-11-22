@@ -27,6 +27,12 @@ export class UiAdapter {
     await this.page.getByRole("button", { name, exact: false }).first().click();
   }
 
+  /** One result group of the portal search: the groups are accordions, so a
+   *  group answers nothing until its summary is activated. */
+  async expandGroup(name: string) {
+    await this.page.getByRole("button", { name, exact: true }).click();
+  }
+
   async selectOption(label: string, option: string) {
     await this.field(label).click();
     await this.page.getByRole("option", { name: option, exact: false }).first().click();

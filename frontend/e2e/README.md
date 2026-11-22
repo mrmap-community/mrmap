@@ -82,3 +82,31 @@ scripts from the unpkg CDN — the harness needs outbound network, and tile
 requests to openstreetmap.org shape the map's backdrop but no assertion
 depends on them. The numbers of #946 are only comparable within this stack —
 the issue's rule against comparing unlike environments applies.
+
+## 4. The Gherkin layer (issue #1689)
+
+`playwright-bdd` 9.2.1 compiles `features/*.feature` into `.features-gen/`
+(gitignored) and the result runs as the `bdd` **project of this same config** —
+one runner, one login state, one artifact directory for both layers. It is not
+a second runtime: no Vite server, no second browser, no second stack.
+
+```bash
+# one command for everything: generated scenarios + the plain specs of #1034
+bash -lc 'npm ci --no-audit --no-fund && npm test'
+
+# the Gherkin layer alone, and the tiers of it
+npm run bdd:gen            # compile only — fails on an undefined step
+npm run bdd:smoke          # the @smoke tier, i.e. everything but the canary
+npm run bdd:test           # every scenario including the canary
+npm run bdd:demonstrate    # the canary alone: must exit nonzero (#1689 AC)
+npm run bdd:steps          # the step grammar as documentation
+```
+
+`npm test` excludes `@intentional-failure`: that scenario asserts text the
+application never renders, which is the proof that a red scenario fails the run
+loudly and leaves a trace. It is opt-in by name, never part of a green tier.
+
+Where to put a scenario, and what a step may say, is specified by #1688 (step
+grammar) and #1687 (waiting and assertion invariants): a step is one of
+`Given/When/Then` of the grammar, all UI knowledge lives in
+`support/adapters/`, and no step waits on a timeout or a CSS selector.

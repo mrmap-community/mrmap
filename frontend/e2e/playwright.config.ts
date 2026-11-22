@@ -39,17 +39,23 @@ export default defineConfig({
   projects: [
     { name: 'setup', testMatch: /auth\.setup\.ts/ },
     {
-      // generated from features/*.feature by `bddgen`; shares the login state
-      // of the setup project, because storageState lives in the root `use`
+      // generated from features/*.feature by `bddgen`; shares the login state of
+      // the setup project the same way the chromium project does, via its own
+      // `use.storageState`.
       ...defineBddProject({
         name: 'bdd',
         featuresRoot: 'features',
         features: 'features/**/*.feature',
-        steps: ['steps/**/*.ts'],
-        // one fixture set for both layers: the steps and the generated tests share
-        // the test object of support/fixtures.ts
-        importTestFrom: 'support/fixtures.ts'
+        // v9 dropped importTestFrom: the module that exports the extended test
+        // object must be part of the `steps` pattern itself, so the generated
+        // files import their fixture from it. That is also what makes one fixture
+        // set serve both layers — the plain specs import the same module.
+        steps: ['support/fixtures.ts', 'steps/**/*.ts']
       }),
+      // defineBddProject only returns { name, testDir }, so the login state of
+      // the setup project has to be set here too: without it every scenario
+      // boots on /login and a step waits for a field that is never rendered.
+      use: { ...devices['Desktop Chrome'], storageState: '.output/state.json' },
       dependencies: ['setup']
     },
     {

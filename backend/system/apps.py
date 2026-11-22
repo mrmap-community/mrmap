@@ -15,6 +15,10 @@ TASK_ATTEMPT_BOUNDING_TASK_NAME = "bound celery task attempt samples"
 #: beat; the tests look the row up by it
 CAPACITY_SNAPSHOT_REFRESH_TASK_NAME = "refresh capacity snapshot"
 
+#: the name the task-performance exporter of #1391 has in the schedule of
+#: beat; the tests look the row up by it
+TASK_PERFORMANCE_EXPORT_TASK_NAME = "publish celery task performance"
+
 
 def create_slow_request_dump_cleanup_task(sender, **kwargs):
     """Creates the periodic task which keeps the slow request dumps bounded.
@@ -104,6 +108,45 @@ def create_capacity_snapshot_refresh_task(sender, **kwargs):
     )
 
 
+def create_task_performance_export_task(sender, **kwargs):
+    """Creates the periodic task which publishes the #1391 performance series.
+
+    The dashboard of #1391 reads a log store; the row below is what writes it.
+    Unlike every other beat row of this app it is created only while
+    ``TASK_PERFORMANCE_EXPORT_ENABLED`` is on, and removed while it is off:
+    the export is off by default, and a deployment which never installed the
+    dashboard should not pay a beat fire every window to discover that. The
+    row is keyed by its own name, so an operator who re-scheduled it over the
+    api keeps the cadence they chose for as long as the mode stays on.
+    """
+    from django.conf import settings
+    from django_celery_beat.models import CrontabSchedule, PeriodicTask
+
+    if not getattr(settings, "TASK_PERFORMANCE_EXPORT_ENABLED", False):
+        # only this function's own row is touched; a row the operator renamed
+        # is theirs and stays
+        PeriodicTask.objects.filter(
+            name=TASK_PERFORMANCE_EXPORT_TASK_NAME).delete()
+        return
+
+    # every five minutes, offset by two from the metadata import at :00 and
+    # from the other housekeeping rows of this app (:05 dumps, :13 snapshots,
+    # :20 probe artifacts, :30 job history, :40 incidents, :50 bounding). The
+    # exporter's window continues where the last one ended, so a fire which is
+    # late widens the next window instead of shifting or double counting it.
+    schedule, _ = CrontabSchedule.objects.get_or_create(
+        minute="2,7,12,17,22,27,32,37,42,47,52,57", hour="*", day_of_week="*",
+        day_of_month="*", month_of_year="*")
+
+    PeriodicTask.objects.get_or_create(
+        name=TASK_PERFORMANCE_EXPORT_TASK_NAME,
+        defaults={
+            "crontab": schedule,
+            "task": "system.tasks.publish_task_performance",
+        }
+    )
+
+
 class SystemConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'system'
@@ -129,5 +172,9 @@ class SystemConfig(AppConfig):
         )
         post_migrate.connect(
             create_capacity_snapshot_refresh_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_task_performance_export_task,
             sender=self
         )

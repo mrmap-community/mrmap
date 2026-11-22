@@ -771,6 +771,39 @@ TASK_PROFILING_SAMPLE_RATE = float(
 # buffered profiles per worker process; an overflow marks the dropped
 # profile partial and counts the drop, never blocks the task
 TASK_PROFILING_BUFFER_LIMIT = 200
+# the scheduled exporter of the task-performance dashboard of #1391 (epic
+# #1387 V2): OFF by default, because the series exists for a deployment
+# which runs the Grafana of the stack. What it publishes is one structured
+# record per (task class, queue) bucket per window over the #1330 attempt
+# rows - never a query on a dashboard refresh, never one record per attempt
+# (docs/source/development/celery-task-performance.rst).
+TASK_PERFORMANCE_EXPORT_ENABLED = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT", "").strip().lower() in (
+    "on", "1", "true")
+# the span one published window covers. The exporter's beat row fires at a
+# fixed five minute cadence (system/apps.py) and every window continues where
+# the last one ended, so this span is the intent of a window rather than its
+# clock: a fire which arrives late widens the next window instead of double
+# counting it or leaving a hole in the series
+TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES", "5"))
+# the buckets of one window (heaviest first); the cardinality of the series
+# is bounded by the (class, queue) pairs of the deployment and a window over
+# the cap says it is partial rather than silently dropping the tail
+TASK_PERFORMANCE_EXPORT_MAX_BUCKETS = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS", "200"))
+# the heaviest classes whose newest attempts ride along as drill-down
+# records, and how many rows per class - an operator's click, never a
+# per-task time series (a task uuid must not become a label, #1391)
+TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES", "3"))
+TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS", "5"))
+# how far the very first window of a deployment looks back when there is no
+# cursor to continue from; it counts what the attempt retention still holds
+# and names itself first_window in the summary
+TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES", "60"))
 # the broker round trip of the topology inspect and how long its answer is
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60

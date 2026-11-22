@@ -11,11 +11,12 @@ queries.
 import uuid
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
-from system.capacity_measures import (attempt_measures, grouped_measures,
-                                      recent_samples)
+from system.capacity_measures import (attempt_measures, drilldown_samples,
+                                      grouped_measures, recent_samples,
+                                      task_class_of, window_buckets)
 from system.models import (AttemptQuality, CeleryTaskAttempt)
 
 
@@ -205,3 +206,211 @@ class RecentSamplesTests(TestCase):
         seed()
         with self.assertNumQueries(1):
             recent_samples(since())
+
+
+class TaskClassTests(SimpleTestCase):
+    """The class rule of #1391: a task's module is its dashboard grouping."""
+
+    def test_class_is_the_first_parts_of_the_name(self):
+        self.assertEqual(
+            task_class_of("registry.tasks.harvest.harvest_metadata"),
+            "registry.tasks.harvest")
+        self.assertEqual(task_class_of("registry.tasks.harvest"),
+                         "registry.tasks.harvest")
+
+    def test_shorter_names_answer_themselves(self):
+        # a task with no module to belong to has no class to be folded into
+        self.assertEqual(task_class_of("add"), "add")
+        self.assertEqual(task_class_of("extras.tasks.add"),
+                         "extras.tasks.add")
+        self.assertEqual(task_class_of(""), "")
+
+
+class TaskClassSqlTests(TestCase):
+    """The SQL mirror of :func:`task_class_of` agrees with the Python rule."""
+
+    def test_grouped_answer_matches_the_python_rule(self):
+        # the exporter groups in SQL and the policy classifies in Python; the
+        # two must not be allowed to drift quietly (#1391)
+        names = ["registry.tasks.harvest.harvest_metadata",
+                 "registry.tasks.harvest", "add", "extras.tasks.add",
+                 "a.b.c.d.e", "notify.tasks.send_mail"]
+        for name in names:
+            seed(task_name=name)
+        answer = window_buckets(since=since(), until=timezone.now())
+        self.assertEqual(
+            {bucket["task_class"] for bucket in answer["buckets"]},
+            {task_class_of(name) for name in names})
+
+
+class WindowBucketsTests(TestCase):
+    """The bucket answer the exporter of #1391 publishes."""
+
+    def test_empty_window_answers_unknown_not_zero(self):
+        answer = window_buckets(since=since())
+        self.assertEqual(answer["buckets"], [])
+        self.assertIsNone(answer["fleet"]["slot_seconds"])
+        self.assertIsNone(answer["fleet"]["active_p95"])
+        self.assertIsNone(answer["fleet"]["wait_p95"])
+        self.assertEqual(answer["fleet"]["executions"], 0)
+        self.assertIsNone(answer["coverage"]["wait_coverage"])
+
+    def test_buckets_group_by_class_and_queue_heaviest_first(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             queue="harvest-import", active=10.0)
+        seed(task_name="registry.tasks.harvest.harvest_result",
+             queue="harvest-import", active=4.0)
+        seed(task_name="notify.tasks.send_mail", queue="notify", active=1.0)
+        answer = window_buckets(since=since())
+        self.assertEqual(
+            [(bucket["task_class"], bucket["queue"], bucket["executions"])
+             for bucket in answer["buckets"]],
+            [("registry.tasks.harvest", "harvest-import", 2),
+             ("notify.tasks.send_mail", "notify", 1)])
+        self.assertAlmostEqual(
+            answer["buckets"][0]["slot_seconds"], 14.0)
+
+    def test_queue_waiting_stays_out_of_the_occupancy(self):
+        seed(wait=4 * 3600, active=2.0,
+             task_name="registry.tasks.harvest.harvest_metadata")
+        bucket = window_buckets(since=since())["buckets"][0]
+        self.assertAlmostEqual(bucket["slot_seconds"], 2.0)
+        self.assertAlmostEqual(bucket["wait_p95"], 4 * 3600)
+        self.assertEqual(bucket["wait_samples"], 1)
+
+    def test_unmeasured_wait_stays_unknown_in_its_bucket(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata")
+        seed(task_name="registry.tasks.harvest.harvest_metadata", wait=5.0)
+        bucket = window_buckets(since=since())["buckets"][0]
+        self.assertEqual(bucket["executions"], 2)
+        self.assertEqual(bucket["wait_samples"], 1)
+        self.assertIsNotNone(bucket["wait_p50"])
+
+    def test_percentiles_of_active_time_are_the_fleet_percentiles(self):
+        for seconds in (1.0, 2.0, 3.0, 4.0):
+            seed(active=seconds,
+                 task_name="registry.tasks.harvest.harvest_metadata")
+        fleet = window_buckets(since=since())["fleet"]
+        self.assertAlmostEqual(fleet["active_p50"], 2.5)
+        self.assertAlmostEqual(fleet["active_p95"], 3.85, places=6)
+        self.assertAlmostEqual(fleet["active_p99"], 3.97, places=6)
+        self.assertAlmostEqual(fleet["active_max"], 4.0)
+
+    def test_outcomes_count_per_attempt(self):
+        task_id = str(uuid.uuid4())
+        seed(task_id=task_id, attempt_no=0, outcome="retry", active=1.0,
+             task_name="registry.tasks.harvest.harvest_metadata")
+        seed(task_id=task_id, attempt_no=1, outcome="failure", active=1.0,
+             task_name="registry.tasks.harvest.harvest_metadata")
+        bucket = window_buckets(since=since())["buckets"][0]
+        self.assertEqual(bucket["executions"], 2)
+        self.assertEqual(bucket["retried"], 1)
+        self.assertEqual(bucket["failed"], 1)
+        self.assertEqual(bucket["succeeded"], 0)
+
+    def test_uncertain_observations_are_bucketed_as_counts(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             outcome="", active=None, started_ago_seconds=30)
+        seed(task_name="notify.tasks.send_mail", queue="notify",
+             outcome="", active=None, started_ago_seconds=30,
+             quality=[AttemptQuality.ABANDONED.value])
+        answer = window_buckets(since=since())
+        buckets = {bucket["task_class"]: bucket
+                   for bucket in answer["buckets"]}
+        self.assertEqual(
+            buckets["registry.tasks.harvest"]["uncertain_open"], 1)
+        self.assertEqual(
+            buckets["notify.tasks.send_mail"]["uncertain_abandoned"], 1)
+        self.assertEqual(answer["uncertain"]["open_without_end"], 2)
+        self.assertEqual(answer["uncertain"]["abandoned"], 1)
+
+    def test_window_excludes_attempts_outside_it(self):
+        # one attempt newer than the window's end, one older than its start
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             started_ago_seconds=10)
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             started_ago_seconds=7200)
+        until = timezone.now() - timedelta(minutes=30)
+        answer = window_buckets(
+            since=until - timedelta(minutes=5), until=until)
+        self.assertEqual(answer["fleet"]["executions"], 0)
+        self.assertEqual(answer["buckets"], [])
+        # the attempt inside the window is the one which answers
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             started_ago_seconds=1900)
+        answer = window_buckets(
+            since=until - timedelta(minutes=5), until=until)
+        self.assertEqual(answer["fleet"]["executions"], 1)
+
+    def test_limit_bounds_the_buckets_and_says_so(self):
+        for index in range(4):
+            seed(task_name="registry.tasks.harvest%d.task" % index,
+                 queue="q%d" % index, active=float(4 - index))
+        answer = window_buckets(since=since(), limit=2)
+        self.assertEqual(len(answer["buckets"]), 2)
+        self.assertTrue(answer["truncated"])
+        # the fleet row keeps its exact totals over the whole window even
+        # when the bucket list had to be cut
+        self.assertEqual(answer["fleet"]["executions"], 4)
+
+    def test_coverage_says_how_much_was_measurable(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata", wait=1.0)
+        seed(task_name="registry.tasks.harvest.harvest_metadata")
+        answer = window_buckets(since=since())
+        self.assertEqual(answer["coverage"]["terminal_samples"], 2)
+        self.assertEqual(answer["coverage"]["stamped_samples"], 1)
+        self.assertAlmostEqual(answer["coverage"]["wait_coverage"], 0.5)
+
+    def test_query_budget(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata")
+        with self.assertNumQueries(4):
+            # grouped buckets, per-bucket uncertain, fleet uncertain, fleet
+            window_buckets(since=since())
+        with self.assertNumQueries(2):
+            window_buckets(since=since(), include_uncertain=False)
+
+
+class DrilldownSamplesTests(TestCase):
+
+    def test_answers_the_newest_rows_of_the_classes_asked_for(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             started_ago_seconds=60)
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             started_ago_seconds=10)
+        seed(task_name="notify.tasks.send_mail", queue="notify",
+             started_ago_seconds=5)
+        rows = drilldown_samples(
+            since(), task_classes=["registry.tasks.harvest"])
+        self.assertEqual([row["task_name"] for row in rows],
+                         ["registry.tasks.harvest.harvest_metadata",
+                          "registry.tasks.harvest.harvest_metadata"])
+
+    def test_no_classes_answers_nothing(self):
+        seed()
+        self.assertEqual(drilldown_samples(since(), task_classes=[]), [])
+        self.assertEqual(drilldown_samples(since()), [])
+
+    def test_open_attempts_are_not_samples(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata",
+             outcome="", active=None)
+        self.assertEqual(
+            drilldown_samples(since(),
+                              task_classes=["registry.tasks.harvest"]), [])
+
+    def test_rows_carry_measurement_and_correlation_columns_only(self):
+        # the drill-down is bounded by the same privacy rule as the rest of
+        # the module: no argument, no url, no payload column exists
+        seed(task_name="registry.tasks.harvest.harvest_metadata")
+        row = drilldown_samples(
+            since(), task_classes=["registry.tasks.harvest"])[0]
+        self.assertEqual(set(row), {
+            "task_id", "attempt_no", "task_name", "task_class", "queue",
+            "worker", "root_id", "parent_id", "periodic_name",
+            "published_at", "started_at", "finished_at", "active_seconds",
+            "wait_seconds", "outcome", "quality"})
+
+    def test_query_budget(self):
+        seed(task_name="registry.tasks.harvest.harvest_metadata")
+        with self.assertNumQueries(1):
+            drilldown_samples(since(),
+                              task_classes=["registry.tasks.harvest"])

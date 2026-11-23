@@ -53,6 +53,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import connection, connections, transaction
 from django.db import utils as db_utils
 from django.utils import timezone
+from psycopg import sql as psycopg_sql
 
 from system.retention_datasets import (DATASETS, DECLARATION_VERSION,
                                        GROWTH_BOUNDED,
@@ -310,6 +311,8 @@ def read_only_report():
         yield enforced
         return
     outermost = not connection.in_atomic_block
+    timeout = psycopg_sql.SQL("SET LOCAL statement_timeout = {}").format(
+        psycopg_sql.Literal(STATEMENT_TIMEOUT_MS))
     with transaction.atomic():
         with connection.cursor() as cursor:
             if outermost:
@@ -317,8 +320,7 @@ def read_only_report():
                     "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
                 enforced = True
             try:
-                cursor.execute(
-                    f"SET LOCAL statement_timeout = {STATEMENT_TIMEOUT_MS}")
+                cursor.execute(timeout.as_string(connection.connection))
             except db_utils.DatabaseError:
                 pass
         yield enforced
@@ -410,17 +412,20 @@ def _window_count(cursor, table_name, time_column, since, until):
     ``Seq Scan`` on a hundred-million-row table is a finding of this inventory,
     not a detail of #1499.
     """
-    quoted_table = connection.ops.quote_name(table_name)
-    quoted_time = connection.ops.quote_name(time_column)
-    sql = (f"select count(*) as rows_in_window from {quoted_table} "
-           f"where {quoted_time} >= %s and {quoted_time} < %s")
+    quoted_table = psycopg_sql.Identifier(table_name)
+    quoted_time = psycopg_sql.Identifier(time_column)
+    sql = psycopg_sql.SQL(
+        "select count(*) as rows_in_window from {table} "
+        "where {time} >= %s and {time} < %s"
+    ).format(table=quoted_table, time=quoted_time)
+    statement = sql.as_string(connection.connection)
     plan = None
     try:
-        cursor.execute("explain (format json) " + sql, [since, until])
+        cursor.execute("explain (format json) " + statement, [since, until])
         plan = _plan_shape((_row(cursor) or {}).get("QUERY PLAN"))
     except db_utils.DatabaseError:
         plan = None
-    cursor.execute(sql, [since, until])
+    cursor.execute(statement, [since, until])
     row = _row(cursor)
     return (row or {}).get("rows_in_window"), plan
 
@@ -474,22 +479,24 @@ def _window_sample(cursor, table_name, time_column, since, until):
     the window and by ``STATEMENT_TIMEOUT_MS``, and a table for which even that
     is too much is a finding this report states rather than hides.
     """
-    quoted_table = connection.ops.quote_name(table_name)
-    quoted_time = connection.ops.quote_name(time_column)
-    cursor.execute(
-        f"select percentile_cont(0.5) within group (order by gap)"
-        f"  as median_gap_seconds,"
-        f" count(*) as sampled_rows"
-        f" from ("
-        f"   select extract(epoch from (picked - lag(picked)"
-        f"          over (order by picked))) as gap"
-        f"   from ("
-        f"     select {quoted_time} as picked from {quoted_table}"
-        f"     where {quoted_time} >= %s and {quoted_time} < %s"
-        f"     order by random() limit %s"
-        f"   ) pick"
-        f" ) sampled where gap is not null",
-        [since, until, GROWTH_SAMPLE_LIMIT])
+    quoted_table = psycopg_sql.Identifier(table_name)
+    quoted_time = psycopg_sql.Identifier(time_column)
+    sql = psycopg_sql.SQL(
+        "select percentile_cont(0.5) within group (order by gap)"
+        "  as median_gap_seconds,"
+        " count(*) as sampled_rows"
+        " from ("
+        "   select extract(epoch from (picked - lag(picked)"
+        "          over (order by picked))) as gap"
+        "   from ("
+        "     select {time} as picked from {table}"
+        "     where {time} >= %s and {time} < %s"
+        "     order by random() limit %s"
+        "   ) pick"
+        " ) sampled where gap is not null"
+    ).format(table=quoted_table, time=quoted_time)
+    cursor.execute(sql.as_string(connection.connection),
+                   [since, until, GROWTH_SAMPLE_LIMIT])
     return _row(cursor)
 
 
@@ -521,6 +528,58 @@ def _role_name(cursor):
         return None
 
 
+def _unanswered_table(reason, window_reason, wal_reason=REASON_NOT_REQUESTED):
+    """The answer of a table about which nothing could be asked."""
+    return {
+        "total_bytes": unavailable(reason),
+        "estimated_rows": unavailable(reason),
+        "vacuum": unavailable(reason),
+        "window_rows": unavailable(window_reason),
+        "wal_bytes": unavailable(wal_reason),
+        "indexes": [],
+        "triggers": [],
+    }
+
+
+def _measure_one_table(cursor, name, answer, time_fields, since, until,
+                       window_days, with_wal):
+    """Fill one table's answer from the catalog, its indexes and its window."""
+    if not table_exists(name):
+        return
+    row = _catalog_row(cursor, name)
+    if row is None:
+        return
+    answer["total_bytes"] = measured(row["total_bytes"])
+    if row["never_analyzed"]:
+        answer["estimated_rows"] = unavailable(
+            REASON_ROW_ESTIMATE_ONLY,
+            detail="reltuples is unset: the table was never "
+                   "analysed; the row count of the window is "
+                   "still measured")
+    else:
+        answer["estimated_rows"] = measured(row["estimated_rows"])
+    answer["vacuum"] = measured(
+        row["n_dead_tup"],
+        last_vacuum=row["last_vacuum"],
+        last_autovacuum=row["last_autovacuum"],
+        last_analyze=row["last_analyze"],
+        last_autoanalyze=row["last_autoanalyze"])
+    answer["indexes"] = _indexes(cursor, name)
+    answer["triggers"] = _triggers(cursor, name)
+    if with_wal:
+        answer["wal_bytes"] = _wal_bytes(cursor)
+    answer["window_rows"] = _window(
+        cursor, name, time_fields.get(name), since, until, window_days)
+
+
+def _mark_unmeasured(answers, detail):
+    """Name why an answer the snapshot did not deliver is unknown."""
+    for answer in answers.values():
+        for key in ("total_bytes", "estimated_rows", "vacuum", "window_rows"):
+            if not answer[key][MEASURED]:
+                answer[key] = unavailable(REASON_QUERY_FAILED, detail=detail)
+
+
 def measure_tables(table_names, time_fields=None, since=None, until=None,
                    with_wal=False):
     """One answer per table, in one read-only snapshot.
@@ -531,71 +590,22 @@ def measure_tables(table_names, time_fields=None, since=None, until=None,
     tell "small" from "unknown" without parsing the mapping.
     """
     time_fields = time_fields or {}
-    answers = {}
     if not is_postgresql():
-        reason = REASON_NOT_POSTGRESQL
-        for name in table_names:
-            answers[name] = {
-                "total_bytes": unavailable(reason),
-                "estimated_rows": unavailable(reason),
-                "vacuum": unavailable(reason),
-                "window_rows": unavailable(reason),
-                "wal_bytes": unavailable(reason),
-                "indexes": [],
-                "triggers": [],
-            }
-        return answers
+        return {name: _unanswered_table(REASON_NOT_POSTGRESQL,
+                                        REASON_NOT_POSTGRESQL,
+                                        REASON_NOT_POSTGRESQL)
+                for name in table_names}
+    answers = {name: _unanswered_table(REASON_TABLE_ABSENT,
+                                       REASON_NO_TIME_FIELD_DECLARED)
+               for name in table_names}
     window_days = ((until - since).days if since and until else None)
-    for name in table_names:
-        answers[name] = {
-            "total_bytes": unavailable(REASON_TABLE_ABSENT),
-            "estimated_rows": unavailable(REASON_TABLE_ABSENT),
-            "vacuum": unavailable(REASON_TABLE_ABSENT),
-            "window_rows": unavailable(REASON_NO_TIME_FIELD_DECLARED),
-            "wal_bytes": unavailable(REASON_NOT_REQUESTED),
-            "indexes": [],
-            "triggers": [],
-        }
     try:
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                for name in table_names:
-                    if not table_exists(name):
-                        continue
-                    row = _catalog_row(cursor, name)
-                    if row is None:
-                        continue
-                    answers[name]["total_bytes"] = measured(row["total_bytes"])
-                    if row["never_analyzed"]:
-                        answers[name]["estimated_rows"] = unavailable(
-                            REASON_ROW_ESTIMATE_ONLY,
-                            detail="reltuples is unset: the table was never "
-                                   "analysed; the row count of the window is "
-                                   "still measured")
-                    else:
-                        answers[name]["estimated_rows"] = measured(
-                            row["estimated_rows"])
-                    answers[name]["vacuum"] = measured(
-                        row["n_dead_tup"],
-                        last_vacuum=row["last_vacuum"],
-                        last_autovacuum=row["last_autovacuum"],
-                        last_analyze=row["last_analyze"],
-                        last_autoanalyze=row["last_autoanalyze"])
-                    answers[name]["indexes"] = _indexes(cursor, name)
-                    answers[name]["triggers"] = _triggers(cursor, name)
-                    if with_wal:
-                        answers[name]["wal_bytes"] = _wal_bytes(cursor)
-                    answers[name]["window_rows"] = _window(
-                        cursor, name, time_fields.get(name), since, until,
-                        window_days)
+        with transaction.atomic(), connection.cursor() as cursor:
+            for name in table_names:
+                _measure_one_table(cursor, name, answers[name], time_fields,
+                                   since, until, window_days, with_wal)
     except db_utils.DatabaseError as error:
-        detail = str(error)
-        for answer in answers.values():
-            for key in ("total_bytes", "estimated_rows", "vacuum",
-                        "window_rows"):
-                if not answer[key][MEASURED]:
-                    answer[key] = unavailable(REASON_QUERY_FAILED,
-                                              detail=detail)
+        _mark_unmeasured(answers, str(error))
     return answers
 
 
@@ -680,19 +690,18 @@ def undeclared_tables():
     for dataset in DATASETS:
         declared.update(dataset_tables(dataset))
     try:
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "select c.relname as table,"
-                    " pg_catalog.pg_total_relation_size(c.oid) as total_bytes,"
-                    " coalesce(nullif(c.reltuples::real, -1)::bigint, 0)"
-                    "   as estimated_rows"
-                    " from pg_catalog.pg_class c"
-                    " join pg_catalog.pg_namespace n on n.oid = c.relnamespace"
-                    " where n.nspname = current_schema()"
-                    " and c.relkind in ('r', 'p')"
-                    " order by total_bytes desc nulls last")
-                rows = _rows(cursor)
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute(
+                "select c.relname as table,"
+                " pg_catalog.pg_total_relation_size(c.oid) as total_bytes,"
+                " coalesce(nullif(c.reltuples::real, -1)::bigint, 0)"
+                "   as estimated_rows"
+                " from pg_catalog.pg_class c"
+                " join pg_catalog.pg_namespace n on n.oid = c.relnamespace"
+                " where n.nspname = current_schema()"
+                " and c.relkind in ('r', 'p')"
+                " order by total_bytes desc nulls last")
+            rows = _rows(cursor)
     except db_utils.DatabaseError:
         return []
     return [dict(row, reason=REASON_UNDECLARED)
@@ -1192,25 +1201,24 @@ def postgresql_facts(with_wal=False):
     if not is_postgresql():
         return facts
     try:
-        with transaction.atomic():
-            with connection.cursor() as cursor:
-                facts["role"] = _role_name(cursor)
-                if with_wal:
-                    facts["wal_bytes"] = _wal_bytes(cursor)
-                else:
-                    facts["wal_bytes"] = unavailable(REASON_NOT_REQUESTED,
-                                                     detail="ask with --wal")
-                cursor.execute(
-                    "select name, setting, unit from pg_catalog.pg_settings"
-                    " where name in ('autovacuum', 'autovacuum_max_workers',"
-                    " 'autovacuum_vacuum_scale_factor',"
-                    " 'autovacuum_vacuum_cost_delay', 'max_wal_size',"
-                    " 'wal_level', 'track_counts', 'maintenance_work_mem')"
-                    " order by name")
-                facts["settings"] = measured(
-                    {row["name"]: {"setting": row["setting"],
-                                   "unit": row["unit"]}
-                     for row in _rows(cursor)})
+        with transaction.atomic(), connection.cursor() as cursor:
+            facts["role"] = _role_name(cursor)
+            if with_wal:
+                facts["wal_bytes"] = _wal_bytes(cursor)
+            else:
+                facts["wal_bytes"] = unavailable(REASON_NOT_REQUESTED,
+                                                 detail="ask with --wal")
+            cursor.execute(
+                "select name, setting, unit from pg_catalog.pg_settings"
+                " where name in ('autovacuum', 'autovacuum_max_workers',"
+                " 'autovacuum_vacuum_scale_factor',"
+                " 'autovacuum_vacuum_cost_delay', 'max_wal_size',"
+                " 'wal_level', 'track_counts', 'maintenance_work_mem')"
+                " order by name")
+            facts["settings"] = measured(
+                {row["name"]: {"setting": row["setting"],
+                               "unit": row["unit"]}
+                 for row in _rows(cursor)})
     except db_utils.DatabaseError as error:
         facts["settings"] = unavailable(REASON_QUERY_FAILED, detail=str(error))
     return facts
@@ -1343,6 +1351,32 @@ def _reference_rows(dataset):
                                                           row["field"]))}
 
 
+def _round(value, digits=0):
+    """Round a measured number, keeping "not measured" distinct from zero."""
+    return None if value is None else round(value, digits)
+
+
+def _growth_rates(window, total, estimated_rows, window_days):
+    """The two rates of one dataset, or ``None`` where measurement failed.
+
+    ``rows_per_day`` is counted over the window; ``bytes_per_day`` multiplies it
+    by the current average row size and therefore inherits the uncertainty of
+    the row estimate. Either is ``None`` when its input is unknown, so a
+    dataset is ranked only when both are known.
+    """
+    if not window[MEASURED]:
+        return None, None, None
+    days = window.get("window_days") or window_days
+    if not days:
+        return None, None, None
+    rate = (window[VALUE] or 0) / days
+    if not (total[MEASURED] and estimated_rows[MEASURED]
+            and estimated_rows[VALUE]):
+        return rate, None, None
+    avg_row_bytes = (total[VALUE] or 0) / estimated_rows[VALUE]
+    return rate, rate * avg_row_bytes, avg_row_bytes
+
+
 def growth_estimates(rows, measurements, window_days, horizon_days):
     """Risk-ranked growth estimates, measured where measurement was possible.
 
@@ -1373,16 +1407,8 @@ def growth_estimates(rows, measurements, window_days, horizon_days):
         total = _sum_family(measurements, row["tables"], "total_bytes")
         estimated_rows = _sum_family(measurements, row["tables"],
                                      "estimated_rows")
-        days = window.get("window_days") or window_days
-        rate = None
-        bytes_per_day = None
-        avg_row_bytes = None
-        if window[MEASURED]:
-            rate = (window[VALUE] or 0) / days if days else None
-            if (rate is not None and total[MEASURED]
-                    and estimated_rows[MEASURED] and estimated_rows[VALUE]):
-                avg_row_bytes = (total[VALUE] or 0) / estimated_rows[VALUE]
-                bytes_per_day = rate * avg_row_bytes
+        rate, bytes_per_day, avg_row_bytes = _growth_rates(
+            window, total, estimated_rows, window_days)
         estimates.append({
             "id": row["id"],
             "table": row["table"],
@@ -1394,14 +1420,12 @@ def growth_estimates(rows, measurements, window_days, horizon_days):
             "window_rows": window.get(VALUE),
             "window_reason": window.get(REASON),
             "median_gap_seconds": window.get("median_gap_seconds"),
-            "rows_per_day": round(rate, 3) if rate is not None else None,
-            "avg_row_bytes": round(avg_row_bytes, 1)
-            if avg_row_bytes is not None else None,
-            "bytes_per_day": round(bytes_per_day)
-            if bytes_per_day is not None else None,
+            "rows_per_day": _round(rate, 3),
+            "avg_row_bytes": _round(avg_row_bytes, 1),
+            "bytes_per_day": _round(bytes_per_day),
             "total_bytes": total.get(VALUE),
             "estimated_rows": estimated_rows.get(VALUE),
-            "projected_bytes": round(bytes_per_day * horizon_days)
+            "projected_bytes": _round(bytes_per_day * horizon_days)
             if bytes_per_day is not None else None,
             "rank": None,
         })
@@ -1599,28 +1623,29 @@ def _count(measure):
 def _format_text(report):
     meta = report["inventory"]
     out = []
-    out.append("MrMap persistent-data inventory (#1498) — READ ONLY, nothing "
-               "here deleted or changed")
-    out.append(f"  declaration   v{meta['declaration_version']} "
-               f"({meta['declaration_source']}), schema "
-               f"v{meta['schema_version']}")
-    out.append(f"  generated     {meta['generated_at']}")
-    out.append(f"  database      {meta['engine']} {report['postgresql'].get('version') or ''}"
-               f" ({meta['database']}) role="
-               f"{report['postgresql'].get('role') or '—'}")
-    out.append(f"  window        {meta['window_days']} d "
-               f"({meta['window_since']} .. {meta['window_until']}), horizon "
-               f"{meta['horizon_days']} d")
-    out.append(f"  declared      {meta['declared_datasets']} datasets, "
-               f"{meta['growing_datasets']} growing, "
-               f"{len(meta['measured_tables'])} tables measured")
-    out.append("")
-
-    out.append("Growing datasets, ranked by measured growth")
-    out.append("")
-    out.append(f"  {'#':>3}  {'dataset':<32}{'rows':>11}{'total':>9}"
-               f"{'rows/24h':>10}{'MB/24h':>9}  owner")
-    out.append("  " + "-" * 86)
+    out.extend([
+        "MrMap persistent-data inventory (#1498) — READ ONLY, nothing "
+        "here deleted or changed",
+        f"  declaration   v{meta['declaration_version']} "
+        f"({meta['declaration_source']}), schema "
+        f"v{meta['schema_version']}",
+        f"  generated     {meta['generated_at']}",
+        f"  database      {meta['engine']} {report['postgresql'].get('version') or ''}"
+        f" ({meta['database']}) role="
+        f"{report['postgresql'].get('role') or '—'}",
+        f"  window        {meta['window_days']} d "
+        f"({meta['window_since']} .. {meta['window_until']}), horizon "
+        f"{meta['horizon_days']} d",
+        f"  declared      {meta['declared_datasets']} datasets, "
+        f"{meta['growing_datasets']} growing, "
+        f"{len(meta['measured_tables'])} tables measured",
+        "",
+        "Growing datasets, ranked by measured growth",
+        "",
+        f"  {'#':>3}  {'dataset':<32}{'rows':>11}{'total':>9}"
+        f"{'rows/24h':>10}{'MB/24h':>9}  owner",
+        "  " + "-" * 86,
+    ])
     ranked = sorted(report["growth"],
                     key=lambda item: (item["rank"] is None,
                                       item["rank"] or 0, item["id"]))
@@ -1651,11 +1676,13 @@ def _format_text(report):
         out.append("")
 
     media = report["media"]
-    out.append("Media below each declared storage location")
-    out.append("")
-    out.append(f"  {'prefix':<34}{'total':>9}{'referenced':>12}"
-               f"{'unreferenced':>13}  scope")
-    out.append("  " + "-" * 82)
+    out.extend([
+        "Media below each declared storage location",
+        "",
+        f"  {'prefix':<34}{'total':>9}{'referenced':>12}"
+        f"{'unreferenced':>13}  scope",
+        "  " + "-" * 82,
+    ])
     for source in media["sources"]:
         out.append(
             f"  {source['id']:<34}{_from(source['total_bytes']):>9}"
@@ -1664,13 +1691,15 @@ def _format_text(report):
             f"{source['reference_scope']}")
         for reason in source.get("reasons") or []:
             out.append(f"      ! {reason}")
-    out.append(f"  {'total':<34}{_from(media['total_bytes']):>9}"
-               f"{_from(media['referenced_bytes']):>12}"
-               f"{_from(media['unreferenced_bytes']):>13}"
-               f"   ({media['sources_not_measured']} sources unmeasured)")
-    out.append(f"  undetermined (references whose file the walk did not see): "
-               f"{_from(media['undetermined_bytes'])}")
-    out.append("")
+    out.extend([
+        f"  {'total':<34}{_from(media['total_bytes']):>9}"
+        f"{_from(media['referenced_bytes']):>12}"
+        f"{_from(media['unreferenced_bytes']):>13}"
+        f"   ({media['sources_not_measured']} sources unmeasured)",
+        f"  undetermined (references whose file the walk did not see): "
+        f"{_from(media['undetermined_bytes'])}",
+        "",
+    ])
 
     out.append("Disk, caches and PostgreSQL")
     for label, entry in report["disk"].items():

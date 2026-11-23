@@ -34,6 +34,7 @@ inventory is what turns that sentence into a check.
 """
 
 from dataclasses import dataclass
+from typing import Optional
 
 #: bumped whenever a declaration changes, so a report says which version of the
 #: inventory it was built from and a comparison between two reports can tell a
@@ -94,6 +95,24 @@ POLICY_NONE = "none"
 POLICY_CANDIDATES = (POLICY_TTL_AND_CAP, POLICY_TTL, POLICY_MAX_COUNT,
                      POLICY_MEDIA_ORPHAN, POLICY_NONE)
 
+#: the writers, readers and terminal states below name code, not enums: a
+#: ``writers`` entry is the module which inserts the rows, a ``readers`` entry
+#: the module which reads them. Named once so a rename shows up as one edit
+#: here rather than as five prose strings which no longer exist, and so an
+#: empty ``terminal_states`` is never confused with the prose of a table which
+#: has no closing state at all.
+WRITER_HARVEST_TASKS = "registry/tasks/harvest.py"
+WRITER_NOTIFY_TASKS = "notify/tasks.py"
+WRITER_SIMPLE_HISTORY = "simple_history through the model's change_log"
+READER_ALERT_QUERYSET = "registry/querys/alerts.py"
+#: the audit history groups per audited object, whose surrogate is not a column
+#: of the history table but the id of the row the version describes
+SCOPE_AUDITED_ROW = "history_id of the audited row"
+#: prose for a table nothing ever deletes from (its rows only accumulate) and
+#: for a lookup table whose rows are the vocabulary rather than the data
+TERMINAL_APPEND_ONLY = "(append-only)"
+TERMINAL_REFERENCE_DATA = "(reference data)"
+
 #: whether a file below a media prefix is live, shared/historical, or already
 #: orphan-material — the distinction #1498 asks the media inventory to make
 SCOPE_LIVE = "live"
@@ -142,25 +161,25 @@ class Dataset:
     terminal_states: tuple = ()
     #: the existing cleanup this dataset already has: a task or command name,
     #: or ``None``. #1508 migrates these instead of duplicating them.
-    existing_cleanup: str = None
+    existing_cleanup: Optional[str] = None
     #: the setting which already bounds it, if any
-    existing_setting: str = None
-    time_field: str = None
-    scope_field: str = None
-    protected_min: int = None
-    provisional_age_days: int = None
-    provisional_max_per_scope: int = None
+    existing_setting: Optional[str] = None
+    time_field: Optional[str] = None
+    scope_field: Optional[str] = None
+    protected_min: Optional[int] = None
+    provisional_age_days: Optional[int] = None
+    provisional_max_per_scope: Optional[int] = None
     index_needs: tuple = ()
     migration_needs: tuple = ()
     #: what a focused PostgreSQL test must show about deletion and reference
     #: behaviour when a policy for this dataset lands (#1498's fourth item)
-    test_expectations: str = None
+    test_expectations: Optional[str] = None
     #: the open decision which gates a policy here. Non-empty means: no
     #: destructive policy on this dataset, enabled or preview-only, until the
     #: named decision is answered (#1497: unresolved decisions stay gated).
-    decision_gate: str = None
+    decision_gate: Optional[str] = None
     #: semantics which fit no other field — the note a reviewer needs
-    notes: str = None
+    notes: Optional[str] = None
     family_tables: tuple = ()
 
     @property
@@ -202,7 +221,7 @@ class StorageSource:
     reference_fields: tuple = ()
     reference_scope: str = SCOPE_LIVE
     protected_dependencies: tuple = ()
-    notes: str = None
+    notes: Optional[str] = None
 
     @property
     def label(self):
@@ -264,7 +283,7 @@ DATASETS = (
         ),
         growth_drivers=("every periodic harvest of every catalogue",
                         "manual re-harvests, resumes and aborts"),
-        writers=("registry/tasks/harvest.py", "registry/views/harvest.py"),
+        writers=(WRITER_HARVEST_TASKS, "registry/views/harvest.py"),
         readers=_HARVEST_HISTORY_READERS + (
             "the harvesting history screens of the frontend",),
         terminal_states=("COMPLETED", "ABORTED"),
@@ -313,7 +332,7 @@ DATASETS = (
         ),
         growth_drivers=("records x runs: the dominant writer of the database "
                         "at the scale #1237 measured (187 789 rows, 6.7 GB)"),
-        writers=("registry/tasks/harvest.py",),
+        writers=(WRITER_HARVEST_TASKS,),
         readers=_HARVEST_HISTORY_READERS + (
             "the daily harvesting statistics (#1316)",),
         terminal_states=("(no phase of its own: a row is finished when its "
@@ -358,7 +377,7 @@ DATASETS = (
         ),
         growth_drivers=("every record of every harvest, until the import "
                         "consumes it"),
-        writers=("registry/tasks/harvest.py",),
+        writers=(WRITER_HARVEST_TASKS,),
         readers=("registry/tasks/harvest.py:the import",
                  "registry/management/commands/cleanup_temporary_harvest_files.py"),
         terminal_states=("(follows the job's phase)",),
@@ -411,7 +430,7 @@ DATASETS = (
         ),
         growth_drivers=("registrations and re-registrations, including the "
                         "attempts whose worker died"),
-        writers=("registry/tasks/harvest.py",),
+        writers=(WRITER_HARVEST_TASKS,),
         readers=("the registration sweep of registry/tasks/harvest.py",),
         terminal_states=("the row drains when its last reference decides"),
         existing_cleanup="the registration sweep of registry.tasks.harvest",
@@ -446,9 +465,9 @@ DATASETS = (
         growth_drivers=("every warning and error of every run; the response "
                         "content of a failing remote answer becomes an "
                         "attachment"),
-        writers=("registry/tasks/harvest.py",),
+        writers=(WRITER_HARVEST_TASKS,),
         readers=("the harvesting detail screens",),
-        terminal_states=("(append-only)",),
+        terminal_states=(TERMINAL_APPEND_ONLY,),
         time_field="timestamp", scope_field="harvesting_job",
         provisional_age_days=30,
         index_needs=("harvesting_job + timestamp for a per-run keep-newest; "
@@ -483,7 +502,7 @@ DATASETS = (
                         "per-service stagger of system/fields.py spreads the "
                         "load, not the count"),
         writers=("registry/tasks/monitoring.py",),
-        readers=("registry/querys/alerts.py",
+        readers=(READER_ALERT_QUERYSET,
                  "the monitoring screens and the service cards"),
         terminal_states=("date_done set — there is no phase enum, so a run "
                          "without date_done is unfinished"),
@@ -526,7 +545,7 @@ DATASETS = (
         growth_drivers=("probes x runs: several probes per run per setting, "
                         "each with its own row and sometimes a body"),
         writers=("registry/tasks/monitoring.py",),
-        readers=("registry/querys/alerts.py", "the monitoring detail screens"),
+        readers=(READER_ALERT_QUERYSET, "the monitoring detail screens"),
         terminal_states=("date_done set"),
         existing_cleanup="registry.tasks.monitoring."
                          "delete_expired_probe_response_artifacts, which "
@@ -576,7 +595,7 @@ DATASETS = (
                         "of a POST is stored in full"),
         writers=("registry/proxy/wms_proxy.py", "registry/proxy/wfs_proxy.py"),
         readers=("the security and audit screens of the administration",),
-        terminal_states=("(append-only)",),
+        terminal_states=(TERMINAL_APPEND_ONLY,),
         time_field="timestamp", scope_field="service (on the concrete log)",
         provisional_age_days=7,
         index_needs=("timestamp for the age sweep; service + timestamp DESC "
@@ -613,7 +632,7 @@ DATASETS = (
                         "GetFeature of a big layer"),
         writers=("registry/proxy/wms_proxy.py", "registry/proxy/wfs_proxy.py"),
         readers=("the security and audit screens", "registry/tasks/security.py"),
-        terminal_states=("(append-only)",),
+        terminal_states=(TERMINAL_APPEND_ONLY,),
         time_field=None, scope_field="request",
         provisional_age_days=7,
         index_needs=("the concrete subclass tables are the ones with rows and "
@@ -715,10 +734,10 @@ DATASETS = (
             "leaves a permission change out",
         ),
         growth_drivers=("role edits and the sync of the role definitions",),
-        writers=("simple_history through the model's change_log",),
+        writers=(WRITER_SIMPLE_HISTORY,),
         readers=("the role history screens", "the audit answers of #741"),
-        terminal_states=("(append-only)",),
-        time_field="history_date", scope_field="history_id of the audited row",
+        terminal_states=(TERMINAL_APPEND_ONLY,),
+        time_field="history_date", scope_field=SCOPE_AUDITED_ROW,
         protected_min=2, provisional_age_days=365,
         provisional_max_per_scope=100,
         index_needs=("audited pk + history_date for the per-object "
@@ -745,10 +764,10 @@ DATASETS = (
             "behind a guardian grant cannot answer what the grant was for",
         ),
         growth_drivers=("role edits, organisation changes and retirements",),
-        writers=("simple_history through the model's change_log",),
+        writers=(WRITER_SIMPLE_HISTORY,),
         readers=("the permission history screens",),
-        terminal_states=("(append-only)",),
-        time_field="history_date", scope_field="history_id of the audited row",
+        terminal_states=(TERMINAL_APPEND_ONLY,),
+        time_field="history_date", scope_field=SCOPE_AUDITED_ROW,
         protected_min=2, provisional_age_days=365,
         provisional_max_per_scope=100,
         index_needs=("audited pk + history_date for the per-object cap"),
@@ -774,10 +793,10 @@ DATASETS = (
         ),
         growth_drivers=("every membership change, including bulk grants and "
                         "the expiry task"),
-        writers=("simple_history through the model's change_log",),
+        writers=(WRITER_SIMPLE_HISTORY,),
         readers=("the permission history screens", "the audit of #741"),
-        terminal_states=("(append-only)",),
-        time_field="history_date", scope_field="history_id of the audited row",
+        terminal_states=(TERMINAL_APPEND_ONLY,),
+        time_field="history_date", scope_field=SCOPE_AUDITED_ROW,
         protected_min=2, provisional_age_days=365,
         provisional_max_per_scope=100,
         index_needs=("audited pk + history_date for the per-object cap"),
@@ -814,8 +833,8 @@ DATASETS = (
                  "registry/mappers/persistence/handler.py"),
         readers=("registry/querys/historical.py",
                  "the per-day statistics of the history screen"),
-        terminal_states=("(append-only)",),
-        time_field="history_date", scope_field="history_id of the audited row",
+        terminal_states=(TERMINAL_APPEND_ONLY,),
+        time_field="history_date", scope_field=SCOPE_AUDITED_ROW,
         protected_min=2, provisional_age_days=365,
         provisional_max_per_scope=100,
         index_needs=("audited pk + history_date for the per-object "
@@ -861,7 +880,7 @@ DATASETS = (
             "notify.BackgroundProcessLog:its own log lines, by CASCADE",
         ),
         growth_drivers=("every background operation of the deployment",),
-        writers=("notify/tasks.py",),
+        writers=(WRITER_NOTIFY_TASKS,),
         readers=("the job history screens", "the operational watchdog of #1320"),
         terminal_states=("COMPLETED", "FAILED", "ABORTED"),
         existing_cleanup="notify.tasks.delete_expired_background_processes",
@@ -891,9 +910,9 @@ DATASETS = (
         ),
         growth_drivers=("log lines per operation x the verbosity of the "
                         "operation"),
-        writers=("notify/tasks.py",),
+        writers=(WRITER_NOTIFY_TASKS,),
         readers=("the process detail screens",),
-        terminal_states=("(append-only)",),
+        terminal_states=(TERMINAL_APPEND_ONLY,),
         existing_cleanup="with its process, through the existing sweep",
         existing_setting="BACKGROUND_PROCESS_RETENTION_DAYS",
         time_field="date", scope_field="background_process",
@@ -916,7 +935,7 @@ DATASETS = (
             "job or a monitoring run",
         ),
         growth_drivers=("every distinct problem and its recurrences",),
-        writers=("notify/tasks.py", "the publishers of #1320"),
+        writers=(WRITER_NOTIFY_TASKS, "the publishers of #1320"),
         readers=("the operational incident screens", "the notification centre"),
         terminal_states=("RESOLVED",),
         existing_cleanup="notify.tasks.delete_expired_operational_incidents",
@@ -967,7 +986,7 @@ DATASETS = (
         ),
         growth_drivers=("open problems; the refresh replaces the rows of a "
                         "service rather than adding to them"),
-        writers=("registry/querys/alerts.py",),
+        writers=(READER_ALERT_QUERYSET,),
         readers=("the alert endpoints and the frontend's attention",),
         terminal_states=("(deleted when the problem is fixed)",),
         time_field="occurred_at", scope_field="service",
@@ -1000,7 +1019,7 @@ DATASETS = (
         writers=("django_celery_beat's DatabaseScheduler",
                  "every apps.py which registers a housekeeping sweep"),
         readers=("the beat scheduler", "the schedule screens"),
-        terminal_states=("(reference data)",),
+        terminal_states=(TERMINAL_REFERENCE_DATA,),
         test_expectations="no policy: the inventory shows the count tracks "
                           "registered services plus the known housekeeping "
                           "rows, and that a repeated migrate does not add "
@@ -1020,7 +1039,7 @@ DATASETS = (
                         "the shape of this table and not growth"),
         writers=("system/fields.py", "every apps.py"),
         readers=("the beat scheduler",),
-        terminal_states=("(reference data)",),
+        terminal_states=(TERMINAL_REFERENCE_DATA,),
         test_expectations="no policy; the inventory watches the count for the "
                           "unbounded growth a per-object crontab would cause",
     ),
@@ -1093,7 +1112,7 @@ DATASETS = (
                         "large where it is the operator's tool"),
         writers=("django.contrib.admin",),
         readers=("the admin's own log page",),
-        terminal_states=("(append-only)",),
+        terminal_states=(TERMINAL_APPEND_ONLY,),
         time_field="action_time", scope_field=None,
         provisional_age_days=365,
         test_expectations="a log of an object which still exists is kept at "
@@ -1117,7 +1136,7 @@ DATASETS = (
         growth_drivers=("objects x permissions x users and groups",),
         writers=("accounts/ and the sharing endpoints",),
         readers=("every permission-filtered queryset of the API",),
-        terminal_states=("(reference data)",),
+        terminal_states=(TERMINAL_REFERENCE_DATA,),
         test_expectations="no policy; the inventory's job is to show the count "
                           "tracks the shared corpus and to catch an orphan row "
                           "whose object is gone — that is #1501's "
@@ -1139,7 +1158,7 @@ DATASETS = (
         growth_drivers=("model classes",),
         writers=("the contenttypes post_migrate",),
         readers=("guardian", "django.contrib.admin"),
-        terminal_states=("(reference data)",),
+        terminal_states=(TERMINAL_REFERENCE_DATA,),
         test_expectations="no policy; stale rows of removed models are an "
                           "operator finding",
     ),

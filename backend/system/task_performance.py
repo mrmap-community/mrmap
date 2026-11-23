@@ -434,6 +434,103 @@ def judge_completed_slow(row, budget, samples_over, stale=False):
     }
 
 
+def _comparable_ratio(value, baseline_value, min_baseline):
+    """The ratio of two durations, or None when either side is too short.
+
+    A sub-second baseline times a factor is false precision, and so is a
+    class which stayed sub-second in absolute terms (#1390).
+    """
+    if value is None or baseline_value is None:
+        return None
+    if value < min_baseline or baseline_value < min_baseline:
+        return None
+    return value / baseline_value
+
+
+def _per_attempt_cost(slot_seconds, samples):
+    """The occupied slot cost per attempt, or None for an empty window."""
+    if not slot_seconds or not samples:
+        return None
+    return slot_seconds / samples
+
+
+def _long_enough(values, min_baseline):
+    """Whether every value is a duration long enough to compare."""
+    return all(value is not None and value >= min_baseline
+               for value in values)
+
+
+def _regression_evidence(current, baseline, factor, spike_allowance,
+                         current_samples, baseline_samples, min_baseline):
+    """The comparable numbers of one regression comparison, ratios included.
+
+    The p95 of the active seconds answers the question; the total occupied
+    slot cost answers the same way, as a cost PER ATTEMPT, because the two
+    windows may hold different sample counts - and only while an attempt of
+    either window is long enough for a ratio to mean anything.
+    """
+    baseline = baseline or {}
+    evidence = {
+        "measured": MEASURED,
+        "samples": current_samples,
+        "baseline_samples": baseline_samples,
+        "active_p50": current.get("active_p50"),
+        "active_p95": current.get("active_p95"),
+        "baseline_active_p50": baseline.get("active_p50"),
+        "baseline_active_p95": baseline.get("active_p95"),
+        "regression_factor": factor,
+        "spike_share_allowance": spike_allowance,
+    }
+    p95_ratio = _comparable_ratio(evidence["active_p95"],
+                                  evidence["baseline_active_p95"],
+                                  min_baseline)
+    slot = current.get("slot_seconds")
+    baseline_slot = baseline.get("slot_seconds")
+    cost_ratio = None
+    if baseline_slot and _long_enough(
+            (slot, baseline_slot,
+             _per_attempt_cost(slot, current_samples),
+             _per_attempt_cost(baseline_slot, baseline_samples)),
+            min_baseline):
+        cost_ratio = slot / baseline_slot
+    evidence.update({"p95_ratio": p95_ratio, "slot_cost_ratio": cost_ratio})
+    return evidence
+
+
+def _p50_moved(evidence, factor, min_baseline):
+    """Whether the middle of the window moved beyond the factor as well."""
+    p50 = evidence["active_p50"]
+    baseline_p50 = evidence["baseline_active_p50"]
+    if p50 is None or not baseline_p50 or baseline_p50 < min_baseline:
+        return False
+    return (p50 / baseline_p50) > factor
+
+
+def _p95_verdict(evidence, current_samples, samples_over_baseline,
+                 spike_allowance, min_baseline, factor):
+    """What a p95 beyond the factor means: a shifted distribution or a spike.
+
+    #1390 asks for the p50 and p95 to be reported either way, and the p50 is
+    what separates a shifted distribution from a heavier tail. If the middle
+    of the window moved too, the class runs slower than it did; if it stayed
+    inside the factor, only the tail moved - a handful of executions beyond
+    the class' own old range. That is the spike, already named by
+    completed_slow, which #1390 refuses to also call a regression.
+    """
+    share = ((samples_over_baseline / current_samples)
+             if samples_over_baseline is not None and current_samples
+             else None)
+    if not _p50_moved(evidence, factor, min_baseline) \
+            and (share is None or share <= spike_allowance):
+        # the tail alone moved, inside the class' own spike allowance
+        return {"condition": "healthy", "spike_only": True,
+                "exceeded_share": share, **evidence}
+    # nothing (or a growing share of everything) exceeded the budget, so
+    # the move is the distribution itself, not its tail
+    return {"condition": "regression", "comparison": "active_p95",
+            "exceeded_share": share, **evidence}
+
+
 def judge_regression(current, baseline, factor, min_baseline, spike_allowance,
                      samples_over_baseline=None):
     """The regression decision: p95 first, total slot cost when no ratio exists.
@@ -452,79 +549,27 @@ def judge_regression(current, baseline, factor, min_baseline, spike_allowance,
     current_samples = current.get("samples") or 0
     baseline_samples = (baseline or {}).get("samples") or 0
     needed = min_samples()
-    evidence = {
-        "measured": MEASURED,
-        "samples": current_samples,
-        "baseline_samples": baseline_samples,
-        "active_p50": current.get("active_p50"),
-        "active_p95": current.get("active_p95"),
-        "baseline_active_p50": (baseline or {}).get("active_p50"),
-        "baseline_active_p95": (baseline or {}).get("active_p95"),
-        "regression_factor": factor,
-        "spike_share_allowance": spike_allowance,
-    }
     if current_samples < needed or baseline_samples < needed:
         return {"condition": "insufficient", "measured": MEASURED,
                 "samples": current_samples,
                 "baseline_samples": baseline_samples,
                 "min_samples": needed}
-    baseline_p95 = evidence["baseline_active_p95"]
-    p95 = evidence["active_p95"]
-    # both sides of a ratio have to be long enough to mean anything: a
-    # sub-second baseline times a factor is false precision, and so is a
-    # class which stayed sub-second in absolute terms
-    p95_ratio = ((p95 / baseline_p95)
-                 if p95 is not None and baseline_p95 is not None
-                 and baseline_p95 >= min_baseline
-                 and p95 >= min_baseline else None)
-    # the total slot cost is comparable the same way: as a cost PER ATTEMPT,
-    # because the two windows may hold different sample counts, and only while
-    # an attempt of either window is long enough for a ratio to mean anything
-    baseline_slot = (baseline or {}).get("slot_seconds")
-    slot = current.get("slot_seconds")
-    baseline_mean = (baseline_slot / baseline_samples
-                     if baseline_slot and baseline_samples else None)
-    current_mean = (slot / current_samples
-                    if slot and current_samples else None)
-    cost_ratio = ((slot / baseline_slot)
-                  if slot is not None and baseline_slot is not None
-                  and baseline_slot >= min_baseline
-                  and slot >= min_baseline
-                  and baseline_mean is not None
-                  and baseline_mean >= min_baseline
-                  and current_mean is not None
-                  and current_mean >= min_baseline else None)
-    evidence.update({"p95_ratio": p95_ratio, "slot_cost_ratio": cost_ratio})
-
+    evidence = _regression_evidence(
+        current, baseline, factor, spike_allowance, current_samples,
+        baseline_samples, min_baseline)
+    p95_ratio = evidence["p95_ratio"]
+    cost_ratio = evidence["slot_cost_ratio"]
     if p95_ratio is not None and p95_ratio > factor:
-        samples = current_samples
-        share = ((samples_over_baseline / samples)
-                 if samples_over_baseline is not None and samples else None)
-        # The middle decides what a moved p95 means: #1390 asks for the p50
-        # and p95 to be reported either way, and the p50 is what separates a
-        # shifted distribution from a heavier tail. If the middle of the
-        # window moved too, the class runs slower than it did; if it stayed
-        # inside the factor, only the tail moved - a handful of executions
-        # beyond the class' own old range. That is the spike, already named
-        # by completed_slow, which #1390 refuses to also call a regression.
-        baseline_p50 = evidence["baseline_active_p50"]
-        p50 = evidence["active_p50"]
-        p50_moved = (p50 is not None and baseline_p50
-                     and baseline_p50 >= min_baseline
-                     and (p50 / baseline_p50) > factor)
-        if not p50_moved and (share is None or share <= spike_allowance):
-            return {"condition": "healthy", "spike_only": True,
-                    "exceeded_share": share, **evidence}
-        # nothing (or a growing share of everything) exceeded the budget, so
-        # the move is the distribution itself, not its tail
-        return {"condition": "regression", "comparison": "active_p95",
-                "exceeded_share": share, **evidence}
-    if p95_ratio is None and cost_ratio is not None and cost_ratio > factor:
+        return _p95_verdict(evidence, current_samples, samples_over_baseline,
+                            spike_allowance, min_baseline, factor)
+    if p95_ratio is not None:
+        return {"condition": "healthy", **evidence}
+    if cost_ratio is not None and cost_ratio > factor:
         # no usable p95 ratio, but a total occupied slot cost which moved:
         # the total-slot-cost form of the same question
         return {"condition": "regression", "comparison": "slot_cost",
                 **evidence}
-    if p95_ratio is None and cost_ratio is None:
+    if cost_ratio is None:
         return {"condition": "insufficient", "reason":
                 "no comparable baseline duration", **evidence}
     return {"condition": "healthy", **evidence}
@@ -665,6 +710,46 @@ def long_running_candidates(at):
         .order_by("started_at")[:max_classes()])
 
 
+def _worker_answered_owner(hosts, worker):
+    """Whether the worker owning an attempt answered the inspection.
+
+    Only the answer of the worker which owns the attempt can prove it still
+    runs: another worker answering says nothing about this one, so an
+    un-reachable owner stays unknown (#1390).
+    """
+    if hosts is None or not worker:
+        return None
+    return _hostname(worker) in hosts
+
+
+def _long_running_verdict(row, running, budget, decision, at):
+    """The verdict of one confirmed or suspected long-running attempt."""
+    confirmed_confidence = decision["confidence"] == "high"
+    verdict = {
+        "code": class_code(CODE_LONG_RUNNING, row.task_name, row.queue),
+        "condition": "long_running",
+        "task_name": row.task_name,
+        "queue": row.queue,
+        "task_id": row.task_id,
+        "attempt_no": row.attempt_no,
+        "worker": row.worker,
+        "started_at": _iso(row.started_at),
+        "task_tail": _tail(row.task_name),
+        "window": {"since": _iso(row.started_at), "until": _iso(at)},
+        **decision,
+        "severity": "error" if confirmed_confidence else "warning",
+    }
+    verdict["summary"] = (
+        f"The task '{row.task_name}' has run {int(running)} s"
+        f"{' on ' + row.worker if row.worker else ''} - beyond its "
+        f"long-running budget of {int(budget)} s - and "
+        + ("the worker still reports it active."
+           if confirmed_confidence
+           else "no answering worker reports it as its own, so its "
+                "current state is unknown."))
+    return verdict
+
+
 def evaluate_long_running(at, answers):
     """The currently-active condition of every open candidate.
 
@@ -682,39 +767,12 @@ def evaluate_long_running(at, answers):
             continue
         budget = class_long_seconds(policy)
         running = (at - row.started_at).total_seconds()
-        # only the answer of the worker which owns the attempt can prove it
-        # still runs: another worker answering says nothing about this one,
-        # so an un-reachable owner stays unknown (#1390)
-        own_worker_answered = (None if hosts is None or not row.worker
-                               else _hostname(row.worker) in hosts)
         decision = judge_long_running(
             running, budget, str(row.task_id) in active_ids,
-            own_worker_answered)
+            _worker_answered_owner(hosts, row.worker))
         if decision["condition"] != "long_running":
             continue
-        verdict = {
-            "code": class_code(CODE_LONG_RUNNING, row.task_name, row.queue),
-            "condition": "long_running",
-            "task_name": row.task_name,
-            "queue": row.queue,
-            "task_id": row.task_id,
-            "attempt_no": row.attempt_no,
-            "worker": row.worker,
-            "started_at": _iso(row.started_at),
-            "task_tail": _tail(row.task_name),
-            "window": {"since": _iso(row.started_at), "until": _iso(at)},
-            **decision,
-        }
-        verdict["severity"] = ("error" if decision["confidence"] == "high"
-                               else "warning")
-        verdict["summary"] = (
-            f"The task '{row.task_name}' has run {int(running)} s"
-            f"{' on ' + row.worker if row.worker else ''} - beyond its "
-            f"long-running budget of {int(budget)} s - and "
-            + ("the worker still reports it active."
-               if decision["confidence"] == "high"
-               else "no answering worker reports it as its own, so its "
-                    "current state is unknown."))
+        verdict = _long_running_verdict(row, running, budget, decision, at)
         (confirmed if decision["measured"] == MEASURED
          else suspicions).append(verdict)
     return confirmed, suspicions
@@ -926,6 +984,36 @@ def publish_verdicts(verdicts):
     return lines
 
 
+def _coverage_code_family(code):
+    """The coverage code a standing incident belongs to, or None.
+
+    The three coverage families share the resolve rule - a coverage verdict
+    which reads complete again resolves - but keep their own codes so they
+    never merge into one another's story.
+    """
+    for family in (CODE_COVERAGE_STAMP, CODE_COVERAGE_STALE,
+                   CODE_COVERAGE_DISABLED):
+        if code.startswith(family):
+            return family
+    return None
+
+
+def _resolves_standing(incident, classes, confirmed_ids, live_codes):
+    """Whether one standing incident's evidence moved on (#1390)."""
+    code = incident.code
+    evidence = incident.details or {}
+    if code.startswith(CODE_LONG_RUNNING):
+        return evidence.get("task_id") not in confirmed_ids
+    if _coverage_code_family(code) is not None:
+        return code not in live_codes
+    task_name = evidence.get("task_name")
+    if not task_name:
+        return False
+    verdict = classes.get((task_name, evidence.get("queue")))
+    return verdict is None or verdict.get("condition") in (
+        "healthy", "no_data", "insufficient")
+
+
 def resolve_verdicts(classes, confirmed, coverage, at):
     """Resolve this module's standing incidents whose evidence moved on.
 
@@ -953,26 +1041,7 @@ def resolve_verdicts(classes, confirmed, coverage, at):
         code__startswith=OWNED_CODE_PREFIX,
         status=IncidentStatusEnum.ACTIVE.value)
     for incident in standing.iterator():
-        evidence = incident.details or {}
-        code = incident.code
-        if code.startswith(CODE_LONG_RUNNING):
-            if evidence.get("task_id") not in confirmed_ids:
-                resolved += OperationalIncident.objects.resolve(
-                    incident.dedup_key, at=at)
-            continue
-        if code.startswith(CODE_COVERAGE_STAMP) \
-                or code.startswith(CODE_COVERAGE_STALE) \
-                or code.startswith(CODE_COVERAGE_DISABLED):
-            if code not in live_codes:
-                resolved += OperationalIncident.objects.resolve(
-                    incident.dedup_key, at=at)
-            continue
-        task_name = evidence.get("task_name")
-        if not task_name:
-            continue
-        verdict = classes.get((task_name, evidence.get("queue")))
-        if verdict is None or verdict.get("condition") in (
-                "healthy", "no_data", "insufficient"):
+        if _resolves_standing(incident, classes, confirmed_ids, live_codes):
             resolved += OperationalIncident.objects.resolve(
                 incident.dedup_key, at=at)
     return resolved
@@ -995,6 +1064,185 @@ def _ratio_text(regressed):
              if regressed.get("comparison") == "active_p95"
              else regressed.get("slot_cost_ratio"))
     return "?" if ratio is None else f"{round(ratio, 2)}x"
+
+
+def _class_verdict(row, slow, regressed, latency, window, baseline_window,
+                   budget):
+    """The actionable verdict of one judged class, or None."""
+    base = {
+        "task_name": row["task_name"], "queue": row["queue"],
+        "task_tail": _tail(row["task_name"]),
+        "window": _window_dict(window),
+        "suspected_external_latency": latency,
+    }
+    if slow["condition"] == "completed_slow":
+        return {
+            "code": class_code(CODE_COMPLETED_SLOW, row["task_name"],
+                               row["queue"]),
+            "condition": "completed_slow",
+            "severity": "warning",
+            **base,
+            **slow,
+            "summary": (
+                f"The task '{row['task_name']}' ran "
+                f"{int(slow['observed_max_active_seconds'])} s on queue "
+                f"'{row['queue'] or 'default'}' - over its active time "
+                f"budget of {int(budget)} s - measured from "
+                f"{slow['samples']} attempts."),
+        }
+    if regressed["condition"] == "regression":
+        return {
+            "code": class_code(CODE_REGRESSION, row["task_name"],
+                               row["queue"]),
+            "condition": "regression",
+            "severity": "warning",
+            **base,
+            "baseline_window": _window_dict(baseline_window),
+            **regressed,
+            "summary": (
+                f"The task '{row['task_name']}' on queue "
+                f"'{row['queue'] or 'default'}' got measurably slower: "
+                f"its {regressed['comparison']} is "
+                f"{_ratio_text(regressed)} its own previous window "
+                f"({regressed['samples']} vs "
+                f"{regressed['baseline_samples']} samples)."),
+        }
+    return None
+
+
+def _evaluate_class(row, baseline, window, baseline_window, at, stale_bound):
+    """Judge one aggregated class and answer its entry and verdict.
+
+    A disabled policy is healthy by declaration and costs no count of its
+    own; everything else runs the three judges of the window, of which only
+    ``completed_slow`` and ``regression`` can make a verdict - queue waiting
+    is #1324's question and travels with the answer as the suspected
+    external latency, never as a slow task.
+    """
+    key = (row["task_name"], row["queue"])
+    policy = policy_for(*key)
+    entry = {"task_name": row["task_name"], "queue": row["queue"],
+             "samples": row["samples"],
+             "window": _window_dict(window),
+             "baseline_window": _window_dict(baseline_window)}
+    if policy.get("disabled"):
+        entry.update({"condition": "healthy", "policy": "disabled"})
+        return key, entry, None
+    budget = class_budget(policy)
+    judged = (row["samples"] or 0) >= min_samples()
+    samples_over = (count_exceeding(*key, window["since"], window["until"],
+                                    budget)
+                    if judged else 0)
+    # the spike allowance is the share of attempts which ran over the
+    # class' own OLD p95: a handful of them is a spike, most of them is a
+    # shifted distribution (#1390)
+    baseline_p95 = (baseline or {}).get("active_p95")
+    over_baseline = (
+        count_exceeding(*key, window["since"], window["until"], baseline_p95)
+        if judged and baseline_p95 is not None else None)
+    stale = (row["last_started"] is not None
+             and (at - row["last_started"]) > stale_bound)
+    slow = judge_completed_slow(row, budget, samples_over, stale=stale)
+    regressed = judge_regression(
+        row, baseline, class_regression_factor(policy),
+        regression_min_baseline_seconds(), class_spike_share(policy),
+        samples_over_baseline=over_baseline)
+    entry["completed_slow"] = slow
+    entry["regression"] = regressed
+    waiting = judge_queue_wait(row, baseline, regression_factor())
+    entry["queue_wait"] = waiting
+    # #1390's evidence list asks for a suspected external latency: the
+    # class' own queue-wait reading IS that hint - it says whether the
+    # route in front of the execution moved as well. It travels with the
+    # verdict labelled as #1324's question and costs no read of its own.
+    latency = (None if waiting is None else
+               {"suspected": "queue_backlog", "owner": "#1324",
+                "wait_p95": waiting["wait_p95"],
+                "baseline_wait_p95": waiting["baseline_wait_p95"]})
+    entry["suspected_external_latency"] = latency
+    entry["condition"] = (
+        "completed_slow" if slow["condition"] == "completed_slow"
+        else regressed["condition"])
+    return key, entry, _class_verdict(row, slow, regressed, latency, window,
+                                      baseline_window, budget)
+
+
+def _read_windows(window, baseline_window, at):
+    """The samples, coverage verdicts and baselines of one fire.
+
+    One bounded read of the active window, its baseline and the coverage
+    question; the fire's error path is the caller's, as the read of an
+    unhealthy collector must never break the schedule (#1390).
+    """
+    rows, truncated = _aggregate_classes(window["since"], window["until"])
+    names = {row["task_name"] for row in rows}
+    baseline_rows, _ = _aggregate_classes(
+        baseline_window["since"], baseline_window["until"], task_names=names)
+    coverage = evaluate_coverage(window["since"], window["until"], at)
+    baselines = {(row["task_name"], row["queue"]): row
+                 for row in baseline_rows}
+    return rows, truncated, coverage, baselines
+
+
+def _failed_read(at, window, baseline_window, error):
+    """What a fire answers when its samples could not be read."""
+    return {"status": "evaluated", "at": _iso(at), "error": str(error),
+            "window": _window_dict(window),
+            "baseline_window": _window_dict(baseline_window),
+            "classes": 0, "truncated": False, "conditions": [],
+            "verdicts": [], "published": [], "resolved": 0,
+            "worker_inspection": UNKNOWN, "unknown": ["sample_read"]}
+
+
+def _worker_verdicts(at, answers):
+    """The currently-active verdicts of one fire, and what stays unknown.
+
+    A dark broker answers no verdict at all: nothing about current activity
+    may be claimed then, and unknown is neither healthy nor broken (#1390).
+    Only a confirmed long execution names an operation, so only those get
+    #1203's resource scope; a suspicion stays a system statement.
+    """
+    if answers is None:
+        return [], [], ["worker_inspection"]
+    confirmed, suspicions = evaluate_long_running(at, answers)
+    for item in suspicions:
+        item["actionable"] = False
+    for item in confirmed:
+        scope_verdict(item)
+    return confirmed, suspicions, []
+
+
+def _actionable(verdicts):
+    """The verdicts of one fire which may become an incident.
+
+    A reading which measured nothing, a labelled suspicion and a low-
+    confidence verdict are all evidence for a reader and none for an
+    administrator (#1390's storm bound starts here).
+    """
+    return [item for item in verdicts
+            if item.get("code")
+            and item.get("actionable", item.get("measured") == MEASURED)
+            and item.get("confidence", "high") == "high"]
+
+
+def _summary(verdicts, classes, truncated, window, baseline_window, at,
+             published, resolved, answers, unknown):
+    """What one fire answers, including the non-actionable readings."""
+    return {
+        "status": "evaluated",
+        "at": _iso(at),
+        "window": _window_dict(window),
+        "baseline_window": _window_dict(baseline_window),
+        "classes": len(classes),
+        "truncated": truncated,
+        "conditions": sorted({item["condition"] for item in classes.values()}),
+        "verdicts": [{key: value for key, value in item.items()
+                      if key != "resource_process"} for item in verdicts],
+        "published": published,
+        "resolved": resolved,
+        "worker_inspection": MEASURED if answers is not None else UNKNOWN,
+        "unknown": unknown,
+    }
 
 
 def evaluate_task_performance(at=None, publish=True):
@@ -1022,13 +1270,7 @@ def evaluate_task_performance(at=None, publish=True):
 
     window, baseline_window = _class_windows(at)
     try:
-        rows, truncated = _aggregate_classes(window["since"], window["until"])
-        names = {row["task_name"] for row in rows}
-        baseline_rows, _ = _aggregate_classes(
-            baseline_window["since"], baseline_window["until"],
-            task_names=names)
-        coverage = evaluate_coverage(
-            window["since"], window["until"], at)
+        window_read = _read_windows(window, baseline_window, at)
     except Exception as error:
         # the collector or the database is unhealthy: this fire says so and
         # costs nobody anything - the tasks it observes never notice it at
@@ -1036,155 +1278,38 @@ def evaluate_task_performance(at=None, publish=True):
         logger.warning(
             "task performance (#1390): the evaluation could not read its "
             "samples (%s); this fire publishes nothing.", error)
-        return {"status": "evaluated", "at": _iso(at), "error": str(error),
-                "window": _window_dict(window),
-                "baseline_window": _window_dict(baseline_window),
-                "classes": 0, "truncated": False, "conditions": [],
-                "verdicts": [], "published": [], "resolved": 0,
-                "worker_inspection": UNKNOWN,
-                "unknown": ["sample_read"]}
-    baseline_by_class = {(row["task_name"], row["queue"]): row
-                         for row in baseline_rows}
+        return _failed_read(at, window, baseline_window, error)
+    rows, truncated, coverage, baseline_by_class = window_read
 
     classes = {}
     verdicts = []
     stale_bound = stale_after()
     for row in rows:
-        key = (row["task_name"], row["queue"])
-        policy = policy_for(*key)
-        baseline = baseline_by_class.get(key)
-        entry = {"task_name": row["task_name"], "queue": row["queue"],
-                 "samples": row["samples"],
-                 "window": _window_dict(window),
-                 "baseline_window": _window_dict(baseline_window)}
-        if policy.get("disabled"):
-            entry.update({"condition": "healthy", "policy": "disabled"})
-            classes[key] = entry
-            continue
-        budget = class_budget(policy)
-        judged = (row["samples"] or 0) >= min_samples()
-        samples_over = (count_exceeding(*key, window["since"],
-                                        window["until"], budget)
-                        if judged else 0)
-        # the spike allowance is the share of attempts which ran over the
-        # class' own OLD p95: a handful of them is a spike, most of them is a
-        # shifted distribution (#1390)
-        baseline_p95 = (baseline or {}).get("active_p95")
-        over_baseline = (
-            count_exceeding(*key, window["since"], window["until"],
-                            baseline_p95)
-            if judged and baseline_p95 is not None else None)
-        stale = (row["last_started"] is not None
-                 and (at - row["last_started"]) > stale_bound)
-        slow = judge_completed_slow(row, budget, samples_over, stale=stale)
-        regressed = judge_regression(
-            row, baseline, class_regression_factor(policy),
-            regression_min_baseline_seconds(), class_spike_share(policy),
-            samples_over_baseline=over_baseline)
-        entry["completed_slow"] = slow
-        entry["regression"] = regressed
-        waiting = judge_queue_wait(row, baseline, regression_factor())
-        entry["queue_wait"] = waiting
-        # #1390's evidence list asks for a suspected external latency: the
-        # class' own queue-wait reading IS that hint - it says whether the
-        # route in front of the execution moved as well. It travels with the
-        # verdict labelled as #1324's question and never as a slow task, and
-        # costs no read of its own.
-        latency = None
-        if waiting is not None:
-            latency = {"suspected": "queue_backlog", "owner": "#1324",
-                       "wait_p95": waiting["wait_p95"],
-                       "baseline_wait_p95": waiting["baseline_wait_p95"]}
-        entry["suspected_external_latency"] = latency
-        entry["condition"] = (
-            "completed_slow" if slow["condition"] == "completed_slow"
-            else regressed["condition"])
+        key, entry, verdict = _evaluate_class(
+            row, baseline_by_class.get((row["task_name"], row["queue"])),
+            window, baseline_window, at, stale_bound)
         classes[key] = entry
-
-        if slow["condition"] == "completed_slow":
-            verdicts.append({
-                "code": class_code(CODE_COMPLETED_SLOW, *key),
-                "condition": "completed_slow",
-                "severity": "warning",
-                "task_name": row["task_name"], "queue": row["queue"],
-                "task_tail": _tail(row["task_name"]),
-                "window": _window_dict(window),
-                "suspected_external_latency": latency,
-                **slow,
-                "summary": (
-                    f"The task '{row['task_name']}' ran "
-                    f"{int(slow['observed_max_active_seconds'])} s on queue "
-                    f"'{row['queue'] or 'default'}' - over its active time "
-                    f"budget of {int(budget)} s - measured from "
-                    f"{slow['samples']} attempts."),
-            })
-        elif regressed["condition"] == "regression":
-            verdicts.append({
-                "code": class_code(CODE_REGRESSION, *key),
-                "condition": "regression",
-                "severity": "warning",
-                "task_name": row["task_name"], "queue": row["queue"],
-                "task_tail": _tail(row["task_name"]),
-                "window": _window_dict(window),
-                "baseline_window": _window_dict(baseline_window),
-                "suspected_external_latency": latency,
-                **regressed,
-                "summary": (
-                    f"The task '{row['task_name']}' on queue "
-                    f"'{row['queue'] or 'default'}' got measurably slower: "
-                    f"its {regressed['comparison']} is "
-                    f"{_ratio_text(regressed)} its own previous window "
-                    f"({regressed['samples']} vs "
-                    f"{regressed['baseline_samples']} samples)."),
-            })
+        if verdict is not None:
+            verdicts.append(verdict)
 
     verdicts.extend(coverage)
 
     answers = _inspection()
-    unknown = []
-    confirmed, suspicions = [], []
-    if answers is None:
-        # dark broker: nothing about current activity may be claimed at all;
-        # unknown is neither healthy nor broken (#1390)
-        unknown.append("worker_inspection")
-    else:
-        confirmed, suspicions = evaluate_long_running(at, answers)
-        for item in suspicions:
-            item["actionable"] = False
-        for item in confirmed:
-            scope_verdict(item)
-        verdicts.extend(confirmed)
-        verdicts.extend(suspicions)
+    confirmed, suspicions, unknown = _worker_verdicts(at, answers)
+    verdicts.extend(confirmed)
+    verdicts.extend(suspicions)
 
-    actionable = [item for item in verdicts
-                  if item.get("code")
-                  and item.get("actionable", item.get("measured") == MEASURED)
-                  and item.get("confidence", "high") == "high"]
     published = []
     resolved = 0
     if publish:
-        published = publish_verdicts(actionable)
+        published = publish_verdicts(_actionable(verdicts))
         resolved = resolve_verdicts(classes, confirmed, coverage, at)
 
-    summary = {
-        "status": "evaluated",
-        "at": _iso(at),
-        "window": _window_dict(window),
-        "baseline_window": _window_dict(baseline_window),
-        "classes": len(classes),
-        "truncated": truncated,
-        "conditions": sorted({item["condition"] for item in classes.values()}),
-        "verdicts": [{key: value for key, value in item.items()
-                      if key != "resource_process"} for item in verdicts],
-        "published": published,
-        "resolved": resolved,
-        "worker_inspection": MEASURED if answers is not None else UNKNOWN,
-        "unknown": unknown,
-    }
     if published or resolved or suspicions:
         logger.info(
             "task performance (#1390): %s classes evaluated, %s verdicts "
             "published, %s incidents resolved, %s unconfirmed long-running "
             "suspicions labelled.", len(classes), len(published), resolved,
             len(suspicions))
-    return summary
+    return _summary(verdicts, classes, truncated, window, baseline_window, at,
+                    published, resolved, answers, unknown)

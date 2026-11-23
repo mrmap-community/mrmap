@@ -21,8 +21,13 @@ const SENSITIVE_NAMES = new Set([...SENSITIVE_COOKIE_NAMES, ...SENSITIVE_HEADER_
 
 type Json = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
+type StorageState = {
+  cookies?: { value?: unknown }[];
+  origins?: { localStorage?: { value?: unknown }[] }[];
+};
+
 const redactTree = (value: Json): Json => {
-  if (Array.isArray(value)) return value.map(redactTree);
+  if (Array.isArray(value)) return value.map((entry) => redactTree(entry as Json));
   if (value === null || typeof value !== "object") return value;
   const target: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
@@ -66,7 +71,7 @@ export const redactArtifacts = (dir: string) => {
     const redacted = redactTree(parsed);
     if (isStorageState(name)) {
       summary.storageStates += 1;
-      const state = redacted as { cookies?: { value?: unknown }[]; origins?: { localStorage?: { value?: unknown }[] } };
+      const state = redacted as StorageState;
       for (const cookie of state.cookies ?? []) if (cookie.value) cookie.value = REDACTED;
       for (const origin of state.origins ?? []) {
         for (const entry of origin.localStorage ?? []) if (entry.value) entry.value = REDACTED;

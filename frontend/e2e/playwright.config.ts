@@ -35,7 +35,12 @@ export default defineConfig({
     //   while the reporters are constructed, and Playwright wipes `.output/`
     //   when the run starts, so anything written there before the run is gone.
     cucumberReporter('json', { outputFile: 'cucumber-report/cucumber.json' }),
-    cucumberReporter('html', { outputFile: 'cucumber-report/cucumber.html' })
+    cucumberReporter('html', { outputFile: 'cucumber-report/cucumber.html' }),
+    // Last, so the JSON report above is on disk when the artifacts are scrubbed
+    // and the login state removed. A throw in its onEnd turns the run red, which
+    // is what makes the redaction of #1688 an assertion and not a comment
+    // (#1689 review, finding 3).
+    ['./support/artifactReporter.ts']
   ],
   use: {
     baseURL: BASE_URL,

@@ -1,11 +1,18 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import type { ListShape } from "../paths";
+
 // The UI adapter (#1688): the only place of the Gherkin layer that knows how the
 // SPA renders. Steps call these methods; a step that reaches for a CSS selector
 // is a failed review. When the UI changes, exactly this module changes.
 //
 // Every locator here is a react-admin contract: role based (`getByRole`) or the
-// accessible text of a field label — not a generated class name.
+// accessible text of a field label — not a generated class name. The two
+// exceptions are the documented ones of the #1688 *Selector policy* and name
+// themselves at the method: the generic row selector of the row-count step, and
+// the result-row anchor the metadata explorer itself uses to keep its compact
+// result list and its map selection in sync (a DOM contract of the app, not a
+// styling class).
 
 export class UiAdapter {
   constructor(private readonly page: Page) {}
@@ -14,9 +21,47 @@ export class UiAdapter {
     return this.page.goto(path);
   }
 
-  /** One of the two list shapes of the app: a table (datagrid) or the card grid of the service screens. */
-  listRows(): Locator {
-    return this.page.locator("table tbody tr, .MuiCard-root");
+  /**
+   * The rows a list screen renders.
+   *
+   * The shape comes from the route table (`support/paths.ts`) and is never
+   * guessed from what happens to be on screen. A page always renders chrome —
+   * summary tiles, facet cards, the empty-state card — so an assertion which
+   * accepts "any card-like element" is satisfied on a healthy stack whose list
+   * is empty, which #1688 calls a harness bug ("an assertion whose failure no
+   * report can show"). Both branches therefore name the row element of their
+   * list and nothing else:
+   *
+   * - `datagrid`: the body rows of the react-admin table. `tbody` keeps the
+   *   header row out, which is what `specs/lists-and-contracts.spec.ts:32`
+   *   already relies on.
+   * - `explorer`: the result rows of the metadata explorer, which `ExplorerView
+   *   .tsx` gives `id="dataset-result-<pk>"`. That screen renders no table at
+   *   all — it is a result list beside a coverage map — and the only cards on it
+   *   are its facet counters, which stay visible with zero results.
+   */
+  listRows(shape: ListShape): Locator {
+    return shape === "explorer" ? this.explorerRows() : this.datagridRows();
+  }
+
+  /** Documented exception (row-count step): the generic row selector of a datagrid. */
+  datagridRows(): Locator {
+    return this.page.locator("table tbody tr");
+  }
+
+  /** Documented exception (explorer rows): the app's own result-row anchor. */
+  explorerRows(): Locator {
+    return this.page.locator("[id^='dataset-result-']");
+  }
+
+  /** A datagrid row whose cells carry `text` — the record a scenario names. */
+  rowContaining(text: string): Locator {
+    return this.datagridRows().filter({ hasText: text });
+  }
+
+  /** An explorer result row whose title or abstract carries `text`. */
+  explorerRowContaining(text: string): Locator {
+    return this.explorerRows().filter({ hasText: text });
   }
 
   field(label: string): Locator {

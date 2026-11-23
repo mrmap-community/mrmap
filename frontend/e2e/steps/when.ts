@@ -63,7 +63,8 @@ When("I export the current view", async ({ world }) => {
   await world.ui.clickButton("EXPORT");
   const file = await download;
   world.lastExport = file.suggestedFilename();
-  await file.createReadStream().once("error", () => undefined);
+  // the stream has to be consumed, or the download of the response body never finishes
+  (await file.createReadStream()).resume();
 });
 
 When("I refresh the page", async ({ world }) => {

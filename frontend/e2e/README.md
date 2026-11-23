@@ -49,8 +49,12 @@ docker compose run --rm --no-deps -T backend \
 
 The seed flushes the disposable acceptance database and loads the
 repository's own behave fixtures (`test_users`, `test_keywords`, `test_crs`,
-`test_csw`, `test_wms`, `test_datasetmetadata`), so the browser gate sees the
-same deterministic rows the Gherkin suite pins by PK. It then creates the
+`test_csw`, `test_wms`, `test_datasetmetadata`, `test_background`,
+`test_harvesting_states`), so the browser gate sees the same deterministic rows
+the Gherkin suite pins by PK. The last two seed the screens whose lists were
+empty in the first acceptance run — a scenario that asserts rows on a screen
+with no rows cannot fail, which is why they belong to the seed and not to a
+scenario. It then creates the
 login user `acceptance` (password `Acceptance-e2e` — a fixture-only local
 credential, a superuser, which sees every seeded record through the audited
 break-glass of decision Q6=A), points WMS1 at the compose mapserver (real
@@ -72,9 +76,19 @@ docker run --rm --network host --ipc=host \
 `--network host` reaches the published `frontend` port from the agent host's
 network namespace; the browsers live in the image (`PLAYWRIGHT_BROWSERS_PATH`
 is baked in), the test package is pinned to `@playwright/test` 1.65.1 matching
-the image. Artifacts land in `.output/` (gitignored): `results.json`, traces
-and screenshots of failures, and `boot-metrics.json` — the measured #946
+the image. `npm ci` installs the harness — including `typescript`, so
+`npm run type-check` is a gate the package itself carries, not an import from
+the application. Artifacts land in `.output/` (gitignored): `results.json`,
+traces and screenshots of failures, and `boot-metrics.json` — the measured #946
 numbers (transferred vs decoded bytes per large payload).
+
+Before the run ends, `support/artifactReporter.ts` scrubs those artifacts
+(#1688 "Artifact redaction"): every credential-shaped value in any JSON below
+`.output/` is replaced and the login state of the setup project is deleted, so
+the `sessionid` cookie and the `authorization` entry of the `acceptance`
+superuser never leave the runner with a failure trace. A credential that
+survives the scrub turns the run red — the check is an assertion, not a log
+line, which is why it is a reporter's `onEnd` and not a worker `AfterAll`.
 
 Environment caveats recorded at the first full green run (2026-11-19,
 develop e68310921): the page's `index.html` also references two leaflet
@@ -95,6 +109,7 @@ a second runtime: no Vite server, no second browser, no second stack.
 bash -lc 'npm ci --no-audit --no-fund && npm test'
 
 # the Gherkin layer alone, and the tiers of it
+npm run type-check         # the package's own tsc gate, no application imports
 npm run bdd:gen            # compile only — fails on an undefined step
 npm run bdd:smoke          # the @smoke tier, i.e. everything but the canary
 npm run bdd:test           # every scenario including the canary
@@ -102,7 +117,10 @@ npm run bdd:demonstrate    # the canary alone: must exit nonzero (#1689 AC)
 npm run bdd:steps          # the step grammar as documentation
 ```
 
-`npm test` excludes `@intentional-failure`: that scenario asserts text the
+`npm test` generates before it runs — `bddgen && playwright test …` — because a
+gate that stays green when `.features-gen/` is missing would not gate the
+Gherkin layer at all: Playwright finds no `bdd` project and reports success. It
+also excludes `@intentional-failure`: that scenario asserts text the
 application never renders, which is the proof that a red scenario fails the run
 loudly and leaves a trace. It is opt-in by name, never part of a green tier.
 

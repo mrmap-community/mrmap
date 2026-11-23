@@ -33,7 +33,25 @@ Then("I should not see {string}", async ({ world }, value) => {
 });
 
 Then("the list answers with rows", async ({ world }) => {
-  await expect(world.ui.listRows().first()).toBeVisible({ timeout: 30_000 });
+  // Shape-aware and non-vacuous (#1689 review, finding 1): the route table says
+  // whether this screen renders a datagrid or the explorer result list, so a
+  // summary tile, a facet counter or the empty-state card can never stand in for
+  // a record.
+  const rows = world.ui.listRows(world.screenShape);
+  await expect(rows.first(), `${world.currentScreen} renders no list row`).toBeVisible({ timeout: 30_000 });
+});
+
+Then("the list shows the record named {string}", async ({ world }, value) => {
+  // An unnamed "rows are visible" only proves the list request was answered; a
+  // named record proves the seeded row the stack is supposed to have is there.
+  // `-` keeps the example at the row assertion, which is the strongest claim a
+  // screen without a stable business identity can make.
+  if (value === "-") return;
+  const text = resolveNamedValue(value);
+  const row = world.screenShape === "explorer"
+    ? world.ui.explorerRowContaining(text)
+    : world.ui.rowContaining(text);
+  await expect(row.first(), `${world.currentScreen} has no row carrying "${text}"`).toBeVisible({ timeout: 30_000 });
 });
 
 Then("the page title contains {string}", async ({ world }, expected) => {

@@ -1,6 +1,7 @@
 import { expect, request as pwRequest, type APIRequestContext, type Page } from "@playwright/test";
 
 import { UiAdapter } from "./adapters/ui";
+import { routeShape, type ListShape } from "./paths";
 
 // The world of one scenario (#1688, "Scenario-state lifetimes" scope 3): the
 // adapters a step may talk to, the response log the API assertions read, and the
@@ -49,6 +50,20 @@ export class E2EWorld {
 
   resetResponses() {
     this.responses.length = 0;
+  }
+
+  /** The screen the browser is on, for the message of a list assertion. */
+  get currentScreen(): string {
+    return new URL(this.page.url()).pathname;
+  }
+
+  /**
+   * The list shape of that screen. Read from the live route rather than from a
+   * step's memory, so the three "I open …" steps of the grammar and a reload
+   * all agree on what the row assertion expects.
+   */
+  get screenShape(): ListShape {
+    return routeShape(this.currentScreen);
   }
 
   /** Bookkeep a record the scenario created, so a later Then can read it back. */

@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "commonjs",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "lib": ["ES2022", "DOM"],
     "types": ["node"],
     "strict": true,
@@ -11,5 +12,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["playwright.config.ts", "bdd.gen.config.ts", "features/**/*.ts", "helpers/**/*.ts", "steps/**/*.ts", "support/**/*.ts"]
+  "include": ["playwright.config.ts", "helpers/**/*.ts", "specs/**/*.ts", "steps/**/*.ts", "support/**/*.ts"],
+  "exclude": ["node_modules", ".features-gen", ".output", "cucumber-report"]
 }

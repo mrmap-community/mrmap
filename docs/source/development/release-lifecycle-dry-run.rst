@@ -60,13 +60,17 @@ to decide a release.
 What the walk actually is
 =========================
 
-A synthetic mrmap-shaped repository: ``VERSION``, the projection
-``backend/MrMap/version.py``, ``.release-please-manifest.json``, ``CHANGELOG.md``
-with the ``# Pre-1.0 Compatibility Baseline`` section, an ``X-CLIENT-VERSION``
-openapi component, and a ``backend/`` tree with migration directories including
-the #1180 constraint files and the markers of #1178 and #1179. A bare repository
-plays the remote; the lifecycle JSON and the release tools are copied into it, so
-every phase runs the real tool against real files with real git history.
+A synthetic mrmap-shaped repository: ``VERSION``, its generated projection
+``backend/MrMap/version.py`` (written by ``canonical_version.render_projection``,
+never retyped) and ``.release-please-manifest.json``; a ``CHANGELOG.md``
+whose release section is the ``## [<version>] - <date>`` fold ``plan`` demands
+and whose ``### Migration notes`` subsection names the migration the range adds;
+and a ``backend/`` tree of migration directories carrying the #1180 protected
+nodes under exactly the names ``scripts/release_upgrade_baseline.json`` lists,
+the marker node among them. The reviewed contract baseline, exceptions ledger and
+upgrade constraint files of this checkout are copied in unchanged, as are the
+release tools and the lifecycle JSON, so every phase runs the real tool against
+real files with real git history. A bare repository plays the remote.
 
 The isolation is how the walk is built, not a claim in a comment:
 
@@ -120,12 +124,18 @@ The phases and what each one proves
    gathered for another SHA.
 
 ``verify-on-master`` (actor: CI)
-   ``finalize`` in one run, as #1584 requires: master's tree is checked against
-   the tested candidate before ``verify``, the tag and the GitHub release are
-   published, master has moved to the tag's commit, the version equality check
-   ``verify`` runs is asserted from both sides, and the release body carries the
-   attestation and the version. Red half: a master whose tree diverged, a missing
-   image digest, a rolling alias.
+   ``finalize`` in the one run #1584 requires: the tree of master is compared
+   with the tested candidate, and only once that is empty does the run push the
+   annotated tag and create the GitHub release, so the tag stands on master's
+   tip and the release names the candidate it came from. The run then re-reads
+   the world it produced: the upgrade gate runs again with master's migrations,
+   which is the action the lifecycle names for this phase, and ``gate``
+   answers green for a frozen candidate whose tag is at master and whose release
+   exists. The release body carries both image digests and, when an attestation
+   was passed in, the attestation itself. Red half: a master whose tree diverged
+   from the tested candidate, a release missing one of the two image digests,
+   and a rolling alias while Q1 of #1578 is Pending - each refused before a tag
+   was pushed, which the check after them proves by finding no tag at all.
 
 ``post-release`` (actor: human)
    ``sync`` opens the master to develop pull request and leaves it open for a
@@ -169,12 +179,19 @@ attempts at the freeze cost one pull request, which is what the journal counts.
 The promotion stays resumable afterwards: the merge and the publication of the
 run that owns the freeze are unaffected by the refused attempt.
 
-A prerelease version is refused by ``release_gates.py`` and by
-``release_promotion.py`` alike, the tag pattern of the lifecycle accepts only
-``vX.Y.Z``, and the multiversion selection of ``docs/source/conf.py`` excludes
-the prerelease pattern - the three agree, and the walk reads all three. Rolling
-aliases stay refused while Q1 of #1578 is Pending, and the check that asserts it
-names Q1, so the check that trips when the answer lands explains itself.
+A prerelease is not refused: the walk cuts ``0.2.0-rc.1`` on its own release
+branch and publishes it under ``v0.2.0-rc.1``, because #1579 added the
+prerelease suffix to the accepted grammar on purpose and ``scripts/image_release.py``
+tags candidates that way. What it never gets is the stable identity of its line -
+the walk asserts the stable ``v0.2.0`` is absent afterwards - and the three
+places that decide a published identity agree on that without talking to each
+other: the top-level ``tag_pattern`` of the lifecycle, which the stable channel
+of ``master`` publishes under, matches ``vX.Y.Z`` only, the multiversion
+whitelist of ``docs/source/conf.py`` excludes the prerelease pattern, and
+``release_gates.py`` refuses a prerelease as the ``version`` of a ``released``
+contract baseline. Rolling aliases stay refused while Q1 of #1578 is Pending,
+and the check that asserts it names Q1, so the
+check that trips when the answer lands explains itself.
 
 What a dry run cannot decide offline
 ====================================
@@ -199,7 +216,9 @@ instead of sitting there unnoticed.
      - The candidate OpenAPI document needs GDAL and ``manage.py spectacular``,
        and the evidence classes come from real CI runs; the walk feeds a saved
        payload through the tool's own ``--checks-file`` seam.
-     - ``unit-tests``, ``acceptance-tests``, ``sonarcloud``
+     - the CI jobs behind those classes - today ``unit-tests``,
+       ``acceptance-tests``, ``sonarcloud`` and ``SonarCloud Code Analysis``,
+       the names ``release_promotion.CHECK_CLASSES`` maps
    * - The built images the attestation binds
      - The digests of ``mrmap-backend`` and ``mrmap-frontend`` are published by
        CI; well-formed digests pass the same ``--artifact`` seam but cannot be
@@ -264,13 +283,21 @@ true, because nothing in a temp directory can hold them for the real one:
   rather than moving it, which is what the walk asserts; on the real repository
   that behaviour is only useful if nothing else moves the branch either.
 
-The version equality the tools check is ``VERSION``, its projection
-``backend/MrMap/version.py``, the ``.release-please-manifest.json`` and the
-``X-CLIENT-VERSION`` of the candidate OpenAPI document. The walk asserts all four
-from both sides. What it cannot assert is the version a browser shows or the
-version of the generated documentation, because those are built by the docs
-automation of #1585 and by the frontend build, neither of which runs here; #1610
-owns the combined run over them.
+The version identities the release tools check are ``VERSION``, its projection
+``backend/MrMap/version.py``, ``.release-please-manifest.json``, and
+``info.version`` of the candidate OpenAPI document. The walk holds the first one
+from both sides with ``canonical_version --check`` - green on the untouched base,
+red on a hand-edited ``VERSION``, green again once ``--write`` repairs the drift.
+The projection and the manifest are compared by ``plan``, which refuses a
+candidate whose release files disagree; the suite of #1584 holds that refusal,
+while this walk drives ``plan`` on consistent fixtures alone. The api gate
+compares ``info.version`` of the document with ``VERSION`` and the walk asserts
+that from both sides - the candidate's own document is accepted, a document that
+names another version is refused before any report is written. What it cannot
+assert is the version a browser shows or the version of the generated
+documentation, because those are built by the docs automation of
+#1585 and by the frontend build, neither of which runs here; #1610 owns the
+combined run over them.
 
 Reading a run
 =============

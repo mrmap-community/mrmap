@@ -53,8 +53,9 @@ phase is only proven when it was also seen to stop a wrong candidate. So
 `build-and-gate` is walked red on a VERSION move without its folded changelog
 section, `promote` red on a missing evidence class and on evidence gathered for
 another sha, `verify-on-master` red on a master whose tree diverged and on a
-missing artifact digest, and the walk refuses rolling aliases and prereleases the
-way the lifecycle says it must.
+missing artifact digest. The walk refuses rolling aliases while Q1 of #1578 is
+Pending, and cuts a prerelease without ever letting it take the stable identity
+of its line.
 
 Run from the repository root:
     python3 scripts/test_release_lifecycle_dry_run.py [--report report.json]
@@ -820,9 +821,17 @@ def phase_verify_on_master(w, lifecycle):
     releases = [r["tagName"] for r in w.gh_state()["releases"]]
     expect(releases == ["v0.2.0"], "verify-on-master",
            f"the GitHub release is missing: {releases}")
+    published = [c for c in w.journal_calls() if c[:2] == ["release", "create"]]
+    notes = published[0][published[0].index("--notes") + 1] if published else ""
+    attested_body = json.loads(w.attestation.read_text(encoding="utf-8"))
+    expect(all(digest in notes for digest in (BACKEND_DIGEST, FRONTEND_DIGEST))
+           and w.candidate in notes
+           and attested_body["attestation"] in notes, "verify-on-master",
+           f"the release body does not carry what an operator audits: {notes[:200]}")
     w.record("verify-on-master", "ok",
              "master tree-checked against the candidate, v0.2.0 tagged, "
-             "release published with both image digests",
+             "release published with both image digests, the version and the "
+             "attestation in its body",
              "scripts/release_promotion.py finalize")
     git("fetch", "-q", "origin", "master", cwd=w.repo)
     git("checkout", "-q", "-B", "master", "origin/master", cwd=w.repo)

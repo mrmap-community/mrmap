@@ -194,45 +194,66 @@ A paired four-worker coverage run used the same host, dependency image
 ``a6db4c98151b``, fresh isolated projects and the same sampler settings
 (``--interval 0.25 --proc-interval 15 --pss``). Baseline
 ``21994fb30`` predates the #1619 worker-limit change; candidate ``35809ac8e``
-is the current ``develop`` tree. The sampler phase includes test-container
-startup and test database setup; the test time is the Django runner's own
-summary.
+is the candidate tree. A second matched pair repeated both four-worker arms.
+The sampler phase includes test-container startup and test database setup;
+the test time is the Django runner's own summary.
 
 .. list-table::
     :header-rows: 1
     :widths: auto
 
-    * - Revision
+    * - Pair
+      - Revision
       - Workers
       - Tests / existing skips
       - Test time (s)
       - Profile time (s)
       - Stack peak (MiB)
       - Committed peak (MiB)
-    * - ``21994fb30``
+    * - 1
+      - ``21994fb30``
       - 4
       - 3245 / 3
       - 1253.3
       - 1362.4
       - 4943
       - 3651
-    * - ``35809ac8e``
+    * - 1
+      - ``35809ac8e``
       - 4
       - 3245 / 3
       - 1314.5
       - 1427.0
       - 5124
       - 3811
+    * - 2
+      - ``21994fb30``
+      - 4
+      - 3245 / 3
+      - 959.6
+      - 1055.5
+      - 5263
+      - 3779
+    * - 2
+      - ``35809ac8e``
+      - 4
+      - 3245 / 3
+      - 966.4
+      - 1050.7
+      - 5420
+      - 3942
 
-Both runs passed and produced XML coverage reports with a 90% total. The
-candidate took 4.9% longer in this single pair; this is not enough to distinguish
-a regression from run-to-run variation. Normal CI still uses four Django
-workers and Vitest's automatic policy. During these profiles, the sampler
-cgroup's ``oom``/``oom_kill`` deltas were 0/0 for both runs. Python PSS peaks
-were 3084 MiB (9 readable processes) on the baseline and 3202 MiB (8 readable
-processes) on the candidate. PostgreSQL PSS was unavailable: none of its 36
-processes' ``smaps_rollup`` files were readable. Its RSS/shmem process view and
-container cgroup metrics were still captured; no PSS value is inferred.
+All four runs passed and produced XML coverage reports with a 90% total; each
+had the same 3 existing skips. The candidate was 4.9% slower in pair 1 and
+0.7% slower in pair 2. Baseline times ranged from 959.6 to 1253.3 seconds,
+showing substantial run-to-run variation; these two pairs do not support a
+general no-regression claim. The opt-in layer leaves normal CI unchanged:
+four Django workers and Vitest's automatic policy remain the defaults.
+Sampler-cgroup ``oom``/``oom_kill`` deltas were 0/0 in both pairs. Python PSS
+peaks were 3084/3202 MiB (9/8 readable processes) in pair 1 and 3233/3433 MiB
+(8/8 readable processes) in pair 2. PostgreSQL PSS was unavailable in all
+four runs; its RSS/shmem process view and container cgroup metrics were still
+captured, and no PSS value is inferred.
 
 Targeted Django database-cold and database-warm runs used
 ``tests.django.registry.tests_update_candidates`` (five tests) in a fresh
@@ -286,6 +307,45 @@ The sampler-cgroup OOM deltas were 0/0 in all four phases. These targeted
 results are database-startup diagnostics, not coverage runs or a substitute for
 full-suite runtime comparisons.
 
+Additional candidate full-suite modes (2026-11-23)
+--------------------------------------------------
+
+On candidate ``35809ac8e``, fresh isolated projects and the same backend image
+were used for one- and two-worker full coverage runs. Each passed 3245 tests
+with the same 3 existing skips, produced XML coverage, and reported identical
+coverage (92.28% lines, 81.25% branches).
+
+.. list-table::
+    :header-rows: 1
+    :widths: auto
+
+    * - Workers
+      - Test time (s)
+      - Profile time (s)
+      - Stack peak (MiB)
+      - Test-container peak (MiB)
+      - Python PSS peak (MiB)
+      - Sampler-cgroup OOM deltas
+    * - 1
+      - 2444.8
+      - 2535.3
+      - 2315
+      - 1200
+      - 1085
+      - 0/0
+    * - 2
+      - 1509.5
+      - 1634.9
+      - 3792
+      - 2437
+      - 2381
+      - 0/0
+
+The full frontend suite without coverage also passed 1794 tests in 217 files
+with automatic workers (129.5 s test time, 131.0 s profile time, 2386 MiB
+stack peak, OOM deltas 0/0). The default and one-worker coverage results above
+preserve the same four frontend coverage metrics.
+
 Browser acceptance profile (2026-11-23)
 ---------------------------------------
 
@@ -318,17 +378,20 @@ Backend Python PSS peaked at 481 MiB and Gunicorn PSS at 177 MiB. Browser and
 PostgreSQL PSS were unreadable and are not reported as zero. The isolated
 Compose project and its named volumes were removed after the run.
 
-Remaining closure evidence
---------------------------
+Acceptance conclusion and limitations
+-------------------------------------
 
-The browser memory profile is now complete. The four-worker baseline/candidate
-comparison is still a single pair: the candidate was 4.9% slower in that pair,
-which is inconclusive rather than evidence of no regression. Repeat matched
-four-worker arms before making a performance claim; retain the normal CI worker
-defaults unless repeated evidence supports changing them. The one- and
-two-worker candidate profiles are single runs and should likewise not be
-presented as general performance guarantees. PostgreSQL PSS remains explicitly
-unavailable unless host permissions change.
+The measured full-suite and browser modes passed with their existing test
+counts, coverage outputs and no new skips; each workload used an isolated
+project, and owned containers, volumes and networks were removed. The
+four-worker baseline/candidate comparison has two matched pairs: the candidate
+was 4.9% and 0.7% slower, while the baseline times varied by about 30%. This is
+not conclusive evidence of a systemic regression or of equivalence. The
+one-/two-worker candidate profiles and frontend profiles are single runs.
+Because the low-memory layer is opt-in and does not change CI defaults, keep
+four Django workers and Vitest's automatic policy as-is; report these as
+host-specific measurements, not performance guarantees. PostgreSQL PSS remains
+explicitly unavailable unless host permissions change.
 
 ``python3 scripts/test_test_memory_mode.py`` checks all eight combinations of
 prebuilt-backend/prebuilt-frontend/lightweight layers, and exercises the shipped

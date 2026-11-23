@@ -1,28 +1,31 @@
-import copy
 import io
 import logging
 import platform
 from functools import partial
 from pathlib import Path
-from queue import Queue
-from threading import Thread
 
 from django.conf import settings
 from django.contrib.gis.geos import GeometryCollection, GEOSGeometry, Polygon
 from django.core.exceptions import BadRequest, PermissionDenied
-from django.db import connection
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from epsg_cache.utils import adjust_axis_order
-from extras.utils import execute_threads
 from lxml import etree
+from lxml.etree import XMLSyntaxError
 from PIL import Image, ImageDraw, ImageFont
+from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.helper.xml import parse_untrusted
 from registry.models.service import WebMapService
+from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import Http423, OgcServiceProxyView
+from requests import Request
+
+# the answer this proxy reads the features of a GetFeatureInfo out of; any other
+# INFO_FORMAT is forwarded unchanged once the request passed the checks
+XML_INFO_FORMAT = "text/xml"
 
 
 def _world_to_pixel(coord, minx, miny, width, height, dx, dy):
@@ -395,50 +398,105 @@ class WebMapServiceProxy(OgcServiceProxyView):
             }
         )
 
-    def handle_get_feature_info_with_multithreading(self):
-        """We use multithreading to send two requests at the same time to speed up the response time."""
-        request = self.remote_service.send_request(request=self.ogc_request)
-        thread_list = []
-        results = Queue()
-        xml_request = copy.deepcopy(request)
-        xml_request.params[self.remote_service.INFO_FORMAT_QP] = "text/xml"
-        # to differ the results we return a dict for the remote response
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"xml_response": self.get_remote_response(
-                        request=xml_request)},
-                    connection.close(),
-                ),
-                args=(results,),
-            )
-        )
-        thread_list.append(
-            Thread(
-                target=lambda r: r.put(
-                    {"requested_response": self.get_remote_response(
-                        request=request)},
-                    connection.close(),
-                ),
-                args=(results,),
-            )
-        )
-        execute_threads(thread_list)
-        # Since we have no idea which result will be on which position in the query
-        xml_response = None
-        requested_response = None
-        while not results.empty():
-            result = results.get()
-            if result.get("xml_response", None):
-                xml_response = result["xml_response"]
-            elif result.get("requested_response", None):
-                requested_response = result["requested_response"]
-        return xml_response, requested_response
+    def _query_key(self, name: str):
+        """The name the request spells a query parameter with, or None.
+
+        The parameters are collected under the canonical spelling but a caller
+        may spell them any way, so they are read by their upper case name.
+        """
+        for key in self.ogc_request.ogc_query_params:
+            if key.upper() == name:
+                return key
+        return None
+
+    def _query_param(self, name: str, default: str = None):
+        """The value of a query parameter of the request, read by upper case name."""
+        key = self._query_key(name)
+        if key is None:
+            return default
+        return self.ogc_request.ogc_query_params[key]
+
+    def _feature_is_within_allowed_area(self, bounded_by) -> bool:
+        """Whether one feature of the answer lies within the allowed area.
+
+        A feature whose area can not be read, and an area which is not
+        comparable with the allowed area, keep the answer private: what can not
+        be proven to lie within the allowed area is not proven to be allowed,
+        and the answer of a secured service is private until the check says
+        otherwise.
+        """
+        try:
+            geometry = GEOSGeometry.from_gml(etree.tostring(bounded_by))
+            # FUTURE: depends on xml wms version not on the registered service version
+            if self.service.major_version() >= 2:
+                geometry = adjust_axis_order(geometry)
+            return self.geom.contains(geometry.convex_hull)
+        except Exception:
+            logging.warning(
+                "GetFeatureInfo answer of service %s carries a feature whose area "
+                "can not be compared with the allowed area; the answer is kept "
+                "private", self.service.pk)
+            return False
+
+    def _is_within_allowed_area(self, xml) -> bool:
+        """Whether every feature of a GetFeatureInfo answer lies within the area.
+
+        One answer carries the features of all queried layers and of all styles
+        of them (OGC 05-008, 7.4.4), so the first of them says nothing about the
+        rest: any feature outside the allowed area keeps the whole answer
+        private, the same all-or-nothing the masked GetMap of a secured service
+        applies (#1471). An answer which carries no feature at all is empty, so
+        nothing private travels with it and it is allowed.
+        """
+        if not xml.xpath('//*[local-name()="FeatureCollection"]'):
+            logging.warning(
+                "GetFeatureInfo answer of service %s is no feature collection; "
+                "the answer is kept private", self.service.pk)
+            return False
+        for feature in xml.xpath('//*[local-name()="FeatureCollection"]/*'):
+            if not feature.xpath('.//*[local-name()="boundedBy"]/*'):
+                logging.warning(
+                    "GetFeatureInfo answer of service %s carries a feature "
+                    "without an area; the answer is kept private",
+                    self.service.pk)
+                return False
+        return all(self._feature_is_within_allowed_area(bounded_by) for bounded_by
+                   in xml.xpath("//gml:boundedBy/gml:*",
+                                namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}))
+
+    def _answer_upstream_refusal(self, remote_response):
+        """Answer the way the remote service did, when it refused the request.
+
+        A request which the remote service refuses is a faulty request of the
+        caller, and its own report says what is faulty about it. Answering that
+        refusal with the permissions report of this proxy tells the caller it
+        lacks a permission it may well have, and the operator looks for a
+        permission which was never the cause.
+        """
+        if remote_response is None:
+            return None
+        if isinstance(remote_response, dict):
+            # the report of get_remote_response for an upstream which never
+            # answered at all; it carries its own status and message
+            return self.return_http_response(response=remote_response)
+        content_type = remote_response.headers.get("content-type", "")
+        if "xml" in content_type.lower() and "exceptionreport" in remote_response.text.lower():
+            return self.return_http_response(response=remote_response)
+        return None
 
     def handle_secured_get_feature_info(self):
-        """Return the GetFeatureInfo response if the bbox is covered by any allowed area or the response features are contained in any allowed area.
+        """Return the GetFeatureInfo response if it stays within the allowed area.
 
-        IF not we response with a owsExceptionReport in xml format.
+        Whether the caller may request the drawn layers *and* the queried ones is
+        decided before this handler runs, by the operations the security manager
+        matched against the request (registry/managers/security.py); a request
+        which names a layer the caller may not request never reaches it.
+
+        If the bbox of the request is covered by an allowed area, whatever the
+        service answers within that extent is allowed; otherwise the features of
+        the answer are checked and any one of them outside the allowed area keeps
+        the whole answer private, the same all-or-nothing the GetMap of a secured
+        service applies (#1471).
 
         .. note:: excerpt from ogc specs
             **ogc wms 1.3.0**: The server shall return a response according to the requested INFO_FORMAT if the
@@ -447,46 +505,64 @@ class WebMapServiceProxy(OgcServiceProxyView):
             (see section 7.4.4)
 
         :return: the GetFeatureInfo response
-        :rtype: :class:`request.models.Response` or dict if the request is not allowed.
+        :rtype: :class:`django.http.response.HttpResponse`
         """
-        is_spatial_secured_and_covers = len(list(filter(
-            lambda ao: ao.allowed_area.covers(self.ogc_request.bbox),
-            self.service.relevant_allowed_operations
-        ))) > 0
-
-        if is_spatial_secured_and_covers:
+        if any(allowed_operation.allowed_area.covers(self.ogc_request.bbox)
+               for allowed_operation in self.service.relevant_allowed_operations):
             return self.return_http_response(response=self.get_remote_response())
+
+        # the features can only be read out of an answer of text/xml, so an
+        # answer of any other format is asked twice: once to check it and once
+        # as the caller wants it
+        requested_format = self._query_param("INFO_FORMAT") or "text/plain"
+        if requested_format == XML_INFO_FORMAT:
+            xml_response = self.get_remote_response()
+            requested_response = xml_response
         else:
-            try:
-                request = self.remote_service.send_request(
-                    request=self.ogc_request)
-                if request.params[self.remote_service.INFO_FORMAT_QP] != "text/xml":
-                    (
-                        xml_response,
-                        requested_response,
-                    ) = self.handle_get_feature_info_with_multithreading()
-                else:
-                    xml_response = self.get_remote_response(request=request)
-                    requested_response = xml_response
+            if not self.ogc_request.is_get:
+                # the format of a posted request is written inside its document,
+                # which this proxy forwards as it is and can not rewrite; an
+                # answer it can not read stays private
+                raise PermissionDenied
+            xml_response = self._answer_as_xml_info_format()
+            requested_response = self.get_remote_response()
 
-                xml = parse_untrusted(xml_response.content)
-                gml = xml.xpath(
-                    "//gml:boundedBy/gml:*",
-                    namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}
-                )
-                geometry = GEOSGeometry.from_gml(etree.tostring(gml[0]))
-                # FUTURE: depends on xml wms version not on the registered service version
-                axis_order_correction = (
-                    True if self.service.major_service_version >= 2 else False
-                )
-                if axis_order_correction:
-                    geometry = adjust_axis_order(geometry)
+        refusal = (self._answer_upstream_refusal(xml_response)
+                   or self._answer_upstream_refusal(requested_response))
+        if refusal is not None:
+            return refusal
 
-                if self.geom.contains(geometry.convex_hull):
-                    return self.return_http_response(response=requested_response)
-            except Exception:
-                pass
+        try:
+            xml = parse_untrusted(xml_response.content)
+        except XMLSyntaxError:
+            logging.warning(
+                "GetFeatureInfo answer of service %s is no well-formed XML; the "
+                "answer is kept private", self.service.pk)
+            raise PermissionDenied
+
+        if self._is_within_allowed_area(xml):
+            return self.return_http_response(response=requested_response)
         raise PermissionDenied
+
+    def _answer_as_xml_info_format(self):
+        """The answer of the request, asked with the INFO_FORMAT of text/xml.
+
+        The forwarded request is rebuilt from the query parameters of the
+        request, so the check asks the same url with the format it needs
+        substituted; the request of the caller keeps the format it named.
+        """
+        params = dict(self.ogc_request.ogc_query_params)
+        params["INFO_FORMAT"] = XML_INFO_FORMAT
+        url = update_queryparams(
+            url=self.service.operation_urls.values("url").get(
+                operation=OGCOperationEnum.GET_FEATURE_INFO.value,
+                method=HttpMethodEnum.GET.value)["url"],
+            params=params)
+        return self.get_remote_response(request=Request(
+            method=self.ogc_request.method,
+            url=url,
+            headers={key: value for key, value in (self.ogc_request.headers or {}).items()
+                     if key.lower() not in {"authorization", "cookie", "host"}}))
 
     def get_and_post(self, request, *args, **kwargs):
         if self.ogc_request.is_get_map_request and self.service.is_unknown_layer:

@@ -21,7 +21,7 @@ from registry.ows_lib.client.exceptions import (InvalidFilterParam,
 from registry.ows_lib.csw.builder import CSWBuilder
 from registry.ows_lib.request.utils import (
     construct_polygon_from_bbox_query_param, get_requested_feature_types,
-    get_requested_layers, get_requested_records)
+    get_requested_layers, get_requested_query_layers, get_requested_records)
 from registry.ows_lib.response.exceptions import (
     InvalidParameterValueException,
     MissingConstraintLanguageParameterException,
@@ -153,6 +153,15 @@ class OGCRequest(Request):
             if self.is_wms:
                 self._requested_entities.extend(
                     get_requested_layers(params=self.ogc_query_params))
+                # the layers a GetFeatureInfo asks the information of are part
+                # of what the request requests: they are named by the caller and
+                # the answer is about them, so an allowed operation has to cover
+                # them like it covers the drawn ones (#1471)
+                if self.is_get_feature_info_request:
+                    for queried in get_requested_query_layers(
+                            params=self.ogc_query_params):
+                        if queried not in self._requested_entities:
+                            self._requested_entities.append(queried)
             elif self.is_get_feature_request:
                 self._requested_entities.extend(
                     get_requested_feature_types(

@@ -1,0 +1,370 @@
+{
+ "uid": "mrmap-celery-task-performance",
+ "title": "MrMap Celery task performance",
+ "tags": [
+  "mrmap",
+  "celery",
+  "performance"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "description": "Celery task-performance series of #1391 (epic #1387 V2): who occupies the workers, which classes are slow, and the drill-down from a slow class to one attempt. Published by system.tasks.publish_task_performance while MRMAP_TASK_PERFORMANCE_EXPORT=on; the record contract and the operator runbook are in docs/source/development/celery-task-performance.rst.",
+ "panels": [
+  {
+   "id": 1,
+   "type": "timeseries",
+   "title": "Fleet occupancy (worker slot seconds per window)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "What fraction of the worker pool was busy. One record per window (MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES); an empty bucket means beat did not fire, not that nothing ran - see the windows panel. docs/source/development/celery-task-performance.rst (#1391).",
+   "gridPos": {
+    "h": 8,
+    "w": 16,
+    "x": 0,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `slot_seconds=<slot_seconds> ` | stats by (_time:5m) sum(slot_seconds) as slot_seconds"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "timeseries",
+   "title": "Windows emitted (fire coverage)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Coverage of the series itself: seconds of window actually published. A gap here is a missing beat fire, and any gap in the other panels means this one first.",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `window_seconds=<window_seconds> ` | stats by (_time:5m) sum(window_seconds) as window_seconds"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "timeseries",
+   "title": "Task class occupancy (slot seconds)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Who occupies the workers: worker slot seconds per task class per window. The class is the module of the task name under the bounded class rule of #1326, so the cardinality stays bounded.",
+   "gridPos": {
+    "h": 9,
+    "w": 16,
+    "x": 0,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `slot_seconds=<slot_seconds> ` | stats by (task_class, _time:5m) sum(slot_seconds) as slot_seconds | sort by (slot_seconds desc)"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "table",
+   "title": "Task class occupancy (interval total)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The same series ranked over the whole interval - the row an operator clicks into.",
+   "gridPos": {
+    "h": 9,
+    "w": 8,
+    "x": 16,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `slot_seconds=<slot_seconds> ` | stats by (task_class) sum(slot_seconds) as slot_seconds | sort by (slot_seconds desc)"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "table",
+   "title": "Slow classes (95th percentile of a run)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Slow-task operator drill-down entry: the wall time of the 95th percentile of a single run, highest window of the interval. Absent means nothing was measured, not fast - #1330 keeps the two apart.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 17
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `active_p95=<active_p95> ` | stats by (task_class) max(active_p95) as active_p95 | sort by (active_p95 desc)"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "table",
+   "title": "Classes with attempts still running",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Attempts with no end signal at all: a task which is running for hours shows up here, and the reconciliation of #1330 says which of them are still alive.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 17
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `uncertain_open=<uncertain_open> ` | stats by (task_class) sum(uncertain_open) as uncertain_open | sort by (uncertain_open desc)"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "table",
+   "title": "Queues (executions and occupancy)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Executions and worker slot seconds per queue, without a broker export.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 25
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `queue=<queue> ` | extract `executions=<executions> ` | extract `slot_seconds=<slot_seconds> ` | stats by (queue) sum(executions) as executions, sum(slot_seconds) as slot_seconds | sort by (executions desc)"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "type": "table",
+   "title": "Periodic tasks behind the samples",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Which beat rows the sampled attempts came from; the empty name is a task called directly. Epic #1324: a row which stops firing shows up as its absence here.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 25
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_sample\" | extract `periodic_name=<periodic_name> ` | stats by (periodic_name) count() as samples"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "type": "table",
+   "title": "Drill-down samples of the heaviest classes",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The operator's path from a slow class to one attempt: task_id is the key of the CeleryTaskAttempt of #1330. Capped on purpose (MRMAP_TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES x MRMAP_TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS).",
+   "gridPos": {
+    "h": 10,
+    "w": 24,
+    "x": 0,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_sample\" | extract `task_class=<task_class> ` | extract `task_id=<task_id> ` | extract `outcome=<outcome> ` | extract `active_seconds=<active_seconds> ` | extract `wait_seconds=<wait_seconds> ` | fields _time, task_class, task_id, outcome, active_seconds, wait_seconds | sort by (_time) desc"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "stat",
+   "title": "Coverage of the interval (unmeasured, abandoned)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The series reports its own gaps: attempts without an end and attempts left without a terminal signal. A number beside these describes what was measured, not what ran.",
+   "gridPos": {
+    "h": 5,
+    "w": 24,
+    "x": 0,
+    "y": 43
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `uncertain_open=<uncertain_open> ` | extract `uncertain_abandoned=<uncertain_abandoned> ` | stats sum(uncertain_open) as uncertain_open, sum(uncertain_abandoned) as uncertain_abandoned"
+    }
+   ]
+  }
+ ]
+}

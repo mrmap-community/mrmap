@@ -20,6 +20,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    celery-queues
    celery-result-backend
    celery-capacity-telemetry
+   celery-task-performance
    celery-task-orm-audit
    outbound-ogc-request-audit
    update-metadata-refresh-policy

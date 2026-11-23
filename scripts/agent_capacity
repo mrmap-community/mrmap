@@ -87,6 +87,7 @@ editing the file:
   AGENT_MAX_MEM_PRESSURE       most memory PSI "some avg10" percent   (default 10)
                                for a new stack
   AGENT_MIN_DISK_GB            least free disk on /, in GiB           (default 100)
+  AGENT_DISK_PATH              filesystem to measure for disk capacity (default /)
   AGENT_MAX_STACKS             most running mrmap-agent-*/mrmap-ao-*  (default 3)
                                stacks
   AGENT_MAX_PROCESSES          most running agent processes           (default 6)
@@ -205,10 +206,10 @@ def mem_available_gb(proc_root=PROC_ROOT):
     return None
 
 
-def disk_free_gb():
-    """Free bytes on / in GiB, or None if the filesystem cannot be stat'd."""
+def disk_free_gb(path="/"):
+    """Free bytes on the selected filesystem in GiB, or None if unreadable."""
     try:
-        return shutil.disk_usage("/").free / GB
+        return shutil.disk_usage(path).free / GB
     except OSError:
         return None
 
@@ -502,7 +503,7 @@ def evaluate(need="stack", stacks=None, processes=None, env=None,
     load = load_per_core(proc_root)
     cpu_pressure = cgroup_cpu_pressure(proc_root, cgroup_root)
     host_mem = mem_available_gb(proc_root)
-    disk = disk_free_gb()
+    disk = disk_free_gb(e.get("AGENT_DISK_PATH") or "/")
     cg = cgroup_memory(proc_root, cgroup_root)
     if stacks is None:
         stacks = agent_stacks()

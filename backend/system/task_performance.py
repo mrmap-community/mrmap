@@ -234,7 +234,8 @@ def _sample_records(answer, classes):
     samples = drilldown_samples(
         answer["window"]["since"], answer["window"]["until"],
         task_classes=classes,
-        limit=_samples_per_class() * max(1, len(classes)))
+        limit=_samples_per_class() * max(1, len(classes)),
+        attribution=WINDOW_WRITTEN)
     window = _window_fields(answer["window"])
     per_class = {}
     records = []

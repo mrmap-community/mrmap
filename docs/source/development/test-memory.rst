@@ -243,8 +243,8 @@ the test time is the Django runner's own summary.
       - 5420
       - 3942
 
-All four runs passed and produced XML coverage reports with a 90% total; each
-had the same 3 existing skips. The candidate was 4.9% slower in pair 1 and
+All four runs passed and produced XML coverage reports; each had the same 3
+existing skips. The candidate was 4.9% slower in pair 1 and
 0.7% slower in pair 2. Baseline times ranged from 959.6 to 1253.3 seconds,
 showing substantial run-to-run variation; these two pairs do not support a
 general no-regression claim. The opt-in layer leaves normal CI unchanged:

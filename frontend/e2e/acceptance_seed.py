@@ -3,7 +3,7 @@
 # Runs against the development database of the acceptance stack, from the
 # repository root, e.g.:
 #
-#   docker compose run --rm --no-deps -T backend \
+#   docker compose exec -T backend \
 #     python manage.py shell -c "$(cat frontend/e2e/acceptance_seed.py)"
 #
 # It loads the repository's own behave fixtures (the same deterministic rows
@@ -15,7 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import MultiPolygon, Polygon
 
 # 0) the acceptance database is disposable: flush makes the seed rerunnable
-call_command("flush", no_input=True, verbosity=0)
+call_command("flush", interactive=False, verbosity=0)
 
 # 1) the repo's own deterministic fixtures: users, the WMS service with its
 #    layer tree, the CSW service the dataset relations point at, and two

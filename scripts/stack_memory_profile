@@ -30,6 +30,7 @@ repository, the docker server version and the sampler cgroup's limit.
 usage:
   scripts/stack_memory_profile sample --project NAME --phase NAME
       [--duration SECONDS | --during 'command ...'] [--interval SECONDS]
+      [--pss]                 also sample per-command PSS from smaps_rollup
       [--out FILE]            append one JSON line per run to FILE
       (--duration together with --during caps the phase: a child that
       outlives the cap is terminated and reported as during_rc)
@@ -110,6 +111,13 @@ def committed_bytes(stat):
     """The unreclaimable part of a memory.stat - what the charge really is."""
     return (stat.get("anon", 0) + stat.get("sock", 0)
             + stat.get("kernel_stack", 0) + stat.get("slab_unreclaimable", 0))
+
+
+def counter_delta(first, last, key):
+    """A cumulative counter delta, or None when either sample lacks it."""
+    if key not in first or key not in last:
+        return None
+    return last[key] - first[key]
 
 
 def percentile(values, fraction):
@@ -357,7 +365,8 @@ def cmd_command(args):
     return 1 if any(m["returncode"] != 0 for m in measurements) else 0
 
 
-def sample_processes(path, cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT):
+def sample_processes(path, cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT,
+                     include_pss=False):
     """Per command name: peak RSS and the anon/file/shared split, in bytes.
 
     Aggregated by command because a worker fleet is a dozen processes with
@@ -379,6 +388,18 @@ def sample_processes(path, cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT):
         row["anon"] += status.get("RssAnon", 0)
         row["file"] += status.get("RssFile", 0)
         row["shmem"] += status.get("RssShmem", 0)
+        if include_pss:
+            row.setdefault("pss_total", 0)
+            row.setdefault("pss_readable", 0)
+            pss = read_proc_pss(pid, proc_root=proc_root)
+            if pss is not None:
+                row["pss_total"] += pss
+                row["pss_readable"] += 1
+    if include_pss:
+        for row in by_comm.values():
+            row["pss"] = (
+                row.pop("pss_total")
+                if row["pss_readable"] == row["processes"] else None)
     return by_comm
 
 
@@ -392,7 +413,8 @@ class Sampler:
 
     def __init__(self, project, phase, interval=DEFAULT_INTERVAL,
                  proc_interval=DEFAULT_PROC_INTERVAL,
-                 cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT):
+                 cgroup_root=CGROUP_ROOT, proc_root=PROC_ROOT,
+                 include_pss=False):
         self.project = project
         self.phase = phase
         self.interval = interval
@@ -403,6 +425,8 @@ class Sampler:
             if interval else 1
         self.cgroup_root = cgroup_root
         self.proc_root = proc_root
+        self.include_pss = include_pss
+        self.self_path = self_cgroup_path(proc_root=self.proc_root) or "/"
         self.containers = {}   # name -> {"paths": [readings]}
         self.self_readings = []
         self.samples = 0
@@ -462,9 +486,8 @@ class Sampler:
             if with_procs:
                 self.merge_procs(name, sample_processes(
                     path, cgroup_root=self.cgroup_root,
-                    proc_root=self.proc_root))
-        self_read = read_cgroup(self_cgroup_path(proc_root=self.proc_root) or "/",
-                                cgroup_root=self.cgroup_root)
+                    proc_root=self.proc_root, include_pss=self.include_pss))
+        self_read = read_cgroup(self.self_path, cgroup_root=self.cgroup_root)
         if self_read is not None:
             self.self_readings.append(self_read)
 
@@ -474,13 +497,28 @@ class Sampler:
         for comm, row in by_comm.items():
             old = kept.get(comm)
             if old is None:
-                kept[comm] = dict(row)
+                old = dict(row)
+                if "pss" in old:
+                    old["pss_peak"] = old.pop("pss")
+                    old["pss_complete_samples"] = int(old["pss_peak"] is not None)
+                    old["pss_readable_peak"] = old["pss_readable"]
+                    old["pss_processes_at_peak"] = (
+                        old["processes"] if old["pss_peak"] is not None else None)
+                kept[comm] = old
                 continue
             old["processes"] = max(old["processes"], row["processes"])
             old["vmrss_peak"] = max(old["vmrss_peak"], row["vmrss_peak"])
             old["anon"] = max(old["anon"], row["anon"])
             old["file"] = max(old["file"], row["file"])
             old["shmem"] = max(old["shmem"], row["shmem"])
+            if "pss" in row:
+                old["pss_complete_samples"] += int(row["pss"] is not None)
+                old["pss_readable_peak"] = max(
+                    old["pss_readable_peak"], row["pss_readable"])
+                if (row["pss"] is not None
+                        and (old["pss_peak"] is None or row["pss"] > old["pss_peak"])):
+                    old["pss_peak"] = row["pss"]
+                    old["pss_processes_at_peak"] = row["processes"]
 
     def run(self, duration=None, during=None):
         """Sample until `duration` seconds passed, or the `during` child ends."""
@@ -540,9 +578,9 @@ class Sampler:
                 "file_p50": percentile(bucket["file"], 0.5),
                 "committed_p50": percentile(bucket["committed"], 0.5),
                 "committed_peak": committed_peak,
-                "oom_delta": last_events.get("oom", 0) - first_events.get("oom", 0),
-                "oom_kill_delta": (last_events.get("oom_kill", 0)
-                                   - first_events.get("oom_kill", 0)),
+                "oom_delta": counter_delta(first_events, last_events, "oom"),
+                "oom_kill_delta": counter_delta(
+                    first_events, last_events, "oom_kill"),
                 "cpu_usage_usec_delta": (self.cpu_last.get(name, {}).get("usage_usec", 0)
                                          - self.cpu_first.get(name, {}).get("usage_usec", 0)),
                 "cpu_throttled_usec_delta": (
@@ -565,12 +603,18 @@ class Sampler:
             if self.containers else []
         self_report = None
         if self.self_readings:
+            first_events = self.self_readings[0]["events"]
+            last_events = self.self_readings[-1]["events"]
             self_report = {
+                "cgroup": self.self_path,
                 "current_p50": percentile([r["current"] for r in self.self_readings], 0.5),
                 "current_peak": percentile([r["current"] for r in self.self_readings], 1.0),
                 "committed_p50": percentile([committed_bytes(r["stat"]) for r in self.self_readings], 0.5),
                 "committed_peak": percentile([committed_bytes(r["stat"]) for r in self.self_readings], 1.0),
                 "limit": self.self_readings[0]["limit"],
+                "oom_delta": counter_delta(first_events, last_events, "oom"),
+                "oom_kill_delta": counter_delta(
+                    first_events, last_events, "oom_kill"),
             }
         return {
             "project": self.project,
@@ -580,6 +624,7 @@ class Sampler:
             "interval_seconds": self.interval,
             "samples": self.samples,
             "proc_samples": self.proc_samples,
+            "pss_enabled": self.include_pss,
             "elapsed_seconds": round(self.elapsed, 1) if hasattr(self, "elapsed") else None,
             "during": during,
             "during_rc": getattr(self, "child_rc", None),
@@ -617,7 +662,8 @@ def environment(project):
 def cmd_sample(args):
     sampler = Sampler(args.project, args.phase, interval=args.interval,
                       proc_interval=args.proc_interval,
-                      cgroup_root=args.cgroup_root, proc_root=args.proc_root)
+                      cgroup_root=args.cgroup_root, proc_root=args.proc_root,
+                      include_pss=args.pss)
     if args.during is None and args.duration is None:
         die("sample needs --duration or --during (what else should end the phase?)")
     report = sampler.run(duration=args.duration, during=args.during)
@@ -668,7 +714,9 @@ def cmd_report(args):
             print(f"   sampler cgroup: p50 {fmt_mb(self_cgroup.get('current_p50'))} "
                   f"peak {fmt_mb(self_cgroup.get('current_peak'))} "
                   f"(limit {fmt_mb(self_cgroup.get('limit'))}, "
-                  f"committed peak {fmt_mb(self_cgroup.get('committed_peak'))})")
+                  f"committed peak {fmt_mb(self_cgroup.get('committed_peak'))}, "
+                  f"oom {self_cgroup.get('oom_delta')}/"
+                  f"{self_cgroup.get('oom_kill_delta')})")
         elapsed = run.get("elapsed_seconds")
         for name, numbers in sorted(run["containers"].items()):
             oom = (f" oom+{numbers['oom_delta']}/{numbers['oom_kill_delta']}"
@@ -689,11 +737,17 @@ def cmd_report(args):
             # the process view answers "who inside this container" and, for
             # PostgreSQL, what part of its RSS is the shared segment
             for comm, row in list(numbers.get("procs", {}).items())[:args.procs]:
+                pss = ""
+                if run.get("pss_enabled"):
+                    pss = (f"  pss peak {fmt_mb(row.get('pss_peak'))}"
+                           f" (readable {row.get('pss_readable_peak', 0)} of "
+                           f"{row['processes']} max processes; "
+                           f"{row.get('pss_complete_samples', 0)} complete samples)")
                 print(f"       {'':<44} {comm} x{row['processes']}"
                       f"  rss peak {fmt_mb(row['vmrss_peak']):>7}"
                       f"  anon {fmt_mb(row['anon']):>7}"
                       f"  file {fmt_mb(row['file']):>7}"
-                      f"  shmem {fmt_mb(row['shmem']):>7}")
+                      f"  shmem {fmt_mb(row['shmem']):>7}{pss}")
     return 0
 
 
@@ -714,6 +768,8 @@ def main(argv=None):
     sample.add_argument("--proc-interval", type=float,
                         default=DEFAULT_PROC_INTERVAL,
                         help="seconds between per-process /proc reads")
+    sample.add_argument("--pss", action="store_true",
+                        help="also read smaps_rollup for each sampled process")
     sample.add_argument("--out")
     sample.add_argument("--cgroup-root", default=CGROUP_ROOT)
     sample.add_argument("--proc-root", default=PROC_ROOT)

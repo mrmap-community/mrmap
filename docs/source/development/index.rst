@@ -31,6 +31,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    metadata-transform-inventory
    orm-static-analysis
    capacity-snapshot
+   retention-inventory
    background-notifications
    background-operations
    background-jobs

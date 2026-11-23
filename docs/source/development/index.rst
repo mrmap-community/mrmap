@@ -37,6 +37,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    runtime-memory-baselines
+   test-memory
    celery-healthcheck-overhead
    http-process-profiles
    db-pool-memory

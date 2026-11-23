@@ -53,7 +53,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
-from system.capacity_measures import drilldown_samples, window_buckets
+from system.capacity_measures import (
+    WINDOW_WRITTEN, drilldown_samples, window_buckets)
 
 logger: Logger = settings.ROOT_LOGGER
 
@@ -335,7 +336,8 @@ def export_task_performance():
                 "window_start": _moment(since), "window_end": _moment(now)}
 
     try:
-        answer = window_buckets(since=since, until=now, limit=_max_buckets())
+        answer = window_buckets(since=since, until=now, limit=_max_buckets(),
+                                attribution=WINDOW_WRITTEN)
     except Exception as error:  # a broken read costs a window, never a task
         logger.warning("task performance export (#1391): the window of %s "
                        "could not be measured: %s", _moment(since), error)

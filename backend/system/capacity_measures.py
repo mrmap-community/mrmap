@@ -122,16 +122,40 @@ def task_class_of(task_name):
     return ".".join(parts[:TASK_CLASS_PARTS]) or task_name
 
 
+#: the capacity questions of #1326/#1330 ask what RAN in a period: a row
+#: belongs to the window its attempt started in
+WINDOW_RUN = "started_at"
+#: the publication windows of #1391 partition the ledger by ARRIVAL: a row
+#: belongs to the window the collector wrote it in, which is the only
+#: attribution under which a series of non-overlapping windows can neither
+#: lose the late flush of a worker nor count one row in two windows
+WINDOW_WRITTEN = "recorded_at"
+
+
 def _windowed(since, until=None, queue=None, task_name=None,
-              periodic_name=None):
+              periodic_name=None, attribution=WINDOW_RUN):
     """The base queryset of one bounded window, filters applied.
 
     ``since`` is mandatory on purpose: a scan over the unbounded table is
     exactly what the snapshot of #1326 may not do on a request path.
+
+    ``attribution`` names the time column the window is measured against:
+    :data:`WINDOW_RUN` (the default) selects ``[since, until]`` of
+    ``started_at``, the closed window of a capacity question;
+    :data:`WINDOW_WRITTEN` selects ``(since, until]`` of ``recorded_at``,
+    the half-open window of the exporter of #1391, whose cursor IS the
+    previous window's end: with a closed window a row written in exactly the
+    cursor's moment would ride two windows, and with ``started_at`` a late
+    flush of a finished attempt would ride none.
     """
-    qs = CeleryTaskAttempt.objects.filter(started_at__gte=since)
-    if until is not None:
-        qs = qs.filter(started_at__lte=until)
+    if attribution == WINDOW_WRITTEN:
+        qs = CeleryTaskAttempt.objects.filter(recorded_at__gt=since)
+        if until is not None:
+            qs = qs.filter(recorded_at__lte=until)
+    else:
+        qs = CeleryTaskAttempt.objects.filter(started_at__gte=since)
+        if until is not None:
+            qs = qs.filter(started_at__lte=until)
     if queue is not None:
         qs = qs.filter(queue=queue)
     if task_name is not None:
@@ -150,7 +174,7 @@ def _open_q():
 
 
 def _uncertain_open_qs(since, until=None, queue=None, task_name=None,
-                       periodic_name=None):
+                       periodic_name=None, attribution=WINDOW_RUN):
     """Open attempts for which NO terminal row of the same identity exists.
 
     An attempt that finished normally has its open row from an earlier flush
@@ -161,7 +185,8 @@ def _uncertain_open_qs(since, until=None, queue=None, task_name=None,
     terminal_twin = CeleryTaskAttempt.objects.filter(
         task_id=OuterRef("task_id"),
         attempt_no=OuterRef("attempt_no")).exclude(outcome="")
-    return (_windowed(since, until, queue, task_name, periodic_name)
+    return (_windowed(since, until, queue, task_name, periodic_name,
+                      attribution=attribution)
             .annotate(has_terminal=Exists(terminal_twin))
             .filter(_open_q() & ~Q(has_terminal=True)))
 
@@ -430,7 +455,8 @@ def _bucket_row(stats):
     return row
 
 
-def window_buckets(since, until=None, limit=200, include_uncertain=True):
+def window_buckets(since, until=None, limit=200, include_uncertain=True,
+                   attribution=WINDOW_RUN):
     """Terminal attempts of one window, bucketed per task class and queue.
 
     The answer #1391 publishes and plots. One grouped, bounded query over the
@@ -468,8 +494,10 @@ def window_buckets(since, until=None, limit=200, include_uncertain=True):
         until (datetime): the window's end, ``now`` by default
         limit (int): maximum number of buckets in the answer
         include_uncertain (bool): count the uncertain observations per bucket
+        attribution (str): which time column owns a row's window, see
+            :data:`WINDOW_RUN` and :data:`WINDOW_WRITTEN`
     """
-    grouped = (_windowed(since, until)
+    grouped = (_windowed(since, until, attribution=attribution)
                .annotate(**{TASK_CLASS_FIELD: TaskClass()})
                .values(TASK_CLASS_FIELD, "queue")
                .annotate(**_aggregate_fields())
@@ -487,16 +515,15 @@ def window_buckets(since, until=None, limit=200, include_uncertain=True):
         # the fleet's own total is the second read below, so a deployment with
         # more (class, queue) pairs than the bound of this grouped read still
         # answers its fleet totals exactly
-        uncertain = (_uncertain_open_qs(since, until)
-                     .annotate(**{
-                         TASK_CLASS_FIELD: TaskClass()})
-                     .values(TASK_CLASS_FIELD, "queue")
-                     .annotate(
-                         open_without_end=Count("pk"),
-                         abandoned=Count("pk", filter=Q(
-                             quality__contains=[
-                                 AttemptQuality.ABANDONED.value])))
-                     [:DISTINCT_TASK_NAME_BOUND])
+        uncertain = (_uncertain_open_qs(
+            since, until, attribution=attribution)
+            .annotate(**{TASK_CLASS_FIELD: TaskClass()})
+            .values(TASK_CLASS_FIELD, "queue")
+            .annotate(
+                open_without_end=Count("pk"),
+                abandoned=Count("pk", filter=Q(
+                    quality__contains=[AttemptQuality.ABANDONED.value])))
+            [:DISTINCT_TASK_NAME_BOUND])
         counts = {(row[TASK_CLASS_FIELD], row["queue"]): row
                   for row in uncertain}
         for bucket in buckets:
@@ -506,7 +533,8 @@ def window_buckets(since, until=None, limit=200, include_uncertain=True):
         # the fleet's own total is its own read: a deployment with more
         # (class, queue) pairs than the bound above would otherwise understate
         # its own uncertain count, which is a coverage statement
-        fleet_counts = _uncertain_open_qs(since, until).aggregate(
+        fleet_counts = _uncertain_open_qs(
+            since, until, attribution=attribution).aggregate(
             open_without_end=Count("pk"),
             abandoned=Count("pk", filter=Q(
                 quality__contains=[AttemptQuality.ABANDONED.value])))
@@ -515,7 +543,9 @@ def window_buckets(since, until=None, limit=200, include_uncertain=True):
     else:
         fleet_open = fleet_abandoned = None
 
-    whole = _windowed(since, until).aggregate(**_aggregate_fields())
+    whole = _windowed(since, until,
+                      attribution=attribution).aggregate(
+        **_aggregate_fields())
     fleet = _bucket_row(whole)
     executions = fleet["executions"]
     return {
@@ -542,7 +572,8 @@ def window_buckets(since, until=None, limit=200, include_uncertain=True):
     }
 
 
-def drilldown_samples(since, until=None, task_classes=None, limit=50):
+def drilldown_samples(since, until=None, task_classes=None, limit=50,
+                      attribution=WINDOW_RUN):
     """The newest measured attempts of some classes, for the operator's click.
 
     The drill-down of #1391: the row of one attempt as #1330 measured it, with
@@ -567,7 +598,7 @@ def drilldown_samples(since, until=None, task_classes=None, limit=50):
     if not classes:
         return []
     return list(
-        _windowed(since, until)
+        _windowed(since, until, attribution=attribution)
         .filter(_terminal_q())
         .annotate(**{TASK_CLASS_FIELD: TaskClass()})
         .filter(**{f"{TASK_CLASS_FIELD}__in": classes})

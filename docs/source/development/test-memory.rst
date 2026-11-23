@@ -7,9 +7,9 @@ Memory during test runs
 The optional ``docker-compose.test-low-memory.yml`` layer limits Django and
 Vitest to **one worker**. It is a test-only concurrency preset for constrained
 hosts, independent of the deployment's ``MRMAP_LOW_MEMORY`` web/pool setting.
-It is currently **unbenchmarked**: fewer concurrent imports and test databases
-are a hypothesis for reducing transient allocations, not a measured saving.
-Normal CI retains Django's four workers and Vitest's default worker policy.
+One comparison on a single host is recorded below; its results do not establish
+a general saving across hosts. Normal CI retains Django's four workers and
+Vitest's default worker policy.
 
 Activation
 ==========
@@ -148,19 +148,46 @@ answer different questions and belong in separate report columns.
 Verification status (2026-11-23)
 ==============================
 
-No application workload was run for this change. At baseline commit
-``af0a0b0679e6e941b57c93585bfa99f3cddf3386``, the host admission checks reported
-15.4 GiB effective memory for ``--need suite`` and 15.7 GiB for ``--need stack``,
-both below the 16-GiB floor on this unlimited-cgroup host (Docker 29.4.3).
-Admission was not overridden. Therefore there is no before/after table of
-observed configurations and no claimed percentage improvement.
+On commit ``5cb425edf``, a host with an Intel i7-7700K (8 logical CPUs), Linux
+``7.0.0-44-generic`` and Docker 29.4.3 ran each arm once in a fresh isolated
+Compose project. The backend used the prebuilt dependency image fingerprint
+``a6db4c98151b``; frontend dependencies used fingerprint ``4d6d32f5a3c8``.
+Dependencies were running before sampling. Times include container startup and
+test setup; frontend dependency installation was completed before sampling.
+The stack peak is the highest sampled sum of container cgroup charges, in MiB;
+it is not an independent measurement of private RAM or an ancestor peak.
 
-Django targeted/full tests, Behave, frontend tests/coverage/lint/type checking
-and Playwright remain unavailable for that reason. Peak charge, anonymous RAM,
-duration, test counts, coverage, CPU, PostgreSQL memory, PSS and OOM results
-for both baseline and proposed modes are all **unmeasured**. The existing
-#1613/#1055 observations above are historical context only. Issue #1619's
-measurement and runtime-verification acceptance criteria remain open.
+====================  ============  ==============  =============
+Workload              Workers       Stack peak MiB  Elapsed seconds
+====================  ============  ==============  =============
+Django with coverage  4 (default)              5113           1285
+Django with coverage  1                       2361           2859
+Vitest with coverage  automatic               2802            153
+Vitest with coverage  1                        930            485
+Behave with coverage  serial                   723            176
+====================  ============  ==============  =============
+
+Both Django arms passed 3245 tests with the same 3 skips; each reported 92.28%
+line and 81.25% branch coverage. Both Vitest arms passed 1794 tests in 217 files;
+each reported 85.18% lines, 83.68% statements, 80.29% functions and 75.31%
+branches. Behave passed 715 scenarios and 4779 steps; combined Django and
+Behave coverage passed the 75% gate at 90%. The clean backend pre-submit check,
+frontend lint and type checking also passed. Docker projects were removed after
+their arms. A first Django run against the developer checkout passed its tests
+but failed XML generation on stale coverage data; it is excluded from the table.
+
+These are single runs, not repeated cold and warm comparisons. They show a
+lower sampled container charge and longer elapsed time on this host; they do
+not establish a general performance claim. The default and preset use the same
+revision and normal defaults, rather than a separate baseline checkout.
+The targeted Django module was not profiled separately.
+The first Playwright setup raced fixture seeding with backend migrations and
+failed when ``created_at`` already existed; a later attempt also exposed an
+API-readiness race. After waiting for backend startup and confirming its session
+endpoint before opening the SPA, all 28 Playwright acceptance tests passed in
+1.5 minutes. This is functional browser verification, not a Playwright memory
+profile. The owned Compose project was removed. Repeated arms, a Playwright
+memory profile, PSS and a separate parent OOM audit remain unmeasured.
 
 ``python3 scripts/test_test_memory_mode.py`` checks all eight combinations of
 prebuilt-backend/prebuilt-frontend/lightweight layers, and exercises the shipped

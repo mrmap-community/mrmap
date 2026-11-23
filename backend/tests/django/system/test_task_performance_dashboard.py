@@ -15,6 +15,7 @@ exporter never publishes, or selecting a datasource which is not provisioned.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -28,19 +29,29 @@ MARKER = "Celery task performance"
 
 
 def _provisioning_dir(*parts):
-    """The provisioning dir of the stack, wherever the checkout starts.
+    """The provisioning dir of the stack, wherever this run can see it.
 
-    Searched upward rather than counted: the tests of a deployment run from
-    the ``backend`` directory, which in a checkout is one level below the
-    repository root and in the image is the root itself.
+    Two answers, because the tests run from two roots. Inside the image the
+    test container of the stack mounts ``backend`` as its root and knows the
+    deployment through the read-only bind above it, named by
+    ``MRMAP_GRAFANA_PROVISIONING_DIR`` (docker-compose.dev.yml); outside a
+    container the checkout is searched upward from this file, since a
+    developer runs the suite from ``backend``, one level below the root.
     """
-    here = Path(__file__).resolve()
-    for base in here.parents:
-        candidate = base.joinpath("docker", "grafana", "provisioning",
-                                  *parts)
+    candidates = []
+    named = os.environ.get("MRMAP_GRAFANA_PROVISIONING_DIR")
+    if named:
+        candidates.append(Path(named).joinpath(*parts))
+    for base in Path(__file__).resolve().parents:
+        candidates.append(base.joinpath("docker", "grafana", "provisioning",
+                                        *parts))
+    for candidate in candidates:
         if candidate.exists():
             return candidate
-    raise AssertionError("no docker/grafana/provisioning above %s" % here)
+    raise AssertionError(
+        "the provisioning of the stack is neither at %s nor above %s - inside"
+        " the test container it is mounted by docker-compose.dev.yml"
+        % (candidates[0], Path(__file__).resolve()))
 
 
 DASHBOARD = _provisioning_dir("dashboards", "jsons",

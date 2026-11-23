@@ -133,11 +133,21 @@ services:
       - type: bind
         source: ./backend
         target: /opt/mrmap
+      # the Grafana provisioning of the stack is a deployment artifact under
+      # test: tests.django.system.test_task_performance_dashboard checks the
+      # shipped dashboard of #1391 against the exporter it reads, and the
+      # backend mount above is the only other view this container has of the
+      # checkout
+      - type: bind
+        source: ./docker/grafana/provisioning
+        target: /opt/mrmap-deployment/grafana/provisioning
+        read_only: true
     networks:
       - mrmap-internal
     env_file:
       - ./docker/backend/.mrmap.env
     environment:
+      MRMAP_GRAFANA_PROVISIONING_DIR: /opt/mrmap-deployment/grafana/provisioning
       DJANGO_DEBUG: 1
       MRMAP_PRODUCTION: False
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"

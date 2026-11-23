@@ -106,3 +106,8 @@ lerna-debug.log*
 # the project skills in .opencode/skills are tracked deliverables
 /.opencode/*
 !/.opencode/skills/
+
+# runtime benchmark run directories (#1396) - what scripts/task_perf_runner.sh
+# writes; the report belongs in a CI artifact, never in the repository
+/task-perf/
+/task-perf-heavy/

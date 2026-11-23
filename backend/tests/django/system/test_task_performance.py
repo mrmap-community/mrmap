@@ -28,12 +28,15 @@ handler sees it.
 """
 
 import logging
+import re
 import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
 from django_celery_beat.models import PeriodicTask
 from django.core.cache import cache
+from django.core.cache.backends.base import DEFAULT_TIMEOUT
+from django.core.cache.backends.locmem import LocMemCache
 from django.db import connection
 from django.test import TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
@@ -45,15 +48,29 @@ from system.capacity_measures import task_class_of
 from system.models import AttemptQuality, CeleryTaskAttempt
 from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_FLEET,
                                      EVENT_SAMPLE, TELEMETRY_SDID,
-                                     WINDOW_CURSOR_KEY,
+                                     WINDOW_CURSOR_KEY, _cursor_ttl,
+                                     _logfmt_value,
                                      export_task_performance)
 
 LOGGER = "MrMap.root"
+
+#: the cadence the exporter's beat row fires at by default, which is also the
+#: span of one window (MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES)
+DEFAULT_CADENCE_MINUTES = 5
 
 LOC_MEM = {
     "default": {
         "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
         "LOCATION": "task-performance-tests",
+    },
+}
+
+#: the locmem cache of these tests, on the backend which remembers timeouts
+RECORDING_CACHES = {
+    "default": {
+        "BACKEND": "tests.django.system.test_task_performance"
+                   "._TimeoutRecordingLocMem",
+        "LOCATION": "task-performance-timeout-tests",
     },
 }
 
@@ -73,7 +90,11 @@ FORBIDDEN_FIELDS = ("args", "kwargs", "url", "headers", "payload", "request",
 def seed(task_id=None, attempt_no=0, queue="default",
          task_name="registry.tasks.harvest.harvest_metadata",
          outcome="success", active=2.0, wait=None, started_ago_seconds=0,
-         quality=None, periodic_name="", root_id=None):
+         quality=None, periodic_name="harvest hourly", root_id=None):
+    # a real periodic name is two words, which is the shape of the
+    # value on the wire: quoted in the tail, so every fire of these
+    # tests also proves a value with a space survives the store
+
     """One attempt row, written the way the #1330 collector writes it."""
     started = timezone.now() - timedelta(seconds=started_ago_seconds)
     published = (started - timedelta(seconds=wait)
@@ -405,6 +426,192 @@ class BoundedCostTests(TestCase):
                      in self.records.for_event(EVENT_CLASS_BUCKET)}
         self.assertEqual(published,
                          {task_class_of("notify.tasks.send_mail")})
+
+
+@ENABLED
+class MessageTailTests(TestCase):
+    """The ``key=value`` tail is what the log store keeps and the panels parse.
+
+    A record which suppresses its dump reaches VictoriaLogs as its message
+    only: the structured data area of the syslog line is ``-`` for it, so the
+    tail of the message is the wire contract of #1391 rather than a readable
+    convenience. What the shipped Grafana dashboard does with it is select a
+    record by ``key=value`` pairs and pull the values out with ``extract``
+    placeholders, and the two properties below are what makes that work; both
+    were found by running the panels against the store, not by reading about
+    it. The assertions parse the formatted line the way the store does.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.records = Records.collect(self)
+
+    def test_a_message_is_marker_event_fields_and_the_structured_data_id(self):
+        seed(periodic_name="harvest hourly")
+        export_task_performance()
+        for record in self.records:
+            message = record["message"]
+            event = record["payload"]["event"]
+            self.assertTrue(message.startswith(
+                "Celery task performance %s event=%s " % (event, event)),
+                "the event is a key=value pair so a panel of one event type "
+                "cannot match another whose name begins the same way: %r"
+                % message[:80])
+            self.assertTrue(message.endswith(" sd=%s" % TELEMETRY_SDID),
+                            "the UDP syslog handler appends a NUL to every "
+                            "datagram and the store's placeholder is greedy, "
+                            "so a field of its own has to end the message: %r"
+                            % message[-60:])
+
+    def test_every_field_of_a_record_reads_back_the_way_the_store_reads_it(
+            self):
+        # a field the shipped store cannot hand back is a field no panel can
+        # group by or sum, which shows up as an empty panel rather than an
+        # error - so the parse below is the store's own rule, applied to every
+        # field of every record of one fire
+        seed(periodic_name="harvest hourly", root_id="root-1", wait=0.5)
+        export_task_performance()
+        self.assertTrue(self.records)
+        for record in self.records:
+            fields = _store_fields(record["message"])
+            self.assertEqual(
+                set(fields), set(record["payload"]) | {"sd"},
+                "the tail of the %s record does not carry exactly the fields "
+                "of the record: %s" % (record["payload"]["event"],
+                                       sorted(set(fields)
+                                              ^ set(record["payload"])))
+            )
+            for key, value in record["payload"].items():
+                self.assertEqual(
+                    fields[key], value,
+                    "the store would read %s of the %s record as %r, not %r"
+                    % (key, record["payload"]["event"], fields[key], value))
+
+    def test_a_number_stays_bare_and_a_name_with_a_space_is_quoted(self):
+        # the store keeps an unquoted value numeric, which is what lets a
+        # panel sum() the seconds of #1391, so quoting is only ever the answer
+        # for a value which would otherwise be read as two tokens - and a
+        # periodic name is exactly that, because a PeriodicTask is named in
+        # words
+        seed(periodic_name="harvest hourly")
+        export_task_performance()
+        fleet = self.records.payload(EVENT_FLEET)
+        fleet_message = self.records.for_event(EVENT_FLEET)[0]["message"]
+        self.assertIn(" slot_seconds=%s " % fleet["slot_seconds"],
+                      fleet_message,
+                      "a quoted number is text to the store and cannot be "
+                      "summed")
+        self.assertIn(" truncated=%s " % fleet["truncated"], fleet_message)
+        sample_message = self.records.for_event(EVENT_SAMPLE)[0]["message"]
+        self.assertIn(' periodic_name="harvest hourly" ', sample_message,
+                      "a value with a space reaches the store as two tokens "
+                      "unless it is quoted")
+
+    def test_the_quoting_rule_of_the_tail(self):
+        # the shapes a builder does not currently produce, stated on the rule
+        # itself so the wire contract does not depend on what the attempt
+        # table happens to contain today
+        self.assertEqual(_logfmt_value(""), '""',
+                         "nothing at all is not a value the store could tell "
+                         "apart from a missing field")
+        self.assertEqual(_logfmt_value(2.5), "2.5")
+        self.assertEqual(_logfmt_value(True), "true")
+        self.assertEqual(_logfmt_value("a b"), '"a b"')
+        self.assertEqual(_logfmt_value('a"b'), '"a\\"b"')
+        self.assertEqual(_logfmt_value("a\\b"), '"a\\\\b"')
+
+
+#: one ``key=`` of a message tail, as the store's ``extract`` sees it
+_KEY = re.compile(r"([a-z0-9_]+)=")
+
+
+def _store_fields(message):
+    """The ``key=value`` tail of a message, read the way the store reads it.
+
+    ``extract `key=<value> ```` hands the placeholder the text up to the next
+    space which is not inside double quotes and strips those quotes; this is
+    that rule. Escapes are out of its scope on purpose - no value of this
+    record can contain a quote in practice, and the escaping of one is tested
+    against the writer of it instead.
+    """
+    # past "Celery task performance" and the event word which follows it
+    tail = message.split(" ", 3)[3]
+    # the event is written twice by design: once as the word after the marker,
+    # so the log line is human-readable, and once as a field - the word is
+    # skipped, the field is what the store reads
+    tail = tail[tail.find(" "):].lstrip()
+    fields = {}
+    position = 0
+    while position < len(tail):
+        key = _KEY.match(tail, position)
+        if key is None:
+            break
+        end = key.end()
+        quoted = False
+        while end < len(tail) and (tail[end] != " " or quoted):
+            if tail[end] == '"':
+                quoted = not quoted
+            end += 1
+        fields[key.group(1)] = tail[key.end():end].strip('"')
+        position = end + 1
+    return fields
+
+
+@ENABLED
+class CursorLifetimeTests(TestCase):
+    """The cursor has to outlive the cadence it is read on.
+
+    The window of a fire continues where the last one ended, which is what
+    keeps a doubled, late or missed fire from double counting - and that only
+    holds while the cursor is still there when the next fire looks for it. A
+    cache configured without a ``TIMEOUT`` drops a key after 300 seconds (the
+    Django default and the value django-redis ships), which is exactly the
+    default cadence, so a cursor written without an explicit timeout expires
+    just as the next fire reads it and every fire republishes its whole
+    look-back. The recording backend below is how a test sees the timeout the
+    exporter handed the cache; the cache itself is Django's own.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.records = Records.collect(self)
+
+    def test_a_fire_stores_the_cursor_longer_than_its_cadence(self):
+        seed(active=2.0, started_ago_seconds=30)
+        _TimeoutRecordingLocMem.timeouts = {}
+        with override_settings(CACHES=RECORDING_CACHES):
+            export_task_performance()
+            stored = _TimeoutRecordingLocMem.timeouts.get(WINDOW_CURSOR_KEY)
+        self.assertIsNotNone(
+            stored, "the exporter left the cursor to the cache default, "
+                    "which on the shipped setup is the cadence itself")
+        self.assertGreater(
+            stored, DEFAULT_CADENCE_MINUTES * 60,
+            "the cursor would expire before the next fire looks for it")
+
+    def test_the_cursor_ttl_outlives_every_cadence_the_knob_allows(self):
+        # the cadence is a setting and system/apps.py schedules the beat row
+        # from the same value, so the ttl has to scale with it rather than be
+        # a constant which a longer cadence silently outruns
+        for minutes in (1, 5, 7, 60, 120):
+            with self.settings(TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES=minutes):
+                self.assertGreater(
+                    _cursor_ttl(), minutes * 60,
+                    "a %s minute cadence would outrun the cursor ttl"
+                    % minutes)
+
+
+class _TimeoutRecordingLocMem(LocMemCache):
+    """LocMemCache which remembers the timeout a key was stored with."""
+
+    timeouts = {}
+
+    def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None,
+            **kwargs):
+        answer = super().set(key, value, timeout=timeout, version=version,
+                             **kwargs)
+        self.timeouts[key] = timeout
+        return answer
 
 
 def _window_minutes(summary):

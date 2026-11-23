@@ -108,6 +108,25 @@ def create_capacity_snapshot_refresh_task(sender, **kwargs):
     )
 
 
+def _export_schedule_fields(cadence_minutes):
+    """The crontab fields for one fire every ``cadence_minutes`` minutes.
+
+    :02 keeps the offset from the metadata import at :00 and from the other
+    housekeeping rows of this app (:05 dumps, :13 snapshots, :20 probe
+    artifacts, :30 job history, :40 incidents, :50 bounding). A cadence which
+    does not divide the hour fires as often as a crontab can express it - a
+    seven minute cadence gives :02 :09 ... :58 - and a cadence of whole hours
+    steps the hour field instead.
+    """
+    cadence = max(1, int(cadence_minutes))
+    if cadence % 60 == 0:
+        hours = max(1, cadence // 60)
+        return "2", "*" if hours == 1 else "*/%d" % hours
+    minutes = list(range(2 % cadence, 60, cadence))
+    return (",".join(str(minute) for minute in minutes)
+            if len(minutes) < 60 else "*"), "*"
+
+
 def create_task_performance_export_task(sender, **kwargs):
     """Creates the periodic task which publishes the #1391 performance series.
 
@@ -129,13 +148,15 @@ def create_task_performance_export_task(sender, **kwargs):
             name=TASK_PERFORMANCE_EXPORT_TASK_NAME).delete()
         return
 
-    # every five minutes, offset by two from the metadata import at :00 and
-    # from the other housekeeping rows of this app (:05 dumps, :13 snapshots,
-    # :20 probe artifacts, :30 job history, :40 incidents, :50 bounding). The
+    # one fire per exported window: the cadence IS
+    # MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES, so the knob which names
+    # the span of a window also moves the row which produces it. The
     # exporter's window continues where the last one ended, so a fire which is
     # late widens the next window instead of shifting or double counting it.
+    minute, hour = _export_schedule_fields(
+        getattr(settings, "TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES", 5))
     schedule, _ = CrontabSchedule.objects.get_or_create(
-        minute="2,7,12,17,22,27,32,37,42,47,52,57", hour="*", day_of_week="*",
+        minute=minute, hour=hour, day_of_week="*",
         day_of_month="*", month_of_year="*")
 
     PeriodicTask.objects.get_or_create(

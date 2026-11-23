@@ -780,11 +780,11 @@ TASK_PROFILING_BUFFER_LIMIT = 200
 TASK_PERFORMANCE_EXPORT_ENABLED = os.environ.get(
     "MRMAP_TASK_PERFORMANCE_EXPORT", "").strip().lower() in (
     "on", "1", "true")
-# the span one published window covers. The exporter's beat row fires at a
-# fixed five minute cadence (system/apps.py) and every window continues where
-# the last one ended, so this span is the intent of a window rather than its
-# clock: a fire which arrives late widens the next window instead of double
-# counting it or leaving a hole in the series
+# the span one published window covers, and the cadence its beat row fires at:
+# system/apps.py builds the crontab from this same value, and every window
+# continues where the last one ended, so this span is the intent of a window
+# rather than its clock: a fire which arrives late widens the next window
+# instead of double counting it or leaving a hole in the series
 TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES = int(os.environ.get(
     "MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES", "5"))
 # the buckets of one window (heaviest first); the cardinality of the series

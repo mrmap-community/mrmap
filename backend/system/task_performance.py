@@ -80,9 +80,35 @@ WINDOW_CURSOR_KEY = "mrmap-task-performance-window-cursor"
 #: cursor to continue from
 FIRST_WINDOW_MINUTES = 60
 
+#: the span one fire is meant to cover, which is also the cadence its beat row
+#: is scheduled at (``system/apps.py`` builds the crontab from the same value).
+#: A fire which arrives late widens the next window instead of double counting.
+WINDOW_MINUTES = 5
+
 
 def _setting(name, default):
     return getattr(settings, name, default)
+
+
+def _window_minutes():
+    return max(1, int(_setting("TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES",
+                               WINDOW_MINUTES)))
+
+
+def _cursor_ttl():
+    """How long the window cursor has to survive, in seconds.
+
+    Stated explicitly because the deployment's cache would not state it: with
+    no ``TIMEOUT`` in ``CACHES["default"]`` a Django cache - and django-redis,
+    which ships the same ``300`` - drops a key after five minutes, which is
+    exactly the beat cadence, so a cursor written without a timeout expires
+    just as the next fire goes looking for it. Every fire would then restart
+    from ``first_window`` and republish its whole look-back, which is the
+    double counting the non-overlapping windows exist to prevent. Two spans is
+    the floor: the cursor only has to outlive one cadence, and a lost key
+    still costs only the one short window the summary names.
+    """
+    return max(2 * _window_minutes(), 15) * 60
 
 
 def export_enabled():
@@ -134,12 +160,17 @@ def _sd_value(value):
     stringified here arrives in the log store as a string anyway - naming the
     boundary once keeps the values of a published record honest about their
     wire type, while the summary the beat task of ``system.tasks`` adds up and
-    logs stays numbers.
+    logs stays numbers. A boolean is written the way a log store reads it, so
+    a flag is one word on both sides of the record.
     """
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
     return str(value)
 
 
-def _window_fields(window):
+def _window_fields(window, resumed_from):
     """The window's own fields, identical on every record of one fire.
 
     A dashboard plots ``window_end`` as the point of a bucket and
@@ -147,16 +178,26 @@ def _window_fields(window):
     non-overlapping interval and the sum of a series over a range is the sum
     of the attempts of that range - which is what lets an operator check a
     panel's total against a ``capacity_measures`` query of the same window.
+
+    ``resumed_from`` rides along on every record rather than only in the beat
+    log, because it is what tells an operator whether the series can be
+    trusted: ``cursor`` means the window continued where the last published
+    one ended, ``first_window`` means the cursor was gone and the window
+    looked back over its configured span instead - one such record after a
+    restart is expected, a series of them means the cursor is not surviving
+    the cadence and the windows overlap. The runbook of
+    docs/source/development/celery-task-performance.rst is written around it.
     """
     return {
         "window_start": _moment(window["since"]),
         "window_end": _moment(window["until"]),
         "window_seconds": _seconds(
             (window["until"] - window["since"]).total_seconds()),
+        "resumed_from": resumed_from,
     }
 
 
-def _fleet_record(answer):
+def _fleet_record(answer, resumed_from):
     """The one record per window that says what the window held in total."""
     fleet = answer["fleet"]
     coverage = answer["coverage"]
@@ -185,13 +226,13 @@ def _fleet_record(answer):
         "truncated": answer["truncated"],
         "source": answer["source"],
     }
-    record.update(_window_fields(answer["window"]))
+    record.update(_window_fields(answer["window"], resumed_from))
     return record
 
 
-def _bucket_records(answer):
+def _bucket_records(answer, resumed_from):
     """One record per (class, queue) bucket of the window, heaviest first."""
-    window = _window_fields(answer["window"])
+    window = _window_fields(answer["window"], resumed_from)
     records = []
     for bucket in answer["buckets"]:
         record = {
@@ -221,7 +262,7 @@ def _bucket_records(answer):
     return records
 
 
-def _sample_records(answer, classes):
+def _sample_records(answer, classes, resumed_from):
     """The newest measured attempts of the heaviest classes of the window.
 
     The drill-down #1391 asks for, within the boundaries it asks for: rows an
@@ -236,7 +277,7 @@ def _sample_records(answer, classes):
         task_classes=classes,
         limit=_samples_per_class() * max(1, len(classes)),
         attribution=WINDOW_WRITTEN)
-    window = _window_fields(answer["window"])
+    window = _window_fields(answer["window"], resumed_from)
     per_class = {}
     records = []
     for row in samples:
@@ -266,24 +307,71 @@ def _sample_records(answer, classes):
     return records
 
 
+def _logfmt_value(value):
+    """One record value as a ``key=value`` token of the message tail.
+
+    Quoted only when it needs it: the shipped log store parses an unquoted
+    value as a number and a quoted one as text, and a panel must be able to
+    ``sum()`` the seconds (#1391). An empty value is quoted, because nothing
+    at all is not a value the store could tell apart from a missing field,
+    and so is anything a bare token could not carry - a space (which would
+    split the value into two tokens), a quote, an equals sign, parentheses or
+    a backslash, all of which a ``worker`` name, a ``periodic_name`` or a
+    ``task_name`` can contain.
+    """
+    text = _sd_value(value)
+    if text == "":
+        return '""'
+    if any(char in text for char in " \"=()\\"):
+        return '"%s"' % text.replace("\\", "\\\\").replace('"', '\\"')
+    return text
+
+
 def _log(record):
     """One structured record, written the way this deployment logs everything.
 
     ``disable_python_meta`` keeps the formatter from adding a code position
     nobody reads and ``suppress_dump`` keeps it from writing the json dump it
     would otherwise leave below the media root for a record with structured
-    data: the numbers *are* the record, so the syslog line carries them and
-    nothing is duplicated on disk (see system/logging/formatter.py, #1033).
-    The values are strings by the time they arrive here, which is what
-    RFC 5424 structured data carries.
+    data: the numbers *are* the record, so nothing is duplicated on disk (see
+    system/logging/formatter.py, #1033). The values are strings by the time
+    they arrive here, which is what RFC 5424 structured data carries.
+
+    The fields are on the record twice: once as ``structured_data``, which is
+    the record's own shape and what any handler which does not speak syslog
+    renders, and once as a ``key=value`` tail of the message - and the tail is
+    the only one which reaches the log store. A suppressed dump means the
+    structured data area of the line is ``-`` (see the formatter above), and
+    VictoriaLogs, the store the compose stack ships and the Grafana datasource
+    ``victorialogs``, stores the message and nothing else: the tail is what a
+    panel of #1391 can select, group and ``sum()`` by. The tail is therefore
+    the wire contract of this record, pinned by
+    tests.django.system.test_task_performance and documented in
+    docs/source/development/celery-task-performance.rst.
+
+    Two details of the tail are load-bearing and were found by running the
+    panels against the store rather than by reading its documentation: the
+    event is a ``key=value`` pair and not only the word after the marker, so
+    a panel of one event type cannot match a record of another whose name
+    merely begins the same way; and the message ends in
+    ``sd=<structured data id>``, because the UDP syslog handler appends a
+    ``\\x00`` to every datagram, the store's ``extract`` placeholder is
+    greedy, and without a field after it the last field of every record
+    carries the NUL and can be neither grouped by nor summed.
     """
-    logger.info("Celery task performance %s" % record["event"], extra={
+    fields = {key: value for key, value in record.items()
+              if value is not None}
+    message = " ".join(
+        ["Celery task performance", record["event"]]
+        + ["%s=%s" % (key, _logfmt_value(value))
+           for key, value in fields.items()]
+        + ["sd=%s" % TELEMETRY_SDID])
+    logger.info(message, extra={
         "disable_python_meta": True,
         "suppress_dump": True,
         "structured_data": {
             TELEMETRY_SDID: {
-                key: _sd_value(value) for key, value in record.items()
-                if value is not None},
+                key: _sd_value(value) for key, value in fields.items()},
         },
     })
 
@@ -342,17 +430,17 @@ def export_task_performance():
     except Exception as error:  # a broken read costs a window, never a task
         logger.warning("task performance export (#1391): the window of %s "
                        "could not be measured: %s", _moment(since), error)
-        cache.set(WINDOW_CURSOR_KEY, now.isoformat())
+        cache.set(WINDOW_CURSOR_KEY, now.isoformat(), _cursor_ttl())
         return {"published": 0, "reason": str(error),
                 "window_start": _moment(since), "window_end": _moment(now)}
 
     classes = [bucket["task_class"] for bucket
                in answer["buckets"][:_drilldown_classes()]]
-    records = [_fleet_record(answer)]
-    records += _bucket_records(answer)
+    records = [_fleet_record(answer, resumed_from)]
+    records += _bucket_records(answer, resumed_from)
     if classes and _samples_per_class():
         try:
-            records += _sample_records(answer, classes)
+            records += _sample_records(answer, classes, resumed_from)
         except Exception as error:
             # the series is the product; the drill-down is a convenience on
             # top of it and never costs a window its buckets
@@ -370,7 +458,7 @@ def export_task_performance():
                            published, len(records), _moment(now), error)
             break
 
-    cache.set(WINDOW_CURSOR_KEY, now.isoformat())
+    cache.set(WINDOW_CURSOR_KEY, now.isoformat(), _cursor_ttl())
     summary = {
         "published": published,
         "window_start": _moment(since),

@@ -414,14 +414,22 @@ def _window_count(cursor, table_name, time_column, since, until):
     """
     quoted_table = psycopg_sql.Identifier(table_name)
     quoted_time = psycopg_sql.Identifier(time_column)
+    window = "{table} where {time} >= %s and {time} < %s"
     sql = psycopg_sql.SQL(
-        "select count(*) as rows_in_window from {table} "
-        "where {time} >= %s and {time} < %s"
+        "select count(*) as rows_in_window from " + window
     ).format(table=quoted_table, time=quoted_time)
     statement = sql.as_string(connection.connection)
     plan = None
     try:
-        cursor.execute("explain (format json) " + statement, [since, until])
+        # the plan of the very read above, built from the same identifiers
+        # rather than by prefixing its string, so no fragment ever reaches
+        # execute() outside a Composed template
+        plan_sql = psycopg_sql.SQL("explain (format json) select count(*) as "
+                                   "rows_in_window from " + window
+                                   ).format(table=quoted_table,
+                                            time=quoted_time)
+        cursor.execute(plan_sql.as_string(connection.connection),
+                       [since, until])
         plan = _plan_shape((_row(cursor) or {}).get("QUERY PLAN"))
     except db_utils.DatabaseError:
         plan = None
@@ -813,24 +821,58 @@ def _nested_prefixes(prefix):
     return nested
 
 
+def _entry_size(entry):
+    """Bytes of one regular file, or ``None`` for anything not to count.
+
+    Symlinks, directories and vanished entries all answer ``None``: a media
+    tree holds names built partly from remote responses, and following a link
+    out of the prefix is exactly what a "read-only, bounded" report must not
+    do. An unreadable entry is skipped the same way ``os.scandir`` errors are.
+    """
+    try:
+        if entry.is_symlink():
+            return None
+        if not entry.is_file(follow_symlinks=False):
+            return None
+        return entry.stat(follow_symlinks=False).st_size
+    except OSError:
+        return None
+
+
+def _visit_directory(entry, depth, skip_real, stack):
+    """Queue one subdirectory for the walk; report whether it was too deep.
+
+    Returns ``True`` when the directory is below the depth limit and the
+    caller must mark its answer truncated. Symlinks, entries below a skipped
+    nested prefix and vanished entries answer ``False`` without being queued.
+    """
+    try:
+        if not entry.is_dir(follow_symlinks=False):
+            return False
+        if os.path.realpath(entry.path) in skip_real:
+            return False
+    except OSError:
+        return False
+    if depth + 1 > MEDIA_TREE_DEPTH:
+        return True
+    stack.append((entry.path, depth + 1))
+    return False
+
+
 def _walk(root, prefix, budget, skip_prefixes=()):
     """Collect ``(bytes, files, entries, truncated)`` below one prefix.
 
-    Symlinks are never followed and never counted: a media tree holds names
-    built partly from remote responses, and following a link out of the prefix
-    is exactly what a "read-only, bounded" report must not do. Entries below a
-    nested declared prefix are left to that prefix's own source, so the two
-    sources of one shared tree never count the same byte twice.
+    Entries below a nested declared prefix are left to that prefix's own
+    source, so the two sources of one shared tree never count the same byte
+    twice. ``budget`` is a one-element list shared with the caller: it counts
+    visited directory entries and bounds the whole walk.
     """
     base = os.path.join(root, *prefix.split("/")) if prefix else root
     if not os.path.isdir(base):
         return 0, 0, [], False
     skip_real = {os.path.realpath(os.path.join(root, *nested.split("/")))
                  for nested in skip_prefixes}
-    total_bytes = 0
-    total_files = 0
-    entries = []
-    truncated = False
+    state = {"bytes": 0, "files": 0, "entries": [], "truncated": False}
     stack = [(base, 0)]
     while stack:
         path, depth = stack.pop()
@@ -839,32 +881,104 @@ def _walk(root, prefix, budget, skip_prefixes=()):
                 entries_here = list(scan)
         except OSError:
             continue
-        for entry in entries_here:
-            if budget[0] <= 0:
-                return total_bytes, total_files, entries, True
-            budget[0] -= 1
-            try:
-                if entry.is_symlink():
-                    continue
-                if entry.is_dir(follow_symlinks=False):
-                    if os.path.realpath(entry.path) in skip_real:
-                        continue
-                    if depth + 1 > MEDIA_TREE_DEPTH:
-                        truncated = True
-                    else:
-                        stack.append((entry.path, depth + 1))
-                    continue
-                if not entry.is_file(follow_symlinks=False):
-                    continue
-                size = entry.stat(follow_symlinks=False).st_size
-            except OSError:
-                continue
-            total_bytes += size
-            total_files += 1
-            if len(entries) < MEDIA_REFERENCE_LIMIT:
-                relative = os.path.relpath(entry.path, root)
-                entries.append((relative.replace(os.sep, "/"), size))
-    return total_bytes, total_files, entries, truncated
+        if _count_entries(entries_here, budget, root, depth, skip_real,
+                          stack, state):
+            return state["bytes"], state["files"], state["entries"], True
+    return (state["bytes"], state["files"], state["entries"],
+            state["truncated"])
+
+
+def _count_entries(entries_here, budget, root, depth, skip_real, stack,
+                   state):
+    """Accumulate one directory listing into ``state``.
+
+    Returns ``True`` when the shared budget is exhausted mid-listing, which
+    makes the caller report a truncated answer instead of a short walk that
+    looks complete.
+    """
+    for entry in entries_here:
+        if budget[0] <= 0:
+            return True
+        budget[0] -= 1
+        size = _entry_size(entry)
+        if size is None:
+            state["truncated"] = (
+                state["truncated"]
+                or _visit_directory(entry, depth, skip_real, stack))
+            continue
+        state["bytes"] += size
+        state["files"] += 1
+        if len(state["entries"]) < MEDIA_REFERENCE_LIMIT:
+            relative = os.path.relpath(entry.path, root)
+            state["entries"].append((relative.replace(os.sep, "/"), size))
+    return False
+
+
+MEDIA_MEASURE_KEYS = ("total_bytes", "files", "referenced_bytes",
+                      "unreferenced_bytes", "undetermined_bytes")
+
+REFERENCE_OUTSIDE = "outside"
+REFERENCE_MISSING = "missing"
+
+
+def _unavailable_media_answer(answer, reason, **kwargs):
+    """Mark every media measure of a source unmeasured, with one reason."""
+    for key in MEDIA_MEASURE_KEYS:
+        answer[key] = unavailable(reason, **kwargs)
+    answer["reasons"] = [reason]
+    return answer
+
+
+def _split_reference_bytes(walked, referenced):
+    """Partition walked entries into ``(referenced, unreferenced)`` bytes."""
+    referenced_bytes = 0
+    unreferenced_bytes = 0
+    unreferenced_files = 0
+    for name, size in walked.items():
+        if name in referenced:
+            referenced_bytes += size
+        else:
+            unreferenced_bytes += size
+            unreferenced_files += 1
+    return referenced_bytes, unreferenced_bytes, unreferenced_files
+
+
+def _classify_reference(name, root, prefix_root, walked, nested_real):
+    """Where one referenced name belongs, or ``None`` if it carries no finding.
+
+    A value which does not resolve below the storage root is a finding: it is
+    named, never opened. The inventory reads no file body at all, so it cannot
+    disclose what a bad path points at.
+    """
+    if os.path.isabs(name) or not _is_within(root, os.path.join(root, name)):
+        return REFERENCE_OUTSIDE
+    if name in walked:
+        return None
+    if not name.startswith(prefix_root + "/"):
+        # the file belongs to another declared prefix and is measured there
+        return None
+    if os.path.realpath(os.path.join(root, *name.split("/"))) in nested_real:
+        return None
+    if _size_below(root, name) is None:
+        # the reference names this prefix but has no readable file: the row
+        # exists and its document does not. Its bytes cannot be measured, so
+        # they are neither counted as referenced nor as orphan bytes.
+        return REFERENCE_MISSING
+    return None
+
+
+def _classify_references(referenced, root, prefix_root, walked, nested_real):
+    """The findings among the reference names: missing files and bad paths."""
+    missing_references = []
+    outside = []
+    for name in sorted(referenced):
+        category = _classify_reference(name, root, prefix_root, walked,
+                                       nested_real)
+        if category == REFERENCE_OUTSIDE:
+            outside.append(name)
+        elif category == REFERENCE_MISSING:
+            missing_references.append(name)
+    return missing_references, outside
 
 
 def measure_media_source(source, include_media=True):
@@ -888,11 +1002,7 @@ def measure_media_source(source, include_media=True):
                           in source.reference_fields],
     }
     if not include_media:
-        for key in ("total_bytes", "files", "referenced_bytes",
-                    "unreferenced_bytes", "undetermined_bytes"):
-            answer[key] = unavailable(REASON_NOT_REQUESTED)
-        answer["reasons"] = [REASON_NOT_REQUESTED]
-        return answer
+        return _unavailable_media_answer(answer, REASON_NOT_REQUESTED)
 
     try:
         models = concrete_descendants(
@@ -903,19 +1013,12 @@ def measure_media_source(source, include_media=True):
     except (LookupError, AttributeError, FieldDoesNotExist) as error:
         # a stale declaration must fail loudly, in the report rather than in a
         # silently empty bucket
-        for key in ("total_bytes", "files", "referenced_bytes",
-                    "unreferenced_bytes", "undetermined_bytes"):
-            answer[key] = unavailable(REASON_QUERY_FAILED, detail=str(error))
-        answer["reasons"] = [REASON_QUERY_FAILED]
-        return answer
+        return _unavailable_media_answer(answer, REASON_QUERY_FAILED,
+                                         detail=str(error))
 
     location = _storage_location(storage)
     if location is None:
-        for key in ("total_bytes", "files", "referenced_bytes",
-                    "unreferenced_bytes", "undetermined_bytes"):
-            answer[key] = unavailable(REASON_UNSUPPORTED_STORAGE)
-        answer["reasons"] = [REASON_UNSUPPORTED_STORAGE]
-        return answer
+        return _unavailable_media_answer(answer, REASON_UNSUPPORTED_STORAGE)
 
     root = os.path.realpath(location)
     budget = [MEDIA_SCAN_NODE_BUDGET]
@@ -926,37 +1029,14 @@ def measure_media_source(source, include_media=True):
 
     referenced, refs_truncated, refs_failed = _referenced_names(source)
     walked = dict(entries)
-    referenced_bytes = sum(size for name, size in walked.items()
-                           if name in referenced)
-    unreferenced_bytes = sum(size for name, size in walked.items()
-                             if name not in referenced)
-    unreferenced_files = sum(1 for name in walked if name not in referenced)
+    reasons = []
+    referenced_bytes, unreferenced_bytes, unreferenced_files = \
+        _split_reference_bytes(walked, referenced)
     prefix_root = source.prefix.rstrip("/")
     nested_real = {os.path.realpath(os.path.join(root, *nested.split("/")))
                    for nested in _nested_prefixes(source.prefix)}
-    missing_references = []
-    outside = []
-    reasons = []
-    for name in sorted(referenced):
-        # a value which does not resolve below the storage root is a finding:
-        # it is named, never opened. The inventory reads no file body at all,
-        # so it cannot disclose what a bad path points at.
-        if os.path.isabs(name) or not _is_within(root, os.path.join(root, name)):
-            outside.append(name)
-            continue
-        if name in walked:
-            continue
-        if not name.startswith(prefix_root + "/"):
-            # the file belongs to another declared prefix and is measured there
-            continue
-        if os.path.realpath(os.path.join(root, *name.split("/"))) in (
-                nested_real):
-            continue
-        # the reference names this prefix but has no readable file: the row
-        # exists and its document does not. Its bytes cannot be measured, so
-        # they are neither counted as referenced nor as orphan bytes.
-        if _size_below(root, name) is None:
-            missing_references.append(name)
+    missing_references, outside = _classify_references(
+        referenced, root, prefix_root, walked, nested_real)
 
     if truncated:
         answer["total_bytes"] = unavailable(REASON_SCAN_BUDGET_EXHAUSTED,
@@ -1620,19 +1700,19 @@ def _count(measure):
     return _from(measure, formatter=lambda value: f"{int(value):,}")
 
 
-def _format_text(report):
+def _text_header(report):
     meta = report["inventory"]
-    out = []
-    out.extend([
+    postgresql = report["postgresql"]
+    return [
         "MrMap persistent-data inventory (#1498) — READ ONLY, nothing "
         "here deleted or changed",
         f"  declaration   v{meta['declaration_version']} "
         f"({meta['declaration_source']}), schema "
         f"v{meta['schema_version']}",
         f"  generated     {meta['generated_at']}",
-        f"  database      {meta['engine']} {report['postgresql'].get('version') or ''}"
+        f"  database      {meta['engine']} {postgresql.get('version') or ''}"
         f" ({meta['database']}) role="
-        f"{report['postgresql'].get('role') or '—'}",
+        f"{postgresql.get('role') or '—'}",
         f"  window        {meta['window_days']} d "
         f"({meta['window_since']} .. {meta['window_until']}), horizon "
         f"{meta['horizon_days']} d",
@@ -1645,44 +1725,63 @@ def _format_text(report):
         f"  {'#':>3}  {'dataset':<32}{'rows':>11}{'total':>9}"
         f"{'rows/24h':>10}{'MB/24h':>9}  owner",
         "  " + "-" * 86,
-    ])
+    ]
+
+
+def _growth_row_line(item, answer):
+    rank = item["rank"] if item["rank"] is not None else "—"
+    rows_per_day = ("—" if item["rows_per_day"] is None
+                    else f"{item['rows_per_day']:.1f}")
+    bytes_per_day = ("—" if item["bytes_per_day"] is None
+                     else f"{item['bytes_per_day'] / 1048576:.1f}")
+    return (
+        f"  {str(rank):>3}  "
+        f"{item['id']:<32}{_count(answer.get('estimated_rows')):>11}"
+        f"{_from(answer.get('total_bytes')):>9}"
+        f"{rows_per_day:>10}{bytes_per_day:>9}  {item['owner']}")
+
+
+def _unmeasured_growth(growth):
+    """Group the dataset ids by the reason their window could not be measured."""
+    reasons = {}
+    for item in growth:
+        if item["window_reason"]:
+            reasons.setdefault(item["window_reason"], []).append(item["id"])
+    return reasons
+
+
+def _short_list(values, limit=5):
+    return ", ".join(values[:limit]) + (", …" if len(values) > limit else "")
+
+
+def _text_growth(report):
+    out = []
     ranked = sorted(report["growth"],
                     key=lambda item: (item["rank"] is None,
                                       item["rank"] or 0, item["id"]))
     for item in ranked:
-        answer = report["measurements"].get(item["table"], {})
-        rank = item["rank"] if item["rank"] is not None else "—"
-        rows_per_day = ("—" if item["rows_per_day"] is None
-                        else f"{item['rows_per_day']:.1f}")
-        bytes_per_day = ("—" if item["bytes_per_day"] is None
-                         else f"{item['bytes_per_day'] / 1048576:.1f}")
-        out.append(
-            f"  {str(rank):>3}  "
-            f"{item['id']:<32}{_count(answer.get('estimated_rows')):>11}"
-            f"{_from(answer.get('total_bytes')):>9}"
-            f"{rows_per_day:>10}{bytes_per_day:>9}  {item['owner']}")
+        out.append(_growth_row_line(
+            item, report["measurements"].get(item["table"], {})))
     out.append("")
 
-    reasons = {}
-    for item in report["growth"]:
-        if item["window_reason"]:
-            reasons.setdefault(item["window_reason"], []).append(item["id"])
+    reasons = _unmeasured_growth(report["growth"])
     if reasons:
         out.append("Growth not measured, and why (an unknown is not a zero)")
         for reason in sorted(reasons):
             ids = reasons[reason]
-            shown = ", ".join(ids[:5]) + (", …" if len(ids) > 5 else "")
-            out.append(f"  {reason:<34}{len(ids):>3}  {shown}")
+            out.append(f"  {reason:<34}{len(ids):>3}  {_short_list(ids)}")
         out.append("")
+    return out
 
-    media = report["media"]
-    out.extend([
+
+def _text_media(media):
+    out = [
         "Media below each declared storage location",
         "",
         f"  {'prefix':<34}{'total':>9}{'referenced':>12}"
         f"{'unreferenced':>13}  scope",
         "  " + "-" * 82,
-    ])
+    ]
     for source in media["sources"]:
         out.append(
             f"  {source['id']:<34}{_from(source['total_bytes']):>9}"
@@ -1700,15 +1799,21 @@ def _format_text(report):
         f"{_from(media['undetermined_bytes'])}",
         "",
     ])
+    return out
 
-    out.append("Disk, caches and PostgreSQL")
+
+def _disk_line(label, entry):
+    if entry[MEASURED]:
+        return (f"  {label:<14}{_bytes(entry[VALUE]):>9} free of "
+                f"{_bytes(entry['total_bytes'])}  inodes "
+                f"{entry['inodes_free']:,}/{entry['inodes_total']:,}")
+    return f"  {label:<14}{'—':>9}  {entry[REASON]}"
+
+
+def _text_disk_caches(report):
+    out = ["Disk, caches and PostgreSQL"]
     for label, entry in report["disk"].items():
-        if entry[MEASURED]:
-            out.append(f"  {label:<14}{_bytes(entry[VALUE]):>9} free of "
-                       f"{_bytes(entry['total_bytes'])}  inodes "
-                       f"{entry['inodes_free']:,}/{entry['inodes_total']:,}")
-        else:
-            out.append(f"  {label:<14}{'—':>9}  {entry[REASON]}")
+        out.append(_disk_line(label, entry))
     wal = report["postgresql"]["wal_bytes"]
     out.append(f"  wal_bytes   {_from(wal):>9}  "
                f"{wal[REASON] or 'pg_wal_bytes(), cluster-wide since startup'}")
@@ -1719,10 +1824,13 @@ def _format_text(report):
     out.append(f"  celery results backend={caches['celery_result_backend']} "
                f"expires={caches['celery_result_expires_seconds']}s")
     out.append("")
+    return out
 
+
+def _text_undeclared(meta):
     undeclared = meta["undeclared_tables"]
-    out.append(f"Undeclared tables ({len(undeclared)}) — a table of an "
-               f"inventoried app with no declaration")
+    out = [f"Undeclared tables ({len(undeclared)}) — a table of an "
+           f"inventoried app with no declaration"]
     if undeclared:
         for row in meta["undeclared"]:
             out.append(f"  {row['table']:<44}{_bytes(row.get('total_bytes')):>9}"
@@ -1730,21 +1838,36 @@ def _format_text(report):
     else:
         out.append("  none — every table of an inventoried app is declared")
     out.append("")
+    return out
 
-    gates = report["gates"]
-    out.append(f"Unresolved decisions ({len(gates)}) — no destructive policy "
-               f"on these until the named decision is answered (#1497)")
+
+def _text_gates(gates):
+    out = [f"Unresolved decisions ({len(gates)}) — no destructive policy "
+           f"on these until the named decision is answered (#1497)"]
     for gate in gates:
         out.append(f"  {gate['id']:<32}{gate['decision']}")
     out.append("")
+    return out
 
+
+def _text_provenance(report):
     read_only = report["provenance"]["read_only_enforced"]
-    out.append("Statements ran in a "
-               + ("READ ONLY, REPEATABLE READ transaction."
-                  if read_only else
-                  "transaction which the backend would not mark READ ONLY "
-                  "(inside an existing read-write transaction, e.g. a test); "
-                  "nothing in this code path writes either way.")
-               + " Heap/index/TOAST split, broker bytes and per-table WAL are "
-                 "named in provenance.not_measured.")
+    return ["Statements ran in a "
+            + ("READ ONLY, REPEATABLE READ transaction."
+               if read_only else
+               "transaction which the backend would not mark READ ONLY "
+               "(inside an existing read-write transaction, e.g. a test); "
+               "nothing in this code path writes either way.")
+            + " Heap/index/TOAST split, broker bytes and per-table WAL are "
+              "named in provenance.not_measured."]
+
+
+def _format_text(report):
+    out = _text_header(report)
+    out.extend(_text_growth(report))
+    out.extend(_text_media(report["media"]))
+    out.extend(_text_disk_caches(report))
+    out.extend(_text_undeclared(report["inventory"]))
+    out.extend(_text_gates(report["gates"]))
+    out.extend(_text_provenance(report))
     return "\n".join(out)

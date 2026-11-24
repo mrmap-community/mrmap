@@ -615,6 +615,83 @@ res, code = check_pr(f, pr=917)
 check("an epic-branch PR needs no issue resolution",
       not [c for c in f.calls if "issue(number:101)" in c], str(f.calls))
 
+# 34b. An `epic/*` head no open epic declares is the rule-2 refusal, not a gh hiccup.
+#      Before this the branch fell through to `_epic_for_branch`, answered None, and the
+#      PR was reported clean against `develop`: rule 2 was silent exactly where CI asks it.
+f = Fixture()
+f.epic(100, slug="epic-integration")
+f.branch("epic/stray")
+f.open_pr(918, head="epic/stray", base="develop")
+res, code = check_pr(f, pr=918)
+check("an epic branch no epic declares is refused (rule 2)",
+      res["status"] == "error" and codes_of(res) == ["epic-branch-unclaimed"]
+      and code == 1, str(res))
+
+# 34c. ... and it keeps that code when the branch is missing too: `gh` answered perfectly
+#      well, so collapsing the refusal into `metadata-unreadable` would tell the author to
+#      fix their network instead of their slug declaration.
+f = Fixture()
+f.epic(100, slug="epic-integration")
+f.open_pr(919, head="epic/stray", base="develop")
+res, code = check_pr(f, pr=919)
+check("an unowned epic head missing on origin still reports rule 2, not unreadable",
+      res["status"] == "error" and codes_of(res) == ["epic-branch-unclaimed"]
+      and "gh" not in res["error"], str(res))
+
+# 34d. The branch of a CLOSED epic is rule 11's stale branch, not rule 2's unowned one:
+#      ownership is measured over open and closed epics, exactly as `_slug_conflict` does.
+f = fixture_with_epic(state="CLOSED")
+f.open_pr(920, head="epic/epic-integration", base="develop")
+res, code = check_pr(f, pr=920)
+check("an epic branch whose epic closed is stale, not unowned (R6, R11)",
+      codes_of(res) == ["epic-branch-stale"] and res["row"] == "R6" and code == 1,
+      str(res))
+
+# 34e. A fork may not present an epic integration: the branch is a branch of THIS repo.
+f = fixture_with_epic()
+f.open_pr(921, head="epic/epic-integration", base="develop", head_repo="someone/r")
+res, code = check_pr(f, pr=921)
+check("a fork head named like the epic branch is refused (R12)",
+      codes_of(res) == ["fork-head-target"] and res["row"] == "R12" and code == 1,
+      str(res))
+
+# 34f. An owned epic branch deleted from origin under a still-open PR is rule 3's missing
+#      branch, and the message names the protected path that puts it back.
+f = fixture_with_epic(branch=False)
+f.open_pr(922, head="epic/epic-integration", base="develop")
+res, code = check_pr(f, pr=922)
+check("an epic head that no longer stands on origin is refused (rule 3)",
+      codes_of(res) == ["epic-branch-missing"] and res["row"] == "R6"
+      and "create-branch" in res["findings"][0]["message"], str(res))
+
+# 34g. The develop side of the same rule: a child PR of a SLUGLESS epic stays clean while
+#      the epic bootstraps (R3), and a child of a slugless epic is never reported as an
+#      independent issue - the rows are what #1594 counts.
+f = fixture_with_epic(slug=None)
+f.open_pr(923, head="agent/issue-101", base="develop")
+res, code = check_pr(f, pr=923)
+check("a child PR to develop while its epic has no slug is the bootstrap row (R3)",
+      res["row"] == "R3" and res["target"] == "develop" and not res["findings"]
+      and code == 0, str(res))
+f = fixture_with_epic()
+f.open_pr(924, head="agent/issue-101", base="develop")
+res, code = check_pr(f, pr=924)
+check("a child PR to develop once its epic has a slug is still the violation (R4/R5)",
+      res["row"] == "R5" and codes_of(res) == ["child-targets-develop"], str(res))
+f = Fixture()
+f.issue(404, body="## Independent\n")
+f.open_pr(925, head="agent/issue-404", base="develop")
+res, code = check_pr(f, pr=925)
+check("a genuinely independent PR to develop reports R1, not R3",
+      res["row"] == "R1" and res["target"] == "develop" and not res["findings"], str(res))
+f = fixture_with_epic(state="CLOSED")
+f.issue(101, body="done", parent=100, state="CLOSED")
+f.merged_pr(500, 101, base="epic/epic-integration", sha="a" * 40, on_base=True)
+f.open_pr(926, head="agent/issue-101", base="develop")
+res, code = check_pr(f, pr=926)
+check("a follow-up PR after a merged epic reports R10, not R1",
+      res["row"] == "R10" and not res["findings"], str(res))
+
 # -------------------------------------------------------------- check-branch and audit
 
 # 35. A missing branch, a missing slug and a stale branch are each their own finding.
@@ -757,6 +834,61 @@ f.agent_bot = True
 res = m.retarget(f.runner, 934, "epic/epic-integration", write=True, repo=f.repo)
 check("the agent identity cannot retarget", res["status"] == "error" and not f.patches,
       str(res))
+
+# ------------------------------------------------------------------------ the renderer
+
+# 44. Human output is keyed by the subcommand, never by which optional keys are filled.
+#     A `resolve` of an independent issue carries `branch: develop` and no epic, and a
+#     `retarget` carries an `epic` and no findings, so a renderer that sniffed the keys
+#     printed the first as an epic branch of epic #None and dropped the base transition
+#     the second exists to report. Each verb's line is asserted on its own content.
+r = m.render_human(m.resolve_issue(Fixture().issue(410, body="x").runner, 410,
+                                   repo="o/r"))
+check("resolve names the issue, target and row, and invents no epic",
+      r.startswith("#410  target develop  row R1") and "epic #" not in r, r)
+f = fixture_with_epic()
+f.open_pr(940, head="agent/issue-101", base="develop")
+res, _ = check_pr(f, pr=940)
+r = m.render_human(res)
+check("check-pr names the PR, the head, the base and the target",
+      r.startswith("PR #940  agent/issue-101 -> develop  target epic/epic-integration")
+      and "row R5" in r and "child-targets-develop" in r, r)
+f = fixture_with_epic()
+res = m.check_branch(f.runner, 100, repo=f.repo, mode="strict")
+r = m.render_human(res)
+check("check-branch names the epic and its branch",
+      r.startswith("epic #100  branch epic/epic-integration"), r)
+f = fixture_with_epic()
+f.open_pr(941, head="ao/topic/issue-101-thing", base="develop")
+res = m.retarget(f.runner, 941, "epic/epic-integration", write=False, repo=f.repo)
+r = m.render_human(res)
+check("retarget reports the base transition it was asked about",
+      "PR #941  base develop -> epic/epic-integration" in r
+      and "dry run: nothing written" in r, r)
+f = fixture_with_epic()
+res = m.audit(f.runner, repo=f.repo, mode="advisory")
+r = m.render_human(res)
+check("audit reports its own scope and counts",
+      r.startswith("audit of o/r  scope epic  mode advisory"), r)
+check("every public builder stamps its envelope with its own verb",
+      all(getattr(builder, "_verb", None) == verb
+          for builder, verb in ((m.resolve_issue, "resolve"), (m.check_pr, "check-pr"),
+                                (m.check_branch, "check-branch"), (m.audit, "audit"),
+                                (m.create_branch, "create-branch"),
+                                (m.retarget, "retarget"))),
+      ", ".join("%s=%s" % (b.__name__, getattr(b, "_verb", None)) for b in
+                (m.resolve_issue, m.check_pr, m.check_branch, m.audit,
+                 m.create_branch, m.retarget)))
+f = fixture_with_epic(branch=False)
+f.agent_bot = True
+res = m.create_branch(f.runner, 100, write=True, repo=f.repo)
+r = m.render_human(res)
+check("a refused write verb still renders its own shape",
+      r.startswith("ERROR") and "person's acts" in res["error"], r)
+res = m._result()
+res["status"] = "ok"
+check("an unstamped envelope is named unknown, not guessed at",
+      m.render_human(res).startswith("unrecognised result"), m.render_human(res))
 
 # ------------------------------------------------------------------ vocabulary drift
 

@@ -99,6 +99,7 @@ runner, no `gh`, no network, no real repository), as every suite under scripts/.
 
 import argparse
 import ast
+import functools
 import json
 import os
 import re
@@ -157,7 +158,21 @@ class CommandError(Exception):
 
 
 class EpicBranchError(Exception):
-    """Why the whole question could not be answered; the caller fails closed."""
+    """Why the whole question could not be answered; the caller fails closed.
+
+    `code` names the refusal when the tool knows which rule was hit - an `epic/*` head
+    no open epic declares is a rule-2 refusal, not a `gh` hiccup - and stays
+    `metadata-unreadable` for everything the tool simply could not read. The gated
+    commands copy it into their error result, so a fail-closed answer keeps the code a
+    reader can act on instead of collapsing every refusal into one label.
+    """
+
+    code = "metadata-unreadable"
+
+    def __init__(self, message, code=None):
+        Exception.__init__(self, message)
+        if code:
+            self.code = code
 
 
 class Finding(object):
@@ -471,18 +486,41 @@ def open_epics(runner, repo, listings=None):
 
 def _result(**kw):
     base = {"schema": SCHEMA, "status": "ok", "error": None, "mode": None,
-            "strict_from": None, "row": None, "issue": None, "epic": None,
-            "parentEpic": None, "target": None, "branch": None, "branchSha": None,
-            "findings": [], "reason": ""}
+            "strict_from": None, "command": None, "row": None, "issue": None,
+            "epic": None, "parentEpic": None, "target": None, "branch": None,
+            "branchSha": None, "findings": [], "reason": ""}
     base.update(kw)
     return base
 
 
-def _err(message, code="metadata-unreadable", row=None):
-    return _result(status="error", error=message, row=row,
+def _verb(name):
+    """Stamp an envelope with the subcommand that produced it.
+
+    `render_human` chooses its shape from this field and never from which optional keys
+    happen to be filled, so an unstamped result is not merely bland but wrong: a
+    `resolve` of an independent issue rendered as an epic branch of epic #None, and a
+    `retarget` lost the base transition it exists to report. Stamping every return of
+    the six public builders - the clean answer and the fail-closed one alike - is what
+    makes the renderer's keying total rather than best effort; a result that still
+    arrives without a verb is reported as unrecognised, never guessed at.
+    """
+    def decorate(builder):
+        @functools.wraps(builder)
+        def stamped(*args, **kwargs):
+            result = builder(*args, **kwargs)
+            result["command"] = name
+            return result
+        stamped._verb = name
+        return stamped
+    return decorate
+
+
+def _err(message, code="metadata-unreadable", row=None, command=None):
+    return _result(status="error", error=message, row=row, command=command,
                    findings=[Finding(code, message).as_dict()])
 
 
+@_verb("resolve")
 def resolve_issue(runner, issue, repo=None, heads=None, ancestry=True, mode=None,
                   today=None, _cache=None, _listings=None):
     """The decision table for one issue: where its branch starts, what its PR bases on.
@@ -504,7 +542,7 @@ def resolve_issue(runner, issue, repo=None, heads=None, ancestry=True, mode=None
         res = _resolve_issue(runner, issue, repo=repo, heads=heads, ancestry=ancestry,
                              _cache=_cache, _listings=_listings)
     except EpicBranchError as e:
-        res = _err(str(e))
+        res = _err(str(e), command="resolve")
     res["mode"] = mode
     res["strict_from"] = strict_from()
     return res
@@ -773,6 +811,7 @@ def pr_facts(runner, repo, number):
             "base": base["ref"], "baseRepo": (base.get("repo") or {}).get("full_name")}
 
 
+@_verb("check-pr")
 def check_pr(runner, pr_number, repo=None, mode=None, today=None, heads=None,
              ancestry=True):
     """Every target rule the contract gives a pull request, on one PR.
@@ -791,7 +830,7 @@ def check_pr(runner, pr_number, repo=None, mode=None, today=None, heads=None,
         try:
             repo = resolve_repo(runner)
         except EpicBranchError as e:
-            return _pr_error(pr_number, None, mode, str(e))
+            return _pr_error(pr_number, None, mode, str(e), e.code)
     try:
         if heads is None:
             heads = origin_heads(runner)
@@ -800,7 +839,11 @@ def check_pr(runner, pr_number, repo=None, mode=None, today=None, heads=None,
         findings, row, target, epic = _pr_findings(runner, repo, pr, heads, listings,
                                                    ancestry)
     except EpicBranchError as e:
-        return _pr_error(pr_number, repo, mode, str(e))
+        # `e.code` is the whole point here: an unowned `epic/*` head is a rule-2 refusal
+        # the author can act on, and a `gh` hiccup is not. Dropping the code would fold
+        # the refusal back into `metadata-unreadable` and the CI annotation would say
+        # "could not read" about a pull request that can be read perfectly well.
+        return _pr_error(pr_number, repo, mode, str(e), e.code)
     errors = [f for f in findings if f.severity == "error"]
     return {"schema": SCHEMA, "status": "ok", "error": None, "pr": pr_number, "repo": repo,
             "mode": mode, "strict_from": strict_from(), "head": pr["head"],
@@ -810,17 +853,33 @@ def check_pr(runner, pr_number, repo=None, mode=None, today=None, heads=None,
             "exit_code": 1 if (errors and mode == "strict") else 0}
 
 
-def _pr_error(pr_number, repo, mode, message):
-    """The gated fail-closed answer: unreadable metadata is an error result, and it only
-    stops the check from going red while the rollout is advisory."""
+def _pr_error(pr_number, repo, mode, message, code=None):
+    """The gated fail-closed answer: an unreadable or unowned head is an error result, and
+    it only stops the check from going red while the rollout is advisory.
+
+    `code` is the refusing rule where the tool knows it (`epic-branch-unclaimed` for an
+    `epic/*` head no `Epic`-labelled issue declares), and `metadata-unreadable` for
+    everything it simply could not read - so the CI annotation names what to fix. Both
+    are spelled as literal Finding calls because `codes` derives the vocabulary from this
+    file's own syntax, and a code held only in a variable drops out of it silently.
+    """
+    finding = (Finding(code, message) if code
+               else Finding("metadata-unreadable", message))
     return {"schema": SCHEMA, "status": "error", "error": message, "pr": pr_number,
             "repo": repo, "mode": mode, "strict_from": strict_from(), "row": None,
-            "target": None, "findings": [Finding("metadata-unreadable", message).as_dict()],
+            "target": None, "findings": [finding.as_dict()],
             "exit_code": 1 if mode == "strict" else 0}
 
 
 def _pr_findings(runner, repo, pr, heads, listings=None, ancestry=True):
-    """The decision table read from the pull request side: R4-R6, R9, R12, R13."""
+    """The decision table read from the pull request side: R1-R6, R9-R13.
+
+    The reported row is the row `resolve_issue` decided on, not a label chosen here:
+    #1594's rollout reads `row` to find out what still has to be migrated, so collapsing
+    "genuinely independent issue" (R1) and "epic child still bootstrapping on develop"
+    (R3, R10) into one name would hide exactly the population whose slug declaration is
+    owed.
+    """
     findings = []
     head, base, number = pr["head"], pr["base"], pr["number"]
 
@@ -837,7 +896,7 @@ def _pr_findings(runner, repo, pr, heads, listings=None, ancestry=True):
         return findings, "R13", MASTER, None
 
     if head.startswith(EPIC_PREFIX):
-        return _epic_head_findings(runner, repo, pr, findings, listings)
+        return _epic_head_findings(runner, repo, pr, findings, listings, heads)
 
     m = CHILD_ISSUE_RE.search(head)
     if not m:
@@ -909,14 +968,65 @@ def _pr_findings(runner, repo, pr, heads, listings=None, ancestry=True):
                     "head of `%s`; the author merges `%s` into `%s` and CI re-runs (R12)"
                     % (number, target, pr["headSha"][:10], target, target, head)))
                 return findings, "R12", target, res.get("epic")
-        return findings, "R2", target, res.get("epic")
-    return findings, "R1", target, res.get("epic")
+        # The clean answer carries the row `resolve_issue` chose, so R2 and R9 stay
+        # distinguishable on the PR side as they are on the resolve side.
+        return findings, res.get("row") or "R2", target, res.get("epic")
+    return findings, res.get("row") or "R1", target, res.get("epic")
 
 
-def _epic_head_findings(runner, repo, pr, findings, listings=None):
-    """R6 and R9 for a PR whose HEAD is an epic branch."""
+def _epic_head_findings(runner, repo, pr, findings, listings=None, heads=None):
+    """R6 and R9 for a PR whose HEAD is an epic branch.
+
+    A name under `epic/` is only an integration branch if an `Epic`-labelled issue
+    declares it, so this path asks the ownership question before it blesses anything:
+    an unowned `epic/*` head fails closed with the same rule-2 refusal `resolve` answers
+    through `_slug_conflict`, because the CI job that runs `check-pr` is the one place
+    the rule was previously silent about. Ownership is measured over open *and* closed
+    epics exactly as `_slug_conflict` measures it, so the branch of a closed epic is the
+    stale branch of rule 11 - its own finding, a person's decision - and not rule 2's
+    unowned one.
+    """
     head, base, number = pr["head"], pr["base"], pr["number"]
+    slug = branch_slug(head)
+    claimants = [e for e in epic_listing(runner, repo, listings)
+                 if slug and e["slug"] == slug]
+    if not claimants:
+        raise EpicBranchError(
+            "PR #%d has `%s` as its head but no `Epic`-labelled issue declares the slug "
+            "`%s`: an `epic/*` branch nobody owns is not an integration target (rule 2). "
+            "The epic either never declared its slug or the branch was cut by hand - "
+            "`check-branch --epic N` names which epic owns which branch"
+            % (number, head, slug or "-"), "epic-branch-unclaimed")
     epic = _epic_for_branch(runner, repo, head, listings)
+    if epic is None:
+        findings.append(Finding(
+            "epic-branch-stale",
+            "PR #%d merges `%s`, whose epic #%d is %s; rule 11 retires the branch in the "
+            "same act as the integration merge, so a person decides whether this pull "
+            "request or the epic's closure is what is wrong (R6, R11)"
+            % (number, head, claimants[0]["number"], claimants[0]["state"].lower())))
+        return findings, "R6", None, None
+    # Fork identity guards the integration edge exactly as it guards the child edge: an
+    # epic branch is a branch of THIS repository, so a head that merely carries such a
+    # name from a fork is not the epic's integration and cannot be proven one.
+    if pr["headRepo"] != repo:
+        findings.append(Finding(
+            "fork-head-target",
+            "PR #%d presents `%s` as the epic's integration into `%s` but its head comes "
+            "from `%s`; an epic branch is a branch of this repository, so integration "
+            "work is branched here and not forked in (R12)"
+            % (number, head, base, pr["headRepo"])))
+        return findings, "R12", None, epic
+    if head not in heads:
+        # The name is owned and the PR exists, but no such head stands on origin: the
+        # branch was deleted under the pull request, so there is no integration to bless.
+        findings.append(Finding(
+            "epic-branch-missing",
+            "PR #%d merges `%s`, which no longer exists on origin although epic #%d "
+            "declares it; `create-branch --epic %d --write` is the protected path that "
+            "puts such a branch back (rule 3)"
+            % (number, head, epic["number"], epic["number"])))
+        return findings, "R6", None, epic
     if base != DEVELOP and not base.startswith(EPIC_PREFIX):
         findings.append(Finding(
             "epic-pr-base",
@@ -966,6 +1076,7 @@ def _epic_for_branch(runner, repo, branch, listings=None):
             "parent": {"number": parent, "slug": gp["slug"]} if gp["slug"] else None}
 
 
+@_verb("check-branch")
 def check_branch(runner, epic_number, repo=None, mode=None, today=None, heads=None,
                  listings=None):
     """Existence, uniqueness and staleness of one epic's integration branch."""
@@ -1017,16 +1128,21 @@ def check_branch(runner, epic_number, repo=None, mode=None, today=None, heads=No
                 "exit_code": 1 if (mode == "strict"
                                    and any(f.severity == "error" for f in findings)) else 0}
     except EpicBranchError as e:
-        return _branch_error(epic_number, repo, mode, str(e))
+        return _branch_error(epic_number, repo, mode, str(e), e.code)
 
 
-def _branch_error(epic_number, repo, mode, message):
+def _branch_error(epic_number, repo, mode, message, code=None):
+    """The gated fail-closed answer of `check-branch`, with the same code rule as
+    `_pr_error`: the refusing rule when it is known, `metadata-unreadable` otherwise."""
+    finding = (Finding(code, message) if code
+               else Finding("metadata-unreadable", message))
     return {"schema": SCHEMA, "status": "error", "error": message, "repo": repo,
             "mode": mode, "strict_from": strict_from(), "epic": epic_number,
-            "findings": [Finding("metadata-unreadable", message).as_dict()],
+            "findings": [finding.as_dict()],
             "exit_code": 1 if mode == "strict" else 0}
 
 
+@_verb("audit")
 def audit(runner, repo=None, mode=None, today=None, scope="epic"):
     """Every open epic, and with scope all-approved every open PR, in one report.
 
@@ -1086,6 +1202,7 @@ def _require_human(runner):
     return login
 
 
+@_verb("create-branch")
 def create_branch(runner, epic_number, write=False, repo=None, heads=None):
     """Rule 3: `epic/<slug>` from the tip of origin/develop - or reuse what already stands.
 
@@ -1151,6 +1268,7 @@ def create_branch(runner, epic_number, write=False, repo=None, heads=None):
         return _err(str(e))
 
 
+@_verb("retarget")
 def retarget(runner, pr_number, base, write=False, repo=None):
     """Move an OPEN pull request's base onto its resolved target.
 
@@ -1216,27 +1334,68 @@ def today_or(value):
     return value or date.today().isoformat()
 
 
+def _pr_head(res):
+    return "PR #%s  %s -> %s  target %s  row %s  mode %s" % (
+        res["pr"], res.get("head"), res.get("base"), res.get("target") or "-",
+        res.get("row") or "-", res.get("mode"))
+
+
+def _audit_head(res):
+    return "audit of %s  scope %s  mode %s  epics %d  pulls %d  findings %d" % (
+        res.get("repo"), res.get("scope"), res.get("mode"), len(res.get("epics") or []),
+        len(res.get("pulls") or []), len(res.get("findings") or []))
+
+
+def _epic_branch_head(res):
+    # `check-branch` and both write verbs report an epic and its branch; the two write
+    # verbs are not gates and carry no mode.
+    return "epic #%s  branch %s  sha %s%s" % (
+        res.get("epic"), res.get("branch") or "-",
+        (res.get("branchSha") or "-")[:10],
+        "" if res.get("mode") is None else "  mode %s" % res["mode"])
+
+
+def _resolve_head(res):
+    return "#%s  target %s  row %s  mode %s" % (
+        res.get("issue"), res.get("target") or "-", res.get("row") or "-",
+        res.get("mode") or "-")
+
+
+def _retarget_head(res):
+    return "PR #%s  base %s -> %s  row %s  mode %s" % (
+        res.get("pr"), res.get("base") or "-", res.get("target") or "-",
+        res.get("row") or "-", res.get("mode") or "-")
+
+
+def _unknown_head(res):
+    """An envelope whose verb is not one of the six: named as unknown, not guessed at.
+
+    Guessing here is what printed `epic #None branch develop` for an independent issue -
+    a header about an epic that does not exist. Saying the shape is unrecognised cannot
+    mislead the person reading it before a gated write.
+    """
+    return "unrecognised result%s  status %s  findings %d" % (
+        " (command %s)" % res["command"] if res.get("command") else "",
+        res.get("status"), len(res.get("findings") or []))
+
+
+_HEADS = {"resolve": _resolve_head, "check-pr": _pr_head, "check-branch": _epic_branch_head,
+          "create-branch": _epic_branch_head, "retarget": _retarget_head,
+          "audit": _audit_head}
+
+
 def render_human(res):
+    """The verdict line, the reason and the findings - one shape per subcommand.
+
+    The shape comes from the `command` every result carries, never from which optional
+    keys happen to be filled: a `resolve` of an issue with no parent carries
+    ``branch: develop`` and no epic, and a `retarget` carries an `epic` and no findings,
+    so a renderer that sniffed the keys described the first as an epic branch of epic
+    #None and dropped the base transition the second exists to report.
+    """
     if res["status"] == "error":
         return "ERROR - fail closed, decide nothing\n%s" % res.get("error")
-    if res.get("pr") and "head" in res:
-        head = "PR #%s  %s -> %s  target %s  row %s  mode %s" % (
-            res["pr"], res.get("head"), res.get("base"), res.get("target") or "-",
-            res.get("row") or "-", res.get("mode"))
-    elif res.get("epics") is not None:
-        head = "audit of %s  scope %s  mode %s  epics %d  pulls %d  findings %d" % (
-            res.get("repo"), res.get("scope"), res.get("mode"), len(res["epics"]),
-            len(res["pulls"]), len(res["findings"]))
-    elif res.get("branch") is not None or res.get("slug") is not None:
-        head = "epic #%s  branch %s  sha %s%s" % (
-            res.get("epic"), res.get("branch") or "-",
-            (res.get("branchSha") or "-")[:10],
-            # the two write verbs report no mode - they are not gates.
-            "" if res.get("mode") is None else "  mode %s" % res["mode"])
-    else:
-        head = "#%s  target %s  row %s  mode %s" % (
-            res.get("issue") or res.get("epic"), res.get("target") or "-",
-            res.get("row") or "-", res.get("mode") or "-")
+    head = _HEADS.get(res.get("command"), _unknown_head)(res)
     lines = [head]
     if res.get("reason"):
         lines.append("  %s" % res["reason"])

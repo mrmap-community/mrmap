@@ -15,6 +15,7 @@ XPATH_MAP = {
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
         "_pre_save": [
+            "registry.mappers.extensions.validate_required_service_contact",
             "registry.mappers.extensions.clean_up_operation_urls"
         ],
         "service": {

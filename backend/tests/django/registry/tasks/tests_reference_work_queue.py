@@ -392,6 +392,7 @@ class ReferenceRecoveryAndCleanupTests(MediaStorageMixin, WorkerRunMixin,
     def setUp(self):
         super().setUp()
         contact = MetadataContact.objects.create(name='recovery contact')
+        self.contact = contact
         self.service = WebMapService.objects.create(
             title='Recovery test service', version=130, origin=1,
             service_url='http://recovery.example.org/wms',
@@ -639,6 +640,31 @@ class ReferenceRecoveryAndCleanupTests(MediaStorageMixin, WorkerRunMixin,
         process.delete()
         self.assertIsNone(TemporaryMdMetadataFile.objects.filter(
             pk=pk).first())
+
+    def test_deleting_described_service_cascades_its_registration_work_rows(self):
+        """Deleting a described service removes queued work, never SET_NULLs it."""
+        process = self._process()
+        wms_row = self._row(process, 'http://x/wms-delete')
+
+        wfs = WebFeatureService.objects.create(
+            title='WFS delete work service', version=200, origin=1,
+            service_url='http://recovery.example.org/wfs',
+            metadata_contact=self.contact, service_contact=self.contact)
+        wfs_row = TemporaryMdMetadataFile.objects.create(
+            background_process=process,
+            reference_key=TemporaryMdMetadataFile.build_reference_key(
+                wfs, 'http://x/wfs-delete'),
+            requested_url='http://x/wfs-delete',
+            described_wfs=wfs,
+            described_display=wfs.title,
+            state=ReferenceWorkStateEnum.FAILED.value,
+            request_id=timezone.now())
+
+        self.service.delete()
+        wfs.delete()
+
+        self.assertFalse(TemporaryMdMetadataFile.objects.filter(
+            pk__in=[wms_row.pk, wfs_row.pk]).exists())
 
 
 @override_settings(CHANNEL_LAYERS={

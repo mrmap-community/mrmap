@@ -122,7 +122,8 @@ than estimated:
 * the heap/index/TOAST split — the per-relation counters of
   ``pg_statio_user_tables`` are cumulative since the last stats reset and are not
   a current byte split;
-* per-table WAL — ``pg_wal_bytes()`` answers cluster-wide since startup;
+* per-table WAL — ``pg_stat_wal.wal_bytes`` is one cluster-wide counter since
+  the last stats reset and cannot be attributed to a table;
 * deleted space actually reclaimed — ``DELETE`` returns nothing to the operating
   system until a vacuum, rewrite or WAL checkpoint does;
 * broker and result-backend bytes — a broker round trip, which is #1500's tool;
@@ -192,6 +193,10 @@ declaration covers. That is what makes "the inventory is complete" a checkable
 claim instead of an aspiration: an app added to ``INSTALLED_APPS`` or a model
 added to an app shows up there until it is declared, which is where the epic's
 rule that a new continuously growing model declares its lifecycle gets enforced.
+The answer is an answer object, not a bare list: a catalog which could not be
+read says so, because ``[]`` would otherwise render as "every table of an
+inventoried app is declared" — the false all-clear this report exists not to
+print.
 
 The declarations themselves are covered by tests which resolve them against the
 running schema and the loaded models: every declared model resolves (concrete or

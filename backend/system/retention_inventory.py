@@ -438,21 +438,57 @@ def _window_count(cursor, table_name, time_column, since, until):
     return (row or {}).get("rows_in_window"), plan
 
 
+#: the node types which say how a table was actually reached
+_SCAN_NODES = frozenset({
+    "Seq Scan", "Index Scan", "Index Only Scan", "Bitmap Heap Scan",
+    "Bitmap Index Scan", "Tid Scan", "Sample Scan"})
+
+
+def _scan_nodes(node, found=None):
+    """Every scan node below ``node``, outermost first.
+
+    One entry per relation, with the access method and — when PostgreSQL named
+    one — the index used. An unindexed retention predicate shows up here as a
+    ``Seq Scan``, which is the finding #1503 needs this report to hand it.
+    """
+    found = [] if found is None else found
+    node_type = node.get("Node Type")
+    if node_type in _SCAN_NODES:
+        scan = {"node_type": node_type}
+        if node.get("Relation Name"):
+            scan["relation"] = node["Relation Name"]
+        if node.get("Index Name"):
+            scan["index"] = node["Index Name"]
+        if node.get("Index Scan Strategy"):
+            scan["strategy"] = node["Index Scan Strategy"]
+        if node.get("Filter"):
+            scan["filter"] = node["Filter"]
+        found.append(scan)
+    for child in node.get("Plans") or []:
+        _scan_nodes(child, found)
+    return found
+
+
 def _plan_shape(plan):
-    """The access method of the window read, as far as ``EXPLAIN`` said."""
+    """The access method of the window read, as far as ``EXPLAIN`` said.
+
+    The root of ``select count(*) …`` is an ``Aggregate``, so the access method
+    lives in its descendants: a shape read off ``plan[0]["Plan"]`` would always
+    say ``Aggregate`` and never show the ``Seq Scan`` whose visibility is the
+    reason the read plan is reported at all (#1503). The scans of the whole
+    subtree are therefore collected, with the root's cost, so a reader can see
+    both what the predicate cost and how the table was reached.
+    """
     if not plan:
         return None
     try:
-        node = plan[0]["Plan"]
+        root = plan[0]["Plan"]
     except (KeyError, IndexError, TypeError):
         return None
-    shape = {"node_type": node.get("Node Type"),
-             "total_cost": node.get("Total Cost"),
-             "plan_rows": node.get("Plan Rows")}
-    for key, name in (("Relation Name", "relation"), ("Index Name", "index"),
-                      ("Index Scan Strategy", "strategy")):
-        if node.get(key):
-            shape[name] = node[key]
+    shape = {"node_type": root.get("Node Type"),
+             "total_cost": root.get("Total Cost"),
+             "plan_rows": root.get("Plan Rows"),
+             "scans": _scan_nodes(root)}
     return shape
 
 
@@ -509,22 +545,35 @@ def _window_sample(cursor, table_name, time_column, since, until):
 
 
 def _wal_bytes(cursor):
-    """WAL written since startup, when the role may ask.
+    """WAL this cluster generated, when the role may ask.
 
-    ``pg_wal_bytes()`` needs superuser or membership of ``pg_read_all_stats``;
-    a deployment whose inventory role has neither gets the reason rather than a
-    zero, and the report says which role it ran as.
+    ``pg_stat_wal.wal_bytes`` is the counter which actually exists on the
+    supported majors (there is no ``pg_wal_bytes()`` function to call). It is
+    cluster-wide and counts from the last stats reset rather than from a
+    startup, so the reset stamp travels with it and nothing here may be read as
+    "since startup" or attributed to one table — see
+    ``provenance.not_measured['per_table_wal']``. A role which may not read the
+    view gets the reason rather than a zero, and the report says which role it
+    ran as.
     """
     try:
-        cursor.execute("select pg_catalog.pg_wal_bytes() as wal_bytes")
+        # wal_bytes is numeric in the catalog; cast to bigint so the answer is
+        # the same int kind every other byte answer of the report is, and stays
+        # JSON-serialisable
+        cursor.execute("select wal_bytes::bigint as wal_bytes,"
+                       " stats_reset as stats_reset"
+                       " from pg_catalog.pg_stat_wal")
     except db_utils.DatabaseError:
         return unavailable(REASON_NO_WAL_ACCESS,
-                           detail="pg_wal_bytes() needs superuser or "
-                                  "pg_read_all_stats")
+                           detail="pg_stat_wal is readable by a superuser or "
+                                  "a member of pg_read_all_stats")
     row = _row(cursor)
-    if not row or row["wal_bytes"] is None:
-        return unavailable(REASON_NO_WAL_ACCESS)
-    return measured(row["wal_bytes"])
+    if not row or row.get("wal_bytes") is None:
+        return unavailable(REASON_NO_WAL_ACCESS,
+                           detail="pg_stat_wal answered no counter")
+    reset = row.get("stats_reset")
+    return measured(row["wal_bytes"], cluster_wide=True,
+                    stats_reset=reset.isoformat() if reset else None)
 
 
 def _role_name(cursor):
@@ -691,9 +740,14 @@ def undeclared_tables():
     app, appears here until it is declared. The epic's rule that a new
     continuously growing model must declare its lifecycle is enforced by this
     report rather than by memory.
+
+    An answer object rather than a bare list, because ``[]`` is also the answer
+    of a deployment whose catalog could not be read: a failed read must not
+    render as "every table of an inventoried app is declared", which is the
+    false all-clear this module exists not to print.
     """
     if not is_postgresql():
-        return []
+        return unavailable(REASON_NOT_POSTGRESQL)
     declared = set()
     for dataset in DATASETS:
         declared.update(dataset_tables(dataset))
@@ -710,10 +764,11 @@ def undeclared_tables():
                 " and c.relkind in ('r', 'p')"
                 " order by total_bytes desc nulls last")
             rows = _rows(cursor)
-    except db_utils.DatabaseError:
-        return []
-    return [dict(row, reason=REASON_UNDECLARED)
-            for row in rows if row["table"] not in declared]
+    except db_utils.DatabaseError as error:
+        return unavailable(REASON_QUERY_FAILED, detail=str(error))
+    return measured([dict(row, reason=REASON_UNDECLARED)
+                     for row in rows if row["table"] not in declared],
+                    tables_in_schema=len(rows))
 
 
 # ---------------------------------------------------------------------------
@@ -1063,10 +1118,19 @@ def measure_media_source(source, include_media=True):
                    f"nothing below this prefix may be called orphaned")
         reasons.append(REASON_QUERY_FAILED)
     elif refs_truncated:
+        # the limit is a budget and not a sample: names past it are unknown,
+        # so the orphan figure would be computed from a knowingly incomplete
+        # reference set. It is voided with the reference answer rather than
+        # printed as measured — see the docstring of _file_names.
         answer["referenced_bytes"] = unavailable(
             REASON_REFERENCE_LIMIT_EXHAUSTED,
             detail=f"the reference set stopped at {MEDIA_REFERENCE_LIMIT} "
                    f"names")
+        answer["unreferenced_bytes"] = unavailable(
+            REASON_REFERENCE_LIMIT_EXHAUSTED,
+            detail=f"the reference set stopped at {MEDIA_REFERENCE_LIMIT} "
+                   f"names, so nothing below this prefix may be called "
+                   f"orphaned")
         reasons.append(REASON_REFERENCE_LIMIT_EXHAUSTED)
     else:
         answer["referenced_bytes"] = measured(referenced_bytes,
@@ -1213,7 +1277,8 @@ def cache_facts():
     for name, config in (getattr(settings, "CACHES", {}) or {}).items():
         backend = config.get("BACKEND", "") or ""
         caches[name] = {
-            "backend": backend.rsplit(".", 2)[-2] if backend else None,
+            # the class itself, not the "cache" of "….cache.RedisCache"
+            "backend": backend.rsplit(".", 1)[-1] if backend else None,
             "location": _redact(config.get("LOCATION")),
             "timeout": config.get("TIMEOUT", 300),
             "bounded_by": ("redis maxmemory policy" if "redis" in backend.lower()
@@ -1594,8 +1659,7 @@ def build_inventory(window_days=MEASUREMENT_WINDOW_DAYS, horizon_days=HORIZON_DA
             "growing_datasets": sum(1 for dataset in DATASETS
                                     if dataset.growth != GROWTH_BOUNDED),
             "measured_tables": table_names,
-            "undeclared_tables": [row["table"] for row in undeclared],
-            "undeclared": undeclared,
+            "undeclared_tables": undeclared,
         },
         "datasets": rows,
         "measurements": measurements,
@@ -1658,7 +1722,8 @@ _NOT_MEASURED = {
     "broker_and_result_backend_bytes": (
         "needs a broker round trip; #1500's CLI"),
     "per_table_wal": (
-        "pg_wal_bytes() answers cluster-wide since startup, not per table"),
+        "pg_stat_wal.wal_bytes is one cluster-wide counter since the last "
+        "stats reset; it cannot be attributed to a table"),
     "media_on_object_storage": (
         "a storage without a filesystem location has no walk; its sources "
         "carry the reason"),
@@ -1816,7 +1881,7 @@ def _text_disk_caches(report):
         out.append(_disk_line(label, entry))
     wal = report["postgresql"]["wal_bytes"]
     out.append(f"  wal_bytes   {_from(wal):>9}  "
-               f"{wal[REASON] or 'pg_wal_bytes(), cluster-wide since startup'}")
+               f"{wal[REASON] or 'pg_stat_wal, cluster-wide since stats reset'}")
     caches = report["caches"]
     for name, config in caches["caches"].items():
         out.append(f"  cache {name:<9}{str(config['bounded_by'])}  "
@@ -1828,11 +1893,15 @@ def _text_disk_caches(report):
 
 
 def _text_undeclared(meta):
-    undeclared = meta["undeclared_tables"]
-    out = [f"Undeclared tables ({len(undeclared)}) — a table of an "
+    answer = meta["undeclared_tables"]
+    rows = answer[VALUE] or []
+    out = [f"Undeclared tables ({len(rows)}) — a table of an "
            f"inventoried app with no declaration"]
-    if undeclared:
-        for row in meta["undeclared"]:
+    if not answer[MEASURED]:
+        detail = f" — {answer['detail']}" if answer.get("detail") else ""
+        out.append(f"  could not ask: {answer[REASON]}{detail}")
+    elif rows:
+        for row in rows:
             out.append(f"  {row['table']:<44}{_bytes(row.get('total_bytes')):>9}"
                        f"  rows {row.get('estimated_rows', 0):,}")
     else:

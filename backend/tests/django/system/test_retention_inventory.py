@@ -291,6 +291,49 @@ class AnswerShapeTests(SimpleTestCase):
             set(provenance["not_measured"]))
         self.assertTrue(provenance["read_only_enforced"])
 
+    def test_plan_shape_reaches_the_scan_below_the_aggregate(self):
+        """``count(*)`` roots at an ``Aggregate``; the access method is below it.
+
+        The shape of a ``select count(*) …`` plan as the pinned PostgreSQL 18
+        returns it. Reading only ``plan[0]["Plan"]`` would report ``Aggregate``
+        for every dataset and never the ``Seq Scan`` whose visibility is the
+        reason the read plan ships at all (#1503).
+        """
+        plan = [{"Plan": {
+            "Node Type": "Aggregate", "Strategy": "Plain",
+            "Total Cost": 44.70, "Plan Rows": 1,
+            "Plans": [{
+                "Node Type": "Seq Scan", "Parent Relationship": "Outer",
+                "Relation Name": "registry_harvestingjob",
+                "Total Cost": 44.66, "Plan Rows": 11,
+                "Filter": "(created_at >= '2026-10-01'::timestamptz)"}]}}]
+        shape = inventory._plan_shape(plan)
+        self.assertEqual("Aggregate", shape["node_type"])
+        self.assertEqual(44.70, shape["total_cost"])
+        self.assertEqual(1, len(shape["scans"]), "the leaf is the finding")
+        scan = shape["scans"][0]
+        self.assertEqual("Seq Scan", scan["node_type"],
+                         "an unindexed retention predicate must be visible")
+        self.assertEqual("registry_harvestingjob", scan["relation"])
+        self.assertNotIn("index", scan, "no index was used, so none is named")
+
+    def test_plan_shape_names_the_index_an_indexed_predicate_used(self):
+        plan = [{"Plan": {
+            "Node Type": "Aggregate", "Total Cost": 8.44, "Plan Rows": 1,
+            "Plans": [{
+                "Node Type": "Index Only Scan",
+                "Relation Name": "system_celerytaskattempt",
+                "Index Name": "celery_created_at_idx",
+                "Index Scan Strategy": "forward"}]}}]
+        scan = inventory._plan_shape(plan)["scans"][0]
+        self.assertEqual("Index Only Scan", scan["node_type"])
+        self.assertEqual("celery_created_at_idx", scan["index"])
+
+    def test_plan_shape_of_missing_explain_is_none(self):
+        self.assertIsNone(inventory._plan_shape(None))
+        self.assertIsNone(inventory._plan_shape([]))
+        self.assertIsNone(inventory._plan_shape([{}]))
+
 
 class PathSafetyTests(SimpleTestCase):
     """The walk reads names, never bodies — and never outside the root."""
@@ -355,6 +398,19 @@ class CacheAndDiskTests(SimpleTestCase):
         self.assertIn("default", facts["caches"])
         self.assertIsNotNone(facts["celery_result_expires_seconds"])
         self.assertNotIn("pw", str(facts["celery_broker_url"] or ""))
+
+    def test_cache_backend_is_named_by_its_class_not_by_the_word_cache(self):
+        """``django_redis.cache.RedisCache`` is a RedisCache, not "cache"."""
+        with self.settings(CACHES={
+                "default": {
+                    "BACKEND": "django_redis.cache.RedisCache",
+                    "LOCATION": "redis://broker:6379/1"},
+                "memory": {
+                    "BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}):
+            caches = inventory.cache_facts()["caches"]
+        self.assertEqual("RedisCache", caches["default"]["backend"])
+        self.assertEqual("LocMemCache", caches["memory"]["backend"])
+        self.assertEqual("redis maxmemory policy", caches["default"]["bounded_by"])
 
     def test_disk_facts_of_a_missing_directory_says_the_directory_is_absent(
             self):
@@ -436,8 +492,12 @@ class NonPostgresTests(SimpleTestCase):
         self.assertIsNone(answer["total_bytes"]["value"])
         self.assertEqual([], answer["indexes"])
 
-    def test_undeclared_tables_answer_empty_not_wrong(self):
-        self.assertEqual([], inventory.undeclared_tables())
+    def test_undeclared_tables_says_it_could_not_ask(self):
+        """Not ``[]`` — that is also the answer of a complete inventory."""
+        answer = inventory.undeclared_tables()
+        self.assertFalse(answer[inventory.MEASURED])
+        self.assertEqual(inventory.REASON_NOT_POSTGRESQL, answer[inventory.REASON])
+        self.assertIsNone(answer[inventory.VALUE])
 
 
 class MediaMeasurementTests(TestCase):
@@ -555,6 +615,12 @@ class MediaMeasurementTests(TestCase):
         self.assertTrue(answer["reasons"])
 
     def test_reference_limit_makes_the_orphan_answer_unavailable(self):
+        """A budget is not a sample: names past it are unknown, not absent.
+
+        ``unreferenced_bytes`` is the number #1501 would delete by, so a
+        reference set which stopped early voids it as well as the reference
+        answer — the two cannot disagree about whether the set was complete.
+        """
         process_log("BackgroundProcessLog/4/a.txt", b"a")
         process_log("BackgroundProcessLog/5/b.txt", b"b")
         with mock.patch.object(inventory, "MEDIA_REFERENCE_LIMIT", 1):
@@ -562,6 +628,11 @@ class MediaMeasurementTests(TestCase):
         self.assertFalse(answer["referenced_bytes"]["measured"])
         self.assertEqual(inventory.REASON_REFERENCE_LIMIT_EXHAUSTED,
                          answer["referenced_bytes"]["reason"])
+        self.assertFalse(answer["unreferenced_bytes"]["measured"],
+                         "an incomplete reference set has no orphan answer")
+        self.assertEqual(inventory.REASON_REFERENCE_LIMIT_EXHAUSTED,
+                         answer["unreferenced_bytes"]["reason"])
+        self.assertIsNone(answer["unreferenced_bytes"]["value"])
         self.assertIn(inventory.REASON_REFERENCE_LIMIT_EXHAUSTED,
                       answer["reasons"])
 
@@ -717,13 +788,29 @@ class PostgreSQLInventoryTests(TestCase):
         wal = answers["system_celerytaskattempt"]["wal_bytes"]
         self.assertFalse(wal["measured"])
         self.assertEqual(inventory.REASON_NOT_REQUESTED, wal["reason"])
+
+    def test_wal_bytes_measures_the_counter_which_exists(self):
+        """``pg_stat_wal.wal_bytes``, not a function which does not exist.
+
+        The pinned image has no ``pg_wal_bytes()``; reading the view instead is
+        what makes ``--wal`` able to answer at all, and a reason about a missing
+        privilege would send an operator to grant something that cannot fix it.
+        """
         answers = inventory.measure_tables(["system_celerytaskattempt"],
                                            with_wal=True)
         wal = answers["system_celerytaskattempt"]["wal_bytes"]
         if not wal["measured"]:
-            # a role without the privilege: the reason names what is missing
+            # a role without the privilege: the reason names the view and the
+            # role which may read it, never a function to call
             self.assertEqual(inventory.REASON_NO_WAL_ACCESS, wal["reason"])
-            self.assertIn("pg_read_all_stats", wal["detail"])
+            self.assertIn("pg_stat_wal", wal["detail"])
+            self.assertNotIn("pg_wal_bytes()", wal["detail"])
+            return
+        self.assertIsInstance(wal["value"], int)
+        self.assertGreaterEqual(wal["value"], 0)
+        self.assertTrue(wal["cluster_wide"],
+                        "one cluster counter, never a per-table claim")
+        self.assertIn("stats_reset", wal)
 
     def test_postgresql_facts_reports_the_maintenance_settings(self):
         facts = inventory.postgresql_facts()
@@ -735,7 +822,11 @@ class PostgreSQLInventoryTests(TestCase):
     def test_undeclared_tables_lists_tables_no_declaration_covers(self):
         declared = {name for dataset in DATASETS
                     for name in inventory.dataset_tables(dataset)}
-        undeclared = inventory.undeclared_tables()
+        answer = inventory.undeclared_tables()
+        self.assertTrue(answer[inventory.MEASURED],
+                        "a catalog which could not be read must not read as "
+                        "a complete inventory")
+        undeclared = answer[inventory.VALUE]
         names = [row["table"] for row in undeclared]
         for row in undeclared:
             self.assertNotIn(row["table"], declared)
@@ -743,6 +834,22 @@ class PostgreSQLInventoryTests(TestCase):
         self.assertIn("registry_periodicharvestingjob", names,
                       "a table of an inventoried app with no declaration must "
                       "be visible rather than silently absent")
+
+    def test_a_failed_catalog_read_is_a_reason_and_not_an_all_clear(self):
+        """``[]`` would render as "every table of an inventoried app is declared"."""
+        with mock.patch.object(inventory, "_rows",
+                               side_effect=db_utils.DatabaseError("catalog")):
+            answer = inventory.undeclared_tables()
+        self.assertFalse(answer[inventory.MEASURED])
+        self.assertEqual(inventory.REASON_QUERY_FAILED, answer[inventory.REASON])
+        self.assertIsNone(answer[inventory.VALUE])
+        self.assertIn("catalog", answer["detail"])
+        lines = inventory._text_undeclared(
+            {"undeclared_tables": answer})
+        self.assertTrue(any("could not ask" in line for line in lines),
+                        lines)
+        self.assertFalse(any("every table of an inventoried app is declared"
+                             in line for line in lines), lines)
 
     def test_deletion_graph_comes_from_the_model_metadata(self):
         """#1497: a selection must know its FK graph before it selects."""

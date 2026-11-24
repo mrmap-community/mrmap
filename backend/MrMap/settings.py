@@ -476,18 +476,49 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # note above. A deployment whose TLS dies in front of this container and which
 # wants to answer plain http sets ``DJANGO_SECURE_SSL_REDIRECT=False``.
 SECURE_SSL_REDIRECT = _flag_from_env(os.environ, "DJANGO_SECURE_SSL_REDIRECT", MRMAP_PRODUCTION)
-SECURE_HSTS_SECONDS = int(os.environ.get(
-    "DJANGO_SECURE_HSTS_SECONDS", str(31536000) if MRMAP_PRODUCTION else "0"))
+
+
+def _hsts_seconds_from_env(environ, production: bool) -> int:
+    """The HSTS ``max-age`` of one environment, in seconds.
+
+    Blank means the default of the deployment mode, as it does for every other
+    knob of the block. A value which is not a number is refused while the
+    settings load rather than being read as some other number elsewhere: the
+    header is a one-way door once a browser has seen it, so a deployment which
+    meant a year and typed ``1y`` must not find out from a browser which refuses
+    http to its host, and must not silently get the mode's default either.
+    """
+    raw = environ.get("DJANGO_SECURE_HSTS_SECONDS")
+    if raw is None or not raw.strip():
+        return 31536000 if production else 0
+    value = raw.strip()
+    # not int(value): int() also swallows the underscore separators of a Python
+    # literal, so a deployment which typed 1_000_000 would get what it typed
+    # while believing it had named a value no one else reads the same way
+    if not re.fullmatch(r"-?\d+", value):
+        raise ImproperlyConfigured(
+            f"DJANGO_SECURE_HSTS_SECONDS must be a number of seconds, got "
+            f"{raw!r}. Set 0 to send no Strict-Transport-Security header at all.")
+    seconds = int(value)
+    if seconds < 0:
+        raise ImproperlyConfigured(
+            f"DJANGO_SECURE_HSTS_SECONDS must not be negative, got {seconds}. "
+            "Set 0 to send no Strict-Transport-Security header at all.")
+    return seconds
+
+
+SECURE_HSTS_SECONDS = _hsts_seconds_from_env(os.environ, MRMAP_PRODUCTION)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _flag_from_env(
     os.environ, "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", MRMAP_PRODUCTION)
 SECURE_HSTS_PRELOAD = _flag_from_env(os.environ, "DJANGO_SECURE_HSTS_PRELOAD", False)
 SECURE_CONTENT_TYPE_NOSNIFF = _flag_from_env(
     os.environ, "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", True)
-SECURE_REFERRER_POLICY = os.environ.get("DJANGO_SECURE_REFERRER_POLICY", "same-origin")
+SECURE_REFERRER_POLICY = (
+    os.environ.get("DJANGO_SECURE_REFERRER_POLICY") or "same-origin")
 # A browser must only ever frame this application's own pages. Django's
 # middleware answers the header; the edge of the frontend repeats it
 # (docker/nginx/mrmap.conf) for the answers it serves itself.
-X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS", "DENY")
+X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS") or "DENY"
 if SECURE_SSL_REDIRECT and SECURE_HSTS_SECONDS == 0:
     warn(
         "SECURE_SSL_REDIRECT is active with an HSTS max-age of 0: the browser "
@@ -516,6 +547,20 @@ if SECURE_SSL_REDIRECT and SECURE_HSTS_SECONDS == 0:
 # built bundle loads itself (the monaco editor from jsDelivr, the map tiles
 # of the record editor from the OSM tile hosts).
 #
+# ``connect-src`` carries no ``wss:``. That spelling is a *scheme* source -- a
+# source with a scheme and no host -- so it admits ``wss://`` to every address
+# there is, which is the outbound channel this header exists to close: injected
+# script which had read a credential would be free to post it to a collector, and
+# from a browser inside a company network to ``wss://10.0.0.7:PORT`` as well,
+# which is a pivot towards hosts the deployment can reach and the public cannot.
+# The application does not need the breadth: the only socket it opens is its own
+# origin (``RealtimeBus.tsx`` builds it from ``VITE_API_BASE_URL`` /
+# ``VITE_API_PORT``, which ``docker-compose.yml`` feeds from ``EXTERNAL_BASE_URL``
+# / ``EXTERNAL_PORT`` -- the very host and port the SPA was loaded from), and CSP
+# normalizes ``wss`` to ``https`` when it matches a source, so ``'self'`` admits
+# it. Where a socket really leaves the origin, it is a development decision and
+# joins below, the way the vite origins join ``CSRF_TRUSTED_ORIGINS``.
+#
 # ``'unsafe-inline'`` for styles is not a hole: the styling-in-CSS and
 # inline-style attributes of MUI, leaflet and monaco are the mechanism those
 # libraries position map overlays and editor decorations with, and CSP
@@ -536,7 +581,7 @@ CSP_DEFAULT = (
     "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
     "font-src 'self' data: https://fonts.gstatic.com; "
     "img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org; "
-    "connect-src 'self' wss:; "
+    "connect-src 'self'; "
     "worker-src 'self' blob:; "
     "object-src 'none'; "
     "base-uri 'self'; "
@@ -547,6 +592,39 @@ CSP_DEFAULT = (
 # the browser to upgrade anything it still loads over plain http, so a
 # stored ``http://`` resource reference cannot be downgraded on the wire.
 CSP_UPGRADE_INSECURE = "; upgrade-insecure-requests"
+# Sockets a development deployment opens outside the page's own origin, and the
+# origin of the vite dev server which opens them. The vite server proxies nothing
+# (``frontend/vite.config.mjs`` has no ``server.proxy``), so a page served from
+# ``:5173`` reaches the API and the websocket of the backend on ``:8001`` - two
+# origins, both loopback, both spelled out here instead of bought with a
+# ``wss:`` that would also be in force in production. The shipped deployment
+# needs neither: its edge serves the SPA and proxies ``/ws/`` on one origin.
+CSP_DEV_CONNECT_SRC = "ws://localhost:8001 ws://127.0.0.1:8001"
+
+
+def _shipped_policy_has_no_wildcard_socket(policy: str) -> str:
+    """Refuse a shipped policy whose ``connect-src`` carries a scheme source.
+
+    A source with a scheme and no host (``wss:``, ``ws:``) matches that scheme to
+    every address, which is the channel the policy exists to close. The guard
+    covers what this repository ships in either deployment mode - not
+    ``DJANGO_CONTENT_SECURITY_POLICY``, which is an operator naming their own
+    complete policy and stays their decision.
+    """
+    for part in policy.split(";"):
+        directive = part.strip()
+        if not directive.startswith("connect-src"):
+            continue
+        offenders = [source for source in directive.split()[1:]
+                     if source.endswith(":") and not source.startswith("'")]
+        if offenders:
+            raise ImproperlyConfigured(
+                f"{', '.join(offenders)} in connect-src is a scheme source: it "
+                "admits that scheme to every host, which is the outbound channel "
+                "this policy exists to close. Name the origin of the socket "
+                "instead, or - for a development-only socket - add it to "
+                "CSP_DEV_CONNECT_SRC.")
+    return policy
 
 
 def _content_security_policy_from_env(environ, production: bool) -> str:
@@ -563,13 +641,23 @@ def _content_security_policy_from_env(environ, production: bool) -> str:
     The shipped default is served in every deployment mode: it documents the
     sources of this application, not a production decision, and a policy
     which is only ever exercised in production is a policy whose breakage is
-    discovered in production. ``upgrade-insecure-requests`` joins under
+    discovered in production. Only the two loopback sockets of the vite dev
+    server join outside production, because that is the one topology where a
+    socket leaves the page's origin; production gets ``connect-src 'self'`` and
+    nothing else. Neither shipped policy may carry a bare ``ws:``/``wss:``,
+    which the guard below refuses at import rather than in a browser.
+    ``upgrade-insecure-requests`` joins under
     ``MRMAP_PRODUCTION``, where the TLS of the deployment is a promise.
     """
     explicit = environ.get("DJANGO_CONTENT_SECURITY_POLICY")
     if explicit is not None:
         return explicit.strip()
-    return CSP_DEFAULT + (CSP_UPGRADE_INSECURE if production else "")
+    policy = CSP_DEFAULT
+    if not production:
+        policy = policy.replace(
+            "connect-src 'self';", f"connect-src 'self' {CSP_DEV_CONNECT_SRC};")
+    policy += CSP_UPGRADE_INSECURE if production else ""
+    return _shipped_policy_has_no_wildcard_socket(policy)
 
 
 CONTENT_SECURITY_POLICY = _content_security_policy_from_env(
@@ -1246,10 +1334,17 @@ def _cookie_secure_from_env(environ, production: bool) -> bool:
     The explicit ``DJANGO_COOKIE_SECURE`` wins over the deployment-mode default,
     so an http-only deployment can opt out and a https staging deployment which
     is not flagged as production can opt in.
+
+    Blank is not a spelling of ``False``. It is what an unset variable looks like
+    once anything has passed it through, and reading it as an answer would drop
+    ``Secure`` from the session cookie of a production deployment on the strength
+    of a value nobody wrote - the same reason ``_flag_from_env`` above treats it
+    as "no decision" and the reason the pass-through in ``docker-compose.yml``
+    uses the bare-name form. Only the two spellings of the block decide.
     """
     override = environ.get("DJANGO_COOKIE_SECURE")
-    if override is not None:
-        return override == "True"
+    if override is not None and override.strip():
+        return override.strip() == "True"
     return production
 
 

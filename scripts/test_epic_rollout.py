@@ -247,6 +247,21 @@ def findings_of(res, token, epic=None):
             and (epic is None or f.get("epic") == epic)]
 
 
+def get(obj, dotted, default=None):
+    """Dotted lookup that yields default instead of KeyError: absence must FAIL, not abort."""
+    for key in dotted.split("."):
+        if not isinstance(obj, dict) or key not in obj:
+            return default
+        obj = obj[key]
+    return obj
+
+
+def finding_of(res, token, epic=None):
+    """The one finding carrying `token`, or None. Absence is a failed check, not a crash."""
+    found = findings_of(res, token, epic)
+    return found[0] if len(found) == 1 else None
+
+
 def actions_of(res, kind, epic=None):
     return [a for a in res["actions"] if a["kind"] == kind
             and (epic is None or a.get("epic") == epic)]
@@ -264,7 +279,8 @@ results = []
 
 def check(name, ok, detail=""):
     results.append(bool(ok))
-    print("  %-4s %s%s" % ("ok" if ok else "FAIL", name, "" if ok else "  - %s" % detail))
+    # (detail,) so a tuple or list detail prints instead of colliding with % formatting.
+    print("  %-4s %s%s" % ("ok" if ok else "FAIL", name, "" if ok else "  - %s" % (detail,)))
     return ok
 
 
@@ -624,12 +640,12 @@ check("--epic renders only the epic asked for",
 check("--epic does not invent an orphan out of another epic's healthy branch",
       not findings_of(res, "orphan-epic-branch"), res["blocking"])
 check("the inventory stays the repository's whole set under --epic",
-      res["inventory"]["open_epics"] == 2, res["inventory"])
+      get(res, "inventory.open_epics") == 2, res.get("inventory"))
 check("the scope of the rendered rows is named separately, not passed off as the inventory",
-      res["scope"] == {"epic": 10, "rows_rendered": 1}, res.get("scope"))
+      res.get("scope") == {"epic": 10, "rows_rendered": 1}, res.get("scope"))
 
-# The mirror case: the collision is with an epic outside the scope. Before the fix the tool
-# compared the epic against itself and reported nothing.
+# The mirror case: the collision is with an epic outside the scope. Scoped away, the two epics
+# were compared against themselves and nothing was reported at all.
 twin = (Fixture().epic(10, slug="alpha", children=[11])
         .epic(12, slug="alpha", children=[13])
         .epic(14, slug="gamma", children=[15])
@@ -639,19 +655,17 @@ check("--epic still reports a slug shared with an epic outside the scope",
       findings_of(res, "slug-duplicate"), [f["token"] for f in res["findings"]])
 check("a shared slug stays blocking under --epic",
       "slug-duplicate" in res["blocking"], res["blocking"])
+dup = finding_of(res, "slug-duplicate")
 check("the finding names both epics so the scoped reader knows which is whose",
-      "#10" in findings_of(res, "slug-duplicate")[0]["detail"]
-      and "#12" in findings_of(res, "slug-duplicate")[0]["detail"],
-      findings_of(res, "slug-duplicate")[0]["detail"])
+      dup and "#10" in dup["detail"] and "#12" in dup["detail"], dup)
 check("the epic in scope of a duplicate is attributed to it",
-      findings_of(res, "slug-duplicate")[0]["epic"] == 10,
-      findings_of(res, "slug-duplicate"))
+      dup and dup["epic"] == 10, dup)
 
 res = result(twin, "--epic", "14")
-dup = findings_of(res, "slug-duplicate")[0]
+other = finding_of(res, "slug-duplicate")
 check("a collision between two other epics is not attributed to the epic in scope",
-      dup["epic"] is None and "concerns #10 and #12, not the epic in scope" in dup["detail"],
-      dup)
+      other and other["epic"] is None
+      and "concerns #10 and #12, not the epic in scope" in other["detail"], other)
 
 res = result(two_epics, "--epic", "10")
 check("--epic does not report a healthy branch of another epic as an orphan",
@@ -661,12 +675,12 @@ ghosted = (Fixture().epic(10, slug="alpha", children=[11])
            .epic(12, slug="beta", children=[13])
            .branch("epic/alpha", "epic/beta", "epic/gone"))
 res = result(ghosted, "--epic", "10")
-orphan = findings_of(res, "orphan-epic-branch")
+orphan = finding_of(res, "orphan-epic-branch")
 check("a genuinely orphaned epic branch is still reported under --epic",
-      orphan and "epic/gone" in orphan[0]["detail"], res["blocking"])
+      orphan and "epic/gone" in orphan["detail"], res["blocking"])
 check("an orphan belonging to no epic is honestly marked as not about the one in scope",
-      orphan and orphan[0]["epic"] is None
-      and "not the epic in scope" in orphan[0]["detail"], orphan)
+      orphan and orphan["epic"] is None and "not the epic in scope" in orphan["detail"],
+      orphan)
 
 code, out = plan(Fixture().epic(10, slug="alpha", children=[11]), "--epic", "99")
 check("--epic on a number that is not an open epic fails closed instead of planning nothing",
@@ -695,7 +709,7 @@ f = Fixture().epic(10, slug="alpha", children=[11])
 code, out = plan(f, "--mode", "strict", repo_root=workflow_root(["master", "develop", "epic"]),
                  policy=cov_path)
 check("the literal-`epic` trigger fails the run in strict mode, where it used to pass",
-      code == 1 and "ci-coverage-missing" in json.loads(out)["blocking"], out[:200])
+      code == 1 and "ci-coverage-missing" in get(json.loads(out), "blocking") or [], out[:200])
 code, out = plan(f, "--mode", "strict",
                  repo_root=workflow_root(["master", "develop", "epic/**"]), policy=cov_path)
 check("a real wildcard still passes, so the guard did not just turn permanently red",

@@ -20,17 +20,23 @@ evidence rule:
     moved with it, which is what separates a shifted distribution from a
     heavier tail. Both windows need their minimum sample count and a baseline
     long enough for a ratio to mean anything. When no p95 ratio is computable
-    the total occupied slot cost answers the same question. An isolated spike
-    is not a regression: with the middle of the window unmoved and the share
-    of attempts beyond the class' own old p95 inside its spike allowance, the
-    spike is already what ``completed_slow`` called it.
+    the occupied slot cost PER ATTEMPT answers the same question - per
+    attempt, because two windows of different sample counts hold a different
+    number of executions and a class which merely ran more often did not get
+    slower. An isolated spike is not a regression: with the middle of the
+    window unmoved and the share of attempts beyond the class' own old p95
+    inside its spike allowance, the spike is already what ``completed_slow``
+    called it.
 ``long_running``
     An attempt which is *still open*, has already run past the long-running
-    budget of its class, and is reported active by a worker the inspection
-    reached. Terminal and open samples alone cannot prove current activity, so
-    the worker's own answer is part of the evidence: without it the verdict is
-    a labelled suspicion which publishes no incident, and a worker which does
-    not answer at all is *unknown* - never healthy, never a confirmed long task.
+    budget of its class, and is reported active by *its own* worker - the one
+    the attempt row names, since celery retries keep the task uuid and the
+    same id running on another worker proves nothing about this attempt.
+    Terminal and open samples alone cannot prove current activity, so the
+    worker's own answer is part of the evidence: without it the verdict is a
+    labelled suspicion which publishes no incident, and a worker which does
+    not answer at all is *unknown* - never healthy, never a confirmed long
+    task.
 ``coverage``
     The telemetry which cannot see what it should: attempts without a publish
     stamp, attempts which stood open past the abandon grace without ever
@@ -41,7 +47,9 @@ Nothing is reported because data is missing in the other direction either: an
 empty window answers ``no_data``, an under-sampled one answers ``insufficient``
 and neither publishes anything nor drags a baseline down; a class whose last
 sample went too old stops being claimed about at all, in either direction. A
-fire which reaches no worker at all publishes nothing at all.
+fire which reaches no worker at all neither claims anything about current
+activity nor resolves a standing long-running incident - blindness is unknown,
+not recovery.
 
 Boundedness is the other half of the promise. One evaluation costs two grouped
 windowed aggregates plus one bounded read of open attempts, one bounded
@@ -484,16 +492,25 @@ def _regression_evidence(current, baseline, factor, spike_allowance,
     p95_ratio = _comparable_ratio(evidence["active_p95"],
                                   evidence["baseline_active_p95"],
                                   min_baseline)
+    # the slot cost of a window is its total, but a total is only comparable
+    # per attempt: two windows of different sample counts hold a different
+    # number of executions, and a class which merely ran more often must not
+    # read as slower (the totals stay in the evidence as reported numbers)
     slot = current.get("slot_seconds")
     baseline_slot = baseline.get("slot_seconds")
+    cost = _per_attempt_cost(slot, current_samples)
+    baseline_cost = _per_attempt_cost(baseline_slot, baseline_samples)
     cost_ratio = None
-    if baseline_slot and _long_enough(
-            (slot, baseline_slot,
-             _per_attempt_cost(slot, current_samples),
-             _per_attempt_cost(baseline_slot, baseline_samples)),
-            min_baseline):
-        cost_ratio = slot / baseline_slot
-    evidence.update({"p95_ratio": p95_ratio, "slot_cost_ratio": cost_ratio})
+    if _long_enough((slot, baseline_slot, cost, baseline_cost), min_baseline):
+        cost_ratio = cost / baseline_cost
+    evidence.update({
+        "p95_ratio": p95_ratio,
+        "slot_cost_ratio": cost_ratio,
+        "slot_seconds": slot,
+        "baseline_slot_seconds": baseline_slot,
+        "cost_per_attempt": cost,
+        "baseline_cost_per_attempt": baseline_cost,
+    })
     return evidence
 
 
@@ -506,9 +523,15 @@ def _p50_moved(evidence, factor, min_baseline):
     return (p50 / baseline_p50) > factor
 
 
-def _p95_verdict(evidence, current_samples, samples_over_baseline,
-                 spike_allowance, min_baseline, factor):
-    """What a p95 beyond the factor means: a shifted distribution or a spike.
+def _exceedance_share(samples_over_baseline, current_samples):
+    """The share of the window which ran beyond the class' own old p95."""
+    if samples_over_baseline is None or not current_samples:
+        return None
+    return samples_over_baseline / current_samples
+
+
+def _tail_only_moved(evidence, share, spike_allowance, factor, min_baseline):
+    """Whether only the tail of the distribution moved, inside its allowance.
 
     #1390 asks for the p50 and p95 to be reported either way, and the p50 is
     what separates a shifted distribution from a heavier tail. If the middle
@@ -517,34 +540,48 @@ def _p95_verdict(evidence, current_samples, samples_over_baseline,
     the class' own old range. That is the spike, already named by
     completed_slow, which #1390 refuses to also call a regression.
     """
-    share = ((samples_over_baseline / current_samples)
-             if samples_over_baseline is not None and current_samples
-             else None)
-    if not _p50_moved(evidence, factor, min_baseline) \
-            and (share is None or share <= spike_allowance):
-        # the tail alone moved, inside the class' own spike allowance
+    return share is not None \
+        and not _p50_moved(evidence, factor, min_baseline) \
+        and share <= spike_allowance
+
+
+def _regression_verdict(evidence, comparison, share, spike_allowance, factor,
+                        min_baseline):
+    """What a moved measure means: a shifted distribution or only its tail.
+
+    Both arms of the comparison answer the same question with the same rule,
+    so an isolated spike is filtered the same way whether the p95 ratio or
+    the per-attempt slot cost is what moved (#1390's spike, never a second
+    verdict for the same executions). Without a share there is no answer to
+    the spike question - the cost arm of a class with no baseline p95 has no
+    old range which could have been exceeded - and an unanswered question
+    never silences a measured move.
+    """
+    if _tail_only_moved(evidence, share, spike_allowance, factor,
+                        min_baseline):
         return {"condition": "healthy", "spike_only": True,
                 "exceeded_share": share, **evidence}
-    # nothing (or a growing share of everything) exceeded the budget, so
+    # nothing (or a growing share of everything) exceeded the old range, so
     # the move is the distribution itself, not its tail
-    return {"condition": "regression", "comparison": "active_p95",
+    return {"condition": "regression", "comparison": comparison,
             "exceeded_share": share, **evidence}
 
 
 def judge_regression(current, baseline, factor, min_baseline, spike_allowance,
                      samples_over_baseline=None):
-    """The regression decision: p95 first, total slot cost when no ratio exists.
+    """The regression decision: p95 first, slot cost when no ratio exists.
 
     The comparison is #1390's "compare against validated comparable
     baselines": same class, same queue, adjacent window, both windows over the
     minimum sample count, baseline long enough for a ratio to mean anything.
     p50 and p95 travel with every answer so a shifted middle stays
     distinguishable from a heavier tail; the verdict needs the p95 (or, when
-    no p95 ratio is computable, the total occupied slot cost) beyond the
+    no p95 ratio is computable, the occupied slot cost PER ATTEMPT) beyond the
     factor AND an exceedance share above the class' spike allowance - which is
     what keeps an isolated spike, already called ``completed_slow``, from
     becoming a regression as well. Never any false precision: an unvalidated
-    comparison answers ``insufficient``, not a number.
+    comparison answers ``insufficient``, not a number, and so does a window
+    which only ran more often than before.
     """
     current_samples = current.get("samples") or 0
     baseline_samples = (baseline or {}).get("samples") or 0
@@ -559,16 +596,17 @@ def judge_regression(current, baseline, factor, min_baseline, spike_allowance,
         baseline_samples, min_baseline)
     p95_ratio = evidence["p95_ratio"]
     cost_ratio = evidence["slot_cost_ratio"]
+    share = _exceedance_share(samples_over_baseline, current_samples)
     if p95_ratio is not None and p95_ratio > factor:
-        return _p95_verdict(evidence, current_samples, samples_over_baseline,
-                            spike_allowance, min_baseline, factor)
+        return _regression_verdict(evidence, "active_p95", share,
+                                   spike_allowance, factor, min_baseline)
     if p95_ratio is not None:
         return {"condition": "healthy", **evidence}
     if cost_ratio is not None and cost_ratio > factor:
-        # no usable p95 ratio, but a total occupied slot cost which moved:
-        # the total-slot-cost form of the same question
-        return {"condition": "regression", "comparison": "slot_cost",
-                **evidence}
+        # no usable p95 ratio, but the occupied cost per attempt moved: the
+        # same question, asked of the cost the class actually occupied
+        return _regression_verdict(evidence, "slot_cost", share,
+                                   spike_allowance, factor, min_baseline)
     if cost_ratio is None:
         return {"condition": "insufficient", "reason":
                 "no comparable baseline duration", **evidence}
@@ -618,7 +656,11 @@ def judge_long_running(running_seconds, budget, reported_active,
         return {"condition": "healthy", "measured": MEASURED,
                 "active_seconds": running_seconds,
                 "long_running_seconds": budget}
-    if reported_active:
+    if reported_active and own_worker_answered is True:
+        # only the answer of the owning worker confirms an execution: celery
+        # retries keep the task uuid, so the same id running elsewhere proves
+        # nothing about this attempt (#1390's redelivery and worker-death
+        # cases - a confirmation from another worker is not a confirmation)
         return {"condition": "long_running", "measured": MEASURED,
                 "confidence": "high",
                 "active_seconds": running_seconds,
@@ -667,15 +709,23 @@ def _hostname(node):
 
 
 def _active_request_ids(answers):
-    """The task ids the answering workers report as their current work."""
-    ids = set()
-    for workers in (answers.get("active") or {}).values():
-        for task in workers or []:
+    """The task ids each answering worker reports as its current work.
+
+    Keyed by the answering host, because only the worker which owns an
+    attempt can prove it still runs: under a celery retry the same uuid is
+    active on another worker, and a membership test over all answers would
+    hand that attempt the dead worker's confirmation (#1390's redelivery and
+    worker-death cases).
+    """
+    reported = {}
+    for node, tasks in (answers.get("active") or {}).items():
+        ids = reported.setdefault(_hostname(node), set())
+        for task in tasks or []:
             request = task.get("request") or {}
             task_id = request.get("id") or task.get("id")
             if task_id:
                 ids.add(str(task_id))
-    return ids
+    return reported
 
 
 def _answered_hosts(answers):
@@ -759,7 +809,7 @@ def evaluate_long_running(at, answers):
     suspicions come back apart: only the confirmed ones publish.
     """
     confirmed, suspicions = [], []
-    active_ids = _active_request_ids(answers)
+    reported = _active_request_ids(answers)
     hosts = _answered_hosts(answers)
     for row in long_running_candidates(at):
         policy = policy_for(row.task_name, row.queue)
@@ -767,8 +817,9 @@ def evaluate_long_running(at, answers):
             continue
         budget = class_long_seconds(policy)
         running = (at - row.started_at).total_seconds()
+        owner = _hostname(row.worker)
         decision = judge_long_running(
-            running, budget, str(row.task_id) in active_ids,
+            running, budget, str(row.task_id) in reported.get(owner, set()),
             _worker_answered_owner(hosts, row.worker))
         if decision["condition"] != "long_running":
             continue
@@ -998,50 +1049,115 @@ def _coverage_code_family(code):
     return None
 
 
-def _resolves_standing(incident, classes, confirmed_ids, live_codes):
-    """Whether one standing incident's evidence moved on (#1390)."""
+def _long_running_gone(standing, confirmed_attempts, hosts, at):
+    """The identities of standing long-running incidents whose attempt is gone.
+
+    One bounded read of the attempts these incidents are about, because the
+    *absence* of a confirmation is the observer's blindness and not evidence
+    that the work stopped (#1390: an unreachable worker is unknown, never
+    conclusively healthy). An identity is gone when a terminal row of the same
+    identity exists (it completed), when its row is no longer there at all
+    (retention removed the evidence), when it stood open past the abandon
+    grace (crash residue, which the coverage condition owns), or when the
+    worker which owns it answered the inspection and does not report it (the
+    completion race). An owner which did not answer resolves nothing.
+    """
+    ids = {(incident.details or {}).get("task_id") for incident in standing}
+    ids = {task_id for task_id in ids if task_id}
+    if not ids:
+        return set()
+    rows = (CeleryTaskAttempt.objects
+            .filter(task_id__in=ids)
+            .values("task_id", "attempt_no", "outcome", "started_at", "worker"))
+    open_rows = {}
+    terminal = set()
+    for row in rows:
+        identity = (row["task_id"], row["attempt_no"])
+        if row["outcome"]:
+            terminal.add(identity)
+        else:
+            open_rows.setdefault(identity, row)
+    grace = abandon_grace() + timedelta(seconds=long_grace_seconds())
+    gone = set()
+    for incident in standing:
+        evidence = incident.details or {}
+        identity = (evidence.get("task_id"), evidence.get("attempt_no"))
+        if identity in confirmed_attempts or identity in terminal:
+            continue
+        row = open_rows.get(identity)
+        if row is None or row["started_at"] is None:
+            gone.add(identity)
+        elif (at - row["started_at"]) > grace:
+            gone.add(identity)
+        elif hosts is not None and _hostname(row["worker"]) in hosts:
+            gone.add(identity)
+    return gone
+
+
+def _resolves_standing(incident, classes, gone_attempts, live_codes):
+    """Whether one standing incident's evidence moved on (#1390).
+
+    Each condition resolves on the answer of its OWN judge: a class which
+    recovered from being slow while it still regressed resolves its
+    ``completed_slow`` and keeps its ``regression``, because the two codes are
+    published independently and a merged answer would resolve neither.
+    """
     code = incident.code
     evidence = incident.details or {}
     if code.startswith(CODE_LONG_RUNNING):
-        return evidence.get("task_id") not in confirmed_ids
+        return (evidence.get("task_id"), evidence.get("attempt_no")) \
+            in gone_attempts
     if _coverage_code_family(code) is not None:
         return code not in live_codes
     task_name = evidence.get("task_name")
     if not task_name:
         return False
-    verdict = classes.get((task_name, evidence.get("queue")))
-    return verdict is None or verdict.get("condition") in (
-        "healthy", "no_data", "insufficient")
+    entry = classes.get((task_name, evidence.get("queue")))
+    if entry is None:
+        return True
+    # the code names the judge whose answer has to have moved on
+    field = ("completed_slow" if code.startswith(CODE_COMPLETED_SLOW)
+             else "regression" if code.startswith(CODE_REGRESSION)
+             else "condition")
+    verdict = entry.get(field) or {}
+    return verdict.get("condition") in ("healthy", "no_data", "insufficient")
 
 
-def resolve_verdicts(classes, confirmed, coverage, at):
+def resolve_verdicts(classes, confirmed, coverage, at, hosts=None):
     """Resolve this module's standing incidents whose evidence moved on.
 
-    Every direction is evidence-side, never a timeout guess (#1390):
+    Every direction is evidence-side, never a timeout guess and never the
+    observer's own blindness (#1390):
 
-    *   a class whose window answers ``healthy``, or which no longer appears
-        in the window at all, resolves its ``completed_slow`` and
-        ``regression`` incidents - recovery proved it, or its evidence is
-        gone and a verdict without evidence is no verdict;
-    *   a long-running incident whose attempt is no longer confirmed
-        (completed, died, redelivered elsewhere, its worker gone) resolves;
+    *   a class whose window answers ``healthy`` for the condition the
+        incident reports, or which no longer appears in the window at all,
+        resolves it - recovery proved it, or its evidence is gone and a
+        verdict without evidence is no verdict;
+    *   a long-running incident whose attempt provably stopped
+        (``_long_running_gone``: completed, gone, past the abandon grace, or
+        answered-for by its own worker) resolves - a fire which reached no
+        worker, or not the owner, resolves none of them;
     *   a coverage verdict which reads complete again resolves.
 
     All of it runs over #1319's ``resolve``: one conditional update per key,
     idempotent, the single ACTIVE -> RESOLVED transition, so a fire which
-    finds nothing to resolve costs one bounded read of its own code family.
+    finds nothing to resolve costs one bounded read of its own code family
+    plus, only while a long-running incident stands, one bounded read of the
+    attempts those incidents are about.
     """
     from notify.enums import IncidentStatusEnum
     from notify.models import OperationalIncident
 
-    confirmed_ids = {item["task_id"] for item in confirmed}
+    confirmed_attempts = {(item["task_id"], item.get("attempt_no"))
+                          for item in confirmed}
     live_codes = {item.get("code") for item in coverage}
-    resolved = 0
-    standing = OperationalIncident.objects.filter(
+    standing = list(OperationalIncident.objects.filter(
         code__startswith=OWNED_CODE_PREFIX,
-        status=IncidentStatusEnum.ACTIVE.value)
-    for incident in standing.iterator():
-        if _resolves_standing(incident, classes, confirmed_ids, live_codes):
+        status=IncidentStatusEnum.ACTIVE.value))
+    gone = _long_running_gone(standing, confirmed_attempts, hosts, at)
+    resolved = 0
+    for incident in standing:
+        if _resolves_standing(incident, classes, gone, live_codes):
             resolved += OperationalIncident.objects.resolve(
                 incident.dedup_key, at=at)
     return resolved
@@ -1303,7 +1419,9 @@ def evaluate_task_performance(at=None, publish=True):
     resolved = 0
     if publish:
         published = publish_verdicts(_actionable(verdicts))
-        resolved = resolve_verdicts(classes, confirmed, coverage, at)
+        resolved = resolve_verdicts(
+            classes, confirmed, coverage, at,
+            hosts=_answered_hosts(answers) if answers is not None else None)
 
     if published or resolved or suspicions:
         logger.info(

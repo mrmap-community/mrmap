@@ -37,20 +37,27 @@ The four conditions, and the one thing they are not
     epic #1324 own queue waiting, and this verdict names it as a separate
     condition only when it is *also* congested.
 ``regression``
-    The p95 of the active seconds (or the occupied slot seconds in total)
-    of a task class measured against the same class' own comparable
-    baseline moved beyond the configured factor. Two windows are needed to
-    say this and minimum sample counts on both; a class which cannot
-    answer them answers ``insufficient`` and publishes nothing. A single
-    slow spike does not move a p95 whose share is still within the spike
-    allowance, and a class with a legitimate heavy tail is silenced by its
-    own policy rather than being re-baselined by the tool.
+    The p95 of the active seconds - or, when no p95 ratio is computable, the
+    occupied slot cost **per attempt** - of a task class measured against the
+    same class' own comparable baseline moved beyond the configured factor.
+    Two windows are needed to say this and minimum sample counts on both; a
+    class which cannot answer them answers ``insufficient`` and publishes
+    nothing. The comparison is per attempt on purpose: two windows may hold a
+    different number of executions, so a class which merely ran more often,
+    with byte-identical durations, did not get slower. A single slow spike
+    does not move a p95 whose share is still within the spike allowance, and a
+    class with a legitimate heavy tail is silenced by its own policy rather
+    than being re-baselined by the tool.
 ``long_running``
     An attempt which is **still open** and whose active time already exceeds
-    the long-running budget of its class, while an inspected worker reports
-    it as its own. Terminal samples alone cannot prove current activity, so
-    without the worker's own report the verdict stays a labelled suspicion
-    and no incident is raised.
+    the long-running budget of its class, while **its own** worker - the one
+    the attempt row names - reports it as active. Terminal samples alone
+    cannot prove current activity, so without the owning worker's own report
+    the verdict stays a labelled suspicion (``measured: unknown``,
+    ``confidence: low``, ``reason: worker_unreachable``) and no incident is
+    raised. A celery retry keeps the task uuid, so the same id running on a
+    different worker confirms nothing: confirmation is matched per worker, and
+    a high-confidence verdict always names the worker which gave it.
 ``coverage``
     The condition with no data behind it: attempts ran in the window which
     carry no publish stamp, open attempts sit past the abandon grace, or the
@@ -192,9 +199,11 @@ terminal transition. Resolution is evidence-side, not time-side:
 
 - ``completed_slow`` of a resource resolves as soon as that resource's
   next bounded execution of the same task answers *within* its budget;
-- ``long_running`` resolves when the attempt is no longer reported active by
-  an answering worker - a completion race, a worker death and a redelivery
-  all end it, and none of them fabricate a duration;
+- ``long_running`` resolves when the attempt provably stopped - its own
+  worker answered and no longer reports it (the completion race), a terminal
+  row of the same identity exists (it completed), its row is past the abandon
+  grace (a worker death, which ``coverage`` then owns) or retention removed it
+  - and none of these fabricate a duration;
 - ``regression`` resolves when the same comparison stops being a regression,
   which includes the honest case of the samples running out: a verdict
   whose evidence cannot be re-made is not evidence;
@@ -202,9 +211,13 @@ terminal transition. Resolution is evidence-side, not time-side:
 - every condition resolves when its evidence ages out of the window
   (``TASK_PERFORMANCE_STALE_AFTER_HOURS``) so a fixed problem cannot leave
   an incident standing forever;
-- a fire which reaches no worker at all publishes nothing at all. An
-  unreachable fleet is unknown, and unknown must never be reported as
-  conclusively healthy - nor as conclusively broken.
+- each code resolves on the answer of *its own* condition, never on the
+  class' merged state: a class which stopped being slow but still regressed
+  resolves its ``completed_slow`` and keeps its ``regression``;
+- a fire which reaches no worker at all publishes nothing about current
+  activity and resolves no standing ``long_running`` either. An unreachable
+  fleet is unknown, and unknown must never be reported as conclusively
+  healthy - nor as conclusively recovered.
 
 The collector and the reporter are both outside the task's own path:
 a detector that cannot read the database or reach the broker logs and
@@ -231,10 +244,13 @@ Runbook
    evidence. The baseline is the class' own previous window, so a deploy
    between the two is the first hypothesis; a p50 that did not move while
    the p95 did is a tail, not a shift.
-4. ``long_running`` reports with ``confidence: medium``: the attempt is
-   running longer than its budget but no worker confirmed it. Check the
-   workers before the task; #1320's consumer verdict says whether any
-   worker answers at all.
+4. ``long_running`` reports with ``confidence: low`` (``measured: unknown``,
+   ``reason: worker_unreachable``): the attempt is running longer than its
+   budget but no worker confirmed it. Check the workers before the task;
+   #1320's consumer verdict says whether any worker answers at all. Such a
+   suspicion never becomes an incident, and a fire which reached no worker
+   also keeps a standing ``long_running`` incident standing - the next fire
+   which reaches its worker decides, with evidence.
 5. ``coverage`` reports: telemetry is the problem, not the tasks. Check
    ``MRMAP_CAPACITY_TELEMETRY``, then the worker logs for the collector's
    own drop/error counters (#1330).

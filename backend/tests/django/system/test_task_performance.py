@@ -44,7 +44,8 @@ from system.task_performance import (CODE_COVERAGE_DISABLED,
                                      CODE_COMPLETED_SLOW, CODE_REGRESSION,
                                      class_code, evaluate_long_running,
                                      evaluate_task_performance,
-                                     judge_completed_slow, judge_regression)
+                                     judge_completed_slow, judge_long_running,
+                                     judge_regression)
 
 # the inspection is patched on the class, like #1320: `Control.inspect` is a
 # cached_property, so an instance-path patch never reaches it
@@ -552,6 +553,90 @@ class LongRunningTests(DetectorTestMixin, TestCase):
         self.assertEqual(self.active(long_code()).count(), 0)
 
     @DETECT
+    def test_a_dark_fire_keeps_a_standing_long_running_incident_standing(self):
+        # the observer's blindness is not evidence that the work stopped: a
+        # fire which reached no worker neither claims current activity nor
+        # resolves it (#1390 - unknown is never conclusively healthy)
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        with patch(INSPECT) as inspect:
+            broker(inspect, dark=True)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["worker_inspection"], "unknown")
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(self.active(long_code()).count(), 1)
+        # the next fire which does reach the worker decides, with evidence
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
+
+    @DETECT
+    def test_an_unreachable_owner_never_resolves_a_long_running_incident(self):
+        # partial blindness is still blindness: the fleet answered, only not
+        # the worker which owns the attempt, so nothing proves it stopped
+        attempt = self.long_attempt(minutes=240, worker="celery@dead")
+        with patch(INSPECT) as inspect:
+            broker(inspect,
+                   active=active_entry(attempt.task_id, worker="celery@dead"),
+                   conf={"celery@dead": {}, "celery@w1": {}})
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        with patch(INSPECT) as inspect:
+            broker(inspect, conf={"celery@w1": {}})
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(self.active(long_code()).count(), 1)
+
+    @DETECT
+    def test_a_dead_attempt_resolves_on_evidence_and_becomes_coverage(self):
+        # the worker death of #1390: past the abandon grace the row is crash
+        # residue, which the coverage condition owns - so the long-running
+        # incident ends and the coverage one takes its place
+        attempt = self.long_attempt(minutes=240, worker="celery@dead")
+        with patch(INSPECT) as inspect:
+            broker(inspect,
+                   active=active_entry(attempt.task_id, worker="celery@dead"),
+                   conf={"celery@dead": {}, "celery@w1": {}})
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.filter(pk=attempt.pk).update(
+            started_at=timezone.now() - timedelta(seconds=55 * 3600))
+        with patch(INSPECT) as inspect:
+            broker(inspect, conf={"celery@w1": {}})
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
+        self.assertEqual(self.active(CODE_COVERAGE_STALE).count(), 1)
+
+    def test_confirmation_is_matched_per_worker(self):
+        # celery retries keep the task uuid: another worker reporting the same
+        # id confirms nothing about this attempt (#1390's redelivery case)
+        decision = judge_long_running(
+            4 * 3600, 3600, True, own_worker_answered=False)
+        self.assertEqual(decision["condition"], "long_running")
+        self.assertEqual(decision["measured"], "unknown")
+        self.assertEqual(decision["confidence"], "low")
+        self.assertEqual(decision["reason"], "worker_unreachable")
+
+    def test_only_the_owning_worker_confirmation_is_high_confidence(self):
+        decision = judge_long_running(
+            4 * 3600, 3600, True, own_worker_answered=True)
+        self.assertEqual(decision["condition"], "long_running")
+        self.assertEqual(decision["measured"], "measured")
+        self.assertEqual(decision["confidence"], "high")
+        # a reported attempt the owning worker does not report is the
+        # completion race: healthy, with the reason named
+        raced = judge_long_running(
+            4 * 3600, 3600, False, own_worker_answered=True)
+        self.assertEqual(raced["condition"], "healthy")
+        self.assertEqual(raced["reason"], "finished_or_died")
+
+    @DETECT
     def test_a_long_running_verdict_names_the_process_resource(self):
         service = CatalogueService.objects.get(pk=CSW_PK)
         process = BackgroundProcess.objects.create(
@@ -788,14 +873,18 @@ class PureJudgeTests(TestCase):
         self.assertTrue(spiked["spike_only"])
 
     def test_slot_cost_regression_without_a_p95_ratio(self):
+        # no p95 anywhere means no old range which could have been exceeded,
+        # which is exactly what the caller passes (see _evaluate_class): the
+        # spike question has no answer here and must not silence the move
         baseline = {"samples": 10, "active_p95": None, "active_p50": None,
                     "slot_seconds": 22.0}
         verdict = judge_regression(
             dict(self.ROW, active_p50=None, active_p95=None,
                  slot_seconds=48.0), baseline, factor=2.0, min_baseline=1.0,
-            spike_allowance=0.1, samples_over_baseline=0)
+            spike_allowance=0.1)
         self.assertEqual(verdict["condition"], "regression")
         self.assertEqual(verdict["comparison"], "slot_cost")
+        self.assertIsNone(verdict["exceeded_share"])
 
     def test_a_sub_second_slot_cost_is_no_comparison_either(self):
         # the false-precision guard is not a p95-only rule: two windows of ten
@@ -808,6 +897,72 @@ class PureJudgeTests(TestCase):
                  slot_seconds=7.0), baseline, factor=2.0, min_baseline=1.0,
             spike_allowance=0.1, samples_over_baseline=0)
         self.assertEqual(verdict["condition"], "insufficient")
+
+    def test_more_executions_alone_is_no_slot_cost_regression(self):
+        # the slot-cost arm compares PER ATTEMPT: a class which merely ran
+        # twice as often has double the totals and the same cost per
+        # execution, which is volume, not a slowdown (#1390's false precision)
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=80.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=0)
+        self.assertEqual(verdict["condition"], "healthy")
+        self.assertNotIn("comparison", verdict)
+        # the totals still travel as reported numbers, the ratio does not
+        self.assertAlmostEqual(verdict["slot_cost_ratio"], 1.0)
+        self.assertAlmostEqual(verdict["cost_per_attempt"], 2.0)
+        self.assertAlmostEqual(verdict["baseline_cost_per_attempt"], 2.0)
+        self.assertAlmostEqual(verdict["slot_seconds"], 80.0)
+        self.assertAlmostEqual(verdict["baseline_slot_seconds"], 20.0)
+
+    def test_a_slot_cost_regression_survives_a_change_in_volume(self):
+        # the same arm still answers when the cost per execution really moved,
+        # whether or not the window also holds more of them
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=10)
+        self.assertEqual(verdict["condition"], "regression")
+        self.assertEqual(verdict["comparison"], "slot_cost")
+        self.assertAlmostEqual(verdict["slot_cost_ratio"], 2.25)
+
+    def test_an_isolated_spike_is_no_slot_cost_regression_either(self):
+        # both arms answer the same question with the same rule: an isolated
+        # spike, seen only through the occupied cost, is the spike
+        # completed_slow already called and not a second verdict
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=1)
+        self.assertEqual(verdict["condition"], "healthy")
+        self.assertTrue(verdict["spike_only"])
+
+    def test_a_cost_arm_spike_needs_no_p95_ratio_to_be_filtered(self):
+        # a sub-second p95 on both sides routes the comparison to the cost
+        # arm; there the exceedance share over the class' own old p95 still
+        # answers the spike question, so volume, tail or shift is decided the
+        # same way as in the p95 arm
+        baseline = {"samples": 10, "active_p95": 0.4, "active_p50": 0.3,
+                    "slot_seconds": 20.0}
+        spiked = judge_regression(
+            dict(self.ROW, samples=40, active_p95=0.9, active_p50=0.3,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=1)
+        self.assertEqual(spiked["condition"], "healthy")
+        self.assertTrue(spiked["spike_only"])
+        # most of the window beyond the old range is not a tail any more
+        shifted = judge_regression(
+            dict(self.ROW, samples=40, active_p95=0.9, active_p50=0.3,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=30)
+        self.assertEqual(shifted["condition"], "regression")
+        self.assertEqual(shifted["comparison"], "slot_cost")
 
 
 class BeatRowTests(TestCase):

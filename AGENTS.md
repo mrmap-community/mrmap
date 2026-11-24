@@ -449,7 +449,10 @@ After modifications:
   in `agent_capacity`, the human decision protocol in `decisions` — are verified with
   `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
   the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
-  reach these files at all.
+  reach these files at all. Redirect its stdin (`scripts/check_repo_tooling.sh </dev/null`):
+  `test_pr_classify.py` reads a PR history from standard input in one of its checks, and with stdin
+  left open it blocks there forever — the harness prints the suites finished so far and then stalls,
+  which reads as a hang rather than as a failure.
 - Add or update tests when behavior changes.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.

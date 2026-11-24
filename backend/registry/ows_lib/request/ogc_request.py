@@ -140,6 +140,20 @@ class OGCRequest(Request):
         )
         return ogc_request
 
+    def _requested_wms_layers(self) -> list[str]:
+        """The layers a WMS request requests, drawn ones and queried ones.
+
+        A GetFeatureInfo names the layers it asks the information of in
+        ``QUERY_LAYERS`` of its own, which the caller fills itself: they are part
+        of what the request requests and an allowed operation has to cover them
+        like it covers the drawn ones (#1471).
+        """
+        layers = get_requested_layers(params=self.ogc_query_params)
+        if self.is_get_feature_info_request:
+            queried = get_requested_query_layers(params=self.ogc_query_params)
+            layers += [layer for layer in queried if layer not in layers]
+        return layers
+
     @property
     def requested_entities(self) -> list[str]:
         """Returns the list of requested entities
@@ -151,17 +165,7 @@ class OGCRequest(Request):
         """
         if not self._requested_entities:
             if self.is_wms:
-                self._requested_entities.extend(
-                    get_requested_layers(params=self.ogc_query_params))
-                # the layers a GetFeatureInfo asks the information of are part
-                # of what the request requests: they are named by the caller and
-                # the answer is about them, so an allowed operation has to cover
-                # them like it covers the drawn ones (#1471)
-                if self.is_get_feature_info_request:
-                    for queried in get_requested_query_layers(
-                            params=self.ogc_query_params):
-                        if queried not in self._requested_entities:
-                            self._requested_entities.append(queried)
+                self._requested_entities.extend(self._requested_wms_layers())
             elif self.is_get_feature_request:
                 self._requested_entities.extend(
                     get_requested_feature_types(

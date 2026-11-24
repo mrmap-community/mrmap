@@ -1,0 +1,360 @@
+{
+  "agent_actor": "mrmap-agent-bot",
+  "baseline_master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "branches": {
+    "develop": "5555555555555555555555555555555555555555",
+    "epic/epic-integration": "4444444444444444444444444444444444444444",
+    "master": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "claims": {
+    "1591": [
+      {
+        "integration_target": "epic/epic-integration",
+        "state": "wip"
+      }
+    ]
+  },
+  "commits": {
+    "1111111111111111111111111111111111111111": {
+      "parents": [
+        "dddddddddddddddddddddddddddddddddddddddd",
+        "ffffffffffffffffffffffffffffffffffffffff"
+      ]
+    },
+    "2222222222222222222222222222222222222222": {
+      "parents": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ]
+    },
+    "3333333333333333333333333333333333333333": {
+      "cut": true,
+      "cut_from": "develop",
+      "parents": [
+        "2222222222222222222222222222222222222222"
+      ]
+    },
+    "4444444444444444444444444444444444444444": {
+      "parents": [
+        "1111111111111111111111111111111111111111",
+        "2222222222222222222222222222222222222222"
+      ],
+      "sync": true
+    },
+    "5555555555555555555555555555555555555555": {
+      "parents": [
+        "2222222222222222222222222222222222222222",
+        "4444444444444444444444444444444444444444"
+      ]
+    },
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+      "origin": "base",
+      "parents": []
+    },
+    "cccccccccccccccccccccccccccccccccccccccc": {
+      "cut_from": "epic/epic-integration",
+      "parents": [
+        "3333333333333333333333333333333333333333"
+      ]
+    },
+    "dddddddddddddddddddddddddddddddddddddddd": {
+      "parents": [
+        "3333333333333333333333333333333333333333",
+        "cccccccccccccccccccccccccccccccccccccccc"
+      ]
+    },
+    "ffffffffffffffffffffffffffffffffffffffff": {
+      "cut_from": "epic/epic-integration",
+      "parents": [
+        "dddddddddddddddddddddddddddddddddddddddd"
+      ]
+    }
+  },
+  "epic": {
+    "body": "slug: epic-integration\n\n## Acceptance\n- green",
+    "number": 1588,
+    "state": "OPEN",
+    "title": "Epic: epic workflow"
+  },
+  "expectations": {
+    "blocker-satisfied-by-ancestry": {
+      "1591->1412": {
+        "merged": true,
+        "on_develop": true,
+        "on_epic": true,
+        "state": "COMPLETED"
+      }
+    },
+    "branch-creation": {
+      "cut_from": "develop",
+      "exists": true
+    },
+    "cancellation": {
+      "epic_state": "OPEN",
+      "no_open_prs_for": []
+    },
+    "child-pr-checks": {
+      "901": {
+        "failing": [],
+        "jobs": [
+          "classify",
+          "codeql-required",
+          "frontend-tests",
+          "repo-tooling",
+          "unit-tests"
+        ]
+      },
+      "902": {
+        "failing": [],
+        "jobs": [
+          "classify",
+          "codeql-required",
+          "frontend-tests",
+          "repo-tooling",
+          "unit-tests"
+        ]
+      }
+    },
+    "child-selection": {
+      "children": {
+        "1591": {
+          "base": "epic/epic-integration",
+          "reasons": []
+        },
+        "1593": {
+          "base": "epic/epic-integration",
+          "reasons": []
+        }
+      }
+    },
+    "child-starts-from-epic-head": {
+      "children_off_head": []
+    },
+    "claim-carries-target": {
+      "1591": {
+        "target": "epic/epic-integration"
+      }
+    },
+    "epic-ci-coverage": {
+      "covered_by": [],
+      "required": []
+    },
+    "epic-head-base": {
+      "pulls": []
+    },
+    "integration-pr": {
+      "base": "develop",
+      "count": 1,
+      "head": "epic/epic-integration",
+      "merge": true,
+      "merged_by": "jokiefer"
+    },
+    "migration-conflict": {
+      "conflicts": [],
+      "renumbered": []
+    },
+    "no-competing-orchestrator": {
+      "scheduler_files": []
+    },
+    "no-direct-push": {
+      "permanent_commits": []
+    },
+    "no-docs-job": {
+      "doc_jobs": [
+        "docs-build"
+      ],
+      "in_pr_path": []
+    },
+    "no-self-approval": {
+      "offenders": []
+    },
+    "paused-or-claimed": {
+      "1591": {
+        "claimed": true,
+        "paused": false
+      }
+    },
+    "production-untouched": {
+      "master_moved": false
+    },
+    "readiness": {
+      "ready": true,
+      "reasons": []
+    },
+    "recovery-after-deletion": {
+      "branch_exists": true,
+      "recreated": false,
+      "work_on_develop": true
+    },
+    "release-semantic-history": {
+      "breaking_survives": true,
+      "child_titles_survive": true,
+      "one_integration_entry": true,
+      "squashed": false
+    },
+    "rollback": {
+      "force_pushed": false,
+      "revert_merged_into": null,
+      "reverted": false,
+      "rewrote_history": false
+    },
+    "wrong-base": {}
+  },
+  "humans": [
+    "jokiefer"
+  ],
+  "issues": {
+    "1591": {
+      "approved_by": "jokiefer",
+      "blocked_by": [
+        1412
+      ],
+      "blocked_by_state": {
+        "1412": "COMPLETED"
+      },
+      "labels": [
+        "agent: approved"
+      ],
+      "starts_from": "cccccccccccccccccccccccccccccccccccccccc"
+    },
+    "1593": {
+      "approved_by": "jokiefer",
+      "labels": [
+        "agent: approved"
+      ],
+      "starts_from": "ffffffffffffffffffffffffffffffffffffffff"
+    }
+  },
+  "name": "epic-integration-pre-rollout-gap",
+  "pulls": {
+    "900": {
+      "base": "develop",
+      "body": "Closes #1412",
+      "checks": [
+        "classify",
+        "codeql-required",
+        "frontend-tests",
+        "repo-tooling",
+        "unit-tests"
+      ],
+      "head": "housekeeping/issue-1412-legacy",
+      "merge_sha": "2222222222222222222222222222222222222222",
+      "merged_by": "jokiefer",
+      "state": "merged",
+      "title": "fix: the legacy part (#1412)"
+    },
+    "901": {
+      "base": "epic/epic-integration",
+      "body": "Closes #1591",
+      "checks": [
+        "classify",
+        "codeql-required",
+        "frontend-tests",
+        "repo-tooling",
+        "unit-tests"
+      ],
+      "commits": [
+        "cccccccccccccccccccccccccccccccccccccccc"
+      ],
+      "head": "feature/issue-1591-resolve",
+      "merge_sha": "dddddddddddddddddddddddddddddddddddddddd",
+      "merged_by": "jokiefer",
+      "migrations": [
+        {
+          "app": "registry",
+          "name": "0002_target"
+        }
+      ],
+      "state": "merged",
+      "title": "feat(epic-integration): resolve the target (#1591)"
+    },
+    "902": {
+      "base": "epic/epic-integration",
+      "body": "Closes #1593",
+      "breaking": true,
+      "checks": [
+        "classify",
+        "codeql-required",
+        "frontend-tests",
+        "repo-tooling",
+        "unit-tests"
+      ],
+      "commits": [
+        "ffffffffffffffffffffffffffffffffffffffff"
+      ],
+      "head": "feature/issue-1593-readiness",
+      "merge_sha": "1111111111111111111111111111111111111111",
+      "merged_by": "jokiefer",
+      "migrations": [
+        {
+          "app": "registry",
+          "name": "0003_readiness"
+        }
+      ],
+      "state": "merged",
+      "title": "feat(epic-integration)!: gate readiness (#1593)"
+    },
+    "950": {
+      "base": "develop",
+      "body": "Integrates the epic as one entry.",
+      "checks": [
+        "classify",
+        "codeql-required",
+        "frontend-tests",
+        "repo-tooling",
+        "unit-tests"
+      ],
+      "head": "epic/epic-integration",
+      "merge_sha": "5555555555555555555555555555555555555555",
+      "merged_by": "jokiefer",
+      "state": "merged",
+      "title": "feat(epic-integration)!: epic integration workflow (#1588)"
+    }
+  },
+  "repo": "mrmap-community/mrmap",
+  "schema": "epic-integration-dryrun-scenario/v1",
+  "workflows": {
+    "codeql": {
+      "jobs": [
+        "codeql-required"
+      ],
+      "pull_request_branches": [
+        "master",
+        "develop"
+      ]
+    },
+    "pr-classification": {
+      "jobs": [
+        "classify"
+      ],
+      "pull_request_branches": [
+        "master",
+        "develop"
+      ]
+    },
+    "qa": {
+      "jobs": [
+        "unit-tests",
+        "frontend-tests"
+      ],
+      "pull_request_branches": [
+        "master",
+        "develop"
+      ]
+    },
+    "release-docs": {
+      "jobs": [
+        "docs-build"
+      ],
+      "pull_request_branches": []
+    },
+    "script-tests": {
+      "jobs": [
+        "repo-tooling"
+      ],
+      "pull_request_branches": [
+        "master",
+        "develop"
+      ]
+    }
+  }
+}

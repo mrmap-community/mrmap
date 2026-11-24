@@ -26,6 +26,7 @@ Run from the repository root:
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -241,6 +242,72 @@ class ValidationHonestyTest(unittest.TestCase):
         with self.assertRaises(SystemExit) as caught:
             task_perf_bench.validate_record(broken)
         self.assertIn("vibes", str(caught.exception))
+
+    def test_a_runner_clock_attempt_is_labelled_measured_local(self):
+        """The #1330 distinction, on the only CI path that exists.
+
+        Without ``MRMAP_TASK_PERF_EAGER=1`` the suite has no broker, so its
+        attempt rows are the workload runner's own stopwatch, and the suite says
+        so on the row (``quality: ['no_collector_row']``) and on the record
+        (``quality.evidence: measured_local``). An analyzer which hardcodes
+        ``measured`` publishes a worker-signal claim no worker made, and no
+        artifact would ever contain the word ``measured_local``.
+        """
+        attempt = {"task_id": "runner-typical-0", "attempt_no": 0,
+                   "active_seconds": 0.5, "wait_seconds": None,
+                   "outcome": "success", "quality": ["no_collector_row"]}
+        units = [dict(unit(), attempts=[dict(attempt, task_id="runner-typical-%d" % i)])
+                 for i in range(30)]
+        record = build_record(self.tmp.name, units=units)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
+        self.assertEqual(record["durations"]["active"]["p95_evidence"],
+                         "measured_local")
+        # the count says which and how many of the samples are the runner's clock
+        self.assertEqual(record["durations"]["active"]["runner_clock_samples"], 30)
+
+    def test_a_collector_row_keeps_the_measured_label(self):
+        """The fix must not demote a real #1330 sample to a stopwatch reading."""
+        record = build_record(self.tmp.name)
+        self.assertEqual(record["durations"]["active"]["evidence"], "measured")
+        self.assertNotIn("runner_clock_samples", record["durations"]["active"])
+
+    def test_a_mixed_sample_is_never_promoted_to_measured(self):
+        """One stopwatch row among collector rows labels the block as the clock.
+
+        The tempting reading - most samples are real, so claim the better label -
+        is the one which lets a partial measurement speak as a full one. The
+        reader sees the split in ``runner_clock_samples`` instead.
+        """
+        units = []
+        for index in range(30):
+            rows = [{"task_id": "t%d" % index, "attempt_no": 0,
+                     "active_seconds": 0.5, "wait_seconds": 0.02,
+                     "outcome": "success"}]
+            if index == 0:
+                rows.append({"task_id": "runner-typical-%d" % index, "attempt_no": 0,
+                             "active_seconds": 0.6, "wait_seconds": None,
+                             "outcome": "success",
+                             "quality": ["no_collector_row"]})
+            units.append(dict(unit(index=index), attempts=rows))
+        record = build_record(self.tmp.name, units=units)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
+        self.assertEqual(record["durations"]["active"]["runner_clock_samples"], 1)
+
+    def test_a_record_labelled_measured_local_is_not_relabelled(self):
+        """A fixture which names its own evidence is honoured, rows or no rows."""
+        units = [dict(unit(index=index),
+                      attempts=[{"task_id": "t%d" % index, "attempt_no": 0,
+                                 "active_seconds": 0.5, "wait_seconds": 0.02,
+                                 "outcome": "success"}])
+                 for index in range(30)]
+        record = build_record(self.tmp.name, units=units)
+        # the rows look like collector rows; only the fixture knows better
+        record["quality"]["evidence"] = "measured_local"
+        task_perf_bench.finalize_record(record)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
 
     def test_truncated_window_without_a_note_is_refused(self):
         broken = json.loads(json.dumps(self.record))
@@ -1241,10 +1308,9 @@ class CliContractTest(unittest.TestCase):
                        "monitoring.wms", "monitoring.wfs", "monitoring.csw",
                        "monitoring.artifact_purge", "update.wms", "update.wfs",
                        "update.csw", "update.sweep", "housekeeping.system",
-                       "housekeeping.notify", "security.log_analysis",
-                       "validation"):
+                       "housekeeping.notify", "security.log_analysis"):
             self.assertIn(family, printed)
-        for retired in ("conformity", "etf", "inspire_atlas"):
+        for retired in ("conformity", "etf", "inspire_atlas", "validation"):
             self.assertNotIn(retired, printed,
                              "the retired legacy conformity tasks (#1527/#1458/"
                              "#1530) have no task left to benchmark")
@@ -1318,6 +1384,215 @@ class CliContractTest(unittest.TestCase):
             self.assertIn(artifact, workflow,
                           "the report a reviewer reads without re-running is "
                           "the artifact")
+
+    def test_runner_and_workflow_name_one_output_directory(self):
+        """The container writes where the host reads, or the nightly has no artifact.
+
+        ``django-tests`` bind-mounts only ./backend at /opt/mrmap
+        (docker-compose.dev.yml), so a record written anywhere else inside the
+        container is invisible on the host: the sweep finds nothing, the runner
+        fails its "no workload file" guard and ``if-no-files-found: error`` fails
+        the upload too. Both halves of that agreement are pinned here, because the
+        two path literals differing by a prefix is exactly the failure that reads
+        as "the benchmark is broken" while only the paths are.
+        """
+        path = os.path.join(REPO_ROOT, "scripts", "task_perf_runner.sh")
+        with open(path, encoding="utf-8") as handle:
+            runner = handle.read()
+        path = os.path.join(REPO_ROOT, ".github", "workflows",
+                            "task-performance.yml")
+        with open(path, encoding="utf-8") as handle:
+            workflow = handle.read()
+        out_default = re.search(r"OUT=\$\{MRMAP_TASK_PERF_OUT:-([^}]*)\}", runner)
+        self.assertIsNotNone(out_default, "the runner must default its output dir")
+        out_dir = out_default.group(1)
+        self.assertTrue(out_dir.startswith("backend/"),
+                        "the only host-visible directory of the test container is "
+                        "the ./backend bind mount; %r is not it" % out_dir)
+        # the container-side path is DERIVED from the host-side one, so the two
+        # cannot drift into two different measurements
+        self.assertIn('MRMAP_TASK_PERF_OUT="$CONTAINER_OUT"', runner)
+        self.assertIn("CONTAINER_OUT=${OUT#backend/}", runner)
+        self.assertIn("--out %s" % out_dir, workflow,
+                      "the nightly must ask for the directory the runner writes")
+        for artifact in ("task-perf.jsonl", "report.txt", "summary.txt",
+                         "gate.json", "detect-*.txt"):
+            self.assertIn("%s/%s" % (out_dir, artifact), workflow,
+                          "artifact %s is not under the directory the runner "
+                          "writes" % artifact)
+        # and the ignore covers that path, so a local run leaves no dirty tree
+        ignored = subprocess.run(  # nosec B603 - repository's own tool
+            ["git", "check-ignore", "-q", "%s/probe.json" % out_dir],
+            cwd=REPO_ROOT, capture_output=True).returncode
+        self.assertEqual(ignored, 0,
+                         "%s/ is not ignored: a local benchmark run would show up "
+                         "in git status" % out_dir)
+
+    def test_family_selection_reaches_the_test_process(self):
+        """``--family`` selects the workload; a log line about it does not.
+
+        Without this the nightly measures every family x four arms whatever it was
+        asked for - contradicting its own "one family keeps a nightly short", the
+        timeout budget and the job name - and a single family whose record the
+        analyzer refuses aborts the run before any report is written.
+        """
+        path = os.path.join(REPO_ROOT, "scripts", "task_perf_runner.sh")
+        with open(path, encoding="utf-8") as handle:
+            runner = handle.read()
+        self.assertIn("-e MRMAP_TASK_PERF_FAMILY=$FAMILY", runner,
+                      "--family has to be passed into the container")
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "_task_runtime_bench_support.py")
+        with open(path, encoding="utf-8") as handle:
+            support = handle.read()
+        self.assertIn("MRMAP_TASK_PERF_FAMILY", support)
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "test_task_runtime_bench.py")
+        with open(path, encoding="utf-8") as handle:
+            bench = handle.read()
+        self.assertIn("BENCH_FAMILY", bench)
+        self.assertIn("self.skipTest(", bench)
+        self.assertIn("self.family != BENCH_FAMILY", bench,
+                      "the selected family must be the one the classes compare "
+                      "themselves against")
+
+    def test_every_dispatch_choice_is_a_measured_family(self):
+        """Now that ``--family`` selects, a choice with no workload is a red night.
+
+        The menu used to be decorative, so a choice naming a family nobody
+        measured was harmless. It is not any more: such a run skips every class,
+        writes no workload file, and fails its own "holds no workload file" guard.
+        The choices and the bench classes are one list, checked against the other.
+        """
+        path = os.path.join(REPO_ROOT, ".github", "workflows",
+                            "task-performance.yml")
+        with open(path, encoding="utf-8") as handle:
+            workflow = handle.read()
+        block = workflow.split("inputs:", 1)[1].split("schedule:", 1)[0]
+        choices = re.findall(r"^\s{10}- (\S+)$", block, re.M)
+        self.assertTrue(choices, "the dispatch menu names no family")
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "test_task_runtime_bench.py")
+        with open(path, encoding="utf-8") as handle:
+            bench = handle.read()
+        measured = set(re.findall(r"^    family = '([^']+)'", bench, re.M))
+        self.assertTrue(measured, "the bench suite names no family")
+        for choice in choices:
+            self.assertIn(choice, measured,
+                          "%s can be chosen but no bench class measures it"
+                          % choice)
+            self.assertIn(choice, task_perf_bench.FAMILIES,
+                          "%s is not a registry family" % choice)
+
+    def test_the_documented_commands_parse(self):
+        """The runbook is the reason the runner exists; it has to run.
+
+        Every ``task_perf_bench.py`` line of the docs page is parsed against the
+        analyzer's real argument surface. A documented command which argparse
+        refuses is worse than no command: it is the block an operator follows to
+        reproduce a CI number without the runner.
+        """
+        path = os.path.join(REPO_ROOT, "docs", "source", "development",
+                            "celery-task-runtime-benchmarks.rst")
+        with open(path, encoding="utf-8") as handle:
+            doc = handle.read()
+        parser = task_perf_bench.build_parser()
+        lines = doc.replace("\\\n", " ").splitlines()
+        commands = []
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped.startswith("python3 scripts/task_perf_bench.py"):
+                continue
+            while stripped.endswith("\\"):
+                stripped = stripped[:-1].strip() + " " + lines[index + 1].strip()
+            commands.append(stripped)
+        self.assertGreaterEqual(len(commands), 5,
+                                "the page documents no analyzer commands to check")
+        for command in commands:
+            argv = command.split()[1:]          # drop the `python3`
+            argv = [part for part in argv if part != "scripts/task_perf_bench.py"]
+            try:
+                parser.parse_args(argv)
+            except SystemExit as error:
+                self.fail("documented command exits %s: %s" % (error, command))
+
+    def test_task_names_agree_across_the_three_artifacts(self):
+        """Registry, bench suite and baseline file name the same Celery tasks.
+
+        ``families`` is the command a reviewer is pointed at for "what is
+        declared", so a name it prints which no worker has ever registered makes
+        the whole table untrustworthy - the same class of defect as the #1199
+        "Received unregistered task" case, arriving from the reporting side.
+
+        A ``@shared_task`` without an explicit ``name=`` is registered by Celery
+        under its defining module plus its function, so the registry has to spell
+        those names that way; a name carrying ``name="..."`` is registered under
+        that literal and must be spelled as it. Both readings are checked against
+        the source of the task module, not against a second list.
+        """
+        task_files = {
+            "registry.tasks": "registry/tasks/__init__.py",
+            "registry.tasks.harvest": "registry/tasks/harvest.py",
+            "registry.tasks.monitoring": "registry/tasks/monitoring.py",
+            "registry.tasks.service": "registry/tasks/service.py",
+            "registry.tasks.update": "registry/tasks/update.py",
+            "registry.tasks.security": "registry/tasks/security.py",
+            "registry.tasks.alerts": "registry/tasks/alerts.py",
+            "system.tasks": "system/tasks.py",
+            "notify.tasks": "notify/tasks.py",
+        }
+        defined = {}     # module -> functions it defines
+        explicit = {}    # module -> names it registers with an explicit name=
+        for module, relative in task_files.items():
+            with open(os.path.join(REPO_ROOT, "backend", relative),
+                      encoding="utf-8") as handle:
+                source = handle.read()
+            defined[module] = set(re.findall(r"^def ([a-z_][a-z0-9_]*)\(", source,
+                                             re.M))
+            explicit[module] = set(
+                re.findall(r"name=[\x27\"]([a-zA-Z0-9_.]+)[\x27\"]", source))
+
+        def resolve(name):
+            """Whether a worker would answer this name, and from which module."""
+            module, _, function = name.rpartition(".")
+            if module in task_files:
+                if function in explicit[module]:
+                    return None          # registered under this literal name
+                return None if function in defined[module] else (
+                    "no task function %s() in %s" % (function, task_files[module]))
+            # a bare name is only a Celery name if a module asked for it
+            for candidate in task_files:
+                if name in explicit[candidate]:
+                    return None
+            return "no task module registers %r" % (name,)
+
+        for family, spec in task_perf_bench.FAMILIES.items():
+            self.assertTrue(spec["tasks"], "%s declares no task" % family)
+            for name in spec["tasks"]:
+                problem = resolve(name)
+                self.assertIsNone(problem, "%s: %s" % (family, problem))
+        with open(os.path.join(REPO_ROOT, "scripts", "task_perf_baseline.json"),
+                  encoding="utf-8") as handle:
+            baseline = json.load(handle)
+        with open(os.path.join(REPO_ROOT, "backend", "tests", "django", "system",
+                               "test_task_runtime_bench.py"),
+                  encoding="utf-8") as handle:
+            bench = handle.read()
+        declared = {name for spec in task_perf_bench.FAMILIES.values()
+                    for name in spec["tasks"]}
+        for entry in baseline["entries"]:
+            for name in entry.get("tasks", []):
+                self.assertIn(name, declared,
+                              "the baseline file names %s of %s, which the "
+                              "registry does not declare" % (name, entry["family"]))
+        measured = set(re.findall(
+            r"'([a-z_][a-z0-9_.]*)'",
+            "\n".join(line for line in bench.splitlines()
+                       if line.strip().startswith("tasks = "))))
+        for name in measured:
+            self.assertIn(name, declared,
+                          "the bench suite measures %s, which the registry does "
+                          "not declare" % name)
 
     def test_the_runner_holds_the_detect_invocation_the_workflow_shares(self):
         """CI holds a call and no logic, so the logic has to be in the script.

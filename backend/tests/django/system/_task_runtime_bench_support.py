@@ -34,6 +34,10 @@ EAGER_ENABLED = os.environ.get('MRMAP_TASK_PERF_EAGER', '').strip().lower() in (
 SEED = int(os.environ.get('MRMAP_TASK_PERF_SEED', '20261121'))
 REPEATS = max(1, int(os.environ.get('MRMAP_TASK_PERF_REPEATS', '7')))
 OUT_DIR = os.environ.get('MRMAP_TASK_PERF_OUT', 'task-perf')
+#: one family name, when the run is asked to measure a single family; unset runs
+#: every family. The runner passes `--family` through as this, so the flag
+#: selects the workload in CI and on a laptop instead of only naming it.
+FAMILY = (os.environ.get('MRMAP_TASK_PERF_FAMILY', '') or '').strip() or None
 HEAVY_BACKLOG_RECORDS = int(os.environ.get('MRMAP_TASK_PERF_BACKLOG', '400000'))
 HEAVY_CHUNK_SIZE = int(os.environ.get('MRMAP_TASK_PERF_CHUNK_SIZE', '1000'))
 

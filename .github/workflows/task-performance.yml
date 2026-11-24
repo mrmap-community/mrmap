@@ -107,7 +107,7 @@ jobs:
             --repeats "${{ inputs.repeats || '7' }}" \
             --seed "${{ inputs.seed || '20261121' }}" \
             --mode warn \
-            --out task-perf
+            --out backend/task-perf
 
       # warn mode means a detected regression exits 0: the artifact is the point,
       # and a regression a reviewer has not agreed to block on cannot be allowed
@@ -116,11 +116,11 @@ jobs:
       - name: Say what the detectors found
         if: always()
         run: |
-          for file in task-perf/detect-*.txt; do
+          for file in backend/task-perf/detect-*.txt; do
             [ -f "$file" ] || continue
             echo "::notice title=task-perf($(basename "$file" .txt | sed 's/^detect-//'))::$(cat "$file")"
           done
-          test -f task-perf/gate.txt && cat task-perf/gate.txt
+          test -f backend/task-perf/gate.txt && cat backend/task-perf/gate.txt
 
       - name: upload the benchmark report
         if: always()
@@ -131,12 +131,12 @@ jobs:
           # is a nightly that looks like it ran
           if-no-files-found: error
           path: |
-            task-perf/task-perf.jsonl
-            task-perf/report.txt
-            task-perf/summary.txt
-            task-perf/summary.log
-            task-perf/gate.json
-            task-perf/gate.txt
-            task-perf/detect-*.json
-            task-perf/detect-*.txt
-            task-perf/*__*.json
+            backend/task-perf/task-perf.jsonl
+            backend/task-perf/report.txt
+            backend/task-perf/summary.txt
+            backend/task-perf/summary.log
+            backend/task-perf/gate.json
+            backend/task-perf/gate.txt
+            backend/task-perf/detect-*.json
+            backend/task-perf/detect-*.txt
+            backend/task-perf/*__*.json

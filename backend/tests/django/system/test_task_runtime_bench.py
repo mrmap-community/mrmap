@@ -73,7 +73,7 @@ Running them
     MRMAP_TASK_PERF_BENCH=1 MRMAP_TASK_PERF_REPEATS=7 MRMAP_TASK_PERF_SEED=20261121 \\
     docker compose run --rm --no-deps \\
       -e MRMAP_TASK_PERF_BENCH -e MRMAP_TASK_PERF_REPEATS -e MRMAP_TASK_PERF_SEED \\
-      -e MRMAP_TASK_PERF_OUT=/opt/mrmap/task-perf \\
+      -e MRMAP_TASK_PERF_OUT=task-perf -e MRMAP_TASK_PERF_FAMILY=harvesting.import_chunk \\
       -e MRMAP_USER=mrmap -e MRMAP_PASSWORD=mrmap \\
       django-tests python manage.py test \\
       tests.django.system.test_task_runtime_bench --noinput --keepdb
@@ -104,8 +104,8 @@ from django.test import TestCase, tag
 from django_celery_beat.models import IntervalSchedule
 
 from tests.django.system._task_runtime_bench_support import (
-    ARMS, BENCH_ENABLED, BENCH_SKIP, EAGER_ENABLED, HEAVY_BACKLOG_RECORDS,
-    HEAVY_CHUNK_SIZE, HEAVY_ENABLED, HEAVY_SKIP, REPEATS,
+    ARMS, BENCH_ENABLED, BENCH_SKIP, EAGER_ENABLED, FAMILY as BENCH_FAMILY,
+    HEAVY_BACKLOG_RECORDS, HEAVY_CHUNK_SIZE, HEAVY_ENABLED, HEAVY_SKIP, REPEATS,
     attempt_rows, burn, collect_attempt_rows, cgroup_limits,
     database_fingerprint, dispatch, git_revision, oom_observed,
     peak_memory_bytes, remember_slow_body_reference, slow_body_reference,
@@ -141,6 +141,12 @@ class BenchCase(TestCase):
         super().setUp()
         if not BENCH_ENABLED:
             self.skipTest(BENCH_SKIP)
+        if BENCH_FAMILY and self.family != BENCH_FAMILY:
+            # skipped rather than silently absent, so a run which asked for one
+            # family cannot be read as a run which measured the others and found
+            # them clean
+            self.skipTest('MRMAP_TASK_PERF_FAMILY=%s selects one family'
+                          % BENCH_FAMILY)
         self.seed = int(os.environ.get('MRMAP_TASK_PERF_SEED', '20261121'))
         self.eager = EAGER_ENABLED
         self.http_calls = 0

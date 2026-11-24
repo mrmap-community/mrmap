@@ -111,7 +111,7 @@ runs in one test process, and is the part CI is allowed to run:
 
     # from the repository root; one stack per job, its own project name (AGENTS.md)
     scripts/task_perf_runner.sh --family harvesting.import_chunk \
-        --repeats 7 --seed 20261121 --out task-perf
+        --repeats 7 --seed 20261121 --out backend/task-perf
 
 That script owns the whole flow - compose project, database healthcheck, one
 test process with ``--keepdb`` and **without** ``--parallel`` (four Django test
@@ -121,20 +121,43 @@ fails loudly on a missing image, a skipped suite or an empty output directory:
 a report that silently contains no measurements is the flakiness this issue is
 about in its worst form, a green that measured nothing.
 
+Two of its rules are about paths and selection, because both were once wrong in
+a way that only showed up as an empty artifact an hour later:
+
+- ``--out`` has to sit under ``backend/``. The test container shares exactly one
+  directory with the host - ``docker-compose.dev.yml`` bind-mounts ``./backend``
+  at ``/opt/mrmap`` - so a record written anywhere else inside it is invisible
+  outside, and the nightly would upload nothing. The runner is given the host
+  path and derives the container path from it, so the two cannot drift apart.
+- ``--family`` selects the workload. The bench classes compare themselves against
+  ``MRMAP_TASK_PERF_FAMILY``, which the runner passes through, and every other
+  family **skips itself out loud** rather than being measured anyway: a nightly
+  which asked for one family measures one family, and a report over part of a run
+  is visibly partial. One workload file whose record the analyzer refuses is
+  named and counted while the rest still reach ``report`` and ``detect``; the run
+  ends red at the end, so a partial report can never read as a green one.
+
 The same steps by hand, when you want to see one of them:
 
 .. code-block:: bash
 
     export MRMAP_TASK_PERF_BENCH=1 MRMAP_TASK_PERF_REPEATS=7 MRMAP_TASK_PERF_SEED=20261121
+    # one directory, named once: the test container writes it under /opt/mrmap,
+    # which is ./backend bind-mounted, so the host reads it back as backend/task-perf
+    export MRMAP_TASK_PERF_OUT=task-perf
+    export MRMAP_TASK_PERF_FAMILY=harvesting.import_chunk
     docker compose run --rm --no-deps -e MRMAP_TASK_PERF_BENCH \
       -e MRMAP_TASK_PERF_REPEATS -e MRMAP_TASK_PERF_SEED -e MRMAP_TASK_PERF_OUT \
+      -e MRMAP_TASK_PERF_FAMILY \
       django-tests python manage.py test \
       tests.django.system.test_task_runtime_bench --noinput --keepdb
 
-    python3 scripts/task_perf_bench.py load --in task-perf --out task-perf/task-perf.jsonl
-    python3 scripts/task_perf_bench.py report --in task-perf/task-perf.jsonl
-    python3 scripts/task_perf_bench.py summary --in task-perf/task-perf.jsonl
-    python3 scripts/task_perf_bench.py detect --in task-perf/task-perf.jsonl --arm sql-n-plus-one
+    python3 scripts/task_perf_bench.py load --arm baseline --seed 20261121 \
+      --fixture-dir backend/task-perf --out backend/task-perf/task-perf.jsonl
+    python3 scripts/task_perf_bench.py report --in backend/task-perf/task-perf.jsonl
+    python3 scripts/task_perf_bench.py summary --in backend/task-perf/task-perf.jsonl
+    python3 scripts/task_perf_bench.py detect --in backend/task-perf/task-perf.jsonl \
+        --arm sql-n-plus-one
 
 The suite is **opt-in**: without ``MRMAP_TASK_PERF_BENCH=1`` every bench test
 skips. A stopwatch in the normal ``unit-tests`` job is exactly the flakiness
@@ -154,7 +177,7 @@ switch, so the repeatable half stays runnable on an ordinary machine:
 .. code-block:: bash
 
     scripts/task_perf_runner.sh --family harvesting.import_chunk --heavy \
-        --repeats 3 --out task-perf-heavy
+        --repeats 3 --out backend/task-perf-heavy
 
 ``--heavy`` drives the backlog of ``MRMAP_TASK_PERF_BACKLOG`` records (default
 400000) in bounded chunks of ``MRMAP_TASK_PERF_CHUNK_SIZE`` (default 1000)
@@ -186,8 +209,8 @@ a real run:
 
 .. code-block:: bash
 
-    python3 scripts/task_perf_bench.py detect --in task-perf.jsonl --arm sql-n-plus-one \
-        --out task-perf/detect.json
+    python3 scripts/task_perf_bench.py detect --in backend/task-perf/task-perf.jsonl \
+        --arm sql-n-plus-one --out backend/task-perf/detect.json
 
 An arm is judged **one family at a time**. A run without ``--family`` holds every
 family of the bench, and one slope fitted over all of them would ask how the cost

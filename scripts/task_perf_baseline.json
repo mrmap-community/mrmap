@@ -109,7 +109,7 @@
       "family": "registration.reference",
       "arm": "baseline",
       "scale": "typical",
-      "tasks": ["registry.tasks.collect_reference", "registry.tasks.finish_metadata_collection"],
+      "tasks": ["registry.tasks.service.collect_reference", "registry.tasks.service.finish_metadata_collection"],
       "metrics": {"active_p50": null, "active_p95": null, "slot_seconds": null},
       "ratio": 1.25,
       "block": false,
@@ -265,19 +265,6 @@
       "approved_by": null,
       "reviewed_at": null,
       "notes": "the independent security-log analysis which survived the retirement of the legacy conformity stack (#1530)"
-    },
-    {
-      "family": "validation",
-      "arm": "baseline",
-      "scale": "typical",
-      "tasks": ["registry.tasks.validate_service"],
-      "metrics": {"active_p50": null, "active_p95": null, "slot_seconds": null},
-      "ratio": 1.25,
-      "block": false,
-      "reviewed": false,
-      "approved_by": null,
-      "reviewed_at": null,
-      "notes": "still-supported independent validation; the retired ETF conformity family is deliberately absent, its tasks are gone (#1527/#1458/#1530)"
     }
   ]
 }

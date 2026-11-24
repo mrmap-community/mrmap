@@ -108,6 +108,8 @@ lerna-debug.log*
 !/.opencode/skills/
 
 # runtime benchmark run directories (#1396) - what scripts/task_perf_runner.sh
-# writes; the report belongs in a CI artifact, never in the repository
-/task-perf/
-/task-perf-heavy/
+# writes from inside the test container; the report belongs in a CI artifact,
+# never in the repository. Under backend/ because that is the container's bind
+# mount, so the artifact path of the nightly and this ignore are one path.
+/backend/task-perf/
+/backend/task-perf-heavy/

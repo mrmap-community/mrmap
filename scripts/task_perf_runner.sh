@@ -57,7 +57,15 @@ SEED=${MRMAP_TASK_PERF_SEED:-20261121}
 EAGER=0
 HEAVY=0
 MODE=warn
-OUT=${MRMAP_TASK_PERF_OUT:-task-perf}
+# The artifacts live under backend/, because that is the one directory the test
+# container shares with the host: django-tests bind-mounts ./backend at /opt/mrmap
+# (docker-compose.dev.yml), so what the workload writes under /opt/mrmap shows up
+# here, and the quality-assurance job already uploads container-written files the
+# same way (./backend/unit-tests-coverage-report.xml). Naming the host directory
+# and deriving the container path from it keeps ONE path for the run: an
+# --out outside backend/ is refused below rather than silently producing a
+# directory the container cannot write into and the nightly cannot upload.
+OUT=${MRMAP_TASK_PERF_OUT:-backend/task-perf}
 UP=1
 COMPOSE_PROJECT=${COMPOSE_PROJECT_NAME:-mrmap-task-perf}
 BENCH_MODULE=tests.django.system.test_task_runtime_bench
@@ -86,11 +94,29 @@ esac
 case "$SEED" in
         ''|*[!0-9]*) echo "task_perf_runner: --seed wants a number, got $SEED" >&2; exit 2 ;;
 esac
+# before the stack comes up: a typo in the family is a two-minute wait for
+# PostGIS and then a suite which skipped everything
+case "$FAMILY" in
+        ''|*[!a-zA-Z0-9._-]*) [ -z "$FAMILY" ] || { echo "task_perf_runner: --family $FAMILY is not a family name (see 'families')" >&2; exit 2; } ;;
+esac
 
 fail() {
         echo "task_perf_runner: $*" >&2
         exit 1
 }
+
+# The workload writes its records from inside the container. `backend/` is the
+# prefix of the bind mount, so the path below is the same directory seen from
+# the two sides; anything else would need a mount of its own, and a benchmark
+# whose CI path and local path differ is two measurements, not one (see the
+# header). Refuse it here, where the message is actionable, rather than
+# discovering it as an empty artifact directory an hour later.
+case "$OUT" in
+        backend/*) ;;
+        *) fail "--out must sit under backend/ (the bind mount of the test container is ./backend -> /opt/mrmap); got $OUT" ;;
+esac
+CONTAINER_OUT=${OUT#backend/}
+[ -n "$CONTAINER_OUT" ] || fail "--out must name a directory under backend/, not backend/ itself"
 
 command -v docker >/dev/null 2>&1 \
         || fail "no docker on this host: the workload runs in the backend test image and nothing here can measure it without one"
@@ -139,13 +165,25 @@ fi
 EXTRA_ENV=""
 [ "$HEAVY" = "1" ] && EXTRA_ENV="$EXTRA_ENV -e MRMAP_TASK_PERF_HEAVY=1"
 [ "$EAGER" = "1" ] && EXTRA_ENV="$EXTRA_ENV -e MRMAP_TASK_PERF_EAGER=1"
+# The selection has to reach the test process: `--family` which only names the
+# family in a log line leaves the nightly measuring every family x every arm,
+# and one family refusing validation then aborts the run before any report.
+# Every class skips itself out loud when it is not the selected one, so a
+# one-family run is visibly a one-family run rather than an empty report.
+if [ -n "$FAMILY" ]; then
+        EXTRA_ENV="$EXTRA_ENV -e MRMAP_TASK_PERF_FAMILY=$FAMILY"
+fi
 
-echo "task_perf_runner: benchmarking $FAMILY (repeats=$REPEATS seed=$SEED eager=$EAGER heavy=$HEAVY)"
-$COMPOSE run --rm --build \
+echo "task_perf_runner: benchmarking $FAMILY (repeats=$REPEATS seed=$SEED eager=$EAGER heavy=$HEAVY out=$OUT)"
+# `--user` as the quality-assurance job uses it for the same service: the image
+# ends as `mrmapuser` (uid 1000), which on a host whose developer has any other
+# uid could not write into the bind-mounted directory the run created, and would
+# leave the report owned by someone the operator cannot delete.
+$COMPOSE run --rm --build --user "$(id -u):$(id -g)" \
         -e MRMAP_TASK_PERF_BENCH=1 \
         -e MRMAP_TASK_PERF_REPEATS="$REPEATS" \
         -e MRMAP_TASK_PERF_SEED="$SEED" \
-        -e MRMAP_TASK_PERF_OUT=/opt/mrmap/"$OUT" \
+        -e MRMAP_TASK_PERF_OUT="$CONTAINER_OUT" \
         $EXTRA_ENV \
         django-tests python manage.py test "$BENCH_MODULE" \
         --noinput --keepdb -v 2 \
@@ -155,12 +193,23 @@ $COMPOSE run --rm --build \
 # repeat, seed and environment, so the analyzer's identity check has something
 # real to refuse when an arm's workload changed between runs.
 FILES=0
+BAD=0
 for file in "$OUT"/*.json; do
         [ -f "$file" ] || continue
         FILES=$((FILES + 1))
-        "$PYTHON" scripts/task_perf_bench.py load \
-                --fixture "$file" --out "$JSONL" >/dev/null \
-                || fail "$file is not a workload this analyzer understands"
+        # A refused file is named and counted, not fatal where it can be avoided:
+        # one malformed record from one family used to end the run before
+        # `report`/`summary`/`detect`/`gate`, so a nightly with one bad family
+        # published nothing at all for the families which had measured. The run
+        # still ends red below - a report over part of a run is honest, a green
+        # over part of one is not.
+        if "$PYTHON" scripts/task_perf_bench.py load \
+                --fixture "$file" --out "$JSONL" >/dev/null; then
+                :
+        else
+                echo "task_perf_runner: REFUSED $file - not a workload this analyzer understands" >&2
+                BAD=$((BAD + 1))
+        fi
 done
 if [ "$FILES" -eq 0 ]; then
         fail "$OUT holds no workload file: the suite skipped (MRMAP_TASK_PERF_BENCH unset, or the module moved) rather than measuring nothing"
@@ -214,5 +263,9 @@ GATE=$?
 cat "$OUT/gate.txt"
 echo
 echo "task_perf_runner: $FILES workload record(s) in $JSONL; artifacts in $OUT"
+if [ "$BAD" -gt 0 ]; then
+        echo "task_perf_runner: $BAD of $FILES record(s) were refused; the report above covers the rest" >&2
+        exit 1
+fi
 echo "task_perf_runner: mode=$MODE exit=$GATE (warn never fails a job; a blocking gate needs a reviewed baseline entry)"
 exit "$GATE"

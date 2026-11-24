@@ -107,88 +107,88 @@ DEFAULT_P95_RATIO = 1.25
 FAMILIES = {
     "harvesting.fan_out": {
         "queue": "download",
-        "tasks": ["registry.tasks.call_fetch_total_records",
-                  "registry.tasks.call_fetch_records"],
+        "tasks": ["registry.tasks.harvest.call_fetch_total_records",
+                  "registry.tasks.harvest.call_fetch_records"],
         "fixtures": ["typical", "large", "backlog"],
         "contract": {"statements_per_unit": 0, "http_calls_per_unit": 0},
         "note": "catalogue round trips and the fan-out over the download queue",
     },
     "harvesting.store_page": {
         "queue": "download",
-        "tasks": ["registry.tasks.call_md_metadata_files_to_db"],
+        "tasks": ["registry.tasks.harvest.call_md_metadata_files_to_db"],
         "fixtures": ["typical", "large"],
         "note": "one page of records stored as the backlog rows",
     },
     "harvesting.import_chunk": {
         "queue": "harvest-import",
-        "tasks": ["registry.tasks.call_md_metadata_files_to_db"],
+        "tasks": ["registry.tasks.harvest.call_md_metadata_files_to_db"],
         "fixtures": ["typical", "large", "backlog"],
         "contract": {"statements_per_unit": 4, "http_calls_per_unit": 0},
         "note": "bounded import chunks over the backlog of #859/#895",
     },
     "harvesting.finish": {
         "queue": "db-routines",
-        "tasks": ["registry.tasks.finish_harvesting_job",
-                  "registry.tasks.watch_import_backlogs"],
+        "tasks": ["registry.tasks.harvest.finish_harvesting_job",
+                  "registry.tasks.harvest.watch_import_backlogs"],
         "fixtures": ["typical", "large"],
         "note": "chord callbacks and the backlog watchdog",
     },
     "registration.reference": {
         "queue": "db-routines",
-        "tasks": ["registry.tasks.collect_reference",
-                  "registry.tasks.finish_metadata_collection"],
+        "tasks": ["registry.tasks.service.collect_reference",
+                  "registry.tasks.service.finish_metadata_collection"],
         "fixtures": ["typical", "large"],
         "note": "reference claim, lease and document acquisition (#1263/#1410)",
     },
     "monitoring.wms": {
         "queue": "monitoring",
         "contract": {"statements_per_unit": 7, "http_calls_per_unit": 1},
-        "tasks": ["registry.tasks.run_wms_monitoring",
-                  "registry.tasks.run_probe_check"],
+        "tasks": ["registry.tasks.monitoring.run_wms_monitoring",
+                  "registry.tasks.monitoring.run_probe_check"],
         "fixtures": ["typical", "large"],
         "note": "GetMap probe round trips",
     },
     "monitoring.wfs": {
         "queue": "monitoring",
-        "tasks": ["registry.tasks.run_wfs_monitoring",
-                  "registry.tasks.run_probe_check"],
+        "tasks": ["registry.tasks.monitoring.run_wfs_monitoring",
+                  "registry.tasks.monitoring.run_probe_check"],
         "fixtures": ["typical", "large"],
         "note": "GetFeature probe round trips",
     },
     "monitoring.csw": {
         "queue": "monitoring",
-        "tasks": ["registry.tasks.run_csw_monitoring",
-                  "registry.tasks.run_probe_check"],
+        "tasks": ["registry.tasks.monitoring.run_csw_monitoring",
+                  "registry.tasks.monitoring.run_probe_check"],
         "fixtures": ["typical", "large"],
         "note": "GetRecords probe round trips",
     },
     "monitoring.artifact_purge": {
         "queue": "db-routines",
-        "tasks": ["registry.tasks.delete_expired_probe_response_artifacts"],
+        "tasks": ["registry.tasks.monitoring.delete_expired_probe_response_artifacts"],
         "fixtures": ["typical", "large"],
         "note": "paged purge of expired probe artifacts (#1394)",
     },
     "update.wms": {
         "queue": "update",
-        "tasks": ["registry.tasks.create_wms_update_job"],
+        "tasks": ["registry.tasks.update.create_wms_update_job"],
         "fixtures": ["typical", "large"],
         "note": "WMS capabilities diff and apply over the update config",
     },
     "update.wfs": {
         "queue": "update",
-        "tasks": ["registry.tasks.create_wfs_update_job"],
+        "tasks": ["registry.tasks.update.create_wfs_update_job"],
         "fixtures": ["typical", "large"],
         "note": "WFS feature-type diff and apply",
     },
     "update.csw": {
         "queue": "update",
-        "tasks": ["registry.tasks.create_csw_update_job"],
+        "tasks": ["registry.tasks.update.create_csw_update_job"],
         "fixtures": ["typical", "large"],
         "note": "CSW record diff and apply",
     },
     "update.sweep": {
         "queue": "db-routines",
-        "tasks": ["registry.tasks.sweep_stale_update_jobs"],
+        "tasks": ["registry.tasks.update.sweep_stale_update_jobs"],
         "fixtures": ["typical"],
         "note": "beat sweep of update jobs which stopped reporting",
     },
@@ -214,12 +214,6 @@ FAMILIES = {
         "tasks": ["async_analyze_log"],
         "fixtures": ["typical"],
         "note": "the independent security-log analysis of the proxy (#1530 remains)",
-    },
-    "validation": {
-        "queue": "default",
-        "tasks": ["registry.tasks.validate_service"],
-        "fixtures": ["typical"],
-        "note": "still-supported independent validation, retired ETF family excluded",
     },
 }
 
@@ -580,6 +574,46 @@ def apply_cli_overrides(record, args):
         record["notes"] = args.notes
 
 
+def _is_runner_clock_attempt(attempt):
+    """Whether one attempt row is the workload runner's own stopwatch, not #1330.
+
+    The bench suite has to time a unit whose body never reaches a worker (a direct
+    ``.run()`` fires no Celery signals), and when the collector saw nothing it
+    writes a row in the SHAPE of an attempt row - same ``active_seconds`` field, a
+    synthesised ``task_id``, and a ``quality`` list naming what it is. The analyzer
+    must not read that shape as the #1330 claim it imitates: "measured" means
+    "observed from worker signals of an actual execution", which is the distinction
+    #1330 exists to keep and the one acceptance bullet 2 of #1396 is graded on.
+    """
+    quality = attempt.get("quality")
+    if isinstance(quality, str):
+        quality = [quality]
+    if isinstance(quality, list) and any(
+            str(item).startswith("no_collector_row") for item in quality):
+        return True
+    return str(attempt.get("task_id") or "").startswith("runner-")
+
+
+def _active_evidence(record, attempts):
+    """The evidence label of the active sample, read from where it came from.
+
+    Never promoted: one runner-clock row in the sample and the whole block is
+    labelled as the runner's clock, because a block which contains a stopwatch
+    reading cannot claim to be worker-signal-measured. ``samples`` on the block
+    says how many were runner rows, so a mixed sample stays visible instead of
+    quietly deciding in favour of the better label.
+    """
+    if not attempts:
+        return "measured", 0
+    runner_rows = sum(1 for attempt in attempts if _is_runner_clock_attempt(attempt))
+    if runner_rows:
+        return "measured_local", runner_rows
+    if (record.get("quality") or {}).get("evidence") == "measured_local" or \
+            record.get("evidence") == "measured_local":
+        return "measured_local", 0
+    return "measured", 0
+
+
 def finalize_record(record):
     """Derive what a caller did not hand in, and label every derivation."""
     workload = record.setdefault("workload", {})
@@ -590,17 +624,25 @@ def finalize_record(record):
     attempts = sum(len(unit.get("attempts", [])) for unit in (units or []))
     workload.setdefault("attempts", attempts)
     # active time: from the unit attempts when they exist
-    active = [attempt.get("active_seconds") for unit in (units or [])
-              for attempt in unit.get("attempts", [])
+    active_attempts = [attempt for unit in (units or [])
+                       for attempt in unit.get("attempts", [])]
+    active = [attempt.get("active_seconds") for attempt in active_attempts
               if attempt.get("active_seconds") is not None]
     waits = [attempt.get("wait_seconds") for unit in (units or [])
              for attempt in unit.get("attempts", [])
              if attempt.get("wait_seconds") is not None]
     if active:
         durations["active"] = duration_stats(active, "active")
-        durations["active"]["evidence"] = "measured"
+        # labelled from where the numbers came from, never asserted: see
+        # `_active_evidence`. A runner stopwatch is a legitimate measurement of
+        # the workload's own duration and a wrong claim about worker-occupied
+        # time, and the reader has to be able to tell the two apart.
+        evidence, runner_rows = _active_evidence(record, active_attempts)
+        durations["active"]["evidence"] = evidence
         if durations["active"]["p95"] is not None:
-            durations["active"]["p95_evidence"] = "measured"
+            durations["active"]["p95_evidence"] = evidence
+        if runner_rows:
+            durations["active"]["runner_clock_samples"] = runner_rows
         # the raw samples ride along up to a bound, so pooling across repeats is
         # a percentile over attempts and not an aggregate of aggregates
         durations["active"]["samples"] = active[:SAMPLES_INLINE_LIMIT]

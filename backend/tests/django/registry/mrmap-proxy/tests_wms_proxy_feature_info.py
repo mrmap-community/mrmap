@@ -28,7 +28,12 @@ from rest_framework.test import APIClient
 
 WFS_NS = "http://www.opengis.net/wfs"
 GML_NS = "http://www.opengis.net/gml"
+# the spelling the WFS 2.0 / GML 3.2 readers of this repository use
+# (registry/ows_lib/wfs/gml.py); an answer of a service may carry its areas in
+# either of them, or in none of them at all
+GML_3_2_NS = "http://www.opengis.net/gml/3.2"
 OGC_NS = "http://www.opengis.net/ogc"
+OWS_NS = "http://www.opengis.net/ows/1.1"
 
 # the upstream answers, in the order the proxy asks them, and the requests it
 # was asked to send
@@ -72,16 +77,24 @@ def answer_as_upstream(*args, **kwargs):
 
 
 def feature(identifier: str, north: float, east: float,
-            srs: str = "EPSG:4326") -> bytes:
-    """One member of the text/xml answer, bounded by an envelope at the corner."""
+            srs: str = "EPSG:4326", gml_ns: str = GML_NS,
+            name: str = None) -> bytes:
+    """One member of the text/xml answer, bounded by an envelope at the corner.
+
+    ``gml_ns`` spells the GML namespace of the areas the way the answering
+    service does, and ``name`` adds a value of a feature the service chose --
+    an answer does not become a report by mentioning one.
+    """
     member = etree.Element(f"{{{WFS_NS}}}member", fid=identifier)
-    bounded_by = etree.SubElement(member, f"{{{GML_NS}}}boundedBy")
+    bounded_by = etree.SubElement(member, f"{{{gml_ns}}}boundedBy")
     envelope = etree.SubElement(
-        bounded_by, f"{{{GML_NS}}}Envelope", srsName=srs)
+        bounded_by, f"{{{gml_ns}}}Envelope", srsName=srs)
     etree.SubElement(
-        envelope, f"{{{GML_NS}}}lowerCorner").text = f"{north} {east}"
+        envelope, f"{{{gml_ns}}}lowerCorner").text = f"{north} {east}"
     etree.SubElement(
-        envelope, f"{{{GML_NS}}}upperCorner").text = f"{north + 0.001} {east + 0.001}"
+        envelope, f"{{{gml_ns}}}upperCorner").text = f"{north + 0.001} {east + 0.001}"
+    if name is not None:
+        etree.SubElement(member, f"{{{WFS_NS}}}name").text = name
     return etree.tostring(member)
 
 
@@ -111,6 +124,20 @@ def geojson_answer() -> MockResponse:
     return MockResponse(
         b'{"type": "FeatureCollection", "features": []}',
         content_type="application/json")
+
+
+def ows_exception_report() -> MockResponse:
+    """The OWS Common ExceptionReport a service of the OWS shape refuses with."""
+    return MockResponse(
+        content=(
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            f'<ows:ExceptionReport version="1.2.1" xmlns:ows="{OWS_NS}">'
+            '<ows:Exception exceptionCode="OperationNotSupported">'
+            '<ows:ExceptionText>no such operation</ows:ExceptionText>'
+            '</ows:Exception></ows:ExceptionReport>'
+        ).encode(),
+        content_type="text/xml",
+        status_code=status.HTTP_400_BAD_REQUEST)
 
 
 def upstream_param(index: int, name: str) -> list:
@@ -464,3 +491,108 @@ class WebMapServiceProxyFeatureInfoTest(TestCase):
 
         self.assertEqual(status.HTTP_502_BAD_GATEWAY, response.status_code)
         self.assertIn(b"reach remote service", response.content)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_a_feature_of_an_answer_written_in_gml_3_2_is_checked(self, mocked_send):
+        # the areas of an answer are read namespace-agnostically, so a service
+        # which spells its GML the way the WFS 2.0 readers of this repository do
+        # is compared like any other: an answer of the GML 3.2 spelling whose
+        # features all lie within the allowed area is answered (#1471)
+        ANSWERS.append(answer(
+            feature("f1", *INSIDE, gml_ns=GML_3_2_NS),
+            feature("f2", *INSIDE, gml_ns=GML_3_2_NS)))
+        ANSWERS.append(geojson_answer())
+
+        response = self.ask()
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code, response.content)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_a_feature_outside_the_allowed_area_of_a_gml_3_2_answer_refuses_it(
+            self, mocked_send):
+        # the presence of an area was proved namespace-agnostically while the
+        # area itself was read in one bound namespace: a GML 3.2 answer selected
+        # no area at all, all() of nothing is true and the answer travelled
+        # although no feature was ever compared (#1471)
+        ANSWERS.append(answer(
+            feature("f1", *INSIDE, gml_ns=GML_3_2_NS),
+            feature("f2", *OUTSIDE, gml_ns=GML_3_2_NS)))
+        ANSWERS.append(geojson_answer())
+
+        response = self.ask()
+
+        self.assertRefused(response)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_a_feature_of_an_answer_of_a_foreign_gml_namespace_is_compared(
+            self, mocked_send):
+        # the areas are read by their local name, whatever namespace the
+        # answering service spells them in: an answer of a namespace no reader
+        # of this deployment names is compared like any other, and its feature
+        # outside the allowed area keeps the answer private (#1471)
+        ANSWERS.append(answer(
+            feature("f1", *INSIDE, gml_ns="http://example.com/gml"),
+            feature("f2", *OUTSIDE, gml_ns="http://example.com/gml")))
+        ANSWERS.append(geojson_answer())
+
+        response = self.ask()
+
+        self.assertRefused(response)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_an_area_nested_below_the_member_is_compared_too(self, mocked_send):
+        # an answer is read by the local names of its areas, whatever element
+        # carries them: a service which wraps its envelope one level deeper is
+        # compared like the flat answer of the other tests (#1471)
+        outside = etree.fromstring(feature("f1", *OUTSIDE))
+        envelope = outside.find(f".//{{{GML_NS}}}boundedBy")
+        wrapper = etree.Element(f"{{{WFS_NS}}}shape")
+        envelope.addprevious(wrapper)
+        wrapper.append(envelope)
+        ANSWERS.append(answer(etree.tostring(outside)))
+        ANSWERS.append(geojson_answer())
+
+        response = self.ask()
+
+        self.assertRefused(response)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_an_answer_naming_a_refusal_is_still_checked_feature_by_feature(
+            self, mocked_send):
+        # whether an answer is the report of a refusal is decided by its root,
+        # not by a word of its serialisation: upstream writes the attributes of
+        # a feature, so an answer which mentions a report is no report and the
+        # feature outside the allowed area keeps it private (#1471)
+        ANSWERS.append(answer(feature(
+            "f1", *OUTSIDE, name="ServiceExceptionReport")))
+        ANSWERS.append(geojson_answer())
+
+        response = self.ask()
+
+        self.assertRefused(response)
+
+    @patch.object(
+        target=WebMapServiceClient, attribute="send_request",
+        side_effect=answer_as_upstream)
+    def test_an_ows_exception_report_of_the_remote_is_forwarded_as_its_own(
+            self, mocked_send):
+        # a service of the OWS shape refuses with an ExceptionReport, not with
+        # the ServiceExceptionReport of the WMS; both are the refusal of the
+        # remote and travel as their own
+        ANSWERS.append(ows_exception_report())
+        ANSWERS.append(ows_exception_report())
+
+        response = self.ask()
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertIn(b"OperationNotSupported", response.content)

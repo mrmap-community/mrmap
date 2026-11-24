@@ -19,13 +19,18 @@ from registry.models.service import WebMapService
 from registry.ows_lib.request.utils import update_queryparams
 from registry.ows_lib.response.exceptions import LayerNotDefined
 from registry.ows_lib.wms.wms import WebMapServiceClient as WebMapServiceClient
-from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 from registry.proxy.mixins import Http423, OgcServiceProxyView
 from requests import Request
 
 # the answer this proxy reads the features of a GetFeatureInfo out of; any other
 # INFO_FORMAT is forwarded unchanged once the request passed the checks
 XML_INFO_FORMAT = "text/xml"
+
+# the roots of the reports a remote OGC service answers a refused request with:
+# the ServiceExceptionReport of OGC 05-008, 7.4.2 and the ExceptionReport of OWS
+# Common 1.2.1, 10.3.3; matched by local name, since the report of a service is
+# whatever namespace it happens to spell it in
+UPSTREAM_REFUSAL_ROOTS = ("ServiceExceptionReport", "ExceptionReport")
 
 
 def _world_to_pixel(coord, minx, miny, width, height, dx, dy):
@@ -447,8 +452,18 @@ class WebMapServiceProxy(OgcServiceProxyView):
         private, the same all-or-nothing the masked GetMap of a secured service
         applies (#1471). An answer which carries no feature at all is empty, so
         nothing private travels with it and it is allowed.
+
+        The areas are read namespace-agnostically, like the presence of an area
+        is proved. A selection bound to one GML namespace would have to spell
+        the namespace the answer happens to use: a GML 3.2 answer proved its
+        areas in the namespace-agnostic traversal and selected none of them in
+        the bound one, and an empty selection compares as true -- #1471 answered
+        as allowed what was never compared. The areas of the whole collection
+        are compared, a superset of the ones the presence check of every member
+        proved, so no area of the answer escapes the check.
         """
-        if not xml.xpath('//*[local-name()="FeatureCollection"]'):
+        collections = xml.xpath('//*[local-name()="FeatureCollection"]')
+        if not collections:
             logging.warning(
                 "GetFeatureInfo answer of service %s is no feature collection; "
                 "the answer is kept private", self.service.pk)
@@ -460,11 +475,24 @@ class WebMapServiceProxy(OgcServiceProxyView):
                     "without an area; the answer is kept private",
                     self.service.pk)
                 return False
-        return all(self._feature_is_within_allowed_area(bounded_by) for bounded_by
-                   in xml.xpath("//gml:boundedBy/gml:*",
-                                namespaces={"gml": NAMESPACE_LOOKUP["gml_3_1_1"]}))
+        # an answer whose members all carry an area has an area to compare, so
+        # an empty selection here means an answer without any feature at all
+        areas = [area for collection in collections for area
+                 in collection.xpath('.//*[local-name()="boundedBy"]/*')]
+        return all(self._feature_is_within_allowed_area(area) for area in areas)
 
-    def _answer_upstream_refusal(self, remote_response):
+    def _answer_upstream_failure(self, remote_response):
+        """Answer the way the upstream failed, when it never answered at all.
+
+        The dict of get_remote_response carries its own status and message, and
+        a failure of the proxy to reach the service is not a refusal of the
+        permissions of the caller (#1153, #1471).
+        """
+        if isinstance(remote_response, dict):
+            return self.return_http_response(response=remote_response)
+        return None
+
+    def _answer_upstream_refusal(self, remote_response, root=None):
         """Answer the way the remote service did, when it refused the request.
 
         A request which the remote service refuses is a faulty request of the
@@ -472,17 +500,28 @@ class WebMapServiceProxy(OgcServiceProxyView):
         refusal with the permissions report of this proxy tells the caller it
         lacks a permission it may well have, and the operator looks for a
         permission which was never the cause.
+
+        The report is recognised by the root of the parsed document, not by a
+        word of the serialised body: an answer which carries that word in an
+        attribute of a feature is an answer, not a report, and has to reach the
+        feature check (#1471).
+
+        :param remote_response: the answer of the remote service
+        :param root: the root of that answer, when the caller parsed it already
         """
-        if remote_response is None:
+        if "xml" not in (
+                remote_response.headers.get("content-type") or "").lower():
             return None
-        if isinstance(remote_response, dict):
-            # the report of get_remote_response for an upstream which never
-            # answered at all; it carries its own status and message
-            return self.return_http_response(response=remote_response)
-        content_type = remote_response.headers.get("content-type", "")
-        if "xml" in content_type.lower() and "exceptionreport" in remote_response.text.lower():
-            return self.return_http_response(response=remote_response)
-        return None
+        if root is None:
+            try:
+                root = parse_untrusted(remote_response.content)
+            except (XMLSyntaxError, ValueError):
+                # no document at all; whether its answer may travel is decided
+                # by the feature check, not here
+                return None
+        if root.tag.rpartition("}")[2] not in UPSTREAM_REFUSAL_ROOTS:
+            return None
+        return self.return_http_response(response=remote_response)
 
     def handle_secured_get_feature_info(self):
         """Return the GetFeatureInfo response if it stays within the allowed area.
@@ -527,18 +566,26 @@ class WebMapServiceProxy(OgcServiceProxyView):
             xml_response = self._answer_as_xml_info_format()
             requested_response = self.get_remote_response()
 
-        refusal = (self._answer_upstream_refusal(xml_response)
-                   or self._answer_upstream_refusal(requested_response))
+        refusal = (self._answer_upstream_failure(xml_response)
+                   or self._answer_upstream_failure(requested_response))
         if refusal is not None:
             return refusal
 
+        # the checked answer is parsed once and the parsed root answers both
+        # questions about it: whether the remote service refused the request and
+        # whether its features stay within the allowed area
         try:
             xml = parse_untrusted(xml_response.content)
-        except XMLSyntaxError:
+        except (XMLSyntaxError, ValueError):
             logging.warning(
                 "GetFeatureInfo answer of service %s is no well-formed XML; the "
                 "answer is kept private", self.service.pk)
             raise PermissionDenied
+
+        refusal = (self._answer_upstream_refusal(xml_response, root=xml)
+                   or self._answer_upstream_refusal(requested_response))
+        if refusal is not None:
+            return refusal
 
         if self._is_within_allowed_area(xml):
             return self.return_http_response(response=requested_response)

@@ -48,9 +48,11 @@ Then("the list shows the record named {string}", async ({ world }, value) => {
   // screen without a stable business identity can make.
   if (value === "-") return;
   const text = resolveNamedValue(value);
-  const row = world.screenShape === "explorer"
-    ? world.ui.explorerRowContaining(text)
-    : world.ui.rowContaining(text);
+  // Both branches go through the adapter, so the row predicate of the screen is
+  // defined in exactly one place: the datagrid rows come from datagridRows(),
+  // which excludes the loading skeleton of the react-admin Datagrid (#1689
+  // review, finding 5).
+  const row = world.ui.listRowContaining(world.screenShape, text);
   await expect(row.first(), `${world.currentScreen} has no row carrying "${text}"`).toBeVisible({ timeout: 30_000 });
 });
 

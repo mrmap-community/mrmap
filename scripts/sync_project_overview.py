@@ -60,21 +60,91 @@ def project_url(item):
     return content.get("url") or item.get("url")
 
 
+def project_item_fields(item):
+    fields = {}
+    for value in (item.get("fieldValues") or {}).get("nodes") or []:
+        field = value.get("field") or {}
+        name = field.get("name")
+        if not name:
+            continue
+        if value.get("__typename") == "ProjectV2ItemFieldSingleSelectValue":
+            fields[name] = value.get("name")
+        elif value.get("__typename") == "ProjectV2ItemFieldTextValue":
+            fields[name] = value.get("text")
+    return fields
+
+
+def project_items():
+    query = """
+query($owner: String!, $number: Int!, $first: Int!, $after: String) {
+  organization(login: $owner) {
+    projectV2(number: $number) {
+      items(first: $first, after: $after) {
+        nodes {
+          id
+          content {
+            ... on Issue { url }
+            ... on PullRequest { url }
+          }
+          fieldValues(first: 100) {
+            nodes {
+              __typename
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2FieldCommon { name } }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field { ... on ProjectV2FieldCommon { name } }
+              }
+            }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}
+"""
+    items = []
+    after = None
+    while True:
+        args = ["api", "graphql", "-f", "query=" + query,
+                "-F", "owner=" + OWNER, "-F", "number=" + str(PROJECT),
+                "-F", "first=100"]
+        if after:
+            args.extend(["-F", "after=" + after])
+        response = gh_json(*args)
+        project = (((response.get("data") or {}).get("organization") or {})
+                   .get("projectV2") or {})
+        connection = project.get("items") or {}
+        items.extend(connection.get("nodes") or [])
+        page = connection.get("pageInfo") or {}
+        if not page.get("hasNextPage"):
+            break
+        after = page.get("endCursor")
+        if not after:
+            raise RuntimeError("Project items pagination ended without a cursor")
+    return {"items": items}
+
+
 def synchronize(apply=False):
     issues = gh_json("issue", "list", "-R", REPO, "--state", "all",
                      "--limit", "1000", "--json", "number,title,state,url,labels")
     prs = gh_json("pr", "list", "-R", REPO, "--state", "open",
                   "--limit", "1000", "--json", "number,body,headRefName,isDraft,url")
-    raw = gh_json("project", "item-list", str(PROJECT), "--owner", OWNER,
-                  "--limit", "1000", "--field", "Development Phase",
-                  "--field", "Agent Status", "--format", "json")
+    raw = project_items()
     fields = gh_json("project", "field-list", str(PROJECT), "--owner", OWNER,
                      "--format", "json")
     names = {f["name"] for f in fields.get("fields", [])}
     if "Development Phase" not in names or "Agent Status" not in names:
         raise RuntimeError("Project fields missing; refusing partial sync")
 
-    by_url = {project_url(item): item for item in raw["items"] if project_url(item)}
+    by_url = {}
+    for project_item in raw["items"]:
+        url = project_url(project_item)
+        if url:
+            by_url[url] = {**project_item, **project_item_fields(project_item)}
     # Do not delete, archive or mutate unrelated project entries.
     idx = pr_index(prs)
     counts = {"add": 0, "phase": 0, "agent": 0, "unchanged": 0}

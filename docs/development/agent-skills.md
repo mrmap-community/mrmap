@@ -37,7 +37,7 @@ as such (e.g. extending hardened lxml parsing in `mrmap-ogc`).
 | `mrmap-ogc` | Capabilities/mappers per version, `ows_lib` rules, `/csw`, exception reports, untrusted XML, outbound-request hardening | OGC/ISO XML, WMS/WFS/CSW code paths, monitoring probes | none (no MCP covers OGC/ISO) |
 | `mrmap-security` | Guardian object permissions, security proxy, auth (session/Basic/Knox/WS), secrets, SSRF/XML surfaces | Permissions, proxy, auth, credentials, outbound HTTP | `postgres` (introspection only), `sonarqube` (findings) |
 | `mrmap-testing` | Unit-test conventions, Behave tiers T0–T3 & fixture tags, Vitest, query-count asserts, coverage gates | Adding/debugging any test, fixtures, red CI jobs | `postgres` (slot DB reads only) |
-| `mrmap-github-workflow` | Claiming (`scripts/wip`), branches/worktrees, PR readiness (definition of done), `scripts/decisions`, human-only acts | Starting issue work, branch/PR steps, board/decision tooling | `sonarqube` (PR findings) |
+| `mrmap-github-workflow` | Claiming (`scripts/wip`), branches/worktrees, the epic branch base rule (`scripts/epic_rollout.py`), PR readiness (definition of done), `scripts/decisions`, human-only acts | Starting issue work, branch/PR steps, an epic child's base, board/decision tooling | `sonarqube` (PR findings) |
 
 Cross-references between skills exist (e.g. `mrmap-ogc` ↔ `mrmap-security`, `mrmap-testing` ←
 area skills); OpenCode lists all skills each step, so agents can load several.

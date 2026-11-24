@@ -7,7 +7,10 @@ on:
     types: [checks_requested]
     branches: [master, develop]
   pull_request:
-    branches: [master, develop]
+    # epic/** runs the same required checks as develop: a child PR into an epic
+    # integration branch must not be mergeable unchecked (#1594, epic #1588). An addition
+    # of coverage - no path here skips a check for a branch, an author or a label.
+    branches: [master, develop, 'epic/**']
     types: [opened, synchronize, reopened]
   schedule:
     - cron: 0 16 * * *

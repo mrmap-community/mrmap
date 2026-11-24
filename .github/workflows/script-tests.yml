@@ -34,7 +34,9 @@ on:
     types: [checks_requested]
     branches: [master, develop]
   pull_request:
-    branches: [master, develop]
+    # epic/** too: an epic child branch that edits scripts/ must be held
+    # to the same offline suites as one based on develop (#1594, epic #1588).
+    branches: [master, develop, 'epic/**']
     types: [opened, synchronize, reopened]
 
 concurrency:

@@ -106,6 +106,17 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
   GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
   hand when touching either tool.
+  `scripts/epic_rollout.py` is the dry-run migration plan and rollout readiness report of the epic
+  branch contract (#1594, epic #1588): it reads the open epics, their native sub-issues, the open
+  PRs and the live claims, resolves each epic to a row of the contract's decision table, and prints
+  every owed action with the actor allowed to take it — a person for a branch cut, a retarget, a
+  protection change and an integration merge, never an agent. It also fails on the rollout's own
+  defects: a named workflow whose `pull_request` trigger dropped the epic namespace (a child PR
+  would merge unchecked), an expired legacy exemption, a bootstrap branch standing without its
+  integration PR, a slug reused across open epics. `scripts/epic_rollout.json` is its reviewed
+  policy — the advisory and strict dates, the bootstrap exemption and the time-limited legacy
+  exceptions; the suite `python3 scripts/test_epic_rollout.py` checks both the tool and that
+  committed state (no `gh`, no network). It writes nothing to GitHub.
   `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
   #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
   `docker/` surfaces for the validator's name and — where docker is present, probing for it
@@ -152,6 +163,9 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/architecture.md` — domain overview (services, update jobs, monitoring, security proxy).
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
+- `docs/source/development/epic-integration-contract.rst` — the epic branch contract: the decision
+  table (R1-R13) and the sixteen rules that decide which branch starts from which and which PR may
+  target what; `scripts/epic_rollout.json` holds its rollout dates and exemptions.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
 - `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
@@ -463,8 +477,23 @@ identifier itself is not an option — it breaks document matching against upstr
 - `develop` is the default development and integration branch.
 - `master` is reserved for stable releases.
 - Base new branches and worktrees on current `origin/develop`.
-- For epic sub-issues, use the designated epic integration
-  branch if applicable.
+- An epic's integration branch is `epic/<slug>`, where `<slug>` is the epic's first body
+  line (`slug: <kebab-name>`). One branch per epic, created by **a person** from the tip of
+  `origin/develop` — never by an agent, never pushed to directly (rule 1 and 3 of
+  `docs/source/development/epic-integration-contract.rst`).
+- A child of an open epic that declares a slug branches from the tip of its epic's
+  `epic/<slug>` and its PR bases on that branch **only**; it never bases on `develop`,
+  another epic's branch or a sibling child branch. Independent issues are unaffected: no
+  epic parent, no epic branch.
+- Epic integration PRs target `develop`: head `epic/<slug>`, base `develop`, merge commit,
+  human-approved and human-merged. That one PR is the epic's single release note entry, so
+  its title carries the epic's change class.
+- Retargeting a PR, creating or deleting an epic branch and its protection are human acts.
+  An agent reports what is owed — `python3 scripts/epic_rollout.py [--epic <N>]` prints the
+  plan with the actor of every action — and never performs one.
+- A bootstrap or in-flight epic runs under the pre-contract rule (children on `develop`)
+  only while `scripts/epic_rollout.json` records it as exempt, with a reason, a recording
+  issue and an expiry date. An exemption with no date is not an exemption.
 - Always explicitly specify the pull request base.
 - Feature, bugfix and housekeeping PRs target `develop`
   or their designated epic integration branch.

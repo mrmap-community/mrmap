@@ -254,10 +254,13 @@ def publish_task_performance(self, *args, **kwargs):
         logger.info(
             "Task performance (#1391): published %s records for the window "
             "%s to %s - %s executions, %s occupied slot-seconds over %s "
-            "buckets, resumed from %s.",
+            "buckets, %s attempts open and %s of them past the grace "
+            "(crash residue), resumed from %s.",
             summary["published"], summary["window_start"],
             summary["window_end"], summary["executions"],
             summary["slot_seconds"], summary["buckets"],
+            summary.get("open_running", "n/a"),
+            summary.get("open_abandoned", "n/a"),
             summary["resumed_from"])
     elif summary.get("reason"):
         logger.info("Task performance (#1391): nothing published - %s.",

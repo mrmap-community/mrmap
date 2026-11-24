@@ -47,13 +47,25 @@ One fire of ``system.tasks.publish_task_performance`` writes:
 ``class_sample``
     up to ``MRMAP_TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS`` finished
     attempts of the heaviest ``MRMAP_TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES``
-    classes - the rows an operator clicks into, not a series.
+    classes - the rows an operator clicks into, not a series;
+``coverage``
+    exactly one record, the crash residue the attempt table is holding *right
+    now*;
+``class_coverage``
+    the same read per task class which is holding residue.
 
-Every record of one fire carries the same window - ``window_start``
-(exclusive), ``window_end`` (inclusive), ``window_seconds`` - and ``source``,
-which is the source class of #1330 the numbers came from. The fields beside
-them are the contract; an unmeasured value is **absent**, never ``0``,
-because the semantics of the source layer survive into the series.
+The last two are a gauge read at every fire, not a partition of the window, and
+they exist because the window cannot answer the coverage question: see
+*Coverage is a state, not a window* below.
+
+Every record of the windowed series - ``fleet``, ``class_bucket`` and
+``class_sample`` - carries the same window - ``window_start`` (exclusive),
+``window_end`` (inclusive), ``window_seconds`` - and ``source``, which is the
+source class of #1330 the numbers came from. The coverage records carry
+``measured_at`` instead: the moment the standing read ran, because they are
+not a slice of anything. The fields beside them are the contract; an
+unmeasured value is **absent**, never ``0``, because the semantics of the
+source layer survive into the series.
 
 ``fleet`` - exactly one per window, the whole deployment:
 
@@ -61,8 +73,9 @@ because the semantics of the source layer survive into the series.
     ``slot_seconds``        sum of measured worker occupancy - the occupancy of #1330
     ``succeeded`` / ``failed`` / ``retried`` / ``revoked``
                             outcomes of the window
-    ``uncertain_open``      attempts with no end yet - running for hours
-    ``uncertain_abandoned`` attempts left without a terminal signal
+    ``uncertain_open``      open rows this window flushed - a crash shows up
+                            here only if the row was *written* in the window
+    ``uncertain_abandoned`` of those, the ones the sweep had already flagged
     ``active_p50`` / ``active_p95`` / ``active_p99`` / ``active_max``
                             wall time of a single run
     ``wait_p50`` / ``wait_p95`` / ``wait_max`` / ``wait_samples``
@@ -86,6 +99,52 @@ newest measured attempts of the heaviest
 ``task_id``, ``attempt_no``, ``outcome``, ``active_seconds``, ``wait_seconds``,
 ``started_at``, ``finished_at``. These are the rows an operator clicks into,
 not a series.
+
+``coverage`` - exactly one per fire, the standing state of the attempt table:
+
+    ``open_running``        open attempts without a terminal row, young
+                            enough to still be running - an expected state
+    ``open_abandoned``      open attempts without a terminal row which are
+                            past ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` -
+                            the crash residue, the number a coverage panel
+                            must move
+    ``open_total``          both together
+    ``grace_seconds``       the grace the partition was made at, so a reader
+                            can tell what "past the grace" meant at read time
+    ``measured_at``         when the read ran, not a window edge
+
+``class_coverage`` - one per task class which is holding open attempts, with
+``task_class`` and the same count fields.
+
+Coverage is a state, not a window
+---------------------------------
+
+The coverage question of #1391 - "can this dashboard see what ran, or is a
+worker quietly dying?" - is a question about the *state of the attempt table*,
+and the windowed ``uncertain_open`` / ``uncertain_abandoned`` of the series
+cannot answer it. The collector writes a crashed attempt's open row when the
+task *started*; the sweep of ``system.tasks`` adds the ``abandoned`` quality
+only once the row is ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` (~48 h) old.
+An exporter window is minutes wide and attributes rows by when they were
+written, so by the time the flag exists the row has left every window the
+exporter will ever publish: a deployment whose workers died mid-task publishes
+``uncertain_open=0 uncertain_abandoned=0`` beside a panel which presents
+itself as exactly that read.
+
+So the coverage records do not go through the window at all.
+:func:`system.capacity_measures.uncertain_coverage` reads the table as it
+stands - open attempts of the look-back whose identity has no terminal row -
+and partitions them at the abandon grace: an attempt young enough that its
+worker may still be running is ``open_running``, one past the grace is
+``open_abandoned``. Partitioning is what makes the two distinguishable at all;
+collapsing them would present a healthy multi-day task as crashed workers, or
+hide crashed workers among the running ones. The read counts the age as well
+as the flag, so it does not wait for the next sweep to notice what the age
+already says.
+
+Because these are gauge reads, a panel aggregates them with ``max()`` over the
+interval, never ``sum()``: summing an "is it still open?" count over the fires
+of an hour counts one residue once per fire.
 
 A record carries no argument, no URL and no payload; ``task_class``,
 ``task_name``, ``queue``, ``worker``, ``periodic_name``, ``outcome`` and
@@ -138,10 +197,25 @@ and a reviewer or an operator can copy one straight into Explore.
     the panel the issue is named for - ``sum(slot_seconds)`` per ``task_class``
     per window, with the interval ranking beside it. This is "who occupies the
     workers", which no per-attempt line of a busy deployment answers.
-``Slow classes`` / ``Classes with attempts still running``
-    ``active_p95`` and ``uncertain_open`` per class. These two are the
-    drill-down entry: they name the classes whose runs are long and the
-    classes with attempts which never ended, and the row an operator clicks.
+``Failed, retried and revoked attempts``
+    the outcomes of the ``fleet`` record per window. A retry burns the worker
+    slot again, so this is the plot to read beside an occupancy which suddenly
+    grew; an absent line is an unmeasured count of #1330, not a zero.
+``Queue wait beside wall time``
+    ``wait_p95`` and ``active_p95`` of the fleet record on one plot and
+    deliberately never added together - a task is slow either because it waited
+    for a worker or because it ran long, and those have different fixes. Read
+    it with ``wait_coverage``: a p95 of the wait is only meaningful for the
+    share of attempts where a publish timestamp made one measurable.
+``Slow classes``
+    ``active_p95`` per class: the classes whose runs are long, and the row an
+    operator clicks.
+``Attempts still open, by class``
+    the ``class_coverage`` records as a table - ``open_running`` and
+    ``open_abandoned`` per class. A class which keeps a row here for days is
+    either genuinely long-running (``open_running``) or has crashed workers
+    (``open_abandoned``); the two are shown apart because they are different
+    incidents, and the table is the drill-down entry for both.
 ``Queues``
     executions and occupancy per ``queue``, so a saturated queue is visible
     without a broker export.
@@ -152,10 +226,15 @@ and a reviewer or an operator can copy one straight into Explore.
     the ``class_sample`` records as a table, and the only place
     ``task_id`` appears: the path from "this class is slow" to "this attempt,
     this queue, this time".
-``Coverage of the interval``
-    ``uncertain_open`` and ``uncertain_abandoned`` of the fleet records. A
-    dashboard which cannot see its own coverage presents a gap as performance,
-    and #1330 made an unmeasured value explicit for a reason.
+``Coverage of the deployment``
+    ``open_running``, ``open_abandoned`` and ``open_total`` of the ``coverage``
+    record - the crash residue the attempt table is holding right now, read
+    with ``max()`` because it is a gauge and not a window total. A dashboard
+    which cannot see its own coverage presents a gap as performance, and #1330
+    made an unmeasured value explicit for a reason. Read this row before
+    trusting any number beside it: a deployment whose workers died mid-task
+    publishes no executions and still shows residue here, which is exactly the
+    state the windowed counters of the series cannot express.
 
 A panel selects one event type of the series like this (the query of the
 fleet occupancy panel)::
@@ -191,15 +270,21 @@ The sequence the dashboard exists for, from the operator's side:
           print(PeriodicTask.objects.filter(name='publish celery task performance').values('name','crontab'))"
 
    and ``docker compose logs celery_beat | grep -i task.performance``.
-2. **Read the coverage row first.** A window whose ``wait_samples`` is small
-   against ``executions`` tells you the wait numbers beside it describe what
-   was measured, not what ran; ``truncated=true`` on the fleet record says the
+2. **Read the coverage row first.** ``open_abandoned`` above zero means the
+   attempt table is holding attempts whose worker never reported an end: the
+   numbers beside it describe what could be measured, not what ran. Then read
+   the window itself - a window whose ``wait_samples`` is small against
+   ``executions`` tells you the wait numbers beside it describe what was
+   measured, not what ran; ``truncated=true`` on the fleet record says the
    (class, queue) cap was hit and the heaviest buckets are what is missing.
-   Both are reported rather than hidden - see the "why is a number missing"
-   table below.
-3. **Click the slow row.** ``Slow classes`` ranks classes by ``active_p95`` and
-   ``Classes with attempts still running`` by ``uncertain_open``. Pick the
-   class from the row.
+   All of it is reported rather than hidden - see the "why is a number missing"
+   table below. A class which sits in ``open_running`` for days is a different
+   incident from one in ``open_abandoned``: the first is a long task, the
+   second is a dead worker, and the beat log line of the exporter names both
+   without Grafana.
+3. **Click the slow row.** ``Slow classes`` ranks classes by ``active_p95``
+   and ``Attempts still open, by class`` ranks them by their crash residue.
+   Pick the class from the row.
 4. **Open the samples table** for that class. Each row is one attempt with its
    ``task_id``, queue, outcome, wall and wait seconds, and whether it came
    from a beat row. The samples are capped on purpose (the heaviest classes,
@@ -263,7 +348,14 @@ Testing the contract
 this page: the fields of each event, that unmeasured values stay out of a
 record, that a record carries no argument, URL or payload, and that the
 numbers of a record are the numbers of the bounded ``capacity_measures``
-query it was read from. The dashboard file is itself tested
+query it was read from. The coverage records are pinned against a row seeded
+the way a crashed worker actually leaves it - open, with ``started_at``
+*and* ``recorded_at`` hours old - because that is the state a window can
+never reach, and a suite which seeds the flag onto a fresh row proves
+nothing about it. ``tests.django.system.test_capacity_measures`` pins the
+standing read itself: that residue past the grace is reported whether or not
+the sweep has flagged it, that a task still inside the grace is not reported
+as residue, and that the read costs one or two queries. The dashboard file is itself tested
 (``backend/tests/django/system/test_task_performance_dashboard.py``): every
 panel has a datasource and a query, every query selects the marker, every
 field name and numeric role in it is part of the contract above, and the

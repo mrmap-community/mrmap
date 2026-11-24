@@ -14,10 +14,10 @@ from datetime import timedelta
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
-from system.capacity_measures import (attempt_measures, drilldown_samples,
-                                      grouped_measures, recent_samples,
-                                      task_class_of, window_buckets)
-from system.models import (AttemptQuality, CeleryTaskAttempt)
+from system.capacity_measures import (
+    WINDOW_WRITTEN, attempt_measures, drilldown_samples, grouped_measures,
+    recent_samples, task_class_of, uncertain_coverage, window_buckets)
+from system.models import (AttemptOutcome, AttemptQuality, CeleryTaskAttempt)
 
 
 def seed(task_id=None, attempt_no=0, queue="default", task_name="some.task",
@@ -414,3 +414,124 @@ class DrilldownSamplesTests(TestCase):
         with self.assertNumQueries(1):
             drilldown_samples(since(),
                               task_classes=["registry.tasks.harvest"])
+
+
+class UncertainCoverageTests(TestCase):
+    """The standing crash residue the coverage panel of #1391 reads.
+
+    These rows are seeded the way the collector and the sweep of
+    ``system.tasks`` actually leave a crashed worker behind - an open row
+    whose ``started_at`` AND whose ``recorded_at`` are both hours old - rather
+    than with the flag pre-set on a fresh row, which is a state no sweep
+    produces inside a window and the reason the gap these tests close stayed
+    invisible.
+    """
+
+    def crashed_row(self, task_name="registry.tasks.harvest.work",
+                    hours_ago=49, quality=None):
+        """An open row as the crash leaves it: written when it started.
+
+        ``recorded_at`` is moved back with an ``update`` because it is an
+        ``auto_now_add`` column - which is exactly what makes this row
+        unreachable for a window measured by when a row was written.
+        """
+        row = CeleryTaskAttempt.objects.create(
+            task_id=str(uuid.uuid4()), attempt_no=0, task_name=task_name,
+            queue="default", worker="celery@worker-1",
+            started_at=timezone.now() - timedelta(hours=hours_ago),
+            outcome="", quality=quality or [])
+        CeleryTaskAttempt.objects.filter(pk=row.pk).update(
+            recorded_at=row.started_at)
+        return row
+
+    def test_the_residue_is_answered_for_a_row_no_window_can_reach(self):
+        # the row is open, hours old, and not yet flagged: a window of minutes
+        # measured by the row write sees neither the row nor its flag, this
+        # read sees the row
+        self.crashed_row()
+        coverage = uncertain_coverage()
+        self.assertEqual(coverage["open_abandoned"], 1)
+        self.assertEqual(coverage["open_running"], 0)
+        self.assertEqual(coverage["open_total"], 1)
+
+    def test_a_task_still_running_is_residue_in_name_only(self):
+        # an attempt which started inside the grace may well still run: it
+        # must not move the crash-residue number, or a long task reads as
+        # crashed workers
+        self.crashed_row(hours_ago=1)
+        coverage = uncertain_coverage()
+        self.assertEqual(coverage["open_abandoned"], 0)
+        self.assertEqual(coverage["open_running"], 1)
+        self.assertEqual(coverage["open_total"], 1)
+
+    def test_the_read_does_not_wait_for_the_sweep_to_notice(self):
+        # the sweep is the deployment's own declaration of the residue, so
+        # what it flags must be in the answer - and what it has not reached
+        # yet must be there too, because the age says what the flag will say
+        from system.tasks import bound_task_attempt_samples
+
+        flagged = self.crashed_row(hours_ago=60)
+        unflagged = self.crashed_row(hours_ago=49)
+        self.assertNotIn(AttemptQuality.ABANDONED.value, unflagged.quality)
+        bound_task_attempt_samples.run()
+        flagged.refresh_from_db()
+        self.assertIn(AttemptQuality.ABANDONED.value, flagged.quality)
+
+        coverage = uncertain_coverage()
+        self.assertEqual(coverage["open_abandoned"], 2)
+        self.assertEqual(coverage["open_running"], 0)
+
+    def test_a_late_terminal_row_ends_the_residue(self):
+        crashed = self.crashed_row()
+        CeleryTaskAttempt.objects.create(
+            task_id=crashed.task_id, attempt_no=crashed.attempt_no,
+            task_name=crashed.task_name, queue=crashed.queue,
+            started_at=crashed.started_at, finished_at=timezone.now(),
+            active_seconds=3.0, outcome=AttemptOutcome.SUCCESS.value)
+        self.assertEqual(uncertain_coverage()["open_total"], 0)
+
+    def test_the_window_of_its_row_write_cannot_reach_it_at_all(self):
+        # the defect the standing read replaces: the row was written when the
+        # task started, so it sits outside every window the exporter ever
+        # publishes, whether or not the sweep has flagged it
+        self.crashed_row()
+        self.assertEqual(uncertain_coverage()["open_abandoned"], 1)
+        window_end = timezone.now() - timedelta(minutes=1)
+        answer = window_buckets(
+            since=window_end - timedelta(minutes=5), until=window_end,
+            attribution=WINDOW_WRITTEN)
+        self.assertEqual(answer["uncertain"]["open_without_end"], 0)
+        self.assertEqual(answer["uncertain"]["abandoned"], 0)
+        # ... and the standing read still reports it, which is the point
+        self.assertEqual(uncertain_coverage()["open_abandoned"], 1)
+
+    def test_the_classes_holding_the_residue_are_named(self):
+        self.crashed_row(task_name="registry.tasks.harvest.work")
+        self.crashed_row(task_name="registry.tasks.harvest.other")
+        self.crashed_row(task_name="notify.tasks.send_mail", hours_ago=1)
+        coverage = uncertain_coverage(group_by_class=True)
+        self.assertEqual(
+            [(row["task_class"], row["open_abandoned"], row["open_running"])
+             for row in coverage["by_class"]],
+            [("registry.tasks.harvest", 2, 0),
+             ("notify.tasks.send_mail", 0, 1)])
+
+    def test_the_read_is_bounded_and_small(self):
+        for index in range(3):
+            seed(active=1.0, task_name="registry.tasks.harvest.task%d" % index)
+        self.crashed_row()
+        with self.assertNumQueries(1):
+            # one bounded aggregate answers the whole fleet's standing state
+            uncertain_coverage()
+        with self.assertNumQueries(2):
+            # plus one grouped read, for who is holding the residue
+            uncertain_coverage(group_by_class=True)
+
+    def test_an_empty_table_answers_zeroes(self):
+        coverage = uncertain_coverage(group_by_class=True)
+        self.assertEqual(coverage["open_running"], 0)
+        self.assertEqual(coverage["open_abandoned"], 0)
+        self.assertEqual(coverage["open_total"], 0)
+        self.assertEqual(coverage["by_class"], [])
+        self.assertEqual(coverage["grace_seconds"], 48 * 3600)
+        self.assertEqual(coverage["source"], "measured_worker")

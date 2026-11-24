@@ -27,6 +27,9 @@ non-overlapping window, so a scheduled exporter - never a browser - can
 publish what the task dashboard of the deployment shows.
 """
 
+from datetime import timedelta
+
+from django.conf import settings
 from django.db import models
 from django.db.models import (Avg, CharField, Count, Exists, F, FloatField,
                               Max, OuterRef, Q, Sum, Value)
@@ -171,6 +174,11 @@ def _terminal_q():
 
 def _open_q():
     return Q(outcome="")
+
+
+def _abandoned_q():
+    """An open attempt the sweep of #1330 has declared without an end."""
+    return Q(quality__contains=[AttemptQuality.ABANDONED.value])
 
 
 def _uncertain_open_qs(since, until=None, queue=None, task_name=None,
@@ -608,3 +616,115 @@ def drilldown_samples(since, until=None, task_classes=None, limit=50,
                 "published_at", "started_at", "finished_at", "active_seconds",
                 "wait_seconds", "outcome", "quality")
         [:limit])
+
+
+#: the sweep of system.tasks declares an open attempt abandoned only once it
+#: is older than this grace; the standing coverage read uses the same bound to
+#: tell "still running" from "the worker is gone"
+ABANDON_GRACE_SETTING = "CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS"
+
+#: how far the standing coverage read of :func:`uncertain_coverage` looks
+#: back over ``started_at``. A multiple of the grace comfortably outlives both
+#: bounds the sweep enforces (retention and the hard row cap), so no residue
+#: which is still in the table can hide behind the bound, while the read stays
+#: a range scan on the indexed column rather than a scan of the whole table.
+UNCERTAIN_COVERAGE_LOOKBACK_GRACES = 8
+
+
+def _abandon_grace():
+    return timedelta(hours=max(1, int(getattr(
+        settings, ABANDON_GRACE_SETTING, 48))))
+
+
+def uncertain_coverage(group_by_class=False, limit=DISTINCT_TASK_NAME_BOUND):
+    """The crash residue the attempt table is holding RIGHT NOW.
+
+    The coverage question of #1391 - "can this dashboard see what ran?" - is a
+    question about the *state of the table*, not about a window. The windowed
+    counters of :func:`window_buckets` cannot answer it: the sweep of
+    ``system.tasks`` flags an open attempt abandoned only
+    ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` (~48 h) after it started, while
+    an exporter's window is minutes wide and measures by when a row was
+    written - by the time the flag exists, the row has long left every window
+    it could be counted in. A deployment whose workers died mid-task would
+    publish ``0 / 0`` beside a panel presenting itself as exactly that read.
+
+    So this read is not windowed. It asks the standing question and answers
+    three numbers which a window query cannot tell apart:
+
+    ``open_running``
+        open attempts without a terminal twin which started *within* the grace
+        - attempts the fleet may still be running, an expected state;
+    ``open_abandoned``
+        open attempts without a terminal twin which started *before* the grace
+        - the crash residue the sweep has declared (or is about to declare)
+        without an end; this is the number a coverage panel must move;
+    ``open_total``
+        both together, for a reader who wants "everything still open".
+
+    Partitioning at the grace is what makes the two states distinguishable at
+    all: a flagged attempt and a merely long-running one have the same row
+    shape, and collapsing them would let a healthy long task read as crashed
+    workers, or the reverse. The read is bounded on ``started_at`` by a
+    multiple of the grace which outlives retention, so it stays an indexed
+    range scan on a table whose only growing edge is the recent one.
+
+    Args:
+        group_by_class (bool): also answer the residue per task class, so an
+            operator can see which class is holding it
+        limit (int): bound of that grouped read
+    """
+    now = timezone.now()
+    grace = _abandon_grace()
+    grace_moment = now - grace
+    lookback = now - grace * UNCERTAIN_COVERAGE_LOOKBACK_GRACES
+    # what the sweep of system.tasks declares - and, one sweep later, always
+    # will: an open row of the grace's age. Reading the age as well as the
+    # flag is what makes this answer independent of when the sweep last ran;
+    # a row whose worker is gone is residue from the moment it stops being
+    # plausible that it is still running, not from the hour the sweep noticed.
+    residue_q = _abandoned_q() | Q(started_at__lt=grace_moment)
+    # the same uncertain question as _uncertain_open_qs, over the standing
+    # span instead of a window: open rows of the lookback whose identity has
+    # no terminal row anywhere (a terminal row is always as old as its open
+    # twin, so bounding the search by the open row's own age misses nothing)
+    terminal_twin = CeleryTaskAttempt.objects.filter(
+        task_id=OuterRef("task_id"),
+        attempt_no=OuterRef("attempt_no")).exclude(outcome="")
+    standing = (CeleryTaskAttempt.objects
+                .filter(started_at__gte=lookback)
+                .annotate(has_terminal=Exists(terminal_twin))
+                .filter(_open_q() & ~Q(has_terminal=True)))
+
+    def _counts(qs):
+        return qs.aggregate(
+            open_running=Count("pk", filter=~residue_q),
+            open_abandoned=Count("pk", filter=residue_q),
+            open_total=Count("pk"))
+
+    fleet = _counts(standing)
+    answer = {
+        # the fleet's own read, never a sum over the bounded grouped read
+        "open_running": fleet["open_running"],
+        "open_abandoned": fleet["open_abandoned"],
+        "open_total": fleet["open_total"],
+        "grace_seconds": int(grace.total_seconds()),
+        "source": SOURCE_MEASURED_WORKER,
+    }
+    if group_by_class:
+        grouped = (standing
+                   .annotate(**{TASK_CLASS_FIELD: TaskClass()})
+                   .values(TASK_CLASS_FIELD)
+                   .annotate(
+                       open_running=Count("pk", filter=~residue_q),
+                       open_abandoned=Count("pk", filter=residue_q),
+                       open_total=Count("pk"))
+                   .order_by("-open_abandoned", "-open_running")[:limit])
+        answer["by_class"] = [
+            {TASK_CLASS_FIELD: row[TASK_CLASS_FIELD],
+             "open_running": row["open_running"],
+             "open_abandoned": row["open_abandoned"],
+             "open_total": row["open_total"]} for row in grouped]
+    else:
+        answer["by_class"] = []
+    return answer

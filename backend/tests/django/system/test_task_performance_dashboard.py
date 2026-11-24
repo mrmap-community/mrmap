@@ -22,7 +22,8 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_FLEET,
+from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_CLASS_COVERAGE,
+                                     EVENT_COVERAGE, EVENT_FLEET,
                                      EVENT_SAMPLE)
 
 MARKER = "Celery task performance"
@@ -60,7 +61,8 @@ DATASOURCES = _provisioning_dir("datasources")
 
 #: every event the exporter can publish; a panel of anything else reads a
 #: record which will never arrive
-EVENTS = {EVENT_FLEET, EVENT_CLASS_BUCKET, EVENT_SAMPLE}
+EVENTS = {EVENT_FLEET, EVENT_CLASS_BUCKET, EVENT_SAMPLE, EVENT_COVERAGE,
+          EVENT_CLASS_COVERAGE}
 
 #: a numeric role in a LogsQL ``extract`` of these fields is what a panel
 #: aggregates; a text role is what it groups by
@@ -70,6 +72,7 @@ NUMERIC_FIELDS = (
     "active_p99", "active_max", "wait_p50", "wait_p95", "wait_max",
     "wait_samples", "wait_coverage", "buckets", "window_seconds",
     "attempt_no", "active_seconds", "wait_seconds",
+    "open_running", "open_abandoned", "open_total", "grace_seconds",
 )
 
 TEXT_FIELDS = ("event", "task_class", "queue", "worker", "periodic_name",
@@ -127,7 +130,8 @@ class QueryContractTests(SimpleTestCase):
 
     def test_every_event_filter_is_an_event_the_exporter_publishes(self):
         for panel, target in _targets():
-            for event in re.findall(r'"event=([a-z_]+)"', target["expr"]):
+            for event in re.findall(r'"event=([a-z0-9_]+)"',
+                                    target["expr"]):
                 self.assertIn(event, EVENTS,
                               "panel %s filters on event=%s, which the "
                               "exporter never publishes"
@@ -136,8 +140,10 @@ class QueryContractTests(SimpleTestCase):
     def test_every_extracted_field_is_a_field_of_the_record_it_selects(self):
         published = published_fields()
         for panel, target in _targets():
-            events = re.findall(r'"event=([a-z_]+)"', target["expr"])
-            fields = re.findall(r"extract `([a-z_]+)=<", target["expr"])
+            events = re.findall(r'"event=([a-z0-9_]+)"', target["expr"])
+            # digits included on purpose: a pattern of [a-z_] alone would let
+            # every percentile field of the contract slip past this check
+            fields = re.findall(r"extract `([a-z0-9_]+)=<", target["expr"])
             self.assertTrue(fields,
                             "panel %s selects the series but reads no field "
                             "of it" % panel["id"])
@@ -150,6 +156,29 @@ class QueryContractTests(SimpleTestCase):
                         field, published[event],
                         "panel %s reads %s off a %s record, which does not "
                         "carry it" % (panel["id"], field, event))
+
+    def test_the_crash_residue_is_read_as_a_gauge_not_a_window_sum(self):
+        # the coverage panels are the reason the standing coverage records
+        # exist: summing an "is it still open?" count over the windows of an
+        # interval counts the same residue once per fire, and the windowed
+        # uncertain counters of #1330 can never carry it at all (the sweep
+        # flags a row ~48 h after the last window it could be counted in)
+        residue_panels = [
+            (panel, target) for panel, target in _targets()
+            if "open_abandoned" in target["expr"]
+            or "open_running" in target["expr"]]
+        self.assertTrue(residue_panels,
+                        "the dashboard lost its coverage read entirely")
+        for panel, target in residue_panels:
+            self.assertTrue('"event=%s"' % EVENT_COVERAGE in target["expr"]
+                            or '"event=%s"' % EVENT_CLASS_COVERAGE
+                            in target["expr"],
+                            "panel %s reads the crash residue off records of "
+                            "another event; only the standing coverage records "
+                            "carry it" % panel["id"])
+            self.assertIn("max(", target["expr"],
+                          "panel %s sums a gauge over the interval, which "
+                          "counts one residue once per fire" % panel["id"])
 
     def test_an_extract_pattern_ends_where_the_store_can_stop(self):
         # ``extract `key=<value> ```` is a greedy placeholder; without the
@@ -188,8 +217,8 @@ def published_fields():
 
     from django.utils import timezone
 
-    from system.task_performance import (_bucket_records, _fleet_record,
-                                         _sample_records)
+    from system.task_performance import (_bucket_records, _coverage_records,
+                                         _fleet_record, _sample_records)
 
     now = timezone.now()
     window = {"since": now - timedelta(minutes=5), "until": now}
@@ -225,8 +254,20 @@ def published_fields():
                return_value=[row]):
         sample_fields = set(_sample_records(answer, ["registry.tasks"],
                                             "cursor")[0])
+    # same reason as the sample row above: the standing coverage read answers
+    # what capacity_measures.uncertain_coverage returns, the builder decides
+    # which of its keys reach a record
+    coverage = {"open_running": 3, "open_abandoned": 1, "open_total": 4,
+                "grace_seconds": 172800, "source": "measured_worker",
+                "by_class": [{"task_class": "registry.tasks",
+                              "open_running": 3, "open_abandoned": 1,
+                              "open_total": 4}]}
+    coverage_fields = set(_coverage_records(coverage)[0])
+    class_coverage_fields = set(_coverage_records(coverage)[1])
     return {
         EVENT_FLEET: fleet_fields,
         EVENT_CLASS_BUCKET: bucket_fields,
         EVENT_SAMPLE: sample_fields,
+        EVENT_COVERAGE: coverage_fields,
+        EVENT_CLASS_COVERAGE: class_coverage_fields,
     }

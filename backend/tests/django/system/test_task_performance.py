@@ -46,11 +46,11 @@ from system.apps import (TASK_PERFORMANCE_EXPORT_TASK_NAME,
                          create_task_performance_export_task)
 from system.capacity_measures import task_class_of
 from system.models import AttemptQuality, CeleryTaskAttempt
-from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_FLEET,
+from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_CLASS_COVERAGE,
+                                     EVENT_COVERAGE, EVENT_FLEET,
                                      EVENT_SAMPLE, TELEMETRY_SDID,
                                      WINDOW_CURSOR_KEY, _cursor_ttl,
-                                     _logfmt_value,
-                                     export_task_performance)
+                                     _logfmt_value, export_task_performance)
 
 LOGGER = "MrMap.root"
 
@@ -311,6 +311,120 @@ class PublishedRecordsTests(TestCase):
         self.assertEqual(self.records.for_event(EVENT_SAMPLE), [])
         self.assertEqual(len(self.records.for_event(EVENT_FLEET)), 1)
 
+    def test_a_broken_coverage_read_keeps_the_series(self):
+        seed()
+        with patch("system.task_performance.uncertain_coverage",
+                   side_effect=RuntimeError("no residue read")):
+            summary = export_task_performance()
+        self.assertGreaterEqual(summary["published"], 2)
+        self.assertEqual(self.records.for_event(EVENT_COVERAGE), [])
+        self.assertEqual(len(self.records.for_event(EVENT_FLEET)), 1)
+
+
+@ENABLED
+class CoverageRecordsTests(TestCase):
+    """The crash residue of the attempt table, published every fire.
+
+    The rows here are seeded the way a crashed worker actually leaves them -
+    an open row whose ``started_at`` *and* whose ``recorded_at`` are hours old,
+    because the collector wrote it when the task started and nothing has
+    touched it since - which is the state the windowed counters of the series
+    can never reach: by the time the sweep of ``system.tasks`` flags such a
+    row, the row has left every window the exporter will ever publish.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.records = Records.collect(self)
+
+    def crashed_row(self, task_name="registry.tasks.harvest.work",
+                    hours_ago=49):
+        row = CeleryTaskAttempt.objects.create(
+            task_id=str(uuid.uuid4()), attempt_no=0, task_name=task_name,
+            queue="default", worker="celery@worker-1",
+            started_at=timezone.now() - timedelta(hours=hours_ago),
+            outcome="", quality=[])
+        CeleryTaskAttempt.objects.filter(pk=row.pk).update(
+            recorded_at=row.started_at)
+        return row
+
+    def test_the_residue_of_a_crash_reaches_the_dashboard(self):
+        # the deployment's workers died mid-task: the exporter of the next
+        # minutes publishes no executions of that class and still says the
+        # attempts are open without an end
+        self.crashed_row()
+        export_task_performance()
+        payload = self.records.payload(EVENT_COVERAGE)
+        self.assertEqual(payload["open_abandoned"], "1")
+        self.assertEqual(payload["open_running"], "0")
+        self.assertEqual(payload["open_total"], "1")
+        self.assertEqual(payload["grace_seconds"], str(48 * 3600))
+        self.assertEqual(payload["source"], "measured_worker")
+        self.assertIn("measured_at", payload)
+
+    def test_a_quiet_window_still_publishes_its_coverage(self):
+        # an empty window is when the coverage matters most: a deployment
+        # whose workers died publishes no executions at all, and must still
+        # say its attempts are open without an end
+        self.crashed_row()
+        cache.set(WINDOW_CURSOR_KEY,
+                  (timezone.now() - timedelta(seconds=1)).isoformat())
+        summary = export_task_performance()
+        self.assertEqual(summary["executions"], 0)
+        self.assertEqual(self.records.for_event(EVENT_CLASS_BUCKET), [])
+        payload = self.records.payload(EVENT_COVERAGE)
+        self.assertEqual(payload["open_abandoned"], "1")
+        self.assertEqual(self.records.payload(EVENT_FLEET)["executions"], "0")
+
+    def test_a_still_running_attempt_is_not_reported_as_crash_residue(self):
+        # the counterfactual the review asked for: a genuinely long-running
+        # task must not move the number an operator reads as "workers died"
+        self.crashed_row(hours_ago=1)
+        export_task_performance()
+        payload = self.records.payload(EVENT_COVERAGE)
+        self.assertEqual(payload["open_abandoned"], "0")
+        self.assertEqual(payload["open_running"], "1")
+        self.assertEqual(payload["open_total"], "1")
+
+    def test_the_residue_is_also_attributed_to_its_class(self):
+        # all three are older than the grace, so all three are residue, and
+        # the class rows say which class is holding how much of them
+        self.crashed_row(task_name="registry.tasks.harvest.work")
+        self.crashed_row(task_name="registry.tasks.harvest.other")
+        self.crashed_row(task_name="notify.tasks.send_mail")
+        export_task_performance()
+        rows = self.records.for_event(EVENT_CLASS_COVERAGE)
+        self.assertEqual(
+            sorted((record["payload"]["task_class"],
+                    record["payload"]["open_abandoned"],
+                    record["payload"]["open_running"],
+                    record["payload"]["open_total"])
+                   for record in rows),
+            [("notify.tasks.send_mail", "1", "0", "1"),
+             ("registry.tasks.harvest", "2", "0", "2")])
+        # the fleet row still answers the whole table, not the classes published
+        self.assertEqual(self.records.payload(EVENT_COVERAGE)["open_total"],
+                         "3")
+
+    def test_the_coverage_is_a_gauge_in_the_summary(self):
+        # the beat task logs this line, so an operator reading the worker
+        # log of a crashed deployment sees the residue without Grafana
+        self.crashed_row()
+        summary = export_task_performance()
+        self.assertEqual(summary["open_abandoned"], 1)
+        self.assertEqual(summary["open_running"], 0)
+
+    def test_a_finished_attempt_leaves_the_residue(self):
+        crashed = self.crashed_row()
+        CeleryTaskAttempt.objects.create(
+            task_id=crashed.task_id, attempt_no=crashed.attempt_no,
+            task_name=crashed.task_name, queue=crashed.queue,
+            started_at=crashed.started_at, finished_at=timezone.now(),
+            active_seconds=3.0, outcome="success")
+        export_task_performance()
+        payload = self.records.payload(EVENT_COVERAGE)
+        self.assertEqual(payload["open_total"], "0")
+
 
 @ENABLED
 class WindowCursorTests(TestCase):
@@ -412,6 +526,11 @@ class BoundedCostTests(TestCase):
         self.assertEqual(summary["executions"], 5)
 
     def test_the_uncertain_observations_ride_along_as_counts(self):
+        # what a window flushed, and only that: a row seeded already flagged
+        # and written now is the one state the sweep reaches ~48 h after a row
+        # was written, never inside a window, so this proves the windowed
+        # counters of #1330 still travel - it says nothing about crash
+        # residue, which CoverageRecordsTests pins on a realistic row
         seed(outcome="", active=None, started_ago_seconds=10,
              quality=[AttemptQuality.ABANDONED.value])
         export_task_performance()

@@ -199,12 +199,12 @@
   {
    "id": 6,
    "type": "table",
-   "title": "Classes with attempts still running",
+   "title": "Attempts still open, by class (running vs past the grace)",
    "datasource": {
     "type": "victoriametrics-logs-datasource",
     "uid": "victorialogs"
    },
-   "description": "Attempts with no end signal at all: a task which is running for hours shows up here, and the reconciliation of #1330 says which of them are still alive.",
+   "description": "The standing state of the attempt table, read off the coverage records of the last fire: open_running is an attempt the fleet may still be executing (expected, and a genuinely long-running task keeps showing here), open_abandoned is an attempt older than the abandon grace whose worker never reported an end - the crash residue. The two are never added together: a long task must not read as crashed workers. max(), not sum(): these records are a gauge read per fire, not a partition of the interval.",
    "gridPos": {
     "h": 8,
     "w": 12,
@@ -226,7 +226,93 @@
      },
      "editorMode": "code",
      "queryType": "stats",
-     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `uncertain_open=<uncertain_open> ` | stats by (task_class) sum(uncertain_open) as uncertain_open | sort by (uncertain_open desc)"
+     "expr": "\"Celery task performance\" \"event=class_coverage\" | extract `task_class=<task_class> ` | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | stats by (task_class) max(open_running) as open_running, max(open_abandoned) as open_abandoned, max(open_total) as open_total | sort by (open_abandoned desc)"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "type": "timeseries",
+   "title": "Failed, retried and revoked attempts (per window)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The outcomes of the window, from the fleet record: the issue asks for failures and retries to be visible without a broker export, and they are the first thing to compare against a class which suddenly occupies more of the workers - a retry burns the slot again. Plotted per window rather than per interval, because a retry storm is a moment, not a total. An absent line is an unmeasured count of #1330, not a zero.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 25
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "A",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `failed=<failed> ` | stats by (_time:5m) sum(failed) as failed"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "B",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `retried=<retried> ` | stats by (_time:5m) sum(retried) as retried"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "C",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `revoked=<revoked> ` | stats by (_time:5m) sum(revoked) as revoked"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "type": "timeseries",
+   "title": "Queue wait beside wall time (95th percentile)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The two durations of #1330, on one plot and deliberately never added: a task is slow either because it waited for a worker or because it ran long, and the two have different fixes - more workers versus a smaller task. wait_p95 is only a number where a publish timestamp made it measurable; the wait_coverage of the fleet record says how much of the window had one.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 25
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "A",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `wait_p95=<wait_p95> ` | stats by (_time:5m) max(wait_p95) as wait_p95"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "B",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `active_p95=<active_p95> ` | stats by (_time:5m) max(active_p95) as active_p95"
     }
    ]
   },
@@ -243,7 +329,7 @@
     "h": 8,
     "w": 12,
     "x": 0,
-    "y": 25
+    "y": 33
    },
    "fieldConfig": {
     "defaults": {
@@ -277,7 +363,7 @@
     "h": 8,
     "w": 12,
     "x": 12,
-    "y": 25
+    "y": 33
    },
    "fieldConfig": {
     "defaults": {
@@ -311,7 +397,7 @@
     "h": 10,
     "w": 24,
     "x": 0,
-    "y": 33
+    "y": 41
    },
    "fieldConfig": {
     "defaults": {
@@ -335,17 +421,17 @@
   {
    "id": 10,
    "type": "stat",
-   "title": "Coverage of the interval (unmeasured, abandoned)",
+   "title": "Coverage of the deployment (crash residue right now)",
    "datasource": {
     "type": "victoriametrics-logs-datasource",
     "uid": "victorialogs"
    },
-   "description": "The series reports its own gaps: attempts without an end and attempts left without a terminal signal. A number beside these describes what was measured, not what ran.",
+   "description": "The series reports its own gaps: attempts still open without an end, split by whether they may still be running or are past the abandon grace. A deployment whose workers died mid-task shows open_abandoned > 0 even though it publishes no executions. Read the residue row before trusting any number beside it. max() over the interval - this is the standing state of the table, not a per-window count.",
    "gridPos": {
     "h": 5,
     "w": 24,
     "x": 0,
-    "y": 43
+    "y": 51
    },
    "fieldConfig": {
     "defaults": {
@@ -362,7 +448,7 @@
      },
      "editorMode": "code",
      "queryType": "stats",
-     "expr": "\"Celery task performance\" \"event=fleet\" | extract `uncertain_open=<uncertain_open> ` | extract `uncertain_abandoned=<uncertain_abandoned> ` | stats sum(uncertain_open) as uncertain_open, sum(uncertain_abandoned) as uncertain_abandoned"
+     "expr": "\"Celery task performance\" \"event=coverage\" | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | stats max(open_running) as open_running, max(open_abandoned) as open_abandoned, max(open_total) as open_total"
     }
    ]
   }

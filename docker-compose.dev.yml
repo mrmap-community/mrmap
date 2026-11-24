@@ -44,6 +44,9 @@ services:
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which these
+      # services talk to through REDIS_HOST of docker/backend/.mrmap.env
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
@@ -86,6 +89,9 @@ services:
     environment:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which these
+      # services talk to through REDIS_HOST of docker/backend/.mrmap.env
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
@@ -142,6 +148,9 @@ services:
       MRMAP_PRODUCTION: False
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which these
+      # services talk to through REDIS_HOST of docker/backend/.mrmap.env
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"

@@ -1,4 +1,5 @@
 import base64
+import itertools
 import json
 import os
 import threading
@@ -1694,12 +1695,21 @@ def iter_md_metadata_file_chunks(ids, batch_size=None):
 
     The fan-out which writes harvested records to the database is bounded by this:
     one task per chunk instead of one task per record (#859).
+
+    The ids are consumed as far as the yielded chunk needs them and no further
+    (#1620): the chord build hands this a server-side-cursor iterator over the
+    backlog, and a chunker which materialised the whole iterable first would
+    put the peak of the old per-record fan-out back into the building worker.
+    The chunk itself - at most ``batch_size`` ids - is the whole working set.
     """
     size = batch_size or settings.HARVEST_IMPORT_BATCH_SIZE
-    ids = list(ids)
     size = max(1, size)
-    for start in range(0, len(ids), size):
-        yield ids[start:start + size]
+    remaining = iter(ids)
+    while True:
+        chunk = list(itertools.islice(remaining, size))
+        if not chunk:
+            return
+        yield chunk
 
 
 @shared_task(queue=celery_queues.DB_ROUTINES, base=HarvestingTask)
@@ -1725,11 +1735,23 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
         # the progress already reported belongs to that bound (#958)
         resuming = harvesting_job.phase == HarvestingPhaseEnum.RECORDS_TO_DB
         http_request = kwargs.get("http_request") or harvesting_job._http_request()
-        ids = list(TemporaryMdMetadataFile.objects.filter(
-            job_id=harvesting_job_id, has_import_error=False).values_list("pk", flat=True))
+        # the backlog walks past the worker as a server-side cursor instead of
+        # arriving as a list (#1620): django's chunked fetch opens a named
+        # cursor, so the build holds the ids of one fetch and one chunk - not
+        # the whole catalogue - and the statement count of the build stays
+        # the one values-list read of #886 which the guard in
+        # ``tests_task_sql_harvesting`` pins.
+        ids = TemporaryMdMetadataFile.objects.filter(
+            job_id=harvesting_job_id, has_import_error=False).values_list(
+                "pk", flat=True).iterator()
         task_ids = []
         to_db_tasks = []
+        # the backlog walked past as an iterator has no len(): the build counts
+        # its chunks as it goes, which is the durable total the process names
+        # and the reconciliation of #958 compares against (#1620)
+        backlog = 0
         for chunk in iter_md_metadata_file_chunks(ids):
+            backlog += len(chunk)
             task_id = uuid4()
             task = call_md_metadata_files_to_db.s(
                 md_metadata_file_ids=chunk,
@@ -1750,7 +1772,7 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
             harvesting_job.append_celery_task_ids(task_ids + [callback_id])
             harvesting_job.save(skip_history_when_saving=False)
             if resuming:
-                reconcile_import_progress(harvesting_job, len(ids))
+                reconcile_import_progress(harvesting_job, backlog)
             else:
                 # the steps of the harvest stay granular by record, as the annotations of
                 # TemporaryMdMetadataFileQuerySet.with_process_info derive them from the
@@ -1759,7 +1781,7 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
                 harvesting_job.report_process(
                     ProcessStatusEnum.RUNNING,
                     phase=str(HarvestingPhaseEnum.RECORDS_TO_DB.label),
-                    total_steps=len(ids) + 1)
+                    total_steps=backlog + 1)
             transaction.on_commit(lambda: chord(to_db_tasks, callback).apply_async(max_retries=300, interval=1))
         else:
             complete_harvest(harvesting_job_id)

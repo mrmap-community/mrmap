@@ -61,6 +61,36 @@ class MetadataFileChunkTest(TestCase):
         with override_settings(HARVEST_IMPORT_BATCH_SIZE=0):
             self.assertEqual([[1], [2]], list(iter_md_metadata_file_chunks([1, 2])))
 
+    def test_the_ids_are_consumed_as_far_as_the_chunk_needs_them(self):
+        """The chunker does not read ahead of the chunk it yields (#1620).
+
+        The chord build hands this a server-side cursor over the backlog: a
+        chunker which took the whole iterable into a list first would put the
+        peak of the old per-record fan-out back into the building worker. The
+        ids of a large backlog are pulled batch by batch here, so the working
+        set of the build is one chunk and never the whole backlog.
+        """
+        pulled = []
+
+        def ids():
+            for pk in range(1, 1001):
+                pulled.append(pk)
+                yield pk
+
+        chunks = iter_md_metadata_file_chunks(ids(), batch_size=10)
+
+        first = next(chunks)
+        self.assertEqual(list(range(1, 11)), first)
+        self.assertEqual(10, len(pulled),
+                         'the first chunk pulled its own ids and no more')
+
+        next(chunks)
+        self.assertEqual(20, len(pulled),
+                         'the second chunk pulled the next ten, nothing else')
+
+        self.assertEqual(980, sum(len(chunk) for chunk in chunks),
+                         'the rest of the backlog still arrives in chunks')
+
 
 class StoredFilesTestCaseMixin:
     """stored metadata files below a temporary media root"""

@@ -38,6 +38,7 @@ from registry.tasks.service import (advertised_references, collect_reference,
                                     finish_metadata_collection)
 from registry.tasks.update import collect_update_metadata
 from requests.sessions import Session
+from tests.django.sql_guard import SqlGuardMixin, statements_of
 from tests.django.utils import WorkerRunMixin
 
 URL = 'http://metadata.example.org/update/record.xml'
@@ -366,7 +367,7 @@ class UpdateMetadataCollectionTests(WorkerRunMixin, TransactionTestCase):
 
 @override_settings(CHANNEL_LAYERS={
     "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}})
-class AdvertisedReferencesTests(TransactionTestCase):
+class AdvertisedReferencesTests(SqlGuardMixin, TransactionTestCase):
     """What an update collects: the references describing one service and its
     elements - the rows the capabilities mapping leaves behind. The reference
     of a foreign element never answers for this service, and a service (or a
@@ -411,3 +412,30 @@ class AdvertisedReferencesTests(TransactionTestCase):
     def test_a_service_without_advertised_references_answers_empty(self):
         self.assertEqual(advertised_references(self.wms), [])
         self.assertEqual(advertised_references(self.csw), [])
+
+    def test_the_read_leaves_the_stored_document_text_behind(self):
+        """The planning reads the references without their ``remote_content``.
+
+        One capabilities document is advertised by every element of the
+        service, so a read which carried the stored text paid that document
+        once per reference into the collecting worker (#1620). The rows the
+        collection hands on answer the element and the url, and the statement
+        behind them names neither of the document columns.
+        """
+        LayerRemoteMetadata.objects.create(
+            link=URL, describes=self.layer, remote_content='<metadata/>' * 400)
+
+        _, context = self.capture(lambda: advertised_references(self.wms))
+
+        reads = statements_of(
+            context, verb='select',
+            table=LayerRemoteMetadata._meta.db_table)
+        self.assertEqual(len(reads), 1, 'the elements answer one read')
+        self.assertNotIn('remote_content', reads[0]['sql'],
+                         'the collection of a service does not read the '
+                         'document text of its references')
+        # the planning's own answer stays complete: the row still knows the
+        # element it describes and the url it advertises
+        ref = advertised_references(self.wms)[0]
+        self.assertEqual(ref.describes, self.layer)
+        self.assertEqual(ref.link, URL)

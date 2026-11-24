@@ -718,9 +718,10 @@ class Probe(models.Model):
         result.response_body = ContentFile(body, name="response")
 
     def check_does_not_contain(self, response: Response):
+        body = self._response_text(response)
         self.result.check_response_does_not_contain_message = ""
         for string in self.check_response_does_not_contain.split(','):
-            if response.text.find(string) > -1:
+            if body.find(string) > -1:
                 self.result.check_response_does_not_contain_success = False
                 self.result.check_response_does_not_contain_message += f"{string} is part of the response. "  # noqa
 
@@ -729,15 +730,39 @@ class Probe(models.Model):
             self.result.check_response_does_not_contain_message = "OK"
 
     def check_does_contain(self, response: Response):
+        body = self._response_text(response)
         self.result.check_response_does_contain_message = ""
         for string in self.check_response_does_contain.split(','):
-            if response.text.find(string) < 0:
+            if body.find(string) < 0:
                 self.result.check_response_does_contain_success = False
                 self.result.check_response_does_contain_message += f"{string} is not part of the response. "  # noqa
 
         if self.result.check_response_does_contain_success is not False:
             self.result.check_response_does_contain_success = True
             self.result.check_response_does_contain_message = "OK"
+
+    def _response_text(self, response: Response) -> str:
+        """The decoded body of the response, decoded once per probe run.
+
+        ``requests.Response.text`` is not cached by the library: every read of
+        it decodes the whole content again. A GetCapabilities probe reads it
+        once per searched string across its two contains checks and once more
+        for the error excerpt of a refusing service, which put a second full
+        copy of a capped 5 MiB response behind each read in the worker (#1620).
+        The first read of the run is kept on the response - the response is the
+        probe's own local, discarded with the check - under the same decoding
+        the property answers with.
+        """
+        cached = getattr(response, "_mrmap_text", None)
+        if cached is None:
+            cached = response.text
+            try:
+                response._mrmap_text = cached
+            except AttributeError:
+                # a response object which refuses the attribute (a test double
+                # with __slots__) simply decodes per read, as before
+                pass
+        return cached
 
     def check_is_valid_xml(self, response: Response):
         try:
@@ -779,7 +804,7 @@ class Probe(models.Model):
                 # an excerpt of the body which refused: the full body is only
                 # kept where it is safe to keep it, see store_response_artifact
                 result.error_detail = (
-                    (response.text or "")[:self.ERROR_DETAIL_MAX_LENGTH]
+                    (self._response_text(response) or "")[:self.ERROR_DETAIL_MAX_LENGTH]
                     or None)
             result.status_code = response.status_code
 

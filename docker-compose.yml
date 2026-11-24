@@ -71,7 +71,7 @@ services:
   # Done
 
   redis:
-    image: library/redis:8.10.3-alpine
+    image: library/redis:8.12.0-alpine
     restart: unless-stopped
     # #1618: the eviction policy comes from docker/redis/redis.conf (see there
     # for why volatile-lru is the policy which cannot drop broker keys); the
@@ -571,7 +571,7 @@ services:
 
   # Log UI with login/RBAC in front of victoria-logs (which stays network-internal)
   grafana:
-    image: grafana/grafana:13.3.1
+    image: grafana/grafana:13.3.2
     restart: unless-stopped
     hostname: "grafana"
     environment:

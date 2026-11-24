@@ -363,6 +363,12 @@
           "qa",
           "script-tests"
         ],
+        "everyday": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ],
         "missing": []
       },
       "ok": true,
@@ -393,14 +399,15 @@
       "severity": "check"
     },
     {
-      "detail": "master moved: nothing in this epic may reach production outside the protected promotion path (#1584)",
+      "detail": "master moved: nothing in this epic may reach production outside the protected promotion path (#1584); only a promotion_waiver naming that runbook passes",
       "expected": {
         "master_moved": false
       },
       "id": "production-untouched",
       "observed": {
         "master_moved": false,
-        "master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "waiver": null
       },
       "ok": true,
       "severity": "check"
@@ -436,7 +443,7 @@
     "pulls": 4
   },
   "epic": 1588,
-  "generated": "2026-11-24T03:39:28+00:00",
+  "generated": "2026-11-24T22:33:44+00:00",
   "mode": "dry-run",
   "ok": true,
   "repo": "mrmap-community/mrmap",

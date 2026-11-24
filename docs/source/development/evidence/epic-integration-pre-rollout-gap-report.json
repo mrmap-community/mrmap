@@ -331,14 +331,30 @@
       "detail": "CI does not trigger for the epic base where the contract requires it - a child PR there would be green without checks",
       "expected": {
         "covered_by": [],
-        "required": []
+        "required": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ]
       },
       "id": "epic-ci-coverage",
       "observed": {
         "covered_by": [],
-        "missing": []
+        "everyday": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ],
+        "missing": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ]
       },
-      "ok": true,
+      "ok": false,
       "severity": "check"
     },
     {
@@ -366,14 +382,15 @@
       "severity": "check"
     },
     {
-      "detail": "master moved: nothing in this epic may reach production outside the protected promotion path (#1584)",
+      "detail": "master moved: nothing in this epic may reach production outside the protected promotion path (#1584); only a promotion_waiver naming that runbook passes",
       "expected": {
         "master_moved": false
       },
       "id": "production-untouched",
       "observed": {
         "master_moved": false,
-        "master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        "master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "waiver": null
       },
       "ok": true,
       "severity": "check"
@@ -409,7 +426,7 @@
     "pulls": 4
   },
   "epic": 1588,
-  "generated": "2026-11-24T03:40:50+00:00",
+  "generated": "2026-11-24T22:33:44+00:00",
   "mode": "dry-run",
   "ok": false,
   "repo": "mrmap-community/mrmap",

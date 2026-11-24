@@ -48,6 +48,17 @@ Exit 2 is a refusal, not a result, in both directions: a scenario with no
 expectation for one of the 22 checks is refused too, because a check nobody
 stated an expectation for is a check that proved nothing.
 
+And the scenario cannot launder what it declares. The human-authority checks
+read the *login*, not the scenario's label for it: an actor equal to
+``agent_actor`` or shaped like one (``-bot``, ``-agent``) is an agent even when
+the scenario lists it among ``humans``, and a login that is neither allow-listed
+nor agent-shaped is refused rather than guessed. The ``no-direct-push``
+exemptions are verified against the commit topology instead of trusted from
+flags. The CI-coverage set is *derived* from the contract - every workflow that
+triggers for ``master``/``develop`` owes the epic base the same coverage - so an
+empty ``required`` in a scenario opts nothing out. Three of these properties are
+asserted in the suite with the exact worlds the review demonstrated.
+
 .. _epic-integration-validation-ci-contract:
 
 The CI contract, as validated
@@ -165,13 +176,16 @@ between two revisions of this page.
        authored — an unnamed actor is refused, not guessed.
    * - ``no-direct-push``
      - rule 11, ``AGENTS.md``
-     - Every commit on a permanent branch is carried by a merged PR; the
-       person's cut of the epic branch and a merge of the integration target are
-       not content and are not reported.
+     - Every commit on a permanent branch is carried by a merged PR. The three
+       exemptions (pre-existing history, the rule-3 cut, the rule-12 sync of the
+       integration target) are *verified against the topology*, not taken on the
+       scenario's word - a commit that merely declares ``"sync": true`` without
+       being a two-parent merge of develop is reported like any smuggled commit.
    * - ``production-untouched``
      - epic objective
-     - ``master`` did not move; publication stays on the protected promotion
-       path of #1584.
+     - ``master`` did not move; a scenario cannot green-wash a move by
+       declaring it - only a ``promotion_waiver`` naming the #1584 runbook
+       passes, and then only as a stated finding.
    * - ``no-competing-orchestrator``
      - epic objective
      - No scheduler, daemon, cron or watcher appears in the change set — AO stays
@@ -296,33 +310,46 @@ asserted to be **seen**, not merely tolerated:
 Measured against this repository
 ==================================
 
-These are the live facts the validation was written around, taken from the
-repository root on 2026-11-24. All read-only.
+These are the live facts the validation was written around. A dated statement
+ages; a revision-pinned one does not, so each bullet names the revision it was
+taken at (``origin/develop`` at ``f0fc22646`` / 2026-11-24, re-checked at this
+PR's head). All commands are read-only.
 
-* **The epic branch now stands, and it was cut by a person from develop.**
-  ``git ls-remote --heads origin`` lists ``epic/epic-integration`` at
-  ``3f602ad45``, which is ``origin/develop``'s tip. The contract page measured
-  *zero* ``epic/*`` branches at ``b07e893d1``; the namespace is now in use, and
-  the cut matches rule 3 (created from the head of ``origin/develop``).
+* **The epic branch stands, cut from develop.** ``git ls-remote --heads
+  origin`` lists ``epic/epic-integration`` at ``3f602ad45`` — which was
+  ``origin/develop``'s tip at the time it was cut (``develop`` has since moved
+  on; the cut's base is what rule 3 judges, not today's tip). The contract page
+  measured *zero* ``epic/*`` branches at ``b07e893d1``; the namespace is now in
+  use, and the cut matches rule 3 (created from the head of ``origin/develop``).
+  Because the branch exists, ``select_children()`` routes approved children at
+  it — this is no longer the bootstrap world of rule 16; the row that applies
+  to the epic's own children once #1594's enforcement lands is R2, and while
+  #1594 is unmerged nothing enforces it yet (the contract's Open questions list
+  the rollout as #1594's, which checks out).
 * **The native hierarchy is intact.** ``gh api repos/mrmap-community/mrmap/issues/1588/sub_issues``
   returns exactly #1590-#1595, #1590 closed and the other five open — which is
   how the contract's "the native relation is the fact" reading is verified on the
   live side, and how this automation read its own eligibility.
 * **The blocker edge of this issue is native and still open.** The GraphQL
-  ``blockedBy`` of #1595 names exactly #1594 with state ``OPEN``. Under rule 16
-  this epic bootstraps: its own children follow R3 and target ``develop``, because
-  enforcing an epic branch on the epic that has to build the enforcement is a
-  cycle. This validation is therefore the bootstrap validation of the contract,
-  and the epic's own integration PR stays its last act.
+  ``blockedBy`` of #1595 names exactly #1594 with state ``OPEN`` — the issue
+  that owns the rollout whose absence the next bullet measures. Rule 16's
+  bootstrap reading (the epic that builds its own enforcement cannot be bound by
+  it, so its children followed R3 against ``develop``) described the world at
+  ``f0fc22646``, before ``epic/epic-integration`` was cut; with the branch
+  standing, the contract's ordinary rows apply to the epic's children, and the
+  epic's own integration PR stays its last act.
 * **The rollout gap #1594 owns is still open, and this validation says so.** All
   four workflows of `The CI contract, as validated <epic-integration-validation-ci-contract>`_ still restrict their ``pull_request``
   trigger to ``[master, develop]`` — verified with the block below. A child PR
   into ``epic/epic-integration`` today therefore runs **no** required check, and
   the tool refuses to read such a PR as green: the committed world
   ``docs/source/development/evidence/epic-integration-pre-rollout-gap.json``
-  reproduces exactly that state and exits 1 on ``child-pr-checks`` while every
-  other check passes. That is the difference between recording the gap and
-  hiding it behind a green.
+  reproduces exactly that state and exits 1 on ``child-pr-checks`` and
+  ``epic-ci-coverage`` — the two checks the gap touches — while every other
+  check passes. Both went red unprompted: the required set is *derived* from
+  the contract ("the same checks as develop"), so a scenario cannot opt the
+  epic base out of CI by naming an empty one. That is the difference between
+  recording the gap and hiding it behind a green.
 * **The claim board still carries no integration target.** ``grep -c epic
   scripts/wip`` is still 0, which is rule 14's gap and #1592's scope; the
   ``claim-carries-target`` check is written against the target the scheduling
@@ -353,6 +380,20 @@ Named rather than glossed, each with the issue that owns it:
 * **Branch protection and the merge queue.** Those are settings, changed by a
   person in the repository's settings, and no dry run can observe them; the
   contract leaves them as the implementing act of #1594.
+* **The OpenHands integration of the epic's acceptance text** — multiple
+  instance claim exclusion, agent capacity limits and restart recovery, "verify
+  actual OpenHands integration where accessible". None of that is validated by
+  this page, and none of it is fixture evidence either: the dry run replays a
+  *claim record* (``claim-carries-target``, ``paused-or-claimed``), not the
+  running orchestrator. Real claim exclusion across two agent instances, the
+  capacity limiter refusing a third worktree, and a claim surviving an agent
+  restart are AO-side behaviours that need the deployed instances and their
+  claim backend — evidence this checkout cannot produce without the
+  live-agent interruption the issue rules out. Their validation belongs to
+  #1592, which owns the AO scheduling/claim integration; when it runs, the
+  evidence must be labelled live, not fixture, exactly as this page labels its
+  own two kinds. Until then the claim checks here stand as the *contract* side
+  (#1592) of that pair, and #1592 remains the issue to ask for the live half.
 
 Reproducing this validation
 =============================
@@ -362,8 +403,8 @@ nothing but the file ``--evidence-out`` names.
 
 .. code-block:: text
 
-   # the suite: every world above, and the two refusals
-   python3 scripts/test_epic_integration_dryrun.py          # 45/45 checks passed
+   # the suite: every world above, and the refusals
+   python3 scripts/test_epic_integration_dryrun.py          # 59/59 checks passed
 
    # the contract's acceptance lines, as the tool itself lists them
    python3 scripts/epic_integration_dryrun.py --list-checks
@@ -377,9 +418,12 @@ nothing but the file ``--evidence-out`` names.
    python3 scripts/epic_integration_dryrun.py \
      --scenario docs/source/development/evidence/epic-integration-pre-rollout-gap.json
 
+   # the suite re-checks both committed files above; a report that drifted from
+   # its scenario fails it, which is why the two lines above need no manual re-run
+
    # the live facts quoted above
    git ls-remote --heads origin | sed 's#.*refs/heads/##' | grep -c '^epic/'      # 1
-   git rev-parse origin/develop                                                   # 3f602ad45
+   git ls-remote origin refs/heads/epic/epic-integration                          # 3f602ad45
    gh api repos/mrmap-community/mrmap/issues/1588/sub_issues \
      --jq '.[] | "#\(.number) \(.state) \(.title)"'                              # #1590-#1595
    grep -n 'branches:' .github/workflows/quality-assurance.yml \

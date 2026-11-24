@@ -77,8 +77,9 @@ PERMANENT = ("develop", "master")
 # run one. Matched against workflow job names, case-insensitively.
 DOC_JOB_RE = re.compile(r"(^|[-_/])(docs|documentation|sphinx|readthedocs)([-_/]|$)")
 # A scheduler of its own is what the epic objective forbids ("no competing
-# scheduler"): AO keeps scheduling, this contract only extends its inputs.
-SCHEDULER_FILE_RE = re.compile(r"(^|/)(scheduler|daemon|cron|watcher)", re.I)
+# scheduler"): AO keeps scheduling, this contract only extends its inputs. Matched
+# on the file stem, so scripts/epic_scheduler.py counts as much as scripts/scheduler.py.
+SCHEDULER_FILE_RE = re.compile(r"(^|/)[^/]*(scheduler|daemon|cron|watcher)", re.I)
 
 # The reads the engine may journal. It executes none of them - the allowlist is the
 # guard that a future edit cannot turn the dry run into an actor.
@@ -213,6 +214,24 @@ class Scenario:
             return sha in self.ancestors(ref)
         except HarnessError:
             return False              # a ref the world does not have has no ancestors
+
+    def _is_valid_cut(self, sha, node):
+        """A claimed rule-3 cut must be a branch tip cut from a branch that exists.
+
+        A commit may call itself the epic branch's cut only when the branch it names
+        as its base is a branch of this world and the commit is where such a cut
+        legitimately sits: on the permanent branch it was cut from.
+        """
+        base = node.get("cut_from")
+        return bool(base) and base in self.branches and not (node.get("parents") or [None])[1:]
+
+    def _is_valid_sync(self, sha, node, branch):
+        """A claimed rule-12 sync must be a two-parent merge whose other side is develop."""
+        parents = node.get("parents") or []
+        if len(parents) != 2:
+            return False
+        return (parents[0] in self.ancestors(branch)
+                and parents[1] in self.ancestors("develop"))
 
     def contribution(self, merge_sha):
         """The shas a merge brings in: its ancestors minus what its parents already had.
@@ -368,11 +387,17 @@ def is_agent_actor(actor, scn):
         raise HarnessError("a merge, approval or label actor is not named in the "
                            "scenario - provenance cannot be told, so nothing is green")
     login = str(actor).lower()
+    # The allowlist is not a licence: a login that IS the agent actor, or shapes
+    # like one, is an agent however the scenario lists it. Otherwise the scenario
+    # could launder exactly the violation this check exists to catch by adding
+    # "mrmap-agent-bot" to `humans`.
+    if not login or login == scn.agent_actor or AGENT_ACTOR_RE.search(login):
+        return True
     if login in scn.humans:
         return False
-    if not login or login == scn.agent_actor:
-        return True
-    return bool(AGENT_ACTOR_RE.search(login))
+    raise HarnessError("the actor `%s` is neither on the scenario's human allowlist "
+                       "nor an agent-shaped login - provenance cannot be told, so "
+                       "nothing is green" % login)
 
 
 def named(d, key, scn):
@@ -570,20 +595,22 @@ def run_scenario(scn):
         }
 
     def ok_child_pr(expected, obs):
+        # Fail closed: the observation covers every child PR there is, so an
+        # expectation that lists none of them proves nothing - and every child PR
+        # into an epic branch owes its base's required set whether or not the
+        # scenario remembered to state it.
+        if {str(k) for k in expected} != set(obs):
+            return False, "check"
         for pr_num, w in expected.items():
-            got = obs.get(str(pr_num))
-            if got is None:
-                return False, "check"
+            got = obs[pr_num]
             if got["failing"] != sorted(w.get("failing", [])):
                 return False, "check"
-            jobs = w.get("jobs")
-            if jobs is not None and got["jobs"] != sorted(jobs):
+            if sorted(w.get("jobs", [])) != got["jobs"]:
                 return False, "check"
             # A PR into an epic branch no workflow triggers for has no required set at
             # all - a green that means nothing (the rollout gap #1594 closes).
-            if got["base"].startswith(EPIC_PREFIX) and not got["required"]:
-                return False, "check"
-            if jobs is not None and sorted(jobs) != got["required"]:
+            if got["base"].startswith(EPIC_PREFIX) and (
+                    not got["required"] or got["jobs"] != got["required"]):
                 return False, "check"
         return True, "check"
     add("child-pr-checks", observed, ok_child_pr,
@@ -810,13 +837,23 @@ def run_scenario(scn):
     covered = sorted(name for name, spec in scn.workflows.items()
                      if any(p.startswith(EPIC_PREFIX)
                             for p in spec.get("pull_request_branches", [])))
-    expected_required = scn.expect("epic-ci-coverage").get("required", [])
-    missing = [w for w in expected_required if w not in covered]
+    # The contract derives the required set: every workflow that triggers for the
+    # everyday permanent branches must trigger for the epic base too ("a child PR
+    # into epic/<slug> runs the same required checks as one into develop"). The
+    # scenario cannot opt the epic base out of CI by naming none - `required` in
+    # the expectation must state exactly the derived set, and an empty one over a
+    # world with PR-path workflows is refused.
+    everyday = sorted(name for name, spec in scn.workflows.items()
+                      if any(p in PERMANENT for p in spec.get("pull_request_branches", [])))
+    missing = [w for w in everyday if w not in covered]
 
     def ok_ci_coverage(expected, obs):
+        if sorted(expected.get("required", [])) != obs["everyday"]:
+            return False, "check"        # the scenario disputed the contract's set
         return (obs["covered_by"] == sorted(expected.get("covered_by", []))
                 and not obs["missing"]), "check"
-    add("epic-ci-coverage", {"covered_by": covered, "missing": missing}, ok_ci_coverage,
+    add("epic-ci-coverage", {"covered_by": covered, "missing": missing,
+                             "everyday": everyday}, ok_ci_coverage,
         "CI does not trigger for the epic base where the contract requires it - a child "
         "PR there would be green without checks")
 
@@ -852,8 +889,16 @@ def run_scenario(scn):
             node = scn.commits.get(sha) or {}
             # Pre-existing history, the person's cut of the epic branch (rule 3) and a
             # merge of the integration target into a branch (rule 12) carry no content;
-            # everything else on a permanent branch owes a merged PR.
-            if node.get("origin") == "base" or node.get("cut") or node.get("sync"):
+            # everything else on a permanent branch owes a merged PR. The exemptions are
+            # verified, not taken on the scenario's word: a claimed cut is a branch tip
+            # whose recorded base is a real branch, and a claimed sync is a two-parent
+            # merge whose other side is reachable from develop - otherwise marking a
+            # smuggled commit "sync": true would erase the finding it hides.
+            if node.get("origin") == "base":
+                continue
+            if node.get("cut") and scn._is_valid_cut(sha, node):
+                continue
+            if node.get("sync") and scn._is_valid_sync(sha, node, branch):
                 continue
             if sha in covered_shas:
                 continue
@@ -867,11 +912,19 @@ def run_scenario(scn):
 
     # --- production untouched -------------------------------------------------------------------
     master = scn.branches.get("master")
+    # A moved master is refused, not merely expected away: a scenario that declared
+    # the move it should refuse would otherwise green-wash a production publication.
+    # The single way through is a waiver that names the promotion runbook of #1584 -
+    # an empty or unnamed waiver is not a waiver.
+    waiver = scn.expect("production-untouched").get("promotion_waiver")
     add("production-untouched", {"master_sha": master,
-                                 "master_moved": master != scn.baseline_master},
-        lambda e, o: (bool(e) and o["master_moved"] == e.get("master_moved"), "check"),
+                                 "master_moved": master != scn.baseline_master,
+                                 "waiver": waiver},
+        lambda e, o: (o["master_moved"] == e.get("master_moved")
+                      and (not o["master_moved"] or bool((o["waiver"] or "").strip())),
+                      "finding" if o["master_moved"] else "check"),
         "master moved: nothing in this epic may reach production outside the protected "
-        "promotion path (#1584)")
+        "promotion path (#1584); only a promotion_waiver naming that runbook passes")
 
     # --- no competing orchestrator ------------------------------------------------------------------
     schedulers = sorted(f for f in scn.added_files if SCHEDULER_FILE_RE.search(f))

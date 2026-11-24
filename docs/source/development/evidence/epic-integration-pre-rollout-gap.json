@@ -136,7 +136,12 @@
     },
     "epic-ci-coverage": {
       "covered_by": [],
-      "required": []
+      "required": [
+        "codeql",
+        "pr-classification",
+        "qa",
+        "script-tests"
+      ]
     },
     "epic-head-base": {
       "pulls": []

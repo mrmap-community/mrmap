@@ -63,6 +63,7 @@ EPIC_HEAD = "4" * 40               # the epic after merging develop into itself 
 INTEGRATION = "5" * 40             # the integration merge commit on develop
 
 REQUIRED = ["classify", "codeql-required", "frontend-tests", "repo-tooling", "unit-tests"]
+PR_PATH = ["codeql", "pr-classification", "qa", "script-tests"]   # the contract's four
 EPIC_BRANCH = "epic/epic-integration"
 
 
@@ -532,7 +533,7 @@ for wf in scn["workflows"].values():
     wf["pull_request_branches"] = ["master", "develop"]
 scn["expectations"]["child-pr-checks"]["901"]["jobs"] = []
 scn["expectations"]["child-pr-checks"]["902"]["jobs"] = []
-scn["expectations"]["epic-ci-coverage"] = {"covered_by": [], "required": []}
+scn["expectations"]["epic-ci-coverage"] = {"covered_by": [], "required": PR_PATH}
 code, report, _ = run(scn)
 check("a child PR into an untriggered epic base is not accepted as green",
       code == 1 and "child-pr-checks" in failed_ids(report),
@@ -689,6 +690,33 @@ scn["expectations"]["no-competing-orchestrator"] = {"scheduler_files": [
     "scripts/epic_scheduler.py"]}
 code, report, _ = run(scn)
 check("a new scheduler is reported as a competing orchestrator",
+      code == 0 and observed(report, "no-competing-orchestrator")["scheduler_files"]
+      == ["scripts/epic_scheduler.py"],
+      "code=%s obs=%s" % (code, observed(report, "no-competing-orchestrator")
+                          if report else None))
+
+# The regex must bite on the stem, not only on the path start - the previous
+# (^|/) anchor let scripts/epic_scheduler.py through unseen (review finding 3).
+scn = happy()
+scn["name"] = "scheduler-stems"
+scn["added_files"] = ["scripts/epic_scheduler.py", "scripts/epic_daemon.py",
+                      "scripts/epic_orchestrator.py", "scripts/a-watcher.sh",
+                      "scripts/wip", "docs/scheduler.rst"]
+scn["expectations"]["no-competing-orchestrator"] = {"scheduler_files": [
+    "docs/scheduler.rst", "scripts/a-watcher.sh", "scripts/epic_daemon.py",
+    "scripts/epic_scheduler.py"]}
+code, report, _ = run(scn)
+check("stem-shaped scheduler files are seen, not just path-initial ones",
+      code == 0 and observed(report, "no-competing-orchestrator")["scheduler_files"]
+      == ["docs/scheduler.rst", "scripts/a-watcher.sh", "scripts/epic_daemon.py",
+          "scripts/epic_scheduler.py"],
+      "code=%s obs=%s" % (code, observed(report, "no-competing-orchestrator")
+                          if report else None))
+
+# A scenario that claims no scheduler over a world with one is refused, not agreed with.
+scn["expectations"]["no-competing-orchestrator"] = {"scheduler_files": []}
+code, report, _ = run(scn)
+check("a scenario that claims no scheduler despite the planted ones fails",
       code == 1 and "no-competing-orchestrator" in failed_ids(report),
       "code=%s failed=%s" % (code, failed_ids(report)))
 
@@ -775,9 +803,84 @@ if happy_path.exists():
               "stored=%s fresh=%s" % (stored[:3], fresh[:3]))
 if gap_path.exists():
     code, report, _ = run(json.loads(gap_path.read_text(encoding="utf-8")))
-    check("the committed pre-rollout scenario fails on child-pr-checks alone",
-          code == 1 and failed_ids(report) == ["child-pr-checks"],
+    check("the committed pre-rollout scenario fails on the CI checks of its base",
+          code == 1 and failed_ids(report) == ["child-pr-checks", "epic-ci-coverage"],
           "code=%s failed=%s" % (code, failed_ids(report) if report else None))
+
+# 27b. An expectation emptied of content does not silence its check (review finding 2):
+#      child-pr-checks covers every child PR that exists, stated or not.
+scn = happy()
+scn["name"] = "emptied-child-pr-expectation"
+scn["expectations"]["child-pr-checks"] = {}
+code, report, _ = run(scn)
+check("an emptied child-pr-checks expectation does not pass over the world",
+      code == 1 and "child-pr-checks" in failed_ids(report),
+      "code=%s failed=%s" % (code, failed_ids(report)))
+
+scn = happy()
+scn["name"] = "epic-base-without-required-jobs"
+scn["pulls"]["901"]["checks"] = []          # merged child PR with no checks at all
+scn["expectations"]["child-pr-checks"]["901"]["jobs"] = []
+code, report, _ = run(scn)
+check("a child PR into the epic branch must carry its base's required set even if "
+      "the scenario expects none",
+      code == 1 and "child-pr-checks" in failed_ids(report),
+      "code=%s failed=%s" % (code, failed_ids(report)))
+
+# 27c. The human-authority laundering the review demonstrated is refused (finding 1).
+scn = happy()
+scn["name"] = "agent-listed-as-human"
+scn["humans"] = ["jokiefer", "mrmap-agent-bot"]
+scn["pulls"]["950"]["merged_by"] = "mrmap-agent-bot"
+code, report, _ = run(scn)
+check("listing the agent login among the humans does not launder its merge",
+      code == 1 and {"integration-pr", "no-self-approval"} <= set(failed_ids(report)),
+      "code=%s failed=%s" % (code, failed_ids(report)))
+
+scn = happy()
+scn["name"] = "sync-flag-hides-smuggled-commit"
+stray = "8" * 40
+scn["commits"][stray] = {"parents": [DEP], "sync": True}   # claimed rule-12 sync, not one
+scn["commits"][INTEGRATION]["parents"] = [stray, EPIC_HEAD]
+scn["expectations"]["no-direct-push"] = {"permanent_commits": []}
+code, report, _ = run(scn)
+check("a smuggled commit marked sync is still reported by no-direct-push",
+      code == 1 and stray in observed(report, "no-direct-push")["permanent_commits"],
+      "code=%s obs=%s" % (code, observed(report, "no-direct-push") if report else None))
+
+scn = happy()
+scn["name"] = "cut-flag-hides-smuggled-commit"
+stray = "7" * 40
+scn["commits"][stray] = {"parents": [DEP], "cut": True}    # claimed rule-3 cut, not one
+scn["commits"][INTEGRATION]["parents"] = [stray, EPIC_HEAD]
+scn["expectations"]["no-direct-push"] = {"permanent_commits": []}
+code, report, _ = run(scn)
+check("a smuggled commit marked cut is still reported by no-direct-push",
+      code == 1 and stray in observed(report, "no-direct-push")["permanent_commits"],
+      "code=%s obs=%s" % (code, observed(report, "no-direct-push") if report else None))
+
+# the genuine sync stays exempt (EPIC_HEAD in the happy world is such a merge) - the
+# tightened condition must not break the legitimate case, and a genuine cut does too.
+check("the genuine rule-12 sync and rule-3 cut stay exempt",
+      run(happy())[0] == 0, "the happy world stopped validating")
+
+# 27d. production-untouched cannot be green-washed by declaring the move (finding 5).
+scn = happy()
+scn["name"] = "master-moved-declared"
+scn["branches"]["master"] = INTEGRATION
+scn["expectations"]["production-untouched"] = {"master_moved": True}
+code, report, _ = run(scn)
+check("declaring the moved master does not green production-untouched",
+      code == 1 and "production-untouched" in failed_ids(report),
+      "code=%s failed=%s" % (code, failed_ids(report)))
+
+scn["expectations"]["production-untouched"] = {
+    "master_moved": True,
+    "promotion_waiver": "release promotion runbook of #1584, run 2026-11-25"}
+code, report, _ = run(scn)
+check("a waiver naming the promotion runbook lets it pass as a stated finding",
+      code == 0 and run(scn, "--fail-on-findings")[0] == 1,
+      "code=%s strict=%s" % (code, run(scn, "--fail-on-findings")[0]))
 
 shutil.rmtree(TMP, ignore_errors=True)
 

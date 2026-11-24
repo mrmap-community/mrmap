@@ -454,6 +454,13 @@ After modifications:
   left open it blocks there forever — the harness prints the suites finished so far and then stalls,
   which reads as a hang rather than as a failure.
 - Add or update tests when behavior changes.
+- In a `check()`-based suite, a check must be able to *report* a failure: read what a check asserts
+  through a lookup that yields a value on absence (`res.get("scope")`, a helper returning `None`
+  rather than `findings[0]`), and pass the detail as a single operand (`"... %s" % (detail,)`).
+  Indexing into the result directly makes the suite die on a `KeyError` or a `%` formatting error
+  the moment the tool regresses, so the remaining checks never run and the regression reads as a
+  crash instead of a failed check. Prove a new check is load-bearing by reverting the fix it covers
+  and reading the failure list, not by asserting that it would fail.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.
 

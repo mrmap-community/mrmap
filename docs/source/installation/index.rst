@@ -180,7 +180,10 @@ requests" dashboard pre-provisioned from ``docker/grafana/``; login with
 
 * ``MRMAP_SYSLOG_HOST`` / ``MRMAP_SYSLOG_PORT`` point the backend syslog
   handler at any RFC 5424 receiver; the default is ``victoria-logs:5514``,
-  the compose service.
+  the compose service. A receiver which does not resolve is not swallowed:
+  the backend logs the documented fallback line and warns with it, naming the
+  address it could not reach, so "no store asked for" and "store lost" can be
+  told apart (:ref:`compose-profiles`).
 * ``MRMAP_SLOW_REQUEST_THRESHOLD_MS`` is the duration of a request in milliseconds
   which is worth a "Slow Request Detected" record; the default is 400.
 * To enable Postgres slow statement logging, run (hot, no restart):

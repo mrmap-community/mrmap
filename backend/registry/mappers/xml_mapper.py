@@ -282,6 +282,9 @@ class XmlMapper:
 
         if parsed_value is not None:
             setattr(instance, field_name, parsed_value)
+            if field_name == "date_stamp":
+                # This value came from gmd:dateStamp, unlike the model default.
+                instance._date_stamp_from_document = True
 
     def single_value_for_field(self, field_name, instance, values):
         """The one value a field is answered with out of all its matches.
@@ -522,7 +525,14 @@ class XmlMapper:
         return instances
 
     def xml_to_django(self):
-        namespaces = self.mapping.get("_namespaces", None)
+        namespaces = dict(self.mapping.get("_namespaces", None) or {})
+
+        # A WFS 2.0 document may declare ows in the 2.0 namespace instead of
+        # the 1.1 namespace the WFS 2.0 schema imports.  Prefixes belong to the
+        # document, so let its declared URI win over the static config alias.
+        for prefix, uri in self.xml_root.nsmap.items():
+            if prefix in namespaces:
+                namespaces[prefix] = uri
 
         for key, value in self.mapping.items():
             if key.startswith("_"):

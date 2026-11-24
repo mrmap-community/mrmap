@@ -3,9 +3,18 @@
   "private": true,
   "description": "Browser acceptance harness for the built SPA behind nginx (issue #1034). Runs in the mcr.microsoft.com/playwright image; not part of the application build.",
   "scripts": {
-    "test": "playwright test"
+    "test": "bddgen && playwright test --grep-invert @intentional-failure",
+    "type-check": "tsc --noEmit",
+    "bdd:gen": "bddgen",
+    "bdd:test": "bddgen && playwright test --project=bdd",
+    "bdd:smoke": "bddgen && playwright test --project=bdd --grep-invert @intentional-failure",
+    "bdd:demonstrate": "bddgen && E2E_INTENTIONAL_FAILURE=1 playwright test --project=bdd --grep '@intentional-failure'",
+    "bdd:steps": "bddgen export"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.1"
+    "@playwright/test": "1.65.1",
+    "@types/node": "^26.2.0",
+    "playwright-bdd": "9.2.1",
+    "typescript": "^6.0.3"
   }
 }

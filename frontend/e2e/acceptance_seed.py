@@ -10,18 +10,30 @@
 # the Gherkin suite pins by PK), creates the dedicated login user and gives
 # the dataset records the three geometry shapes of #947: valid, EMPTY, absent.
 
+from django.apps import apps
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
 from django.contrib.gis.geos import MultiPolygon, Polygon
 
-# 0) the acceptance database is disposable: flush makes the seed rerunnable
-call_command("flush", no_input=True, verbosity=0)
+# 0) the acceptance database is disposable: flush makes the seed rerunnable.
+# `interactive` is the dest of --noinput, so it is the only spelling that
+# actually skips the "Type 'yes' to continue" prompt — `no_input=True` is not
+# an option of the command and silently leaves the prompt in place, which hangs
+# any run that has no terminal (README §2 pipes the seed through `docker compose
+# run -T`).
+call_command("flush", interactive=False, verbosity=0)
 
 # 1) the repo's own deterministic fixtures: users, the WMS service with its
 #    layer tree, the CSW service the dataset relations point at, and two
-#    dataset metadata records (PKs pinned by the behave suite as well)
+#    dataset metadata records (PKs pinned by the behave suite as well).
+#    `test_background` and `test_harvesting_states` seed the two screens whose
+#    lists were EMPTY in the first acceptance run: the `background processes`
+#    and `harvesting list` examples of record-lists.feature passed while their
+#    datagrid held no row at all, because the old row locator accepted a card
+#    (#1689 review, finding 1). A screen the Gherkin layer asserts rows on has
+#    to have rows, otherwise the assertion cannot fail.
 for fixture in ("test_users", "test_keywords", "test_crs", "test_csw", "test_wms",
-                "test_datasetmetadata"):
+                "test_datasetmetadata", "test_background", "test_harvesting_states"):
     print("LOADING", fixture)
     call_command("loaddata", fixture, verbosity=0)
 
@@ -62,4 +74,6 @@ row.save()
 print("SEED-OK",
       "users:", User.objects.count(),
       "wms:", WebMapService.objects.count(),
-      "datasets:", DatasetMetadataRecord.objects.count())
+      "datasets:", DatasetMetadataRecord.objects.count(),
+      "background:", apps.get_model("notify", "BackgroundProcess").objects.count(),
+      "harvesting:", apps.get_model("registry", "HarvestingJob").objects.count())

@@ -1072,9 +1072,19 @@ def _long_running_gone(standing, confirmed_attempts, hosts, at):
     for incident in standing:
         evidence = incident.details or {}
         identity = (evidence.get("task_id"), evidence.get("attempt_no"))
-        if identity in confirmed_attempts or identity in terminal:
+        if identity in confirmed_attempts:
+            # the owning worker still reports the attempt: the strongest
+            # answer there is that the work has not stopped, and it outranks
+            # any row, including a terminal one written while the inspection
+            # snapshot was already on its way
             continue
-        if _open_attempt_moved_on(open_rows.get(identity), at, grace, hosts):
+        # a terminal row of the same identity IS the completion - the pair of
+        # an open row and its terminal twin is a finished execution, which is
+        # how the candidate side of this module reads it too. Without one,
+        # the open row decides: gone, past the grace, or answered-for without
+        # the attempt in the answer (the completion race)
+        if identity in terminal or _open_attempt_moved_on(
+                open_rows.get(identity), at, grace, hosts):
             gone.add(identity)
     return gone
 

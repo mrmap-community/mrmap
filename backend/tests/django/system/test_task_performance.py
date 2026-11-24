@@ -593,6 +593,45 @@ class LongRunningTests(DetectorTestMixin, TestCase):
         self.assertEqual(self.active(long_code()).count(), 1)
 
     @DETECT
+    def test_a_completed_long_running_attempt_resolves_its_incident(self):
+        # the completion race's honest end: the collector writes the terminal
+        # row BESIDE the open one, and that pair is a finished execution - the
+        # same reading the candidate side of this module uses, so the standing
+        # error incident of a confirmed long task ends when it completes
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.create(
+            task_id=attempt.task_id, attempt_no=attempt.attempt_no,
+            task_name=TASK, started_at=attempt.started_at,
+            finished_at=timezone.now(), active_seconds=240 * 60,
+            outcome="success")
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
+
+    @DETECT
+    def test_a_terminal_row_alone_resolves_without_the_open_row(self):
+        # retention may have flushed the open row of the same identity
+        # already; the terminal twin alone is the completion, too
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.filter(pk=attempt.pk).update(
+            outcome="success", finished_at=timezone.now(), active_seconds=240 * 60)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
+
+    @DETECT
     def test_a_dead_attempt_resolves_on_evidence_and_becomes_coverage(self):
         # the worker death of #1390: past the abandon grace the row is crash
         # residue, which the coverage condition owns - so the long-running

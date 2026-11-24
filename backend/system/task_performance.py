@@ -1066,17 +1066,7 @@ def _long_running_gone(standing, confirmed_attempts, hosts, at):
     ids = {task_id for task_id in ids if task_id}
     if not ids:
         return set()
-    rows = (CeleryTaskAttempt.objects
-            .filter(task_id__in=ids)
-            .values("task_id", "attempt_no", "outcome", "started_at", "worker"))
-    open_rows = {}
-    terminal = set()
-    for row in rows:
-        identity = (row["task_id"], row["attempt_no"])
-        if row["outcome"]:
-            terminal.add(identity)
-        else:
-            open_rows.setdefault(identity, row)
+    open_rows, terminal = _attempt_rows_by_state(ids)
     grace = abandon_grace() + timedelta(seconds=long_grace_seconds())
     gone = set()
     for incident in standing:
@@ -1084,14 +1074,42 @@ def _long_running_gone(standing, confirmed_attempts, hosts, at):
         identity = (evidence.get("task_id"), evidence.get("attempt_no"))
         if identity in confirmed_attempts or identity in terminal:
             continue
-        row = open_rows.get(identity)
-        if row is None or row["started_at"] is None:
-            gone.add(identity)
-        elif (at - row["started_at"]) > grace:
-            gone.add(identity)
-        elif hosts is not None and _hostname(row["worker"]) in hosts:
+        if _open_attempt_moved_on(open_rows.get(identity), at, grace, hosts):
             gone.add(identity)
     return gone
+
+
+def _attempt_rows_by_state(ids):
+    """The rows of ``ids``, split into open rows and terminal identities."""
+    open_rows = {}
+    terminal = set()
+    for row in (CeleryTaskAttempt.objects
+                .filter(task_id__in=ids)
+                .values("task_id", "attempt_no", "outcome", "started_at",
+                        "worker")):
+        identity = (row["task_id"], row["attempt_no"])
+        if row["outcome"]:
+            terminal.add(identity)
+        else:
+            open_rows.setdefault(identity, row)
+    return open_rows, terminal
+
+
+def _open_attempt_moved_on(row, at, grace, hosts):
+    """Whether the open row of an identity reads as evidence which moved on.
+
+    Three readings, none of them a guess: the row is not there any more
+    (retention removed the evidence, and a verdict without evidence is no
+    verdict), it never started, it stands past the abandon grace (crash
+    residue, which the coverage condition owns), or the worker which owns it
+    answered the inspection without reporting it (the completion race). An
+    owner which did not answer is blindness, and blindness moves nothing.
+    """
+    if row is None or row["started_at"] is None:
+        return True
+    if (at - row["started_at"]) > grace:
+        return True
+    return hosts is not None and _hostname(row["worker"]) in hosts
 
 
 def _resolves_standing(incident, classes, gone_attempts, live_codes):
@@ -1116,11 +1134,23 @@ def _resolves_standing(incident, classes, gone_attempts, live_codes):
     if entry is None:
         return True
     # the code names the judge whose answer has to have moved on
-    field = ("completed_slow" if code.startswith(CODE_COMPLETED_SLOW)
-             else "regression" if code.startswith(CODE_REGRESSION)
-             else "condition")
+    field = _resolution_field(code)
     verdict = entry.get(field) or {}
     return verdict.get("condition") in ("healthy", "no_data", "insufficient")
+
+
+def _resolution_field(code):
+    """The class entry's key which judges an incident's code.
+
+    ``completed_slow`` and ``regression`` are published independently of each
+    other, so each resolves on its own verdict; anything else in this code
+    family carries the plain ``condition``.
+    """
+    if code.startswith(CODE_COMPLETED_SLOW):
+        return "completed_slow"
+    if code.startswith(CODE_REGRESSION):
+        return "regression"
+    return "condition"
 
 
 def resolve_verdicts(classes, confirmed, coverage, at, hosts=None):

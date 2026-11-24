@@ -84,6 +84,12 @@ create .env file under your mrmap path with the following variables. Please setu
     # request to https; remove this line once the TLS endpoint in front really
     # names the protocol it terminated (see below)
     DJANGO_SECURE_SSL_REDIRECT=False
+    # and this one with it: the session and the CSRF cookie are TLS-only under
+    # MRMAP_PRODUCTION, so a browser refuses to store the session over plain
+    # http and no login sticks even once the redirect above is off. Both lines
+    # belong to the same decision -- drop the pair together, when the stack
+    # really is served over TLS.
+    DJANGO_COOKIE_SECURE=False
     GRAFANA_ADMIN_USER=admin
     GRAFANA_ADMIN_PASSWORD=supersecurepassword
     PGADMIN_USER=admin@example.com
@@ -91,7 +97,7 @@ create .env file under your mrmap path with the following variables. Please setu
 
 ``REDIS_PASSWORD`` (#1473) is the password of the redis instance which is the celery broker, the celery result backend and the Django cache of this deployment: the ``redis`` service only answers an authenticated client, so the value is required the way ``DB_PASSWORD`` is, and every consumer of the stack reads the same variable. See :ref:`development-environment` for what an empty value means and why an open broker is not an option.
 
-The backend trusts the protocol and the host its edge reports (``X-Forwarded-Proto`` and ``Host``), so a deployment which terminates TLS in front of this stack has to *name* the protocol there: the nginx of ``docker/nginx/mrmap.conf`` fills the header with the protocol of its own connection when it did not arrive, and an edge of your own owes the same normalization, or the backend reads its https traffic as plain http and the redirect answers every request with a ``301`` to the https origin it just arrived on. ``EXTERNAL_SCHEME`` is what the frontend bundle is told; it does not inform the backend. Until such an edge exists -- which includes the plain-``http://localhost`` run below -- set ``DJANGO_SECURE_SSL_REDIRECT=False``, as the example does. The per-variable opt-outs of the whole transport-security block are listed in :ref:`development-environment`.
+The backend trusts the protocol and the host its edge reports (``X-Forwarded-Proto`` and ``Host``), so a deployment which terminates TLS in front of this stack has to *name* the protocol there: the nginx of ``docker/nginx/mrmap.conf`` fills the header with the protocol of its own connection when it did not arrive, and an edge of your own owes the same normalization, or the backend reads its https traffic as plain http and the redirect answers every request with a ``301`` to the https origin it just arrived on. ``EXTERNAL_SCHEME`` is what the frontend bundle is told; it does not inform the backend. Until such an edge exists -- which includes the plain-``http://localhost`` run below -- set ``DJANGO_SECURE_SSL_REDIRECT=False`` **and** ``DJANGO_COOKIE_SECURE=False``, as the example does: the redirect alone loops back onto an https origin the edge never speaks, and the cookie flag alone keeps the browser from storing a session over plain http, so a deployment which sets only the first of the two answers requests and still cannot keep a login. The per-variable opt-outs of the whole transport-security block are listed in :ref:`development-environment`; all of them are read from this same ``.env``, like the required values above -- ``docker-compose.yml`` passes each of them to the backend and to both celery services, so a line written here is what the container actually runs with. A variable which is not set at all is not set in the container either, which is what keeps the default of the deployment mode in force; only the value you write overrides it.
 
 ``PGADMIN_USER`` configures the pgadmin administrator login and falls back to ``admin@example.com`` if it is not set; pgadmin rejects an address without a fully qualified domain (for example ``admin@localhost``) at startup and then crash-loops, so keep this value a valid email address.
 

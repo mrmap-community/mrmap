@@ -81,7 +81,17 @@ them are overridable on their own, because a deployment which has to narrow one
 part of the block must not have to drop the rest. Boolean values use the spelling
 of ``MRMAP_PRODUCTION`` itself -- ``True``/``False`` as a string; anything else
 (including an empty value) means "use the default", and ``True`` is the only
-string which means true.
+string which means true. A Compose deployment sets them in its ``.env`` like the
+required values of :ref:`installation`: ``docker-compose.yml`` names every one of
+them for ``backend``, ``celery-worker`` and ``celery-beat``, so a line written
+there reaches Django. Each is declared **without a value**, which is what makes
+that safe -- an unset variable then stays absent from the container and the
+default of the deployment mode stays in force, where passing an empty
+``"${VAR:-}"`` through would hand the settings an empty string and, for a cookie
+or a policy flag, read as a decision nobody made. Do not move any of these names
+into ``docker/backend/.mrmap.env``: a name declared without a value in the
+``environment`` block is dropped from the container when nothing supplies it, the
+``env_file`` included, so the same line in two files would quietly stop working.
 
 .. note::
     One prerequisite decides whether the redirect of ``DJANGO_SECURE_SSL_REDIRECT``
@@ -125,7 +135,12 @@ The ``max-age`` of the ``Strict-Transport-Security`` header, in seconds. Default
 why the settings log a warning when the redirect above is on and this value is
 ``0``. Set the number the deployment's own certificate life supports; anything
 below the renewal window of the certificate is a deployment which can lock itself
-out of its own https.
+out of its own https. Blank means the default of the deployment mode, like every
+other knob of the block. Anything which is not a whole number of seconds -- ``1y``,
+a duration with a unit, a negative count -- stops the deployment while the
+settings load and names the value it rejected: the header is a one-way door once a
+browser has seen it, so a mistyped max-age must not be guessed at, in either
+direction.
 
 ``DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS``
 *****************************************
@@ -245,13 +260,34 @@ builds from bytes it fetched through ``/mrmap-proxy``, ``object-src 'none'``,
 ``base-uri 'self'``, ``form-action 'self'``, ``frame-ancestors 'none'``, and under
 ``MRMAP_PRODUCTION`` ``upgrade-insecure-requests``.
 
+``connect-src`` is ``'self'`` alone. It deliberately carries no ``wss:``: a source
+which names a scheme and no host matches that scheme against *every* address, so
+the one directive would hand injected script the outbound channel the rest of the
+policy exists to deny -- a collector on the internet, or, from a browser inside a
+company network, ``wss://10.0.0.7:PORT`` as a pivot towards hosts the deployment
+can reach and the public cannot. The application needs no such breadth: the only
+socket it opens is the ``/ws/`` route of the very origin it was served from
+(``RealtimeBus.tsx``), and CSP normalizes ``wss`` to ``https`` when it matches a
+source, so ``'self'`` admits it. Outside production the two loopback sockets of
+the vite dev server join as well (``ws://localhost:8001``,
+``ws://127.0.0.1:8001``), because that dev server proxies nothing and a page on
+``:5173`` really does reach the backend on ``:8001`` -- a development topology, so
+that is where the exception lives, the same way the vite origins join
+``DJANGO_CSRF_TRUSTED_ORIGINS`` only outside production. A shipped policy which
+does carry a bare ``ws:`` or ``wss:`` is refused while the settings load, rather
+than discovered in a browser console.
+
 The variable **replaces** the whole policy; it does not append to it. That is not
 a limitation but the reason to name the complete list: a browser enforces the
 *intersection* of every ``Content-Security-Policy`` of a response, so a deployment
 which adds a second header at its own edge gets the stricter of the two and no
 error message. An empty value turns the header off for the backend's answers -- the
 hatch for a deployment which protects its documents at the edge; the frontend
-container answers its own copy for the SPA shell either way. An operator who
+container answers its own copy for the SPA shell either way. Empty therefore
+means *the operator turned it off*, which is why ``docker-compose.yml`` declares
+this variable without a value: writing ``DJANGO_CONTENT_SECURITY_POLICY=`` in
+``.env`` is the off switch, while not writing the line at all leaves the shipped
+policy in force. An operator who
 embeds the viewer in an iframe of another host, loads the SPA from a second origin
 or hosts a tile server sets this variable; after the change, one look at the
 browser console of a page of the deployment is the whole verification, because a

@@ -171,6 +171,46 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       # the credential of the shared redis instance (#1473), which this process
       # reads for its broker, its result backend, its cache and its channel
@@ -264,6 +304,46 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       # the credential of the shared redis instance (#1473), which this process
       # reads for its broker, its result backend, its cache and its channel
@@ -355,6 +435,46 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       # the credential of the shared redis instance (#1473), which this process
       # reads for its broker, its result backend, its cache and its channel

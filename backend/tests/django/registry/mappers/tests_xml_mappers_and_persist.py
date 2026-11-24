@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from lxml import etree
 from registry.enums.iso import CategoryChoices
@@ -18,6 +19,7 @@ from registry.models.metadata import (DatasetMetadataRecord, MetadataContact,
 from registry.models.service import (CatalogueService, FeatureType,
                                      OperationUrl, WebFeatureService,
                                      WebMapService)
+from rest_framework.test import APIClient
 from tests.django.test_data.capabilities.csw.expected_service_data import \
     EXPECTED_DATA as EXPECTED_CSW_SERVICE_DATA_2_0_2
 from tests.django.test_data.capabilities.wfs.expected_featuretype_data import \
@@ -563,6 +565,70 @@ class XmlMapperTest(TestCase):
                 record.refresh_from_db()
 
                 self.assertEqual(record.equivalent_scale, 25000.0)
+
+
+class AdvertisedServiceUrlTest(TestCase):
+    """WFS/CSW imports expose the GetCapabilities GET endpoint in the API."""
+
+    samples = (
+        ("wfs", "2.0.0.xml", "https://maps.dwd.de/geoserver/wfs"),
+        ("csw", "2.0.2.xml", "https://gdk.geoportal.hessen.de/pycsw/csw.py"),
+    )
+
+    def mapper(self, kind, document):
+        return OGCServiceXmlMapper.from_xml(
+            Path(__file__).parent / "../../test_data/capabilities" / kind / document)
+
+    def test_imported_service_url_reaches_detail_response(self):
+        client = APIClient()
+        client.force_authenticate(get_user_model().objects.create_superuser(
+            username="service-url-reader", password="test"))
+        for kind, document, expected in self.samples:
+            with self.subTest(service=kind):
+                mapper = self.mapper(kind, document)
+                service = mapper.xml_to_django()[0]
+                PersistenceHandler(mapper).persist_all()
+                service.refresh_from_db()
+                self.assertEqual(service.service_url, expected)
+                response = client.get(
+                    f"/api/registry/{kind}/{service.pk}",
+                    HTTP_ACCEPT="application/vnd.api+json")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["data"]["attributes"]["serviceUrl"], expected)
+
+    def test_get_capabilities_endpoint_wins_over_post_and_other_operations(self):
+        for kind, document, _ in self.samples:
+            with self.subTest(service=kind):
+                mapper = self.mapper(kind, document)
+                ns = mapper.mapping["_namespaces"]
+                for endpoint in mapper.xml_root.xpath(
+                        "./ows:OperationsMetadata/ows:Operation/ows:DCP/ows:HTTP/*", namespaces=ns):
+                    endpoint.set(f"{{{ns['xlink']}}}href", "https://example.com/other")
+                get = mapper.xml_root.xpath(
+                    "./ows:OperationsMetadata/ows:Operation[@name='GetCapabilities']/ows:DCP/ows:HTTP/ows:Get",
+                    namespaces=ns)[0]
+                get.set(f"{{{ns['xlink']}}}href", "https://example.com/capabilities?tenant=1&")
+                alternative = deepcopy(get)
+                alternative.set(f"{{{ns['xlink']}}}href", "https://example.com/alternative")
+                get.addnext(alternative)
+                self.assertEqual(mapper.xml_to_django()[0].service_url,
+                                 "https://example.com/capabilities?tenant=1&")
+
+    def test_missing_get_endpoint_does_not_use_provider_or_other_operations(self):
+        for kind, document, _ in self.samples:
+            with self.subTest(service=kind):
+                mapper = self.mapper(kind, document)
+                for endpoint in mapper.xml_root.xpath(
+                        "./ows:OperationsMetadata/ows:Operation[@name='GetCapabilities']/ows:DCP/ows:HTTP/ows:Get",
+                        namespaces=mapper.mapping["_namespaces"]):
+                    endpoint.getparent().remove(endpoint)
+                self.assertFalse(mapper.xml_to_django()[0].service_url)
+
+    def test_wms_keeps_service_online_resource(self):
+        for document in ("1.1.1.xml", "1.3.0.xml"):
+            with self.subTest(version=document):
+                self.assertEqual(self.mapper("wms", document).xml_to_django()[0].service_url,
+                                 "https://maps.dwd.de/geoserver/")
 
 
 class SingleValueOfAMultiValuedXpathTest(TestCase):

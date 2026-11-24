@@ -10,7 +10,6 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
-import socket
 import sys
 from datetime import timedelta
 from glob import glob
@@ -21,6 +20,9 @@ from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 from MrMap import celery_queues
 from MrMap.celery import is_celery_process, is_this_a_celery_beat_process
+from system.logging.fallback import (
+    DEFAULT_SYSLOG_HOST, DEFAULT_SYSLOG_PORT, syslog_reachable,
+    warn_without_syslog)
 from system.logging.formatter import RFC5424Formatter
 
 from . import VERSION
@@ -1077,11 +1079,9 @@ LOGGING = {
 }
 # point the syslog handler at any RFC 5424 capable receiver; the default is the
 # victoria-logs service of the compose stack
-SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", "victoria-logs")
-SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", "5514"))
-try:
-    """if syslog server is not reachable the application will not startup otherwise"""
-    socket.getaddrinfo(SYSLOG_HOST, SYSLOG_PORT, proto=socket.IPPROTO_UDP)
+SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", DEFAULT_SYSLOG_HOST)
+SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", str(DEFAULT_SYSLOG_PORT)))
+if syslog_reachable(SYSLOG_HOST, SYSLOG_PORT):
     LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
@@ -1094,8 +1094,11 @@ try:
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
     print("syslog logging handler configured.")
-except socket.gaierror:
-    print("syslog server is not reachable. skipping syslog handler setup.")
+else:
+    # the documented fallback of the lightweight mode (#1614), loud since #1622:
+    # without the sink every structured record of this process is console-only,
+    # which is only acceptable when the deployment asked for it
+    warn_without_syslog(SYSLOG_HOST, SYSLOG_PORT)
 
 # the request duration in ms which is worth a "Slow Request Detected" record; the
 # middleware of system/logging/middleware.py reads it while it builds itself

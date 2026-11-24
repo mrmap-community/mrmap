@@ -136,6 +136,30 @@ See ``docs/source/development/runtime-memory-baselines.rst`` for the measured
 Redis footprint and what a deployment of a different size should set.
 
 
+``GRAFANA_MEM_LIMIT``, ``PGADMIN_MEM_LIMIT``, ``FLOWER_MEM_LIMIT``, ``VICTORIA_LOGS_MEM_LIMIT``
+***********************************************************************************************
+
+The memory ceilings of the four optional observers - the log store, its
+dashboard and the two operator UIs - passed to the matching service as
+``mem_limit`` by ``docker-compose.lightweight.yml`` (#1622). The defaults are
+``1g``, ``512m``, ``256m`` and ``256m``, and they apply **only in the
+lightweight mode**: the full deployment of ``docker-compose.yml`` runs these
+services uncapped, exactly as before.
+
+The numbers are the committed p50 of the #1613 measurement with headroom, not
+the charged footprint - grafana's 1958 M charge are 345 M of anonymous memory
+plus reclaimable page cache, which a cgroup gives back before it kills. A
+container which crosses its ceiling is OOM-killed and restarted by its
+``unless-stopped`` policy, which is loud on purpose: the tier only observes, so
+a bound can neither drop application data nor lose a stored log line. Set a
+value when the deployment measures those restarts (``docker events``, the
+``RestartCount`` of ``docker inspect``); the smoke check
+``scripts/compose_profiles_smoke.py`` accepts any value from the shipped
+default up to double it and fails one outside that band. The full table, the
+rationale and the visibility tradeoff are in
+:ref:`compose-profiles`.
+
+
 ``MAPSERVER_URL``
 *****************
 

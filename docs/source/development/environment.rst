@@ -53,6 +53,16 @@ Used to configure the allowed hosts from the origin header. The entries are sepa
 
 The internal preset of the host allow-list which the image ships with: ``localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;testserver``. These are the hosts of the callers which reach the backend without a browser header: the deployment's own service address, the development stack on localhost, the docker bridge address and the django test client. Setting this variable **replaces** that preset; deployments normally never set it -- extend the allow-list with ``DJANGO_ALLOWED_HOSTS`` instead.
 
+``MRMAP_FETCH_ALLOW_NETWORKS``
+******************************
+
+CIDR ranges which the backend may connect to when it fetches a URL somebody else wrote: the service URL of a registration, the operation URLs and ``onlineResource`` links of an upstream capabilities document, the metadata reference of a harvest and the redirect target of any of them. The entries are separated by ``;`` and/or ``,`` and grant a range the default refuses. docker-compose.yml passes this variable to ``backend``, ``celery-worker`` and ``celery-beat``; it may also be set in the ``.env`` file of a deployment. Deployment which hosts services internally must list those networks here. See ``docs/source/administration/fetch-host-policy.md`` in the repository for the default and for the worked examples.
+
+``MRMAP_FETCH_DENY_NETWORKS``
+*****************************
+
+CIDR ranges which are refused even though the default or ``MRMAP_FETCH_ALLOW_NETWORKS`` would allow them, separated by ``;`` and/or ``,`` and passed to the same services. A deny entry always wins, which is how a single host inside a granted network stays unreachable -- on a cloud host the link-local instance metadata address ``169.254.169.254/32`` is worth denying this way. See the same document.
+
 ``DJANGO_TIME_ZONE``
 ********************
 

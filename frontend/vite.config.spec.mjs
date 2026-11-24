@@ -2,7 +2,25 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import config, { CANONICAL_VERSION_FILE, MRMAP_APP_VERSION, SEMVER_STRICT } from "./vite.config.mjs";
+import config, { CANONICAL_VERSION_FILE, MRMAP_APP_VERSION, SEMVER_STRICT, testWorkerOptions } from "./vite.config.mjs";
+
+describe("test concurrency (#1619)", () => {
+  it("keeps normal Vitest defaults when no limit is supplied", () => {
+    expect(testWorkerOptions(undefined)).toEqual({});
+  });
+
+  it("limits workers without changing isolation or coverage", () => {
+    expect(testWorkerOptions("1")).toEqual({ maxWorkers: 1 });
+    expect(testWorkerOptions("2")).toEqual({ maxWorkers: 2 });
+    expect(testWorkerOptions("4")).toEqual({ maxWorkers: 4 });
+  });
+
+  it("refuses invalid limits instead of silently selecting another mode", () => {
+    for (const raw of ["", "0", "-1", "1.5", "auto", "9007199254740992"]) {
+      expect(() => testWorkerOptions(raw)).toThrow("MRMAP_TEST_WORKERS");
+    }
+  });
+});
 
 // Regression guard for #941: deep links with 2+ path segments must boot the
 // app. The built index.html is served by the SPA fallback for every route, so

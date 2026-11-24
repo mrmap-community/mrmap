@@ -929,6 +929,22 @@ SESSION_COOKIE_SECURE = COOKIE_SECURE
 CSRF_COOKIE_SECURE = COOKIE_SECURE
 
 ################################################################
+# FETCH HOST POLICY (#1474, SEC-16)
+################################################################
+# Where the backend may connect when it fetches a URL somebody else wrote: the service URL
+# typed at registration, the operation URLs and onlineResource links of an upstream
+# capabilities document, the metadata reference of a harvest and the redirect target of any
+# of them. Both lists are comma separated CIDRs and are read per address by
+# ``extras.ssrf``; a deny entry wins, an allow entry grants a range the default refuses, and
+# the default refuses everything which is not a public address. Outside production the
+# loopback and private ranges are granted as well, because the development stack and the unit
+# tests are exactly those ranges. ``docs/source/administration/fetch-host-policy.md`` is the
+# operator description, including how a deployment which hosts its services internally or is
+# its own network opens the policy again.
+MRMAP_FETCH_ALLOW_NETWORKS = os.environ.get("MRMAP_FETCH_ALLOW_NETWORKS", "")
+MRMAP_FETCH_DENY_NETWORKS = os.environ.get("MRMAP_FETCH_DENY_NETWORKS", "")
+
+################################################################
 # DJANGO DEBUG TOOLBAR
 ################################################################
 # Add the IP for which the toolbar should be shown

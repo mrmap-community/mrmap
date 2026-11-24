@@ -1608,12 +1608,12 @@ class TemporaryMdMetadataFile(models.Model):
             "url of this reference; set only on registration work rows"))
     # The described element, concretely typed - one of these four on a
     # registration row (see the check constraint), none on a harvesting row.
-    # SET_NULL keeps a failed work row readable after its resource was
-    # removed; the immutable display snapshot below is what the row still
-    # names it for.
+    # CASCADE removes the work row with the described resource; SET_NULL would
+    # leave a background-process row with no described resource and violate
+    # the planned-row check constraint during deletion (#1759).
     described_wms = models.ForeignKey(
         to="registry.WebMapService",
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         editable=False,
@@ -1621,7 +1621,7 @@ class TemporaryMdMetadataFile(models.Model):
         related_query_name="registration_work_item")
     described_wfs = models.ForeignKey(
         to="registry.WebFeatureService",
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         editable=False,
@@ -1629,7 +1629,7 @@ class TemporaryMdMetadataFile(models.Model):
         related_query_name="registration_work_item")
     described_layer = models.ForeignKey(
         to="registry.Layer",
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         editable=False,
@@ -1637,7 +1637,7 @@ class TemporaryMdMetadataFile(models.Model):
         related_query_name="registration_work_item")
     described_featuretype = models.ForeignKey(
         to="registry.FeatureType",
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         editable=False,

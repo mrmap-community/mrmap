@@ -697,7 +697,9 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         ]:
             HarvestingJob.objects.filter(pk=self.job.pk).update(
                 phase=phase, done_at=now() if phase >= Phase.COMPLETED else None)
-            expected = dict(zip(fields, [9, done_steps, progress, 1, 1]))
+            expected = dict(zip(fields, [9, done_steps, progress,
+                                         None if phase >= Phase.COMPLETED else 1,
+                                         None if phase >= Phase.COMPLETED else 1]))
             job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
             self.assertEqual(job.done_steps, done_steps)
             self.assertEqual(job.progress, progress)

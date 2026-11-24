@@ -72,6 +72,10 @@ env:
   DJANGO_ADMIN_USER: mrmap
   DJANGO_ADMIN_PASSWORD: mrmap
   DJANGO_SECRET_KEY: mrmap-ci-secret-key-for-disposable-test-containers
+  # the credential the redis service authenticates with since #1473; compose
+  # interpolates every service, so this covers the redis service, the backend
+  # consumers and flower alike - a disposable CI value, not a secret
+  REDIS_PASSWORD: mrmap-ci-redis-password
   GRAFANA_ADMIN_USER: admin
   GRAFANA_ADMIN_PASSWORD: mrmap-ci-password
   PGADMIN_USER: admin@example.com

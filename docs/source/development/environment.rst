@@ -40,6 +40,14 @@ Used to configure the secrete key which is used by django. See `django docs <htt
 .. warning::
     use a strong secret and never the default from the repository!
 
+.. note::
+    Since #1473 the application **refuses to start** when this variable is
+    missing and ``MRMAP_PRODUCTION`` is ``True``. The fallback used to be a new
+    random key on every import, which works until the next restart and then
+    invalidates every session, knox token and signed payload at once -- so a
+    deployment which believed it had set the key but had not could not tell.
+    Outside production the random fallback stays, for throwaway checkouts and CI.
+
 ``DJANGO_ALLOWED_HOSTS``
 ************************
 
@@ -62,6 +70,242 @@ CIDR ranges which the backend may connect to when it fetches a URL somebody else
 *****************************
 
 CIDR ranges which are refused even though the default or ``MRMAP_FETCH_ALLOW_NETWORKS`` would allow them, separated by ``;`` and/or ``,`` and passed to the same services. A deny entry always wins, which is how a single host inside a granted network stays unreachable -- on a cloud host the link-local instance metadata address ``169.254.169.254/32`` is worth denying this way. See the same document.
+
+HTTP hardening of a deployment (#1473)
+--------------------------------------
+
+The variables below decide the cookie flags, the TLS redirect, HSTS, the framing
+answer, the cross-origin allowance and the ``Content-Security-Policy`` of the
+backend. All of them are read by ``MrMap/settings.py`` at import time and all of
+them are overridable on their own, because a deployment which has to narrow one
+part of the block must not have to drop the rest. Boolean values use the spelling
+of ``MRMAP_PRODUCTION`` itself -- ``True``/``False`` as a string; anything else
+(including an empty value) means "use the default", and ``True`` is the only
+string which means true. A Compose deployment sets them in its ``.env`` like the
+required values of :ref:`installation`: ``docker-compose.yml`` names every one of
+them for ``backend``, ``celery-worker`` and ``celery-beat``, so a line written
+there reaches Django. Each is declared **without a value**, which is what makes
+that safe -- an unset variable then stays absent from the container and the
+default of the deployment mode stays in force, where passing an empty
+``"${VAR:-}"`` through would hand the settings an empty string and, for a cookie
+or a policy flag, read as a decision nobody made. Do not move any of these names
+into ``docker/backend/.mrmap.env``: a name declared without a value in the
+``environment`` block is dropped from the container when nothing supplies it, the
+``env_file`` included, so the same line in two files would quietly stop working.
+
+.. note::
+    One prerequisite decides whether the redirect of ``DJANGO_SECURE_SSL_REDIRECT``
+    is correct at all: the edge in front of the backend has to *name the protocol
+    it terminated*. Django reads the protocol from ``X-Forwarded-Proto`` and the
+    host from ``Host`` -- the pair ``SECURE_PROXY_SSL_HEADER`` /
+    ``USE_X_FORWARDED_HOST`` of the settings is what makes those two headers of
+    the proxy authoritative while a forged value on a direct connection gets no
+    say. The nginx of ``docker/nginx/mrmap.conf`` therefore does not pass the
+    client value through: a ``map`` replaces a missing ``X-Forwarded-Proto`` with
+    the protocol of the connection at the edge. A deployment with another edge in
+    front owes the same normalization, or Django reads its own https traffic as
+    plain http and answers every request with a ``301`` to the https origin it
+    just arrived on -- the loop a deployment in this situation reports.
+    ``EXTERNAL_SCHEME`` is the deployment's own statement of that protocol and
+    reaches the frontend bundle as ``VITE_API_SCHEMA``; it does **not** tell the
+    backend anything. So: a deployment whose TLS really terminates in front and
+    which names itself ``MRMAP_PRODUCTION=True`` gets the block and is fine; a
+    deployment which answers plain http -- the ``http://localhost`` quickstart of
+    the installation page, or anything behind a terminator which forwards plain
+    http and cannot add the header -- sets ``DJANGO_SECURE_SSL_REDIRECT=False``,
+    or no request is ever answered.
+
+``DJANGO_SECURE_SSL_REDIRECT``
+******************************
+
+Whether a plain-http request is answered with a ``301`` to the https URL of the
+same address. Default: ``MRMAP_PRODUCTION`` -- on in production, off in a
+development stack, which does not speak https at all. See the note above: this is
+the one knob of the block which can stop a deployment answering requests, and the
+opt-out for a deployment which really does answer plain http. Narrowing it gives
+up nothing but the enforcement: the browser is then free to keep talking http to
+the deployment, so the HSTS entry below is what keeps it honest instead.
+
+``DJANGO_SECURE_HSTS_SECONDS``
+******************************
+
+The ``max-age`` of the ``Strict-Transport-Security`` header, in seconds. Default:
+``31536000`` (a year) under ``MRMAP_PRODUCTION``, ``0`` -- no header -- outside.
+``0`` means the browser may talk plain http to this deployment tomorrow, which is
+why the settings log a warning when the redirect above is on and this value is
+``0``. Set the number the deployment's own certificate life supports; anything
+below the renewal window of the certificate is a deployment which can lock itself
+out of its own https. Blank means the default of the deployment mode, like every
+other knob of the block. Anything which is not a whole number of seconds -- ``1y``,
+a duration with a unit, a negative count -- stops the deployment while the
+settings load and names the value it rejected: the header is a one-way door once a
+browser has seen it, so a mistyped max-age must not be guessed at, in either
+direction.
+
+``DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS``
+*****************************************
+
+Whether the HSTS entry above also covers every subdomain of the host. Default:
+``MRMAP_PRODUCTION``. Set it to ``False`` when a subdomain of the deployment is
+served without TLS by somebody else -- with this flag on, the browser refuses
+plain http to *those* hosts too, for as long as the ``max-age`` above lasts, and
+no page of the deployment can undo that.
+
+``DJANGO_SECURE_HSTS_PRELOAD``
+******************************
+
+Adds ``preload`` to the HSTS header. Default ``False``, because it is a promise to
+a third party rather than a deployment setting: only set it when the host is
+actually submitted to the browser preload list, whose removal is a deliberate and
+slow process.
+
+``DJANGO_SECURE_CONTENT_TYPE_NOSNIFF``
+**************************************
+
+Answers ``X-Content-Type-Options: nosniff``, so a browser never guesses the type
+of a response and executes an uploaded file as script. Default ``True`` in both
+deployment modes -- there is no deployment for which sniffing is wanted, which is
+why it is not gated on ``MRMAP_PRODUCTION``.
+
+``DJANGO_SECURE_REFERRER_POLICY``
+*********************************
+
+The value of ``Referrer-Policy``. Default ``same-origin``: only a same-origin
+request is told which page referred it. Any `django value
+<https://docs.djangoproject.com/en/5.2/ref/clickjacking/#setting-a-referrer-policy>`__
+is accepted verbatim; a deployment which must hand the referring address to a
+third-party map or statistics host names e.g. ``strict-origin-when-cross-origin``
+here, and gives up the fact that a cross-origin collector cannot see the path of
+the page it was called from.
+
+``DJANGO_X_FRAME_OPTIONS``
+**************************
+
+The value of ``X-Frame-Options``, which the settings answer together with the
+``frame-ancestors`` directive of the policy below. Default ``DENY`` -- no page may
+frame this application, not even a page of the same origin. The frontend edge of
+``docker/nginx/mrmap.conf`` answers the same value for the documents it serves
+itself, so the SPA shell and the backend never disagree about framing. A
+deployment which embeds its own viewer in an iframe of the same origin sets
+``SAMEORIGIN`` **and** ``DJANGO_CONTENT_SECURITY_POLICY`` with
+``frame-ancestors 'self'`` -- the browser enforces the stricter of the two, so
+only changing one of them changes nothing.
+
+``DJANGO_COOKIE_SECURE``
+************************
+
+Whether the session and the CSRF cookie are stored and sent over TLS only.
+Default: ``MRMAP_PRODUCTION`` -- the shipped deployment runs behind TLS. Both
+cookies always move together: a session kept over plain http without its CSRF
+partner, or the other way round, is not a working arrangement. An http-only
+deployment **must** set ``False``, or the browser refuses to store the session and
+no login ever sticks; a https deployment which is not flagged production can set
+``True`` to get the flag anyway. See
+``docs/source/administration/authentication.md`` for the rest of the cookie
+contract of the browser session.
+
+``DJANGO_CORS_ALLOWED_ORIGINS``
+*******************************
+
+The origins which may call the API from another origin with the browser of a
+logged-in user. A ``;``/``,` separated list of full origins including the scheme,
+e.g. ``https://viewer.example.org``; the value means exactly what it says and
+applies in both deployment modes. There is **no** wildcard default any more: the
+shipped topology is same-origin -- the nginx of ``docker/nginx/mrmap.conf`` serves
+the SPA and proxies ``/api``, ``/csw`` and ``/ws`` on the very host and port the
+SPA was loaded from -- so no cross-origin consumer exists to serve, while the
+previous default of every origin let any website read the API as the logged-in
+user of any browser which visited it (an ``Authorization`` header needs no
+cookies, so the credentialed flag was never the guard). A deployment which leaves
+this unset logs ``no CORS origins are allowed`` at boot. Outside production the
+vite origins of the development frontend (``http://localhost:5173``,
+``http://127.0.0.1:5173``) are added to whatever is named here and may send
+credentials, because that frontend authenticates with the session of this backend.
+
+``DJANGO_CSRF_TRUSTED_ORIGINS``
+*******************************
+
+The origins whose same-origin ``POST`` may carry this site's CSRF token: a
+``;``/``,` separated list of full origins including the scheme, and every scheme
+named is honoured, so a deployment which serves plain https spells out exactly
+that. This used to be derived from the host allow-list -- every
+``DJANGO_ALLOWED_HOSTS`` entry contributed ``http://`` **and** ``https://`` of
+itself, which turned an internal host name meant for a machine into an origin a
+browser could be lured to. Now the variable is the only source in production, and
+an unset value means django's own same-origin check and nothing else, which is
+what the same-origin topology needs. Outside production the two vite origins join
+automatically. Give up nothing by naming them: an origin which is not listed here
+cannot make a state-changing request of a logged-in browser, it is answered
+``403 Forbidden`` by the CSRF middleware.
+
+``DJANGO_CONTENT_SECURITY_POLICY``
+**********************************
+
+The complete ``Content-Security-Policy`` the backend answers on **every** one of
+its responses, the error pages included: the header is added by
+``MrMap/middleware.py`` below ``SecurityMiddleware``, so the ``301`` of the SSL
+redirect and the ``400`` of the host validation carry it too. Unlike the block
+above it is answered in both deployment modes, because it describes the sources of
+*this application* rather than a production decision, and a policy first exercised
+in production is a policy whose breakage is discovered in production.
+
+The default is the source list of the shipped frontend -- scripts of this origin
+plus the two CDNs ``frontend/index.html`` and the built bundle load from
+(``unpkg.com``, ``cdn.jsdelivr.net``), styles of those hosts and of the Google
+Fonts CDN with ``'unsafe-inline'`` (the mechanism MUI, leaflet and monaco position
+map overlays and editor decorations with; inline *style* cannot read a token and
+cannot reach the network, scripts stay without the allowance), images of this
+origin, of the OSM tile hosts and of ``blob:``/``data:`` for the previews the SPA
+builds from bytes it fetched through ``/mrmap-proxy``, ``object-src 'none'``,
+``base-uri 'self'``, ``form-action 'self'``, ``frame-ancestors 'none'``, and under
+``MRMAP_PRODUCTION`` ``upgrade-insecure-requests``.
+
+``connect-src`` is ``'self'`` alone. It deliberately carries no ``wss:``: a source
+which names a scheme and no host matches that scheme against *every* address, so
+the one directive would hand injected script the outbound channel the rest of the
+policy exists to deny -- a collector on the internet, or, from a browser inside a
+company network, ``wss://10.0.0.7:PORT`` as a pivot towards hosts the deployment
+can reach and the public cannot. The application needs no such breadth: the only
+socket it opens is the ``/ws/`` route of the very origin it was served from
+(``RealtimeBus.tsx``), and CSP normalizes ``wss`` to ``https`` when it matches a
+source, so ``'self'`` admits it. Outside production the two loopback sockets of
+the vite dev server join as well (``ws://localhost:8001``,
+``ws://127.0.0.1:8001``), because that dev server proxies nothing and a page on
+``:5173`` really does reach the backend on ``:8001`` -- a development topology, so
+that is where the exception lives, the same way the vite origins join
+``DJANGO_CSRF_TRUSTED_ORIGINS`` only outside production. A shipped policy which
+does carry a bare ``ws:`` or ``wss:`` is refused while the settings load, rather
+than discovered in a browser console.
+
+The variable **replaces** the whole policy; it does not append to it. That is not
+a limitation but the reason to name the complete list: a browser enforces the
+*intersection* of every ``Content-Security-Policy`` of a response, so a deployment
+which adds a second header at its own edge gets the stricter of the two and no
+error message. An empty value turns the header off for the backend's answers -- the
+hatch for a deployment which protects its documents at the edge; the frontend
+container answers its own copy for the SPA shell either way. Empty therefore
+means *the operator turned it off*, which is why ``docker-compose.yml`` declares
+this variable without a value: writing ``DJANGO_CONTENT_SECURITY_POLICY=`` in
+``.env`` is the off switch, while not writing the line at all leaves the shipped
+policy in force. An operator who
+embeds the viewer in an iframe of another host, loads the SPA from a second origin
+or hosts a tile server sets this variable; after the change, one look at the
+browser console of a page of the deployment is the whole verification, because a
+source the policy does not know is refused by the browser and named there.
+
+``DJANGO_DEBUG_TOOLBAR_INTERNAL_IPS``
+*************************************
+
+The client addresses which may see the django debug toolbar when it is installed
+at all. A ``;``/``,` separated list; default ``127.0.0.1;::1``. The toolbar answers
+SQL, settings, request bodies and the environment of the request, so the callback
+which used to answer ``True`` for everyone showed all of that to whoever reached
+the deployment first. Two gates apply instead, and both have to pass: the client
+address has to be listed here, and ``MRMAP_PRODUCTION`` has to be off --
+``DJANGO_DEBUG=1`` alone does not make a deployment a development one. A developer
+behind a proxy which rewrites the client address, or a remote development machine,
+names its addresses here; nothing to gain in production, where the variable is not
+read at all because the toolbar is not installed.
 
 ``DJANGO_TIME_ZONE``
 ********************
@@ -114,6 +358,38 @@ Used to configure the ip/dns name of the redis host.
 **************
 
 Used to configure the port of the redis host.
+
+
+``REDIS_PASSWORD``
+******************
+
+The password of the shared redis instance (#1473). The ``redis`` service of
+``docker-compose.yml`` starts with ``--requirepass`` from this value and
+authenticates its own healthcheck with it, so an instance of the shipped stack
+never answers an unauthenticated client; the ``:?`` of the compose file makes an
+unset value refuse ``docker compose up`` the way ``DB_PASSWORD`` does.
+
+Every client of the project reads the same variable, so there is no second place
+to keep it in sync: the celery broker, the celery result backend and the Django
+cache assemble their URLs from ``REDIS_HOST``/``REDIS_PORT`` and this password
+(``MrMap/settings.py``), the channels layer of the notification bus passes it as
+the ``password`` of its host entry, the flower UI hands it to ``celery
+--broker``, and ``system/worker_healthcheck.py`` -- which must reach the broker
+without importing the settings -- builds the same URL itself. The Python clients
+percent-encode the value when they assemble their URL, so a credential with
+characters reserved in a URL needs no encoded spelling anywhere; the flower UI of
+``docker-compose.yml`` is the one client which hands the value to celery on a
+command line, so keep the credential free of ``@``, ``:``, ``/`` and ``#``.
+
+An **empty** value keeps its old meaning of "no authentication", which is what
+makes the refusal above a compose-file decision and not an application one: a
+development stack, a test container or any deployment which runs the image
+outside compose and keeps its broker unreachable from other workloads still runs
+without a password. Set a real value for anything else: one instance is the
+broker, the result backend and the cache of the whole fleet, so whoever can
+reach its port unauthenticated can enqueue work the workers execute as the
+application, read task results, or flush the queue (#1618 is the contract that
+queued work survives, and an open port is how it stops being true).
 
 
 ``REDIS_MAXMEMORY``

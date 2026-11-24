@@ -77,10 +77,21 @@ services:
     # for why volatile-lru is the policy which cannot drop broker keys); the
     # maxmemory is the deployment's number and overridable per .env. The
     # command-line form outranks the config file, so this is THE bound.
-    # A compose variable cannot name the image's own `redis-server` binary
-    # path, hence `sh -c`. Read-only rootfs is not added here: the service
-    # writes its RDB snapshots and its temp files to /data (the named volume).
-    command: ["sh", "-c", "exec redis-server /usr/local/etc/redis/redis.conf --maxmemory \"${REDIS_MAXMEMORY:-768mb}\""]
+    # #1473: the same channel carries `--requirepass`. It cannot live in the
+    # committed redis.conf - redis expands no variable inside a config file,
+    # and a committed file is no place for a secret - so it is a CLI argument
+    # from the deployment's .env, and `:?` makes an unset value fail the way
+    # DB_PASSWORD does: an instance which is the broker, the result backend
+    # and the cache of this fleet must never answer an unauthenticated
+    # client. Every client of the project reads the same variable
+    # (MrMap/settings.py). The value reaches the server through the
+    # container's own environment - `$$`, not an interpolated `$` - so it stays
+    # out of the published service config and out of `docker inspect`. A compose
+    # variable cannot name the image's own
+    # `redis-server` binary path, hence `sh -c`. Read-only rootfs is not
+    # added here: the service writes its RDB snapshots and its temp files to
+    # /data (the named volume).
+    command: ["sh", "-c", "exec redis-server /usr/local/etc/redis/redis.conf --maxmemory \"${REDIS_MAXMEMORY:-768mb}\" --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - type: volume
         source: mem-db-data
@@ -93,8 +104,15 @@ services:
       - mrmap-internal
     environment:
       - loglevel=error
+      # the credential both the server (``--requirepass`` above) and the
+      # healthcheck below read; `:?` at compose level is what refuses an
+      # unauthenticated instance of #1473
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      # the credential of the service itself: since #1473 the instance only
+      # answers an authenticated client, `redis-cli ping` alone would make a
+      # healthy redis read as unhealthy
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -153,7 +171,51 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which this process
+      # reads for its broker, its result backend, its cache and its channel
+      # layer (MrMap/settings.py); the same value the redis service starts with
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
@@ -242,7 +304,51 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which this process
+      # reads for its broker, its result backend, its cache and its channel
+      # layer (MrMap/settings.py); the same value the redis service starts with
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
@@ -329,7 +435,51 @@ services:
       # docs/source/administration/fetch-host-policy.md
       MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
       MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
+      # The transport-security block of #1473, so that the opt-outs documented
+      # in docs/source/development/environment.rst are reachable from the
+      # deployment's .env at all: compose interpolates .env only into entries
+      # this file names, so a variable which is not listed here never reaches
+      # Django, and an operator who follows the documentation to narrow one
+      # setting of the block narrows nothing. Listed for all three services
+      # which import the settings, as #1474 does for its fetch policy: one
+      # deployment value read by one module must read the same in the web tier
+      # and in the workers, or the boot warnings of the block (no CORS origins,
+      # redirect without HSTS) say one thing in one process and the opposite in
+      # another.
+      #
+      # A name with **no value** is what makes this work, and it is not the form
+      # used above. ``NAME: "${NAME:-}"`` always *sets* the variable, to the
+      # empty string when .env is silent, and three readers of this family read
+      # an empty value as an explicit decision: ``DJANGO_COOKIE_SECURE=''`` would
+      # ship a production session cookie without ``Secure``, an empty
+      # ``DJANGO_CONTENT_SECURITY_POLICY`` turns the policy off, and
+      # ``DJANGO_SECURE_HSTS_SECONDS=''`` does not even parse. Passing a knob
+      # through that way would therefore weaken the deployment the moment it is
+      # wired, which is the opposite of what the block is for. A name on its own
+      # is passed only when the environment of the compose run actually carries
+      # it: unset stays unset, settings.py sees no value and keeps the default
+      # of the deployment mode. (The same property is why no name below may ever
+      # appear in ``docker/backend/.mrmap.env``: a name declared here with no
+      # value and nothing to pass is *removed* from the container, the
+      # ``env_file`` included - measured against this file's own env_file, which
+      # keeps its other entries and loses only the shadowed one. None of these
+      # names is in that file, and one added there would silently stop working.)
+      DJANGO_SECURE_SSL_REDIRECT:
+      DJANGO_SECURE_HSTS_SECONDS:
+      DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS:
+      DJANGO_SECURE_HSTS_PRELOAD:
+      DJANGO_SECURE_CONTENT_TYPE_NOSNIFF:
+      DJANGO_SECURE_REFERRER_POLICY:
+      DJANGO_X_FRAME_OPTIONS:
+      DJANGO_COOKIE_SECURE:
+      DJANGO_CORS_ALLOWED_ORIGINS:
+      DJANGO_CSRF_TRUSTED_ORIGINS:
+      DJANGO_CONTENT_SECURITY_POLICY:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
+      # the credential of the shared redis instance (#1473), which this process
+      # reads for its broker, its result backend, its cache and its channel
+      # layer (MrMap/settings.py); the same value the redis service starts with
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
       SQL_USER: "${DB_USER:?Please configure DB_PASSWORD in the .env file}"
@@ -463,7 +613,14 @@ services:
   flower:
     image: mher/flower:2.2
     restart: unless-stopped
-    command: ["celery", "--broker=redis://redis:6379", "flower", "--port=5555", "--url_prefix=flower"]
+    # #1473: the instance only answers an authenticated client since the
+    # redis service got `--requirepass`, so the broker URL of the UI carries
+    # the credential too. `$$` keeps the value out of the published service
+    # config: the container's own shell expands it from the environment below,
+    # which is the same variable every other client of the project reads.
+    command: ["sh", "-c", "exec celery --broker=redis://:$$REDIS_PASSWORD@redis:6379 flower --port=5555 --url_prefix=flower"]
+    environment:
+      REDIS_PASSWORD: "${REDIS_PASSWORD:?Please configure REDIS_PASSWORD in the .env file}"
     networks:
       - mrmap-internal
 

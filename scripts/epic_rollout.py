@@ -51,7 +51,11 @@ Usage:
   --dry-run     the only mode this tool has; accepted so a caller can state its intent
   --policy PATH read the rollout policy from PATH (default: scripts/epic_rollout.json)
   --today D     pretend it is D (date), for the rollout half and for expiry checks
-  --epic N      plan one epic instead of every open one
+  --epic N      render only this epic's row. It scopes the *report*, never the checks: the
+                repository-wide rules (a reused slug, an orphan epic branch, the CI coverage)
+                always read the whole open set, because a scoped version of them would both
+                invent defects about other epics and hide the one that concerns this one.
+                The scope is reported as `scope`, separately from `inventory`.
   --mode M      auto (default) picks by the policy dates; advisory/strict force it
 
 Exit codes: 0 the plan is complete and (in strict mode) the rollout has no finding;
@@ -73,7 +77,9 @@ from datetime import date
 from subprocess import TimeoutExpired
 
 SCHEMA = "epic-rollout/v1"
-POLICY_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "epic_rollout.json")
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+POLICY_PATH = os.path.join(HERE, "epic_rollout.json")
 CMD_TIMEOUT = 120
 BASE_BRANCH = "develop"
 MASTER_BRANCH = "master"
@@ -126,7 +132,7 @@ def _date(value, what):
         raise PolicyError("%s is %r, which is not an ISO date" % (what, value))
 
 
-def load_policy(path):
+def load_policy(path, repo_root=ROOT):
     """Read and validate the rollout policy; a policy this tool cannot trust is fatal.
 
     The validation is not ceremony: this file is what makes the rollout time-limited, so a
@@ -150,7 +156,7 @@ def load_policy(path):
     contract = policy.get("contract")
     if not isinstance(contract, str) or not contract:
         raise PolicyError("the rollout policy names no contract page")
-    if not os.path.exists(contract):
+    if not os.path.exists(os.path.join(repo_root, contract)):
         raise PolicyError("the rollout policy cites %s, which is not in the repository - the "
                           "contract is the source of every row this tool derives" % contract)
     prefix = policy.get("branch_prefix")
@@ -174,7 +180,7 @@ def load_policy(path):
         raise PolicyError("the rollout policy names no ci_coverage workflows; without the check "
                           "list a child PR can be merged into an epic branch unchecked")
     for workflow in coverage:
-        if not os.path.exists(workflow):
+        if not os.path.exists(os.path.join(repo_root, workflow)):
             raise PolicyError("the rollout policy names %s, which is not in the repository"
                               % workflow)
     bootstrap = policy.get("bootstrap") or {}
@@ -195,13 +201,26 @@ def load_policy(path):
     return policy
 
 
-def mode_for(today, policy, mode="auto"):
+def strict_from(policy, path):
+    """The strict date together with where it came from.
+
+    Reported instead of recomputed at print time: a rollout date is a deployment's call
+    (`rollout.strict_from_env`), and a person who reads "the rule starts binding on X" has to
+    be able to tell the committed policy from a deployment's override of it.
+    """
+    env = policy["rollout"].get("strict_from_env") or ""
+    override = os.environ.get(env) if env else None
+    if override:
+        return override, "environment %s" % env
+    return policy["rollout"]["strict_from"], "committed policy %s" % path
+
+
+def mode_for(today, policy, mode="auto", path=POLICY_PATH):
     """Which half of the rollout a run is in: 'advisory' or 'strict'."""
     if mode in ("advisory", "strict"):
         return mode
-    strict_from = os.environ.get(policy["rollout"].get("strict_from_env") or "",
-                                 policy["rollout"]["strict_from"])
-    return "strict" if str(today) >= str(strict_from) else "advisory"
+    strict, _ = strict_from(policy, path)
+    return "strict" if str(today) >= str(strict) else "advisory"
 
 
 # --------------------------------------------------------------------------- GitHub reads
@@ -318,12 +337,15 @@ def slug_declaration(body):
     return None, False
 
 
-def open_epics(runner, repo, only=None):
+def open_epics(runner, repo):
     """Open issues carrying the `Epic` label, with their native sub-issues.
 
     The label is the *triage view* the contract's open questions accept for discovery, and
     the native `subIssues` connection is the fact: an issue labelled Epic with no native
     children has nothing to migrate, and a child is only a child through that connection.
+
+    Deliberately unfiltered: a caller that plans one epic still has to read all of them,
+    because rule 2 is a statement about the whole open set (`build_plan`).
     """
     q = ('{search(query:"repo:%s is:issue is:open label:\\"%s\\"", type:ISSUE, first:100)'
          '{issueCount pageInfo{hasNextPage} nodes{__typename ... on Issue{number title state '
@@ -336,8 +358,6 @@ def open_epics(runner, repo, only=None):
         if not isinstance(n.get("number"), int):
             raise RolloutError("an open epic has no issue number")
         number = n["number"]
-        if only is not None and number != only:
-            continue
         if n.get("state") != "OPEN":
             raise RolloutError("epic #%s came back %s from an is:open search" % (number,
                                                                                   n.get("state")))
@@ -482,7 +502,11 @@ def ci_coverage(repo_root, policy):
             else:
                 candidates = [m.group(2).strip().strip("'\"")]
             for cand in candidates:
-                if cand in (prefix + "**", prefix + "*", prefix.rstrip("/")):
+                # A wildcard over the namespace only. A bare `epic` matches the one branch
+                # literally named "epic" and no `epic/<slug>` at all, so accepting it would
+                # let a mistyped `epic/**` pass this guard and re-open the gap it exists to
+                # close -- the same false green _trigger_blocks() exists to prevent.
+                if cand in (prefix + "**", prefix + "*"):
                     found = True
         result[workflow] = found
     return result
@@ -661,6 +685,12 @@ def check_slug_uniqueness(epics, branches, prefix):
     A duplicate slug is not a warning: two open epics would resolve to the same canonical
     branch, so the children of one would land on the other's integration target and read as
     satisfied work.
+
+    This reads the *whole* open-epic inventory, never a `--epic` slice of it. Both ways it
+    goes wrong when scoped: an epic's healthy branch reads as an orphan because the epic that
+    declares it is out of the slice, and a slug shared with an out-of-slice epic reads as no
+    collision at all. Each finding carries the epic numbers it involves, so a scoped plan can
+    say which of them concern the epic in scope.
     """
     findings, seen = [], {}
     for epic in epics:
@@ -668,7 +698,7 @@ def check_slug_uniqueness(epics, branches, prefix):
         if not slug:
             continue
         if slug in seen:
-            findings.append({"token": "slug-duplicate",
+            findings.append({"token": "slug-duplicate", "epics": [seen[slug], epic["number"]],
                              "detail": "epics #%s and #%s both declare slug %r; %s would be "
                                        "one branch for two epics (rule 2) - a person renames "
                                        "one slug or closes one epic"
@@ -677,10 +707,8 @@ def check_slug_uniqueness(epics, branches, prefix):
             seen[slug] = epic["number"]
     declared = {prefix + s for s in seen}
     for name in sorted(branches):
-        if not name.startswith(prefix):
-            continue
-        if name not in declared:
-            findings.append({"token": "orphan-epic-branch",
+        if name.startswith(prefix) and name not in declared:
+            findings.append({"token": "orphan-epic-branch", "epics": [],
                              "detail": "%s stands on origin but no open epic declares that "
                                        "slug; R10/R11 forbid recreating it and an agent may "
                                        "not delete it - a person either closes it out with its "
@@ -688,13 +716,30 @@ def check_slug_uniqueness(epics, branches, prefix):
     return findings
 
 
-def build_plan(runner, policy, repo_root, today, mode, only=None):
+def build_plan(runner, policy, repo_root, today, mode, only=None, policy_path=POLICY_PATH):
+    """The migration plan and the readiness report of the rollout.
+
+    `only` scopes which rows are *rendered*; it never scopes what the repository-wide checks
+    may see (see the note on the inventory below). `policy_path` is carried only so the report
+    can attribute the strict date it prints — a rollout date a person reads has to be
+    traceable to the committed policy or to a deployment's override of it.
+    """
     repo = resolve_repo(runner)
     prefix = policy["branch_prefix"]
     branches = origin_branches(runner)
     pulls = open_pulls(runner, repo)
     claims = claim_scan(runner, repo)
-    epics = open_epics(runner, repo, only=only)
+    # The inventory is read whole and *stays* whole. `--epic` scopes which rows are rendered,
+    # never what the repository-wide checks may see: rule 2 is a statement about all open
+    # epics at once, and deriving it from a slice both invents orphans (a healthy branch whose
+    # epic is out of the slice) and hides collisions (a shared slug whose twin is out of it).
+    # A plan that reads complete while being scoped is the failure this tool exists to refuse.
+    all_epics = open_epics(runner, repo)
+    epics = [e for e in all_epics if only is None or e["number"] == only]
+    if only is not None and not epics:
+        raise RolloutError("epic #%s is not an open %s issue of %s, so it has no row to plan; "
+                           "check the number rather than assume an absent row"
+                           % (only, EPIC_LABEL, repo))
 
     rows, actions, findings = [], [], []
     for epic in epics:
@@ -709,7 +754,13 @@ def build_plan(runner, policy, repo_root, today, mode, only=None):
         actions += [{"epic": epic["number"], **a} for a in epic_actions]
         findings += [{"epic": epic["number"], **f} for f in epic_findings]
 
-    findings += [{"epic": None, **f} for f in check_slug_uniqueness(epics, branches, prefix)]
+    for f in check_slug_uniqueness(all_epics, branches, prefix):
+        involved = f.pop("epics")
+        entry = {"epic": only if (only is not None and only in involved) else None, **f}
+        if only is not None and only not in involved:
+            entry["detail"] += " (concerns %s, not the epic in scope)" % (
+                " and ".join("#%s" % n for n in involved) if involved else "no open epic")
+        findings.append(entry)
 
     coverage = ci_coverage(repo_root, policy)
     for workflow, covered in sorted(coverage.items()):
@@ -722,14 +773,20 @@ def build_plan(runner, policy, repo_root, today, mode, only=None):
                                        "(`The CI contract`_)" % (workflow, prefix)})
     epic_branches = sorted(b for b in branches if b.startswith(prefix))
     blocking = [f for f in findings if f.get("blocking") is not False]
+    strict_date, strict_source = strict_from(policy, policy_path)
     return {
         "schema": SCHEMA, "status": "ok", "error": None, "repo": repo,
         "policy": {"contract": policy["contract"], "advisory_from": policy["rollout"]["advisory_from"],
-                   "strict_from": policy["rollout"]["strict_from"], "mode": mode,
+                   "strict_from": strict_date, "strict_from_source": strict_source,
+                   "mode": mode,
                    "bootstrap_epics": (policy.get("bootstrap") or {}).get("epics", [])},
         "today": str(today),
-        "inventory": {"open_epics": len(epics), "open_pulls": len(pulls),
+        # The inventory is the repository's, never the slice's — a scoped plan that reported
+        # its own row count as the inventory would read complete while being partial. What is
+        # scoped is named as such, separately.
+        "inventory": {"open_epics": len(all_epics), "open_pulls": len(pulls),
                       "active_claims": len(claims), "epic_branches": epic_branches},
+        "scope": {"epic": only, "rows_rendered": len(rows)},
         "ci_coverage": [{"workflow": w, "pull_request_covers_epics": covered}
                         for w, covered in sorted(coverage.items())],
         "epics": rows, "actions": actions, "findings": findings,
@@ -746,12 +803,19 @@ def render_json(res):
 
 def render_human(res):
     p = res["policy"]
-    lines = ["repo %s   %d open epic(s), %d open PR(s), %d active claim(s)   mode %s"
+    # Name the actual source of the strict date. Claiming an environment override that nobody
+    # set is worse than naming none: this line is how a person learns when the rule starts
+    # binding.
+    overridden = not p["strict_from_source"].startswith("committed policy")
+    scope = res["scope"]
+    lines = ["repo %s   %d open epic(s), %d open PR(s), %d active claim(s)   mode %s%s"
              % (res["repo"], res["inventory"]["open_epics"], res["inventory"]["open_pulls"],
-                res["inventory"]["active_claims"], p["mode"]),
+                res["inventory"]["active_claims"], p["mode"],
+                "   (planning epic #%s of them; the checks and findings are the "
+                "repository's whole set)" % scope["epic"] if scope["epic"] else ""),
              "policy %s   advisory from %s   strict from %s%s"
              % (p["contract"], p["advisory_from"], p["strict_from"],
-                "   (date overridden by environment)" if p["mode"] != "advisory" else ""),
+                "   (%s)" % p["strict_from_source"] if overridden else ""),
              "epic branches on origin: " + (", ".join(res["inventory"]["epic_branches"]) or "none"),
              "", "  epic  row              target                 open/children  actions",
              "  ----  ----------------  ----------------------  -------------  " + "-" * 40]
@@ -804,15 +868,16 @@ def main(argv=None, runner=None, repo_root=None, today=None):
     if repo_root is None:
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     try:
-        policy = load_policy(args.policy)
+        policy = load_policy(args.policy, repo_root)
         if args.today is not None:
             today_value = date.fromisoformat(args.today)
         elif today is not None:
             today_value = today if isinstance(today, date) else date.fromisoformat(str(today))
         else:
             today_value = date.today()
-        mode = mode_for(today_value, policy, args.mode)
-        res = build_plan(runner, policy, repo_root, today_value, mode, only=args.epic)
+        mode = mode_for(today_value, policy, args.mode, args.policy)
+        res = build_plan(runner, policy, repo_root, today_value, mode, only=args.epic,
+                         policy_path=args.policy)
     except (RolloutError, PolicyError, ValueError) as e:
         if args.json:
             print(render_json({"schema": SCHEMA, "status": "error", "error": str(e)}))

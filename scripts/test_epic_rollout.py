@@ -157,12 +157,12 @@ class Fixture:
 
 # ---------- running the tool ------------------------------------------------
 
-def plan(fixture, *argv, today=TODAY, policy=POLICY):
+def plan(fixture, *argv, today=TODAY, policy=POLICY, repo_root=ROOT):
     """Run main() against the fixture -> (exit code, stdout)."""
     out = io.StringIO()
     with redirect_stdout(out):
         code = m.main(["--json", "--policy", policy, *argv], runner=fixture.runner,
-                      repo_root=ROOT, today=today)
+                      repo_root=repo_root, today=today)
     return code, out.getvalue()
 
 
@@ -170,6 +170,76 @@ def result(fixture, *argv, **kw):
     code, out = plan(fixture, *argv, **kw)
     assert code != 2, "the planner failed closed: %s" % out
     return json.loads(out)
+
+
+def human(fixture, *argv, **kw):
+    """main() with the human renderer -> (exit code, stdout)."""
+    out = io.StringIO()
+    argv = [a for a in argv if a != "--json"]
+    with redirect_stdout(out):
+        code = m.main(["--policy", kw.pop("policy", POLICY), *argv], runner=fixture.runner,
+                      repo_root=kw.pop("repo_root", ROOT), today=kw.pop("today", TODAY))
+    assert not kw, "unsupported kwargs: %s" % kw
+    return code, out.getvalue()
+
+
+WORKFLOW_FLOWS = """name: w
+on:
+  pull_request:
+    branches: [%s]
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '0 16 * * *'
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+"""
+
+WORKFLOW_BLOCKS = """name: w
+on:
+  pull_request:
+    branches:
+%s
+    types: [opened]
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+"""
+
+
+def workflow_root(patterns, style="flow"):
+    """A throwaway repository root whose one workflow triggers on `patterns`.
+
+    Used to hold the CI-coverage guard to its own promise: a trigger must carry a wildcard
+    over the epic namespace, not something that merely mentions the word `epic`. It carries
+    the contract page the policy cites too, because the policy is validated against this root
+    and a root without it must (and does) fail closed.
+    """
+    root = tempfile.mkdtemp()
+    workflows = os.path.join(root, ".github", "workflows")
+    os.makedirs(workflows)
+    contract = os.path.join(root, "docs", "source", "development")
+    os.makedirs(contract)
+    with open(os.path.join(contract, "epic-integration-contract.rst"), "w",
+              encoding="utf-8") as fh:
+        fh.write("Epic integration contract\n=========================\n")
+    if style == "flow":
+        body = WORKFLOW_FLOWS % ", ".join(patterns)
+    else:
+        body = WORKFLOW_BLOCKS % "".join("      - %s\n" % p for p in patterns)
+    with open(os.path.join(workflows, "w.yml"), "w", encoding="utf-8") as fh:
+        fh.write(body)
+    return root
+
+
+def coverage_policy():
+    """The committed policy with its CI coverage narrowed to the throwaway workflow."""
+    path = os.path.join(tempfile.mkdtemp(), "policy.json")
+    narrowed = dict(policy, rollout=dict(policy["rollout"],
+                                         ci_coverage=[".github/workflows/w.yml"]))
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(narrowed, fh)
+    return path
 
 
 def findings_of(res, token, epic=None):
@@ -532,6 +602,161 @@ try:
     check("a policy with no CI coverage list is refused", code == 2, out[:120])
 finally:
     os.unlink(badpath)
+
+# ---------- what `--epic` may and may not scope --------------------------------
+# `--epic` is what AGENTS.md and the skill tell an agent to run before an epic child's PR, so
+# the scoped plan is the one that gets believed. It may scope which rows are rendered; it may
+# not scope what the repository-wide checks see, or a scoped plan both invents defects about
+# other epics and hides the rule 2 collision that would land the agent's work on another
+# epic's integration target.
+
+two_epics = (Fixture().epic(10, slug="alpha", children=[11])
+             .epic(12, slug="beta", children=[13])
+             .branch("epic/alpha", "epic/beta"))
+
+res = result(two_epics)
+check("the unscoped plan sees no orphan among two healthy epic branches",
+      not findings_of(res, "orphan-epic-branch"), res["blocking"])
+
+res = result(two_epics, "--epic", "10")
+check("--epic renders only the epic asked for",
+      [r["epic"] for r in res["epics"]] == [10], [r["epic"] for r in res["epics"]])
+check("--epic does not invent an orphan out of another epic's healthy branch",
+      not findings_of(res, "orphan-epic-branch"), res["blocking"])
+check("the inventory stays the repository's whole set under --epic",
+      res["inventory"]["open_epics"] == 2, res["inventory"])
+check("the scope of the rendered rows is named separately, not passed off as the inventory",
+      res["scope"] == {"epic": 10, "rows_rendered": 1}, res.get("scope"))
+
+# The mirror case: the collision is with an epic outside the scope. Before the fix the tool
+# compared the epic against itself and reported nothing.
+twin = (Fixture().epic(10, slug="alpha", children=[11])
+        .epic(12, slug="alpha", children=[13])
+        .epic(14, slug="gamma", children=[15])
+        .branch("epic/alpha", "epic/gamma"))
+res = result(twin, "--epic", "10")
+check("--epic still reports a slug shared with an epic outside the scope",
+      findings_of(res, "slug-duplicate"), [f["token"] for f in res["findings"]])
+check("a shared slug stays blocking under --epic",
+      "slug-duplicate" in res["blocking"], res["blocking"])
+check("the finding names both epics so the scoped reader knows which is whose",
+      "#10" in findings_of(res, "slug-duplicate")[0]["detail"]
+      and "#12" in findings_of(res, "slug-duplicate")[0]["detail"],
+      findings_of(res, "slug-duplicate")[0]["detail"])
+check("the epic in scope of a duplicate is attributed to it",
+      findings_of(res, "slug-duplicate")[0]["epic"] == 10,
+      findings_of(res, "slug-duplicate"))
+
+res = result(twin, "--epic", "14")
+dup = findings_of(res, "slug-duplicate")[0]
+check("a collision between two other epics is not attributed to the epic in scope",
+      dup["epic"] is None and "concerns #10 and #12, not the epic in scope" in dup["detail"],
+      dup)
+
+res = result(two_epics, "--epic", "10")
+check("--epic does not report a healthy branch of another epic as an orphan",
+      not findings_of(res, "orphan-epic-branch"), res["blocking"])
+
+ghosted = (Fixture().epic(10, slug="alpha", children=[11])
+           .epic(12, slug="beta", children=[13])
+           .branch("epic/alpha", "epic/beta", "epic/gone"))
+res = result(ghosted, "--epic", "10")
+orphan = findings_of(res, "orphan-epic-branch")
+check("a genuinely orphaned epic branch is still reported under --epic",
+      orphan and "epic/gone" in orphan[0]["detail"], res["blocking"])
+check("an orphan belonging to no epic is honestly marked as not about the one in scope",
+      orphan and orphan[0]["epic"] is None
+      and "not the epic in scope" in orphan[0]["detail"], orphan)
+
+code, out = plan(Fixture().epic(10, slug="alpha", children=[11]), "--epic", "99")
+check("--epic on a number that is not an open epic fails closed instead of planning nothing",
+      code == 2 and "not an open" in out, out[:160])
+
+# ---------- what counts as epic coverage in a workflow trigger -----------------
+# The guard exists because the contract calls an unchecked child PR the defect most likely to
+# sink the design. A pattern that merely contains the word `epic` must not satisfy it.
+WEEKLY = ".github/workflows/w.yml"
+cov_path = coverage_policy()
+cov = json.load(open(cov_path))
+for patterns, style, expected, what in [
+        (["master", "develop", "'epic/**'"], "flow", True, "quoted wildcard"),
+        (["master", "develop", "epic/**"], "flow", True, "bare wildcard"),
+        (["master", "develop", "epic/*"], "flow", True, "single-star wildcard"),
+        (["master", "develop", "epic"], "flow", False, "the literal branch `epic`"),
+        (["master", "develop", "epic*"], "flow", False, "a prefix glob that is not the namespace"),
+        (["master", "develop"], "flow", False, "no epic pattern at all"),
+        (["master", "develop", "'epic/**'"], "block", True, "the block-list wildcard"),
+        (["master", "develop", "epic"], "block", False, "the block-list literal `epic`")]:
+    covered = m.ci_coverage(workflow_root(patterns, style), cov)[WEEKLY]
+    check("%s in the pull_request trigger counts as coverage: %s" % (what, expected),
+          covered is expected, (patterns, style))
+
+f = Fixture().epic(10, slug="alpha", children=[11])
+code, out = plan(f, "--mode", "strict", repo_root=workflow_root(["master", "develop", "epic"]),
+                 policy=cov_path)
+check("the literal-`epic` trigger fails the run in strict mode, where it used to pass",
+      code == 1 and "ci-coverage-missing" in json.loads(out)["blocking"], out[:200])
+code, out = plan(f, "--mode", "strict",
+                 repo_root=workflow_root(["master", "develop", "epic/**"]), policy=cov_path)
+check("a real wildcard still passes, so the guard did not just turn permanently red",
+      code == 0 and "ci-coverage-missing" not in json.loads(out)["blocking"], out[:200])
+
+# ---------- the reported source of the rollout date ---------------------------
+# A report that tells a person when the rule starts binding must not claim an override that
+# nobody set, and must name the override when one is set.
+env = policy["rollout"]["strict_from_env"]
+saved = os.environ.pop(env, None)
+try:
+    _, out = human(Fixture().epic(10, slug="alpha", children=[11]), "--mode", "strict")
+    header = [line for line in out.splitlines() if "strict from" in line]
+    check("--mode strict does not claim an environment override that is not set",
+          "overridden" not in out and "environment %s" % env not in out, header)
+    check("with no override the committed policy's date is the one printed",
+          policy["rollout"]["strict_from"] in "".join(header), header)
+
+    os.environ[env] = "2026-11-01"
+    _, out = human(Fixture().epic(10, slug="alpha", children=[11]))
+    check("an actual environment override is named as the source of the date",
+          "environment %s" % env in out,
+          [line for line in out.splitlines() if "strict from" in line])
+    res = json.loads(plan(Fixture().epic(10, slug="alpha", children=[11]))[1])
+    check("the JSON reports the same source the human renderer prints",
+          res["policy"]["strict_from_source"] == "environment %s" % env
+          and res["policy"]["strict_from"] == "2026-11-01", res["policy"])
+finally:
+    os.environ.pop(env, None)
+    if saved is not None:
+        os.environ[env] = saved
+
+_, out = human(Fixture().epic(10, slug="alpha", children=[11]), "--epic", "10")
+check("the scoped run says so on the inventory line instead of letting a slice read complete",
+      "planning epic #10" in out and "repository's whole set" in out, out.splitlines()[0])
+
+# ---------- where the policy's repo-relative paths are resolved ----------------
+# The contract page and the named workflows are repository paths, so they have to be resolved
+# against the repository the plan is about. Resolving them against the process's working
+# directory instead made the tool answer only when invoked from the repository root, and made
+# a caller that passed its own repo_root get an unrelated "not in the repository" error.
+empty = tempfile.mkdtemp()
+try:
+    m.load_policy(POLICY, repo_root=empty)
+    check("a repository root without the cited contract page is refused", False,
+          "load_policy accepted a root that has no contract page")
+except m.PolicyError as e:
+    check("a repository root without the cited contract page is refused",
+          "contract" in str(e), str(e))
+check("the same policy loads against the real repository root",
+      m.load_policy(POLICY, repo_root=ROOT)["branch_prefix"] == "epic/")
+saved_cwd = os.getcwd()
+os.chdir(empty)
+try:
+    # repo_root=None lets main() derive it from the file's own location, so nothing here can
+    # be satisfied by the working directory the suite happens to run in.
+    _, out = human(Fixture().epic(10, slug="alpha", children=[11]), repo_root=None)
+finally:
+    os.chdir(saved_cwd)
+check("the plan answers the same from any working directory, not only the repository root",
+      out.splitlines()[0].startswith("repo o/r"), out.splitlines()[0])
 
 print("\n%d/%d passed" % (sum(results), len(results)))
 sys.exit(0 if all(results) else 1)

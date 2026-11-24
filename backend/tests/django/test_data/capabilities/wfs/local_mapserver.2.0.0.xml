@@ -20,8 +20,7 @@
         <!--WARNING: Optional metadata "ows_accessconstraints" was missing for ows:AccessConstraints-->
     </ows:ServiceIdentification>
     <ows:ServiceProvider>
-        <ows:ProviderName/>
-        <!--WARNING: Mandatory metadata "ows_contactorganization" was missing for ows:ProviderName-->
+        <ows:ProviderName>MapServer</ows:ProviderName>
         <ows:ProviderSite xlink:type="simple" xlink:href=""/>
         <!--WARNING: Optional metadata "ows_service_onlineresource" was missing for ows:ProviderSite/@xlink:href-->
         <ows:ServiceContact>

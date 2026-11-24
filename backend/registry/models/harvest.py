@@ -784,15 +784,6 @@ class HarvestingJob(ProcessingData):
             self.background_process = self.build_process()
         if self._state.adding and self.service:
             return self.handle_adding(*args, **kwargs)
-        elif self.total_records == 0:
-            # error case. CSW does not provide records for our default request behaviour.
-            self.done_at = now()
-            self.phase = HarvestingPhaseEnum.COMPLETED.value
-            saved = super(HarvestingJob, self).save(*args, **kwargs)
-            self.report_process(
-                ProcessStatusEnum.COMPLETED,
-                phase=str(HarvestingPhaseEnum.COMPLETED.label))
-            return saved
         elif self.phase == HarvestingPhaseEnum.ABORT.value:
             with transaction.atomic():
                 self.abort()
@@ -801,6 +792,16 @@ class HarvestingJob(ProcessingData):
                     ProcessStatusEnum.ABORTED,
                     phase=str(HarvestingPhaseEnum.ABORTED.label))
                 return saved
+        elif self.total_records == 0 and self.phase != HarvestingPhaseEnum.ABORTED.value:
+            # Valid empty SearchResults answers complete with zero records.
+            # Unusable and refused answers are marked ABORT before save.
+            self.done_at = now()
+            self.phase = HarvestingPhaseEnum.COMPLETED.value
+            saved = super(HarvestingJob, self).save(*args, **kwargs)
+            self.report_process(
+                ProcessStatusEnum.COMPLETED,
+                phase=str(HarvestingPhaseEnum.COMPLETED.label))
+            return saved
 
         # see docs of django-simple-history
         # https://django-simple-history.readthedocs.io/en/latest/querying_history.html#save-without-creating-historical-records
@@ -865,8 +866,8 @@ class HarvestingJob(ProcessingData):
             # the AttributeError of the missing node was an MrMap crash which aborted the whole run
             # instead of leaving it to the fallback and the log of a count which stays 0 (#815)
             return 0
-        total_records = int(search_results.get("numberOfRecordsMatched", 0))
-        return total_records
+        matched = search_results.get("numberOfRecordsMatched", "")
+        return int(matched) if matched.isascii() and matched.isdecimal() else 0
 
     def fetch_total_records(self) -> int:
         client = self.service.client
@@ -878,46 +879,46 @@ class HarvestingJob(ProcessingData):
 
         checked = self._check_answer(first_response)
         if not checked.ok:
-            self._log_response_error(response=first_response)
             self.total_records = 0
+            self.phase = HarvestingPhaseEnum.ABORT.value
             self.save()
             return self.total_records
 
         self.total_records = self.get_total_records(checked.document)
         if not self.total_records:
-            # try again, cause some csw server implementations are broken and don't support our default TypeName query param
             second_response: Response = client.send_request(
                 request=client.get_records_request(
                     type_names="csw:Record",
                     xml_constraint=client.get_constraint(record_types=self.get_record_types())),
                 timeout=60)
 
-            # the fallback is the response to judge: the first response was fine, it only named no
-            # records at all (#689)
             checked = self._check_answer(second_response)
             if not checked.ok:
-                self._log_response_error(response=second_response)
                 self.total_records = 0
+                self.phase = HarvestingPhaseEnum.ABORT.value
                 self.save()
                 return self.total_records
 
-            self.total_records = self.get_total_records(checked.document)
-
-            if not self.total_records:
-                # terminate celery workflow by returning total records = 0
+            search_results = checked.document.find(
+                ".//csw:SearchResults", namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]})
+            matched = None if search_results is None else search_results.get("numberOfRecordsMatched")
+            if matched is None or not matched.isascii() or not matched.isdecimal():
                 self.total_records = 0
-
-                extended_description = f"Can't get total records from remote service by requesting {second_response.request.url} url. \n"
-                extended_description += f"http status code: {second_response.status_code}\n"
-                extended_description += f"response:\n{second_response.text}"
-                kind = LogKindEnum.REMOTE_ERROR.value if second_response.status_code >= 500 else None
-
+                self.phase = HarvestingPhaseEnum.ABORT.value
                 self.log(
                     description="GetTotalRecords failed",
-                    extented_description=extended_description,
+                    extented_description=(
+                        f"The fallback answer from {second_response.request.url} "
+                        "contains no valid csw:SearchResults numberOfRecordsMatched.\n"
+                        f"http status code: {second_response.status_code}\n"
+                        f"response:\n{second_response.text}"),
                     level=LogLevelEnum.ERROR.value,
-                    kind=kind,
+                    kind=LogKindEnum.REMOTE_ERROR.value,
                 )
+                self.save()
+                return self.total_records
+
+            self.total_records = int(matched)
 
         if self.total_records:
             # the size the fan-out is planned with is what the catalogue answers, not a default
@@ -1381,13 +1382,22 @@ class HarvestingJob(ProcessingData):
         """
         tree = checked.document
 
-        # Namespaces definieren
-        ns = {
-            "gmd": "http://www.isotc211.org/2005/gmd"  # NOSONAR normative ISO 19139 gmd namespace identifier, used as an lxml xpath prefix - not a network endpoint
-        }
-
-        # Alle MD_Metadata-Elemente finden
-        md_elements = tree.xpath("//gmd:MD_Metadata", namespaces=ns)
+        # Preserve profile roots as well as ISO roots for the existing importer.
+        # Only direct result children are records: nested MD_Metadata elements
+        # belong to their enclosing record and must never become extra rows.
+        md_elements = tree.xpath(
+            "//csw:SearchResults/*", namespaces={"csw": NAMESPACE_LOOKUP["csw_2_0_2"]})
+        md_elements = [node for node in md_elements if isinstance(node.tag, str)]
+        iso_root = f"{{{NAMESPACE_LOOKUP['gmd']}}}MD_Metadata"
+        unsupported = sorted({node.tag for node in md_elements if node.tag != iso_root})
+        if unsupported:
+            self.log(
+                level=LogLevelEnum.WARNING.value,
+                kind=LogKindEnum.REMOTE_ERROR.value,
+                description="GetRecords returned non-standard metadata roots",
+                extented_description=(
+                    f"URL: {request.url}\nRecord roots: {', '.join(unsupported)}\n"
+                    "Records are retained for import and error inspection."))
         datestamp = timezone.now()
 
         with transaction.atomic():

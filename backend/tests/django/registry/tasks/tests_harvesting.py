@@ -9,7 +9,8 @@ from django.test import TransactionTestCase
 from django.test.utils import override_settings
 from lxml import etree
 from MrMap.settings import BASE_DIR
-from registry.enums.harvesting import (LogKindEnum, LogLevelEnum)
+from registry.enums.harvesting import (HarvestingPhaseEnum, LogKindEnum,
+                                       LogLevelEnum)
 from registry.exceptions.harvesting import InternalServerError
 from registry.models.harvest import (HarvestingJob, HarvestingLog,
                                      TemporaryMdMetadataFile)
@@ -83,6 +84,19 @@ def get_records_document(start_position, answered, total=TOTAL_RECORDS):
         f'<gmd:MD_Metadata gco:id="r{start_position + i}"/>' for i in range(answered))
     return ('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"'
             ' xmlns:gmd="http://www.isotc211.org/2005/gmd"'
+            ' xmlns:gco="http://www.isotc211.org/2005/gco">'
+            f'<csw:SearchResults numberOfRecordsMatched="{total}"'
+            f' numberOfRecordsReturned="{answered}" elementSet="full" nextRecord="0">'
+            f'{records}</csw:SearchResults></csw:GetRecordsResponse>')
+
+
+def get_profile_records_document(start_position, answered, total=TOTAL_RECORDS):
+    """A CSW result whose profile names the metadata root CHE_MD_Metadata."""
+    records = "".join(
+        f'<che:CHE_MD_Metadata gco:id="r{start_position + i}"/>'
+        for i in range(answered))
+    return ('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2"'
+            ' xmlns:che="http://www.geocat.ch/2008/che"'
             ' xmlns:gco="http://www.isotc211.org/2005/gco">'
             f'<csw:SearchResults numberOfRecordsMatched="{total}"'
             f' numberOfRecordsReturned="{answered}" elementSet="full" nextRecord="0">'
@@ -239,6 +253,52 @@ class HarvestingGetHitsTaskTest(TransactionTestCase):
         self.assertEqual(errors.first().kind, LogKindEnum.REMOTE_ERROR.value)
         self.assertEqual(HarvestingJob.objects.get(pk=1).total_records, 0)
 
+    @patch("registry.models.harvest.app.control.revoke")
+    def test_unusable_count_answers_abort_instead_of_completing(self, revoke):
+        for content, code in ((OWS_EXCEPTION_REPORT, 200), ("Forbidden", 403)):
+            with self.subTest(status=code), patch.object(
+                    OgcClient, "send_request",
+                    side_effect=lambda request, timeout: logging_response(request, content, code)) as send:
+                job = HarvestingJob.objects.get(pk=1)
+                job.done_at = None
+                job.phase = HarvestingPhaseEnum.GET_TOTAL_RECORDS_COUNT.value
+                job.total_records = None
+                job.save()
+                self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+                job.refresh_from_db()
+                self.assertEqual(job.phase, HarvestingPhaseEnum.ABORTED.value)
+                self.assertIsNotNone(job.done_at)
+                job.save()
+                job.refresh_from_db()
+                self.assertEqual(job.phase, HarvestingPhaseEnum.ABORTED.value)
+                self.assertEqual(send.call_count, 1)
+
+    @patch("registry.models.harvest.app.control.revoke")
+    def test_missing_or_invalid_fallback_count_aborts(self, revoke):
+        for attribute in ("", ' numberOfRecordsMatched="broken"', ' numberOfRecordsMatched="-1"'):
+            with self.subTest(attribute=attribute):
+                document = ('<csw:GetRecordsResponse xmlns:csw="http://www.opengis.net/cat/csw/2.0.2">'
+                            f'<csw:SearchResults{attribute}/></csw:GetRecordsResponse>')
+                job = HarvestingJob.objects.get(pk=1)
+                job.done_at = None
+                job.phase = HarvestingPhaseEnum.GET_TOTAL_RECORDS_COUNT.value
+                job.total_records = None
+                job.save()
+                with patch.object(OgcClient, "send_request", side_effect=lambda request, timeout:
+                                  logging_response(request, document, 200)) as send:
+                    self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+                job.refresh_from_db()
+                self.assertEqual(job.phase, HarvestingPhaseEnum.ABORTED.value)
+                self.assertEqual(send.call_count, 2)
+
+    @patch.object(OgcClient, "send_request")
+    def test_valid_empty_count_completes_without_error(self, send):
+        send.side_effect = lambda request, timeout: logging_response(request, ZERO_RECORDS, 200)
+        self.assertEqual(call_fetch_total_records.run(harvesting_job_id=1), 0)
+        job = HarvestingJob.objects.get(pk=1)
+        self.assertEqual(job.phase, HarvestingPhaseEnum.COMPLETED.value)
+        self.assertFalse(job.logs.filter(level=LogLevelEnum.ERROR.value).exists())
+
     def test_server_error_status_is_compared_as_a_range(self):
         """'>= 500 <= 600' is a chained comparison which simply means '>= 500'; a status outside the
         server error class is an answer to read, not a reason to retry (#689)"""
@@ -354,6 +414,46 @@ class HarvestingGetRecordsTaskTest(TransactionTestCase):
     def setUp(self):
         cache.clear()
         setup_capabilitites_file()
+
+    @patch.object(OgcClient, "send_request")
+    def test_profile_records_are_stored_and_warned_without_page_halving(self, send):
+        send.side_effect = lambda request, timeout: logging_response(
+            request, get_profile_records_document(1, 5), 200)
+        job = HarvestingJob.objects.get(pk=1)
+        self.assertEqual(job.fetch_records(1), 5)
+        self.assertEqual(send.call_count, 1)
+        files = TemporaryMdMetadataFile.objects.filter(job=job)
+        self.assertEqual(files.count(), 5)
+        self.assertEqual(files.filter(has_import_error=False).count(), 5)
+        with files.first().md_metadata_file.open("rb") as record:
+            self.assertEqual(etree.fromstring(record.read()).tag,
+                             "{http://www.geocat.ch/2008/che}CHE_MD_Metadata")
+        warning = job.logs.get(description="GetRecords returned non-standard metadata roots")
+        self.assertEqual(warning.level, LogLevelEnum.WARNING.value)
+        self.assertIn("CHE_MD_Metadata", warning.extented_description.read().decode())
+
+    @patch.object(OgcClient, "send_request")
+    def test_unsupported_profile_keeps_inspectable_import_errors(self, send):
+        send.side_effect = lambda request, timeout: logging_response(
+            request, get_profile_records_document(1, 1), 200)
+        self.assertEqual(HarvestingJob.objects.get(pk=1).fetch_records(1), 1)
+        record = TemporaryMdMetadataFile.objects.get(job_id=1)
+        with self.assertRaisesMessage(ValueError, "No MD_Metadata elements found"):
+            record.md_metadata_file_to_db()
+        record.refresh_from_db()
+        self.assertTrue(record.has_import_error)
+        self.assertIn("No MD_Metadata elements found", record.import_error)
+        self.assertTrue(record.md_metadata_file.storage.exists(record.md_metadata_file.name))
+
+    @patch.object(OgcClient, "send_request")
+    def test_nested_metadata_is_not_downloaded_as_an_extra_record(self, send):
+        document = get_profile_records_document(1, 1).replace(
+            '<che:CHE_MD_Metadata gco:id="r1"/>',
+            '<che:CHE_MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd">'
+            '<gmd:MD_Metadata/></che:CHE_MD_Metadata>')
+        send.side_effect = lambda request, timeout: logging_response(request, document, 200)
+        self.assertEqual(HarvestingJob.objects.get(pk=1).fetch_records(1), 1)
+        self.assertEqual(TemporaryMdMetadataFile.objects.filter(job_id=1).count(), 1)
 
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,

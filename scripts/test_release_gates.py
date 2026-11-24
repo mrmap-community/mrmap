@@ -473,6 +473,52 @@ def test_version_missing_unreleased_heading():
               code == 2 and "has no '## Unreleased' heading" in err, err)
 
 
+def test_changelog_heading_boundaries():
+    module = gates_module()
+    with tempfile.TemporaryDirectory(prefix="rg-changelog-") as tmp:
+        root = Path(tmp)
+        (root / "CHANGELOG.md").write_text(
+            "# Changelog\n\n"
+            "## Unreleased\n\n"
+            "The phrase `### Migration notes` is prose, not a heading.\n\n"
+            "### Added\n- an entry\n\n"
+            "### Migration notes\n- notify.0007_real_note\n\n"
+            "### Changed\n- another entry\n\n"
+            "## [0.1.0] - 2023-03-23\n\n- old\n",
+            encoding="utf-8")
+        section = module.unreleased_section(root)
+        notes = module.migration_notes_section(section)
+        check("changelog: inline Migration notes text is not a heading",
+              notes is not None
+              and "notify.0007_real_note" in notes
+              and "an entry" not in notes
+              and "another entry" not in notes,
+              repr(notes))
+
+        (root / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## Unreleased\n\n### Migration notes\n"
+            "- notify.0007_real_note\n\n## Another section\n"
+            "- must not leak into migration notes\n",
+            encoding="utf-8")
+        section = module.unreleased_section(root)
+        notes = module.migration_notes_section(section)
+        check("changelog: unreleased section stops at every level-two heading",
+              notes is not None and "must not leak" not in section,
+              repr(section))
+
+
+def test_current_changelog_shape_is_accepted():
+    module = gates_module()
+    root = HERE.parent
+    section = module.unreleased_section(root)
+    notes = module.migration_notes_section(section)
+    check("changelog: current develop Unreleased and Migration notes "
+          "shape parses",
+          (notes or "").startswith("### Migration notes")
+          and "registry.0064_remove_metadatarelation" in (notes or ""),
+          repr(notes[:300] if notes else notes))
+
+
 def test_version_migration_needs_a_note():
     with tempfile.TemporaryDirectory(prefix="rg-repo-") as tmp:
         repo = make_repo(tmp, changelog_notes=False)
@@ -976,6 +1022,8 @@ def main():
             test_api_ref_resolution,
             test_version_empty_range,
             test_version_missing_unreleased_heading,
+            test_changelog_heading_boundaries,
+            test_current_changelog_shape_is_accepted,
             test_version_migration_needs_a_note,
             test_version_required_config_needs_a_note,
             test_version_breaking_needs_a_breaking_line,

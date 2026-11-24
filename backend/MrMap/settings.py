@@ -921,6 +921,25 @@ CAPACITY_TELEMETRY_RETRY_COOLDOWN_SECONDS = 60
 CAPACITY_TELEMETRY_RETENTION_DAYS = 14
 CAPACITY_TELEMETRY_MAX_ATTEMPTS = 200_000
 CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS = 48
+# the bounded opt-in root-cause profiling of slow tasks (#1389, epic #1387
+# V2): OFF by default and only ever on for an allowlist of task names, so a
+# deployment enables it deliberately per operator decision. Categories are
+# process-local and read in batches - enabling this never adds a synchronous
+# per-task database write.
+TASK_PROFILING_ENABLED = os.environ.get(
+    "MRMAP_TASK_PROFILING", "").strip().lower() in ("on", "1", "true")
+# comma separated celery task names to profile; empty means nothing, even
+# when the mode is on (fail-safe default)
+TASK_PROFILING_TASKS = [
+    name.strip() for name in os.environ.get(
+        "MRMAP_TASK_PROFILING_TASKS", "").split(",") if name.strip()]
+# fraction of a profiled task's attempts which get a profile, decided
+# stably from the task uuid (#1389: sampled, not everything)
+TASK_PROFILING_SAMPLE_RATE = float(
+    os.environ.get("MRMAP_TASK_PROFILING_SAMPLE_RATE", "0.05") or 0.0)
+# buffered profiles per worker process; an overflow marks the dropped
+# profile partial and counts the drop, never blocks the task
+TASK_PROFILING_BUFFER_LIMIT = 200
 # the broker round trip of the topology inspect and how long its answer is
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
@@ -1077,6 +1096,22 @@ def _cookie_secure_from_env(environ, production: bool) -> bool:
 COOKIE_SECURE = _cookie_secure_from_env(os.environ, MRMAP_PRODUCTION)
 SESSION_COOKIE_SECURE = COOKIE_SECURE
 CSRF_COOKIE_SECURE = COOKIE_SECURE
+
+################################################################
+# FETCH HOST POLICY (#1474, SEC-16)
+################################################################
+# Where the backend may connect when it fetches a URL somebody else wrote: the service URL
+# typed at registration, the operation URLs and onlineResource links of an upstream
+# capabilities document, the metadata reference of a harvest and the redirect target of any
+# of them. Both lists are comma separated CIDRs and are read per address by
+# ``extras.ssrf``; a deny entry wins, an allow entry grants a range the default refuses, and
+# the default refuses everything which is not a public address. Outside production the
+# loopback and private ranges are granted as well, because the development stack and the unit
+# tests are exactly those ranges. ``docs/source/administration/fetch-host-policy.md`` is the
+# operator description, including how a deployment which hosts its services internally or is
+# its own network opens the policy again.
+MRMAP_FETCH_ALLOW_NETWORKS = os.environ.get("MRMAP_FETCH_ALLOW_NETWORKS", "")
+MRMAP_FETCH_DENY_NETWORKS = os.environ.get("MRMAP_FETCH_DENY_NETWORKS", "")
 
 ################################################################
 # DJANGO DEBUG TOOLBAR

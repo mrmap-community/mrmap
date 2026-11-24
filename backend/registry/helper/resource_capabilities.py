@@ -22,6 +22,7 @@ import logging
 from copy import deepcopy
 
 from lxml import etree
+from registry.helper.xml import parse_untrusted
 from rest_framework.reverse import reverse
 
 logger = logging.getLogger(__name__)
@@ -117,10 +118,13 @@ def _children(element, name) -> list:
 def _parse(document) -> etree._Element:
     """The root of a capabilities document which was asked for as bytes or string."""
     if isinstance(document, str):
+        # a capabilities document of this deployment is serialized as UTF-8, so
+        # encoding the string here keeps the declaration it carries true; a
+        # decoded string can not reach parse_untrusted with a declaration, which
+        # the policy refuses (#1468)
         document = document.encode("utf-8")
-    parser = etree.XMLParser(resolve_entities=False, no_network=True)
     try:
-        root = etree.fromstring(document, parser=parser)
+        root = parse_untrusted(document)
     except (etree.XMLSyntaxError, ValueError, TypeError):
         raise CapabilitiesError(
             MALFORMED,

@@ -15,6 +15,7 @@ from extras.decorators import warn_on_queries
 from extras.managers import DefaultHistoryManager
 from extras.models import (AdditionalTimeFieldsHistoricalModel,
                            DeltaSizeHistoricalModel, HistoricalRecordMixin)
+from extras.ssrf import GuardedSession
 from extras.utils import update_url_base, update_url_query_params
 from lxml import etree
 from mptt2.models import Node
@@ -262,7 +263,10 @@ class OgcService(CapabilitiesDocumentModelMixin, ServiceMetadata, CommonServiceI
         return int(OGCServiceVersionEnum(self.version).label.split(".")[2])
 
     def get_session_for_request(self) -> Session:
-        session = Session()
+        # the session of a service is the session which fetches the URL of that service, and
+        # a service URL is input somebody wrote: its connections pass the host policy of
+        # `extras.ssrf`, which judges the address behind the host (#1474, SEC-16)
+        session = GuardedSession()
         # session.proxies.update(PROXIES)
         try:
             session.auth = self.auth.get_auth_for_request()

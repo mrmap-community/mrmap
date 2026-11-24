@@ -2,6 +2,7 @@ import copy
 
 from django.contrib.gis.gdal.geometries import OGRGeometry
 from lxml import etree
+from registry.helper.xml import parse_trusted
 from registry.ows_lib.xml.builder import XSDSkeletonBuilder
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
 
@@ -142,7 +143,7 @@ class WFSBuilder(XSDSkeletonBuilder):
         if gml_str.startswith("<gml:"):
             parts = gml_str.split(" ", 1)  # after <gml:Polygon
             gml_str = f'{parts[0]} xmlns:gml="{self.GML_NS}" {parts[1]}'
-        gml_el = etree.fromstring(gml_str.encode("utf-8"))
+        gml_el = parse_trusted(gml_str.encode("utf-8"))
         intersects.append(gml_el)
 
         return filter_el

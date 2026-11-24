@@ -12,8 +12,8 @@ from django.http.request import HttpRequest as HttpRequest
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
-from lxml import etree
 from registry.expressions.search import client_search_query
+from registry.helper.xml import parse_untrusted
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.models.service import CatalogueService as DBCatalogueService
 from registry.ows_lib.xml.consts import NAMESPACE_LOOKUP
@@ -159,7 +159,7 @@ class MapBenderSearchApi(View):
         if not (200 <= response.status_code < 400):
             return None, []
 
-        xml = etree.fromstring(response.content)
+        xml = parse_untrusted(response.content)
 
         total_records = int(xml.xpath("/csw:GetRecordsResponse/csw:SearchResults/@numberOfRecordsMatched", namespaces={
             "csw": NAMESPACE_LOOKUP["csw_2_0_2"]

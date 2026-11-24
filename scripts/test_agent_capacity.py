@@ -485,6 +485,16 @@ def test_disk_is_measured_not_assumed(tmp):
     check("that metric is the host's, not the fixture's",
           abs(bare["metrics"]["disk_free_gb"] - free) < 0.01,
           f"{bare['metrics']['disk_free_gb']} vs {free}")
+    selected = cap.evaluate(need="stack", stacks=0,
+                            env={"AGENT_DISK_PATH": str(tmp)}, proc_root=str(proc),
+                            cgroup_root=str(cg))
+    check("disk path selects the filesystem to measure",
+          abs(selected["metrics"]["disk_free_gb"] - cap.disk_free_gb(str(tmp))) < 0.01)
+    missing = cap.evaluate(need="stack", stacks=0,
+                           env={"AGENT_DISK_PATH": str(Path(tmp) / "missing")},
+                           proc_root=str(proc), cgroup_root=str(cg))
+    check("unreadable disk path is not assumed to have free space",
+          missing["metrics"]["disk_free_gb"] is None)
 
 
 def test_cpu_admission_is_cgroup_scoped(tmp):

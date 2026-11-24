@@ -1,0 +1,13 @@
+# Opt-in test concurrency limit (#1619). Append after docker-compose.dev.yml
+# and any prebuilt/lightweight layers. Commands, test selection, coverage,
+# database isolation and the normal CI defaults are inherited unchanged.
+# This limits simultaneous workers; its memory/runtime tradeoff still needs
+# workload measurements (docs/source/development/test-memory.rst).
+x-test-environment: &test-environment
+  MRMAP_TEST_WORKERS: "1"
+
+services:
+  django-tests:
+    environment: *test-environment
+  frontend-tests:
+    environment: *test-environment

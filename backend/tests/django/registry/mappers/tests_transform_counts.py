@@ -44,6 +44,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from lxml import etree
 from registry.enums.harvesting import HarvestingPhaseEnum as Phase
 from registry.enums.metadata import MetadataOriginEnum
+from registry.helper import xml as xml_policy
 from registry.mappers.cache import GlobalXmlCache, LocalXmlCache
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.xml_mapper import XmlMapper
@@ -87,10 +88,11 @@ STANDALONE = as_standalone_document()
 class CountedEtree:
     """The lxml handle of the mapper factory, with transformations counted.
 
-    The factory parses the document and - for a node which has to be cut out
-    of a bigger one - serializes and reparses it through this module
-    attribute; swapping it counts the transformations exactly where the
-    mapper performs them.
+    The factory serializes a node which has to be cut out of a bigger document
+    through this module attribute, and reads every document through the policy
+    of ``registry.helper.xml`` (#1468 moved that read off the bare
+    ``etree.fromstring``); swapping either counts the transformations exactly
+    where the mapper performs them.
     """
 
     def __init__(self):
@@ -100,6 +102,10 @@ class CountedEtree:
     def fromstring(self, *args, **kwargs):
         self.parses += 1
         return etree.fromstring(*args, **kwargs)
+
+    def parse_untrusted(self, content, **kwargs):
+        self.parses += 1
+        return xml_policy.parse_untrusted(content, **kwargs)
 
     def tostring(self, *args, **kwargs):
         self.serializations += 1
@@ -123,6 +129,9 @@ class TransformationCounter:
         stack = contextlib.ExitStack()
         stack.enter_context(
             patch('registry.mappers.factory.etree', self.etree))
+        stack.enter_context(
+            patch('registry.mappers.factory.parse_untrusted',
+                  self.etree.parse_untrusted))
         self.addCleanup(stack.close)
 
     def count_backup_serializations(self):

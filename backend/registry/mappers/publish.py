@@ -62,6 +62,7 @@ from lxml.etree import XMLSyntaxError
 
 from registry.exceptions.metadata import PublishRefused
 from registry.enums.metadata import MetadataOriginEnum
+from registry.helper.xml import parse_untrusted
 from registry.mappers.configs import XPATH_MAP
 from registry.mappers.factory import MDMetadataXmlMapper
 from registry.mappers.parsers.value import string_to_datetime
@@ -542,7 +543,7 @@ def _assert_located_date_stamp(document: bytes, record):
     curator's document names a stamp the header force can write into.
     """
     try:
-        root = etree.fromstring(document)
+        root = parse_untrusted(document)
     except XMLSyntaxError:
         raise PublishRefused("the submitted document is not well-formed XML")
     nodes = [

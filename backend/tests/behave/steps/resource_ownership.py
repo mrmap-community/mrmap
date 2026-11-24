@@ -56,7 +56,7 @@ def registration_runs_directly(context):
     context.add_cleanup(overrides.disable)
 
     patcher = patch(
-        "registry.tasks.service.Session.send",
+        "registry.tasks.service.GuardedSession.send",
         return_value=MockResponse(status_code=200,
                                   content=CAPABILITIES_WMS))
     patcher.start()

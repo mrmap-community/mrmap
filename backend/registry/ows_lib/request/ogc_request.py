@@ -13,6 +13,7 @@ from pygeofilter.parsers.ecql import parse as parse_ecql
 from pygeofilter.parsers.fes.parser import parse as parse_fes
 from pygeofilter.parsers.fes.util import NodeParsingError
 from registry.enums.service import OGCOperationEnum
+from registry.helper.xml import parse_untrusted
 from registry.ows_lib.client.exceptions import (InvalidFilterParam,
                                                 InvalidPagingParam,
                                                 MissingBboxParam,
@@ -99,7 +100,7 @@ class OGCRequest(Request):
             self.service_type: str = self.ogc_query_params.get("SERVICE", "")
         elif self.method == "POST" and self.data and isinstance(self.data, bytes):
             try:
-                self._xml_request = etree.fromstring(self.data)
+                self._xml_request = parse_untrusted(self.data)
             except XMLSyntaxError as e:
                 # a request body which is not well-formed XML is no request to
                 # analyse; the error is kept for the parsing-error report the
@@ -550,7 +551,8 @@ class OGCRequest(Request):
 
         xml = unescape(self.ogc_query_params.get("FILTER", ""))
         try:
-            filter_element = etree.fromstring(xml.encode("utf-8")) if xml else None
+            filter_element = (
+                parse_untrusted(xml.encode("utf-8")) if xml else None)
         except XMLSyntaxError as e:
             raise InvalidFilterParam(str(e))
 
@@ -614,7 +616,7 @@ class OGCRequest(Request):
 
     def _get_feature_request_document(self):
         if self.is_post:
-            return etree.fromstring(self.data)
+            return parse_untrusted(self.data)
         elif self.is_get:
             # FUTURE: depending on version, different xml mapper are needed...
             return self.build_get_feature_from_get()
@@ -623,7 +625,7 @@ class OGCRequest(Request):
         """Take the posted document as this request's xml, or let the GET
         builder install whatever it built from the query parameters."""
         if self.is_post:
-            self._xml_request = etree.fromstring(self.data)
+            self._xml_request = parse_untrusted(self.data)
         elif self.is_get:
             build_from_get()
 

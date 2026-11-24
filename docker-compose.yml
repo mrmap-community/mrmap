@@ -148,6 +148,11 @@ services:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       # deployer knob of Django's host allow-list (#949), ";"/"," separated, empty = presets only
       DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
+      # deployer knobs of the fetch host policy (#1474): CIDR lists which open or close
+      # the ranges the backend may connect to when it fetches a URL somebody else wrote.
+      # docs/source/administration/fetch-host-policy.md
+      MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
+      MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
@@ -232,6 +237,11 @@ services:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       # deployer knob of Django's host allow-list (#949), ";"/"," separated, empty = presets only
       DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
+      # deployer knobs of the fetch host policy (#1474): CIDR lists which open or close
+      # the ranges the backend may connect to when it fetches a URL somebody else wrote.
+      # docs/source/administration/fetch-host-policy.md
+      MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
+      MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
@@ -314,6 +324,11 @@ services:
       EXTERNAL_BASE_URL: "${EXTERNAL_BASE_URL:?Please configure EXTERNAL_BASE_URL in the .env file}"
       # deployer knob of Django's host allow-list (#949), ";"/"," separated, empty = presets only
       DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-}"
+      # deployer knobs of the fetch host policy (#1474): CIDR lists which open or close
+      # the ranges the backend may connect to when it fetches a URL somebody else wrote.
+      # docs/source/administration/fetch-host-policy.md
+      MRMAP_FETCH_ALLOW_NETWORKS: "${MRMAP_FETCH_ALLOW_NETWORKS:-}"
+      MRMAP_FETCH_DENY_NETWORKS: "${MRMAP_FETCH_DENY_NETWORKS:-}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY:?Please configure DJANGO_SECRET_KEY in the .env file}"
       MRMAP_USER: "${DJANGO_ADMIN_USER:?Please configure DJANGO_ADMIN_USER in the .env file}"
       MRMAP_PASSWORD: "${DJANGO_ADMIN_PASSWORD:?Please configure DJANGO_ADMIN_PASSWORD in the .env file}"
@@ -387,7 +402,7 @@ services:
   # structured-data parameters into queryable fields. The HTTP API and the vmui
   # stay network-internal; Grafana is the only web entry point.
   victoria-logs:
-    image: victoriametrics/victoria-logs:v1.53.0
+    image: victoriametrics/victoria-logs:v1.54.0
     restart: unless-stopped
     hostname: "victoria-logs"
     command:
@@ -406,7 +421,7 @@ services:
 
   # Log UI with login/RBAC in front of victoria-logs (which stays network-internal)
   grafana:
-    image: grafana/grafana:13.3.0
+    image: grafana/grafana:13.3.1
     restart: unless-stopped
     hostname: "grafana"
     environment:

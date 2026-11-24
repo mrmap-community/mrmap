@@ -1,5 +1,6 @@
 from importlib import resources
 
+from registry.helper.xml import parse_trusted
 from lxml import etree
 from registry.ows_lib.xml.consts import XSD_LOOKUP
 
@@ -26,7 +27,7 @@ class XSDSkeletonBuilder:
         with schema_dir.joinpath(xsd_filename).open("rb") as f:
             xsd_bytes = f.read()
 
-        self.root = etree.fromstring(xsd_bytes)
+        self.root = parse_trusted(xsd_bytes)
         self._loaded_schemas.add(self._schema_id(self.root, xsd_filename))
 
         self._resolve_external_schemas(self.root)
@@ -54,7 +55,7 @@ class XSDSkeletonBuilder:
                 except FileNotFoundError:
                     continue
 
-                external_root = etree.fromstring(xsd_bytes)
+                external_root = parse_trusted(xsd_bytes)
                 schema_id = self._schema_id(external_root, schema_location)
 
                 if schema_id in self._loaded_schemas:

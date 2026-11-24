@@ -2,6 +2,7 @@ from abc import ABC
 from urllib.parse import urlparse
 
 from lxml import etree
+from registry.helper.xml import parse_untrusted
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.ows_lib.client.exceptions import (InitialError,
                                                 RedirectChainError)
@@ -9,6 +10,7 @@ from registry.ows_lib.request.utils import update_queryparams
 from requests import Request, Response, Session
 # the answers requests itself treats as redirects, so the client stops where the session would
 # have stopped following as well
+from extras.ssrf import GuardedSession
 from requests.models import REDIRECT_STATI
 
 # The redirect hops this client follows for one request. The session answers 30 of them by
@@ -56,12 +58,16 @@ class OgcClient(ABC):
     def __init__(
             self,
             capabilities,
-            session: Session = Session(),
+            session: Session = None,
             *args,
             **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.session = session
+        # a client asked without a session of its own gets one of its own: a shared default
+        # instance would hand the connection pool of one service to every other client built
+        # in the same process. `GuardedSession` is the default because a client built from a
+        # URL fetches that URL from here (#1474, SEC-16)
+        self.session = session if session is not None else GuardedSession()
 
         if isinstance(capabilities, str) and "?" in capabilities:
             # client was initialized with an url
@@ -78,7 +84,7 @@ class OgcClient(ABC):
             raise TypeError(
                 f"capabilities has to be GetCapabilities URL or parsed capabilites of type str or bytes not {type(capabilities)}")
 
-        self._capabilities_etree = etree.fromstring(self._capabilities)
+        self._capabilities_etree = parse_untrusted(self._capabilities)
 
     @property
     def service_type(self):

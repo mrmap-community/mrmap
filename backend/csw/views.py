@@ -22,6 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import View
 from lxml import etree
 from registry.enums.service import OGCOperationEnum
+from registry.helper.xml import parse_trusted
 from registry.models.metadata import (ApplicationMetadataRecord,
                                       DatasetMetadataRecord, Keyword,
                                       ServiceMetadataRecord)
@@ -289,7 +290,7 @@ class CswServiceView(View):
         documents = []
         for record in records:
             try:
-                documents.append(etree.fromstring(record.xml_backup))
+                documents.append(parse_trusted(record.xml_backup))
             except (OSError, ValueError, SyntaxError) as e:
                 logger.exception(
                     "the stored document of the record '%s' cannot be served: "

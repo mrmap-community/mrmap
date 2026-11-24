@@ -26,6 +26,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    wfs-describe-batching-verdict
    queryset-manager-conventions
    celery-task-sql-regression
+   celery-task-profiling
    etf-conformity-retirement
    metadata-transform-inventory
    orm-static-analysis
@@ -36,6 +37,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    prebuilt-images
    agent-capacity
    runtime-memory-baselines
+   test-memory
    celery-healthcheck-overhead
    http-process-profiles
    db-pool-memory
@@ -49,6 +51,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    versioned-images
    release-compatibility-gates
    release-promotion
+   release-lifecycle-dry-run
    schedule-optimization-v3
    code-quality
    keyword-triggers

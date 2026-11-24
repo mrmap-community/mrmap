@@ -37,9 +37,11 @@ The four files that carry this
 How a plan is computed, measured on 17.11.2
 --------------------------------------------
 
-All of it was measured against the exact library the action of the pin
-(``release-please-action@v4.4.1``, which pins ``release-please@^17.3.0``)
-ships, on synthetic histories that replay the shapes #1578 counted on
+All of it was measured against ``release-please@17.11.2``, supplied to the
+synthetic replay through ``MRMAP_RELEASE_PLEASE_JS``. The workflow pins
+``release-please-action@v5.0.0``, which declares ``release-please@^17.6.0``;
+the replay's measured version is independent of the action's bundled version.
+The synthetic histories replay the shapes #1578 counted on
 ``develop``: 7585 commits of which 53 parse, 833 GitHub merge commits whose
 whole body is the pull request title, and zero tags and zero releases ever
 cut. The replay itself is ``scripts/test_release_planning_synthetic.py``; the

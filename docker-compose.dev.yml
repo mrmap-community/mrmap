@@ -126,8 +126,10 @@ services:
     # step never looks for and every line only a worker executed is silently missing from the XML
     # that CI uploads - the command still exits 0. Together with `concurrency = multiprocessing`
     # in backend/setup.cfg, both facts are pinned by scripts/test_coverage_parallel_data.py.
+    # The optional docker-compose.test-low-memory.yml supplies MRMAP_TEST_WORKERS=1.
+    # $$ defers expansion to the container shell, including `run -e` overrides.
     command: >
-      /bin/sh -c "COVERAGE_FILE=.coverage.unit python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput --parallel=4 && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
+      /bin/sh -c "COVERAGE_FILE=.coverage.unit python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput --parallel=$${MRMAP_TEST_WORKERS:-4} && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind

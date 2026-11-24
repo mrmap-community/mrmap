@@ -9,9 +9,9 @@ from extras.serializers import (HistoryInformationSerializer,
                                 StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
 from guardian.core import ObjectPermissionChecker
-from lxml import etree
 from lxml.etree import XMLSyntaxError
 from registry.enums.metadata import MetadataOriginEnum
+from registry.helper.xml import parse_untrusted
 from registry.exceptions.metadata import PublishRefused
 from registry.mappers.publish import (build_resulting_document,
                                       build_source_document,
@@ -1030,7 +1030,7 @@ class RecordWriteSerializerMixin:
                         "without other attributes.")
                     for name in offenders})
         try:
-            etree.fromstring(text.encode("utf-8"))
+            parse_untrusted(text.encode("utf-8"))
         except XMLSyntaxError as error:
             logger.info(
                 "a raw source document write on record %s carried "

@@ -17,9 +17,9 @@ from django.utils.translation import gettext_lazy as _
 from django_celery_beat.models import PeriodicTask
 from epsg_cache.utils import adjust_axis_order
 from extras.scheduling import next_run_expected_at
-from lxml import etree
 from MrMap import celery_queues
 from notify.enums import ProcessNameEnum, ProcessStatusEnum
+from registry.helper.xml import parse_untrusted
 from PIL import Image, UnidentifiedImageError
 from registry.managers.monitoring import (MonitoringRunManager,
                                           ProbeManager,
@@ -741,7 +741,7 @@ class Probe(models.Model):
 
     def check_is_valid_xml(self, response: Response):
         try:
-            etree.fromstring(response.content)
+            parse_untrusted(response.content)
             self.result.check_response_is_valid_xml_success = True
             self.result.check_response_is_valid_xml_message = "OK"
         except Exception as e:

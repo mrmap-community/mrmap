@@ -27,6 +27,7 @@ from registry.enums.harvesting import (HarvestingPhaseEnum, LogLevelEnum,
                                        LogKindEnum)
 from registry.exceptions.harvesting import InternalServerError
 from registry.exceptions.service import CapabilitiesBackupMissing
+from registry.helper.xml import parse_untrusted_document
 from registry.ows_lib.client.exceptions import (InitialError,
                                                 RedirectChainError)
 from requests.exceptions import RequestException
@@ -2012,7 +2013,7 @@ def _store_dropped_md_metadata(dirpath, filename, file, dt, idx, collected):
     from registry.models.harvest import TemporaryMdMetadataFile
 
     try:
-        xml = etree.parse(filename)
+        xml = parse_untrusted_document(filename)
         md_metadatas = xml.xpath(
             "//*[local-name()='MD_Metadata']")
         for md_metadata in md_metadatas:

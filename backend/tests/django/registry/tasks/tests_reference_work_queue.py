@@ -392,6 +392,7 @@ class ReferenceRecoveryAndCleanupTests(MediaStorageMixin, WorkerRunMixin,
     def setUp(self):
         super().setUp()
         contact = MetadataContact.objects.create(name='recovery contact')
+        self.contact = contact
         self.service = WebMapService.objects.create(
             title='Recovery test service', version=130, origin=1,
             service_url='http://recovery.example.org/wms',
@@ -647,7 +648,8 @@ class ReferenceRecoveryAndCleanupTests(MediaStorageMixin, WorkerRunMixin,
 
         wfs = WebFeatureService.objects.create(
             title='WFS delete work service', version=200, origin=1,
-            service_url='http://recovery.example.org/wfs')
+            service_url='http://recovery.example.org/wfs',
+            metadata_contact=self.contact, service_contact=self.contact)
         wfs_row = TemporaryMdMetadataFile.objects.create(
             background_process=process,
             reference_key=TemporaryMdMetadataFile.build_reference_key(

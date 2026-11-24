@@ -919,6 +919,27 @@ class MetadataRecordRepublishRegressionTest(TestCase):
         handler = PersistenceHandler(mapper)
         handler.persist_all()
 
+    def test_an_unchanged_record_without_date_stamp_is_existing(self):
+        root = etree.fromstring(self.XML.read_bytes())
+        for date_stamp in root.xpath("//*[local-name()='dateStamp']"):
+            date_stamp.getparent().remove(date_stamp)
+        xml = etree.tostring(root)
+
+        mapper = MDMetadataXmlMapper.from_xml(xml)[0]
+        mapper.xml_to_django()
+        PersistenceHandler(mapper).persist_all()
+        record = DatasetMetadataRecord.objects.get()
+        first_stamp = record.date_stamp
+        history_count = record.history.count()
+
+        mapper = MDMetadataXmlMapper.from_xml(xml)[0]
+        mapper.xml_to_django()
+        PersistenceHandler(mapper).persist_all()
+
+        record.refresh_from_db()
+        self.assertEqual(first_stamp, record.date_stamp)
+        self.assertEqual(history_count, record.history.count())
+
     def test_a_republished_record_is_updated_in_place(self):
         self._persist_dataset()
         record = DatasetMetadataRecord.objects.get()

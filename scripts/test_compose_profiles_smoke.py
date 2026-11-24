@@ -80,7 +80,8 @@ def full_like():
 
 def lightweight_like():
     """The shape of docker-compose.yml + docker-compose.lightweight.yml: the
-    tiers profiled, the edge optional, the container logs local."""
+    tiers profiled, the edge optional, the container logs local, the observers
+    capped."""
     services = {name: dict(body) for name, body in COREISH.items()}
     services["victoria-logs"]["profiles"] = ["observability"]
     services["grafana"]["profiles"] = ["observability"]
@@ -92,6 +93,12 @@ def lightweight_like():
     for name in ("postgis", "frontend"):
         services[name]["logging"] = {"driver": "json-file",
                                      "options": {"max-size": "10m"}}
+    for name in smoke.CEILINGS:
+        # as `config --no-interpolate` answers it: the default of the
+        # environment variable, unparsed
+        services[name]["mem_limit"] = (
+            f"${{{name.upper().replace('-', '_')}_MEM_LIMIT:-"
+            f"{smoke.CEILINGS[name][0]}}}")
     return config(**services)
 
 
@@ -211,6 +218,91 @@ def policy_checks():
           smoke.homeless(homeless) == [])
 
 
+def tiered_combination(**overrides):
+    """A lightweight combination with both observer tier switched on, so the
+    four capped services are part of the active set."""
+    combo = lite_combination(
+        profiles=("observability", "admin"),
+        expect=smoke.CORE | frozenset(smoke.TIERS["observability"])
+        | frozenset(smoke.TIERS["admin"]))
+    combo.update(overrides)
+    return combo
+
+
+def full_combination(**overrides):
+    combo = combination("synthetic full", ("docker-compose.yml",), (),
+                        FULL_EXPECT)
+    combo.update(overrides)
+    return combo
+
+
+def ceiling_checks():
+    """The memory ceilings of #1622: the lightweight mode bounds the four
+    observers, the full mode bounds nothing, and a bound nobody can read is
+    never a pass."""
+    check("docker memory values and the un-interpolated compose default are "
+          "both readable",
+          smoke.memory_bytes("1g") == 1024 ** 3
+          and smoke.memory_bytes("256mb") == 256 * 1024 ** 2
+          and smoke.memory_bytes("1024") == 1024
+          and smoke.memory_bytes("${GRAFANA_MEM_LIMIT:-1g}") == 1024 ** 3)
+    check("a ceiling nobody can read is never a silent pass",
+          smoke.memory_bytes("about a gig") is None
+          and smoke.memory_bytes(None) is None)
+    check("the lightweight mode as designed caps its observers",
+          smoke.ceiling_problems(lightweight_like(), ("observability", "admin"))
+          == [],
+          f"got {smoke.ceiling_problems(lightweight_like(), ('observability', 'admin'))}")
+    check("the lightweight mode with both observer tier on passes as designed",
+          smoke.check_combination(tiered_combination(), lightweight_like())
+          == [],
+          f"{smoke.check_combination(tiered_combination(), lightweight_like())}")
+    uncapped = lightweight_like()
+    del uncapped["services"]["grafana"]["mem_limit"]
+    check("an observer which lost its ceiling in the lightweight mode is "
+          "reported",
+          [entry[0] for entry in smoke.ceiling_problems(
+              uncapped, ("observability", "admin"))] == ["grafana"],
+          f"got {smoke.ceiling_problems(uncapped, ('observability', 'admin'))}")
+    starved = lightweight_like()
+    starved["services"]["grafana"]["mem_limit"] = "64m"
+    check("a ceiling below the shipping default is reported, before it "
+          "OOM-kills a healthy container",
+          [entry[3] for entry in smoke.ceiling_problems(
+              starved, ("observability", "admin"))] == ["out of band"],
+          f"got {smoke.ceiling_problems(starved, ('observability', 'admin'))}")
+    unlimited = lightweight_like()
+    unlimited["services"]["pgadmin"]["mem_limit"] = "8g"
+    check("a ceiling above the documented band is reported",
+          [entry[3] for entry in smoke.ceiling_problems(
+              unlimited, ("observability", "admin"))] == ["out of band"])
+    unreadable = lightweight_like()
+    unreadable["services"]["flower"]["mem_limit"] = "${FLOWER_MEM_LIMIT}"
+    check("a ceiling with no readable default is reported",
+          [entry[3] for entry in smoke.ceiling_problems(
+              unreadable, ("observability", "admin"))] == ["unreadable"])
+    check("the full deployment caps nothing - the uncapped contract of #1622",
+          smoke.ceiling_problems(full_like(), capped=False) == []
+          and smoke.check_combination(full_combination(), full_like()) == [])
+    leaked = full_like()
+    leaked["services"]["grafana"]["mem_limit"] = "1g"
+    problems = smoke.check_combination(full_combination(), leaked)
+    check("a ceiling leaking into the full mode fails the check",
+          any("`mem_limit: 1g` in the full mode" in problem
+              for problem in problems), f"{problems}")
+    core_capped = lightweight_like()
+    core_capped["services"]["celery-worker"]["mem_limit"] = "2g"
+    full_capped = full_like()
+    full_capped["services"]["backend"]["mem_limit"] = "4g"
+    check("a ceiling on a service outside the tier is reported in both modes",
+          smoke.stray_ceilings(core_capped, ("observability", "admin"))
+          == ["celery-worker"]
+          and smoke.stray_ceilings(full_capped) == ["backend"]
+          and any("belongs to no tier" in problem
+                  for problem in smoke.check_combination(
+                      full_combination(), full_capped)))
+
+
 def seam_checks():
     """check_combination's two directions of the depends_on seam, and the
     active-set assertion it makes with them."""
@@ -270,6 +362,7 @@ def main():
     dependency_checks()
     logging_checks()
     policy_checks()
+    ceiling_checks()
     seam_checks()
     if shutil.which("docker") and subprocess.run(  # nosec B603 - a fixed argv
             ["docker", "compose", "version"], capture_output=True,

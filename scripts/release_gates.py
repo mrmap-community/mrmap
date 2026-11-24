@@ -534,7 +534,7 @@ def cmd_api(args):
                 findings.append({"kind": "operation-id-change", "breaking": True,
                                  "target": op_id,
                                  "detail": f"operationId {base['operationId']} -> "
-                                           f"{cand['operationId']}"})
+                                 f"{cand['operationId']}"})
             for (loc, name), was_required in sorted(base["params"].items()):
                 if (loc, name) not in cand["params"]:
                     findings.append({"kind": "removed-parameter",
@@ -716,22 +716,23 @@ def new_required_config(root, merge_base):
 
 def unreleased_section(root):
     text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
-    match = re.search(r"^## Unreleased$", text, re.M)
+    match = re.search(r"^## Unreleased[ \t]*$", text, re.M)
     if not match:
         raise GateCannotRun("CHANGELOG.md has no '## Unreleased' "
                             "heading - the migration-notes gate has no place "
                             "to look and refuses to invent one")
-    nxt = re.search(r"^## \[", text[match.end():], re.M)
+    nxt = re.search(r"^##(?:[ \t]|$)", text[match.end():], re.M)
     return text[match.end():match.end() + (nxt.start() if nxt else len(text))]
 
 
 def migration_notes_section(section):
-    start = section.find("### Migration notes")
-    if start < 0:
+    match = re.search(r"^### Migration notes[ \t]*$", section, re.M)
+    if not match:
         return None
-    nxt = re.search(r"^### ", section[start + len("### Migration notes"):], re.M)
-    return section[start:start + len("### Migration notes") +
-                   (nxt.start() if nxt else len(section))]
+    start = match.start()
+    nxt = re.search(r"^###(?:[ \t]|$)", section[match.end():], re.M)
+    end = len(section) if nxt is None else match.end() + nxt.start()
+    return section[start:end]
 
 
 def cmd_version(args):

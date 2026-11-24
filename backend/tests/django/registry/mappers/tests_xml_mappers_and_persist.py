@@ -930,7 +930,7 @@ class MetadataRecordRepublishRegressionTest(TestCase):
         PersistenceHandler(mapper).persist_all()
         record = DatasetMetadataRecord.objects.get()
         first_stamp = record.date_stamp
-        history_count = record.history.count()
+        history_count = record.change_log.count()
 
         mapper = MDMetadataXmlMapper.from_xml(xml)[0]
         mapper.xml_to_django()
@@ -938,7 +938,7 @@ class MetadataRecordRepublishRegressionTest(TestCase):
 
         record.refresh_from_db()
         self.assertEqual(first_stamp, record.date_stamp)
-        self.assertEqual(history_count, record.history.count())
+        self.assertEqual(history_count, record.change_log.count())
 
     def test_a_republished_record_is_updated_in_place(self):
         self._persist_dataset()

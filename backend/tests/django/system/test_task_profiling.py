@@ -706,6 +706,43 @@ class MemoryProfilingTest(TestCase):
         # the attempt was not harmed by the broken seam: no failure noted
         self.assertEqual(profiling.drain_reports()[0].get("outcome"), None)
 
+    def test_a_key_without_its_reading_is_absent_never_null(self):
+        """A partially readable procfs costs its own key, not the report.
+
+        ``smaps_rollup`` is the one read of a memory sample a hardened
+        procfs may refuse while ``status`` stays readable (#1620 review):
+        the report must then carry its peak claims without
+        ``memory_private_dirty_mib`` - the key absent, never present as
+        ``null`` a reader could mistake for a measured zero.
+        """
+        start = {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+                 "private_dirty": None}
+        end = {"high_water": 500 * self.MIB, "resident": 320 * self.MIB,
+               "private_dirty": None}
+        with patch("system.task_profiling.cgroup_limit_bytes",
+                   return_value=1024 * self.MIB):
+            report, _ = self._shaped(start, end)
+        self.assertNotIn("memory_private_dirty_mib", report)
+        # the supported half keeps its claim, ceiling included
+        self.assertAlmostEqual(report["memory_peak_rise_mib"], 200.0,
+                               delta=1.0)
+        self.assertEqual(report["memory_limit_mib"], 1024.0)
+        self.assertIn("memory_of_limit", report)
+
+    def test_a_sample_without_a_status_line_costs_only_its_own_keys(self):
+        """The same contract per key: resident missing -> no retained claim."""
+        start = {"high_water": None, "resident": None,
+                 "private_dirty": 100 * self.MIB}
+        end = {"high_water": None, "resident": None,
+               "private_dirty": 140 * self.MIB}
+        report, _ = self._shaped(start, end)
+        self.assertNotIn("memory_peak_rise_mib", report)
+        self.assertNotIn("memory_peak_mib", report)
+        self.assertNotIn("memory_retained_mib", report)
+        self.assertNotIn("memory_limit_mib", report)
+        self.assertAlmostEqual(report["memory_private_dirty_mib"], 140.0,
+                               delta=1.0)
+
     def _shaped(self, start, end, **settings):
         """One attempt whose two span reads are the given snapshots.
 
@@ -818,6 +855,28 @@ class MemoryProfilingTest(TestCase):
         for payload in (b"max\n", str(2 ** 63).encode(), b"\n"):
             with patch("builtins.open",
                        side_effect=lambda *a, **k: io.BytesIO(payload)):
-                profiling._cgroup_limit_bytes = None
                 self.assertIsNone(profiling.cgroup_limit_bytes(), payload)
-        profiling._cgroup_limit_bytes = None
+
+    def test_the_ceiling_is_re_read_so_a_resize_is_noticed(self):
+        """A worker must judge its peaks against today's ceiling (#1620 review).
+
+        ``docker update --memory`` during the incident - exactly when an
+        operator changes a ceiling - moves the cgroup's value under the
+        running prefork worker. A cached reading keeps reporting the old
+        ceiling for the lifetime of the process and stays self-consistent
+        enough to look trustworthy, so nothing here caches: every call asks
+        the file again, and a ceiling which appears after a ceiling-less
+        start (or vanishes again) reads through within the same process.
+        """
+        ceilings = iter([b"max\n", b"536870912\n", b"268435456\n"])
+
+        def answering(path, *args, **kwargs):
+            # only the v2 file answers, so one read per call to the ceiling
+            if path == profiling._CGROUP_LIMIT_V2:
+                return io.BytesIO(next(ceilings))
+            raise OSError("no cgroup v1 here")
+
+        with patch("builtins.open", side_effect=answering):
+            self.assertIsNone(profiling.cgroup_limit_bytes())
+            self.assertEqual(profiling.cgroup_limit_bytes(), 512 * self.MIB)
+            self.assertEqual(profiling.cgroup_limit_bytes(), 256 * self.MIB)

@@ -138,10 +138,6 @@ _PROC_SMAPS_ROLLUP = "/proc/self/smaps_rollup"
 _CGROUP_LIMIT_V2 = "/sys/fs/cgroup/memory.max"
 _CGROUP_LIMIT_V1 = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 
-#: process-local cache of the limit: a cgroup limit does not move while the
-#: worker lives, and reading it per attempt would be a file read for nothing
-_cgroup_limit_bytes = None
-
 
 def _read_first_value(path, key):
     """The integer of ``key`` from a ``key: value kB`` style proc file."""
@@ -178,12 +174,13 @@ def memory_snapshot():
     """
     high_water = _read_first_value(_PROC_STATUS, "VmHWM:")
     resident = _read_first_value(_PROC_STATUS, "VmRSS:")
-    if high_water is None and resident is None:
+    private_dirty = private_dirty_bytes()
+    if high_water is None and resident is None and private_dirty is None:
         return None
     return {
         "high_water": high_water,
         "resident": resident,
-        "private_dirty": private_dirty_bytes(),
+        "private_dirty": private_dirty,
     }
 
 
@@ -196,14 +193,16 @@ def cgroup_limit_bytes():
     """The memory ceiling of this container in bytes, or None.
 
     A peak without its limit is a number nobody can act on, and inside a
-    container the ceiling is the cgroup's, never the host's ``MemTotal``. Read
-    once and cached, because it does not move while the worker lives.
+    container the ceiling is the cgroup's, never the host's ``MemTotal``.
+    Read on every call and never cached (#1620 review): a prefork worker
+    lives across deploys and operator actions, and ``docker update --memory``
+    - which is exactly what an operator reaches for during the incident an
+    OOM report is read in - moves the ceiling under the running process. A
+    cached reading would then keep judging every peak against the old
+    ceiling, self-consistent enough to look trustworthy. The read is one
+    small file, in the same class as the procfs reads of the samples.
     """
-    global _cgroup_limit_bytes
-    if _cgroup_limit_bytes is None:
-        _cgroup_limit_bytes = _first_cgroup_limit(
-            (_CGROUP_LIMIT_V2, _CGROUP_LIMIT_V1)) or 0
-    return _cgroup_limit_bytes or None
+    return _first_cgroup_limit((_CGROUP_LIMIT_V2, _CGROUP_LIMIT_V1))
 
 
 def _first_cgroup_limit(paths):
@@ -431,20 +430,31 @@ class _Profile:
             ``limit_mib`` of the container, because a ceiling is what turns a
             peak into a risk of an OOM kill.
 
-        With no procfs, or an attempt never sampled, this answers ``{}`` and
-        the report carries no memory claim at all.
+        Each key is present only when the reading behind it answered: a
+        hardened procfs without ``smaps_rollup`` costs
+        ``private_dirty_mib``, a ceiling-less container costs ``limit_mib``
+        and ``of_limit`` - and a key whose source could not answer is absent,
+        never present as ``null`` (#1620 review). A reader must never see a
+        memory claim the platform did not support, in the shape of a null it
+        could mistake for a measured zero.
+
+        With no procfs at all, or an attempt never sampled, this answers
+        ``{}`` and the report carries no memory claim at all.
         """
         start, end = self.memory_start, self.memory_end
         if not start or not end:
             return {}
+        report = {}
         peak_rise = _max_span(start, end, "high_water")
+        if peak_rise is not None:
+            report["memory_peak_rise_mib"] = _mib(peak_rise)
+        if end.get("high_water") is not None:
+            report["memory_peak_mib"] = _mib(end["high_water"])
         retained = _max_span(start, end, "resident")
-        report = {
-            "memory_peak_rise_mib": _mib(peak_rise),
-            "memory_peak_mib": _mib(end.get("high_water")),
-            "memory_retained_mib": _mib(retained),
-            "memory_private_dirty_mib": _mib(end.get("private_dirty")),
-        }
+        if retained is not None:
+            report["memory_retained_mib"] = _mib(retained)
+        if end.get("private_dirty") is not None:
+            report["memory_private_dirty_mib"] = _mib(end["private_dirty"])
         limit = cgroup_limit_bytes()
         if limit and end.get("high_water"):
             report["memory_limit_mib"] = _mib(limit)

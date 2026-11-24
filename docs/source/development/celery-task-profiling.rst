@@ -120,7 +120,8 @@ What a report says
 ===================
 
 The committed sample is
-``evidence/task-profiling-sample-output.json`` - four attempts produced by the
+:download:`evidence/task-profiling-sample-output.json
+<evidence/task-profiling-sample-output.json>` - four attempts produced by the
 shipped code path, one per diagnosis, at the default thresholds. Its four
 ``shape`` values are the four readings #1389 names; the fifth the code answers
 today arrived with #1620 and is documented after them:
@@ -163,7 +164,9 @@ which stays unknown.
     by default). Without it the only answer a memory-hungry task can get is
     ``cpu_or_unaccounted``, which sends the reader looking at CPU when the cost
     is the objects the attempt held. The committed sample predates it and
-    therefore shows four shapes, not five.
+    therefore shows four shapes, not five - whoever refreshes that sample must
+    add a ``memory_bound`` attempt *and* the six ``memory_*`` keys below, or
+    the sample will contradict this section.
 
 Alongside the shape, a profiled attempt carries what it did to the memory of
 its worker, read off procfs:
@@ -180,13 +183,22 @@ its worker, read off procfs:
     the absolute peak and the private dirty set at the last sample;
 ``memory_limit_mib`` / ``memory_of_limit``
     the container's ceiling and how far the peak reached into it, because a
-    ceiling is what turns a peak into a risk of an OOM kill.
+    ceiling is what turns a peak into a risk of an OOM kill. The ceiling is
+    read per signal and never cached: a prefork worker lives across
+    ``docker update --memory``, which is exactly what an operator reaches for
+    during the incident a report is read in, and a cached ceiling would keep
+    judging every later peak against a limit which no longer exists.
 
 The absolute values belong to the process, not to the attempt - a prefork
 worker is reused and already holds whatever earlier attempts left behind - so
-everything attributable is the *movement* inside the attempt's span. With no
-procfs, or an attempt never sampled, these keys are simply absent: the report
-makes no memory claim rather than reporting a zero.
+everything attributable is the *movement* inside the attempt's span. Each key
+is present only when the reading behind it answered: a procfs without
+``smaps_rollup`` costs ``memory_private_dirty_mib``, an unlimited container
+costs ``memory_limit_mib`` and ``memory_of_limit``, and with no procfs at all -
+or an attempt never sampled - the keys are simply absent. An absent reading is
+never reported as ``null`` or as a zero: a reader must not be able to mistake
+"the platform could not answer" for "the attempt measured zero", which in an
+OOM investigation is the difference between a lead and a dead end.
 
 Chains and retries correlate through ``root_id``/``parent_id``/``queue``, which
 celery already carries: every report of one chain shares its ``root_id``, so a

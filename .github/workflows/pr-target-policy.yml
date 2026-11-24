@@ -1,0 +1,94 @@
+name: PR Target Policy
+
+# WHY THIS CHECK EXISTS, AND WHY IT IS ITS OWN WORKFLOW.
+#
+# `branch-policy.yml` guards the one target edge this repository has always guarded: only
+# the same repository's `develop` may target `master`. It triggers on a base of `master`
+# alone, so every develop-side target question was answered by nobody — `AGENTS.md`'s
+# "use the designated epic integration branch if applicable" had no definition of
+# *designated* and no workflow behind it. #1591 (epic #1588) writes the missing half as
+# `scripts/epic_branch.py`; this workflow is its transport on a pull request into
+# `develop`.
+#
+# It is a separate workflow rather than a second job in `branch-policy.yml` on purpose:
+# GitHub Actions filters `pull_request` at the workflow level, so reaching a develop-side
+# PR from that file means widening its trigger and gating each job with `if:`. A gate that
+# silently evaluates false would make the `master` protection skip — green, and not
+# running. Keeping the permanent-pair check byte-identical and adding coverage beside it is
+# the shape that cannot weaken a protection, which is what the epic's acceptance demands.
+#
+# The rules are NOT restated here. A second copy of a rule in a workflow file is a second
+# copy that drifts, which is why `pr-classification.yml` only transports and why this
+# workflow only transports: it hands the tool the pull request number and passes the tool's
+# exit code through. The definition of the designated epic branch lives in
+# `scripts/epic_branch.py` and reads the native sub-issue parent plus the epic's `slug:`
+# line; the contract is `docs/source/development/epic-integration-contract.rst` and the
+# tooling page is `docs/source/development/epic-branch-resolution.rst`.
+#
+# What this check deliberately is not:
+#   * not an approver. It says whether a target is legal, never whether to merge. Approval,
+#     merge, branch protection and `agent: approved` stay with people (rule 15 of the
+#     contract).
+#   * not a bypass. It triggers on the ordinary pull-request events against `develop` and
+#     nothing else; there is no path here that skips it for a branch, an author or a label,
+#     and no finding is softened for a draft.
+#   * not strict yet. `--mode auto` is advisory before the date `scripts/epic_branch.py`
+#     names and strict from it — the same rollout #1580 chose for titles, because every
+#     pull request open when this landed predates the rule and nobody has to have a base
+#     called a failure under their feet. The findings are identical in both halves; only
+#     the exit code differs. #1594's rollout owns the date and the flip.
+#   * not the ancestry check. `--no-ancestry` skips exactly rule R12, the one rule that
+#     asks git whether the head commit descends from the epic head, because deepening the
+#     history per pull request is a CI cost the contract's per-child budget does not offer.
+#     The tool records `ancestry: false` in its own result, so a run that skipped a rule
+#     cannot be read as a run that passed one; the ancestry half is a host-side run of the
+#     same command, which is also what an author runs before pushing.
+#   * not the epic-branch CI gap. Child PRs into `epic/**` still get no QA coverage until
+#     #1594 adds that branch to the QA trigger lists; that is an addition of coverage and
+#     deliberately not this workflow's decision.
+#   * not a writer. The two write subcommands of the tool need `--write` and a human `gh`
+#     identity; this workflow has neither, and `contents: read` says so.
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-pr-target:
+    name: Validate PR target
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Read from the event payload, not from the repository: a branch must not be able to
+      # choose which pull request its own check reads.
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          # The version the orchestration host runs scripts/ with; the tool is stdlib only
+          # and needs neither GDAL nor the application.
+          python-version: '3.15'
+
+      # `gh` reads the issue hierarchy, the epic listing and the pull request view;
+      # `git ls-remote` reads the branch heads. Both read-only.
+      - name: Check the pull request's target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/epic_branch.py check-pr --pr "$PR_NUMBER" --no-ancestry

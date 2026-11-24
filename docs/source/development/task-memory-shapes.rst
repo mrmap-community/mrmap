@@ -181,13 +181,12 @@ The read is now ``.values_list('pk', flat=True).iterator()``: django's
 chunked fetch opens a named server-side cursor (verified against
 ``pg_cursors`` on the stack below), so the ids are consumed as far as the
 chunker needs them and the building worker holds one fetch and one chunk
-(50 ids) plus the group. The query is unchanged and still covered by
-``harvest_tmp_md_file_import_pending_idx`` - the same partial index the
-chunker's own ``id > watermark`` filter uses (the cursor needs no order
-change for that, the index scan answers it either way). Because an
-iterator has no ``len()``, the build counts the ids of the chunks it
-creates, which is the same total the process name and the reconciliation
-of #958 compare against.
+(250 ids by default) plus the group. The statement is unchanged and still
+answered by the ``["job_id", "has_import_error"]`` index of #886 which
+``tests_task_sql_harvesting`` pins as index-backed. Because an iterator has
+no ``len()``, the build counts the ids of the chunks it creates, which is
+the same total the process name and the reconciliation of #958 compare
+against.
 
 Measured at the size the fix is for. The build is measured around
 ``iter_md_metadata_file_chunks``; peaks are traced bytes, and the wall
@@ -213,7 +212,7 @@ costs the same here where the list cost ten times as much. The build gets
 cursor fetches in batches instead of one result set: that is the price of
 the bounded peak, and 16 ms per 100 000 records is not what the import
 chord is timed by - each of its tasks opens its own transaction and reads
-its own 50 files.
+its own batch of files.
 
 The same arm at 2 000 rows (the size a normal harvest actually has) leaves
 67 kB against 57 kB: the cursor is never *worse* by a meaningful amount,

@@ -1738,9 +1738,9 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
         # the backlog walks past the worker as a server-side cursor instead of
         # arriving as a list (#1620): django's chunked fetch opens a named
         # cursor, so the build holds the ids of one fetch and one chunk - not
-        # the whole catalogue - and the statement count of the build stays
-        # the one values-list read of #886 which the guard in
-        # ``tests_task_sql_harvesting`` pins.
+        # the whole catalogue. The statement is the same values-list read of
+        # #886, answered by its ``["job_id", "has_import_error"]`` index,
+        # which the guard in ``tests_task_sql_harvesting`` pins.
         ids = TemporaryMdMetadataFile.objects.filter(
             job_id=harvesting_job_id, has_import_error=False).values_list(
                 "pk", flat=True).iterator()

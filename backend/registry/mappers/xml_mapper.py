@@ -282,6 +282,9 @@ class XmlMapper:
 
         if parsed_value is not None:
             setattr(instance, field_name, parsed_value)
+            if field_name == "date_stamp":
+                # This value came from gmd:dateStamp, unlike the model default.
+                instance._date_stamp_from_document = True
 
     def single_value_for_field(self, field_name, instance, values):
         """The one value a field is answered with out of all its matches.

@@ -1646,6 +1646,8 @@ def call_fetch_total_records(*args, **kwargs):
             recovering = harvesting_job.phase == HarvestingPhaseEnum.DOWNLOAD_RECORDS
             if not recovering or harvesting_job.total_records is None:
                 harvesting_job.fetch_total_records()
+            if harvesting_job.done_at is not None:
+                return harvesting_job.total_records
             harvesting_job.handle_total_records_defined(recovering=recovering)
             harvesting_job.save(skip_history_when_saving=False)
             return harvesting_job.total_records

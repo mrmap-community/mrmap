@@ -73,7 +73,13 @@ JSONAPI_ACCEPT = "application/vnd.api+json"
 
 
 def ask(url, **extra):
-    response = Client().get(url, **extra)
+    # A production deployment is only ever reached through the TLS edge, and the
+    # edge names the protocol with X-Forwarded-Proto - SECURE_PROXY_SSL_HEADER in
+    # settings.py is what makes Django trust it. Without that header the SSL
+    # redirect of #1473 answers every probe with 301 before content negotiation
+    # is reached, which is the topology question, not the renderer question this
+    # file asserts.
+    response = Client().get(url, HTTP_X_FORWARDED_PROTO="https", **extra)
     content_type = response.headers.get("Content-Type", "")
     return {
         "status": response.status_code,

@@ -100,7 +100,7 @@ class HarnessError(Exception):
 
 def repo():
     """The checkout to read. `MIGRATION_GRAPH_SMOKE_REPO` points at another repository
-    the way `AGENT_CGROUP_ROOT` points `scripts/agent_capacity` at a fabricated cgroup:
+    so tests can point the scan at a synthetic repository:
     the offline checks build a throw-away repository holding a two-leaf collision."""
     override = os.environ.get("MIGRATION_GRAPH_SMOKE_REPO")
     return Path(override) if override else Path(__file__).resolve().parent.parent

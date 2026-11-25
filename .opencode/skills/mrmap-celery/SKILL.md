@@ -83,8 +83,8 @@ shell; degrade to `shell_plus` when it is not configured.
    module path, and `transaction.on_commit` per `tests/django/` examples.
 3. Delivery path changed: run `tests/django/notify/test_realtime_delivery.py` (real ASGI app via
    `WebsocketCommunicator`).
-4. Ask `scripts/agent_capacity` before starting any stack, `--need suite` before the full suite
-   (root `AGENTS.md`).
+4. Confirm external resource admission and concurrency limits before starting Docker;
+   full suites need more headroom than targeted checks (root `AGENTS.md`).
 
 ## Security constraints
 

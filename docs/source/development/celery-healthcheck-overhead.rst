@@ -103,8 +103,8 @@ status as a test verdict.
 Reproducing the comparison
 ==========================
 
-Start only a disposable, isolated stack admitted by
-``scripts/agent_capacity``. Use the prebuilt image and port/container-name
+Start only a disposable, isolated stack admitted by the operator or external
+execution environment. Use the prebuilt image and port/container-name
 resets in :ref:`development-prebuilt-images`, unique project state, and the
 cleanup/ownership rules in ``AGENTS.md``. Register cleanup before creating
 resources, retain the same Compose files and exact project name, and remove
@@ -161,8 +161,8 @@ Live comparison
 ===============
 
 The matrix ran on 2026-11-20 in the job-owned project
-``mrmap-agent-1616-1620``, admitted by ``scripts/agent_capacity`` with the
-verdict "fits" for a stack, started from ``docker-compose.yml``,
+``mrmap-agent-1616-1620``, admitted by the historical external capacity check
+for a stack, started from ``docker-compose.yml``,
 ``docker-compose.dev.yml`` and ``docker-compose.prebuilt.yml``:
 
 * source revision ``ebf5a0ab2121461235b3cd1a88ae3de4182dd40c`` - this branch

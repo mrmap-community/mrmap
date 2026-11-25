@@ -20,7 +20,7 @@
     ]
   },
   "authority": {
-    "admission": "scripts/agent_capacity",
+    "admission": "operator/external execution environment",
     "admission_never_overridden_by": "this page, the runbook or any number in this file",
     "matrix_checker": "scripts/compose_profiles_smoke.py",
     "sampler": "scripts/stack_memory_profile",
@@ -383,7 +383,7 @@
     {
       "id": "agent-cgroup-16gib",
       "status": "measured",
-      "note": "the environment of #1613, #1617, #1621 and #1619: one agent cgroup limited to 16 GiB, kernel 6.12, docker 29.8.2; admission stays with scripts/agent_capacity (--need stack 6 GiB, --need suite 8 GiB effective)"
+      "note": "the environment of #1613, #1617, #1621 and #1619: one agent cgroup limited to 16 GiB, kernel 6.12, docker 29.8.2; historical measurement environment; resource management and concurrency now belong to the operator/external execution environment"
     },
     {
       "id": "developer-host-32gib",

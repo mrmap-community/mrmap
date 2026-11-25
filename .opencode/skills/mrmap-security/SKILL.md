@@ -55,7 +55,7 @@ logging, or any outbound HTTP/XML surface.
   schemes without an accepted issue.
 - Secrets: configuration comes from `.env` / `docker/backend/.mrmap.env`; missing values fail
   early — ask for them, never invent or commit them. When blocked on a credential, use
-  `scripts/wip wait` (root `AGENTS.md`).
+  an ordinary issue comment; preserve the #1391 legacy exception (root `AGENTS.md`).
 
 ## Recommended patterns (project code, mirror these)
 

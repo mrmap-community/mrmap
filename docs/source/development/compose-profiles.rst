@@ -8,9 +8,9 @@ Compose profiles: full and lightweight
 
    Part of epic #1612 (runtime memory), phase V1. The measured before-picture
    this split is designed against is
-   :ref:`runtime-memory-baselines`; the admission gate which decides whether a
-   host fits another stack stays ``scripts/agent_capacity``
-   (#1053/#1054/#1055) - nothing on this page overrides it. #1614 made the
+   :ref:`runtime-memory-baselines`; the operator or external execution
+   environment decides whether a host fits another stack - nothing on this
+   page overrides it. #1614 made the
    optional services a tier each; #1622 bounded the tier which a lightweight
    host switches back on and made the missing log sink loud. See
    `The memory ceiling of the tier`_.
@@ -411,10 +411,9 @@ it:
         --during 'docker compose up -d' --out runs.jsonl
     scripts/stack_memory_profile report --in runs.jsonl
 
-Re-measuring means starting a stack: check ``scripts/agent_capacity`` first, run
-it in a job-owned project and tear that project down again
-(:ref:`development-agent-capacity`). The repeatable regression reporting which owns doing
-this on a schedule is #1623.
+Re-measuring means starting a stack only after external admission, then running
+it in a job-owned project and tearing that project down again. The repeatable
+regression reporting which owns doing this on a schedule is #1623.
 
 Upgrade behaviour
 =================

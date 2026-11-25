@@ -2,13 +2,9 @@ name: Script tests
 
 # WHY THIS JOB EXISTS, AND WHY IT RUNS ON A BARE RUNNER.
 #
-# scripts/ holds the tooling the agent orchestration runs: the claim board and
-# issue identity in scripts/wip, the host admission gate in scripts/agent_capacity,
-# the human decision protocol in scripts/decisions. None of it is reached by the QA
-# jobs, for a structural reason rather than an oversight: those run inside a
-# container that binds only ./backend, so scripts/ is not present in the image that
-# performs the linting. A regression here surfaces as an agent mislabelling or
-# double-claiming work on somebody's host.
+# Host-side release, migration, documentation and decision tools live in scripts/.
+# QA containers bind only ./backend, so they cannot run these offline suites.
+# This job uses an ordinary checkout; no coding-agent platform or LLM token is needed.
 #
 # Two measurements set the shape of this job, and both are worth keeping:
 #

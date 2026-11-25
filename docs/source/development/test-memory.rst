@@ -49,7 +49,8 @@ is not passed into the containers. Direct Vitest invocations can use
 Vitest rejects empty, fractional, zero and invalid explicit limits. No pool,
 heap, database, shared-memory or production settings change with this preset.
 Serial tests may take substantially longer. This mode does not waive the
-``scripts/agent_capacity`` admission decision, even on a 16-GiB host.
+operator/external execution environment's admission decision, even on a
+16-GiB host.
 
 Allocation sources and limits of the evidence
 =============================================
@@ -93,8 +94,9 @@ Use the existing ``scripts/stack_memory_profile`` sampler. Run baseline and
 candidate revisions on the same host and dependency fingerprints with a fresh
 isolated project per arm. Keep the fixture/test selection identical. Record
 cold and warmed runs separately and repeat arms to expose cache/order effects.
-Before starting dependencies, run ``scripts/agent_capacity --need suite`` for a
-full Django arm (``--need stack`` for targeted/Behave/frontend). Stop if refused.
+Before starting dependencies, obtain external admission for a full Django arm
+(or a lighter targeted/Behave/frontend run). Stop if the environment refuses
+it.
 Register cleanup before creating resources, and verify exact project labels
 and zero leftover containers, volumes and networks afterwards per ``AGENTS.md``.
 Do not clear global caches or remove reusable images to manufacture a cold run.

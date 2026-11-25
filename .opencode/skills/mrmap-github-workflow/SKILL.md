@@ -1,6 +1,6 @@
 ---
 name: MrMap GitHub Workflow
-description: "Doing MrMap development work on GitHub — claiming an issue, branch/worktree setup, the native GitHub Flow contribution loop, commits, pushes, pull-request readiness, definition of done, asking humans for decisions, the wip claim board, labels/epics, or respecting human-only actions (approve/merge/resolve)."
+description: "Doing MrMap development work on GitHub — branch/worktree setup, the native GitHub Flow contribution loop, commits, pushes, pull-request readiness, definition of done, asking humans for decisions, labels/epics, or respecting human-only actions (approve/merge/resolve)."
 ---
 
 # MrMap GitHub Workflow
@@ -12,8 +12,7 @@ This skill sequences them; it does not restate every rule — read the named fil
 
 ## Activation
 
-Load when the task involves: starting work on an issue, branch/worktree creation, `scripts/wip`
-or `scripts/decisions`, preparing/pushing a pull request, issue labels/epic relations, or deciding
+Load when the task involves: starting work on an issue, branch/worktree creation, `scripts/decisions`, preparing/pushing a pull request, issue labels/epic relations, or deciding
 whether an action needs a human.
 
 ## Non-negotiables (sources named)
@@ -22,7 +21,8 @@ whether an action needs a human.
   external coordinator, one worker, verify blockers and conflicting work, link a branch,
   open a Draft PR. Native assignees/dependencies are planning signals, not atomic locks.
   No new claim, heartbeat or eligibility checker is required. Preserve foreign legacy
-  claims until their owners reconcile them; #1753 owns retirement of the old board.
+  claims until their owners reconcile them. #1391 / PR #1732 is the explicit
+  legacy exception; no agent may force its handoff.
 - Branches: `<type>/<short-topic>`; worktrees `git worktree add <dir> -b <type>/issue-<N>-<topic>
   origin/develop` after `git fetch origin`; **no merging `origin/develop` into a branch** before the
   PR (the merge queue tests integration); never force-push/rebase a branch open for review;
@@ -37,13 +37,13 @@ whether an action needs a human.
   body is lost at the merge. `python3 scripts/pr_classify title "<title>"` answers it locally
   (`docs/source/development/commit-classification.rst`).
 - Human-only acts: `agent: approved`, PR review, merge, resolving human threads, branch
-  protection/CI changes, access grants, committing secrets. Ask via `scripts/wip ask`; do not
-  attempt them (root `AGENTS.md`).
+  protection/CI changes, access grants, committing secrets. Ask a person on the issue; do not attempt them (root `AGENTS.md`).
 - Design questions (normative standards readings, scope, migration risk) go through
   `scripts/decisions` — never answered silently; an answered decision grants neither approval nor
   merge (root `AGENTS.md`, `docs/source/development/decision-requests.rst`).
-- Orchestration is external (Agent Orchestrator); this repository runs no scheduler/daemon/CI
-  watcher — do not reintroduce one (root `AGENTS.md`).
+- AO is retired. Clients/skills are optional; runtime, tests, build, CI and releases
+  require no agent service, MCP client or LLM credentials. Resource management belongs
+  to the external execution environment (root `AGENTS.md`).
 
 
 - Always explicitly specify `--base develop`, including for native epic sub-issues.
@@ -57,8 +57,8 @@ whether an action needs a human.
 
 ## The pre-PR readiness loop (definition_of_done.rst + backend/AGENTS.md)
 
-1. `python3 scripts/agent_capacity` (or `--need suite`) before starting a Compose stack; own
-   project name + override per root `AGENTS.md`.
+1. Obtain resource admission from the operator/external execution environment before
+   starting Docker; use an isolated project and cleanup per root `AGENTS.md`.
 2. Targeted tests first, then the checks the change's area requires
    (`backend/AGENTS.md`, `frontend/AGENTS.md`; skills `mrmap-testing` + the area skill).
 3. Migrations added → `pre-commit-check` drift/translation gates **and**
@@ -72,7 +72,7 @@ whether an action needs a human.
 
 None — the loop runs on `git` and `gh` (authenticated host account) and the offline
 `scripts/test_*.py` suites. `gh` usage here stays read/write within the issue/PR flow the claim
-board defines; creating issues/PRs is a separate human-approved context. **Optional:** the
+native contribution loop defines. **Optional:** the
 `sonarqube` MCP (remote, `api.sonarcloud.io`; a person must place a SonarQube Cloud user
 token in `~/.config/opencode/sonar-token` once per host — see
 `docs/development/mcp-servers.md`) gives the findings SonarCloud posts on your PR — read
@@ -89,11 +89,10 @@ them through it instead of scraping the check output, and fix them where reporte
 - Automatically retargeting existing PRs, deleting branches, removing foreign claims or
   interrupting active workers during the transition.
 - Inventing conventions for missing pieces (e.g. inventing a "ready for review" label): check
-  `gh label list` / templates, ask via `scripts/decisions` or `scripts/wip ask`.
+  `gh label list` / templates, ask via `scripts/decisions` or an ordinary issue comment.
 
 ## Verification of this skill's own steps
 
-- `scripts/wip ls` reflects your claim after claiming; `scripts/wip answers` after a human reply.
 - Offline checks for the tooling itself: `python3 scripts/test_wip_board_sync.py`,
   `python3 scripts/test_decisions.py` (no `gh`, no
   network; CI runs them via `scripts/check_repo_tooling.sh`).
@@ -113,5 +112,5 @@ them through it instead of scraping the check output, and fix them where reporte
   `.opencode/skills/`) is not an issue-claimed code change: no claim is possible without an
   `issue-<N>` branch; note the situation once and proceed locally — do **not** invent an issue,
   branch or PR for it.
-- A stale foreign claim may be taken over with `scripts/wip claim --force` only after the holder
-  was confirmed gone (root `AGENTS.md`).
+- #1391 keeps its existing claim and workflow until its owner confirms the handoff.
+  Do not take over its claim or interrupt its worker.

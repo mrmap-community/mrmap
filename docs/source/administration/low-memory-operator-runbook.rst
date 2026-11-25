@@ -102,7 +102,7 @@ Always in a project you own (``COMPOSE_PROJECT_NAME`` or ``-p``), never
 against the stack of somebody else; an agent follows the worktree isolation
 rules of ``AGENTS.md``.
 
-.. code:: console
+.. code:: text
 
     # 0. admission first, always - it decides, this page does not
     scripts/agent_capacity                      # --need stack / --need suite
@@ -381,7 +381,7 @@ The read-only sampler and the bench are the committed instruments - they
 mutate nothing and their offline suites run in
 ``scripts/check_repo_tooling.sh``:
 
-.. code:: console
+.. code:: text
 
     # RAM per container and phase: cgroup charge/peak/committed + OOM events
     scripts/stack_memory_profile sample --project "$COMPOSE_PROJECT_NAME" \
@@ -402,7 +402,7 @@ mutate nothing and their offline suites run in
 
 Routine operator readings, one per knob that bounds something:
 
-.. code:: console
+.. code:: text
 
     # what is charged right now, per container
     docker stats --no-stream

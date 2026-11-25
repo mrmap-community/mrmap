@@ -3,15 +3,11 @@
 #
 # WHY THIS EXISTS
 #
-# scripts/ holds the tools that the agent orchestration runs: wip (the claim
-# board and issue identity), agent_capacity (the host admission gate that every
-# worker spawn consults) and decisions (the human decision protocol). Each of
-# them has a suite, and every one of those suites runs offline with nothing but
-# the standard library. None of them is reachable from CI: the QA jobs run in a
-# container that binds only ./backend, so scripts/ is not even inside the image
-# that does the linting. A regression here surfaces as an agent that starts
-# mislabelling or double-claiming work on some operator's host, which is a slow
-# and expensive way to learn that a tool broke.
+# scripts/ holds host-side repository tools: release/migration checks,
+# documentation validation and the human decision protocol. The QA container
+# binds only ./backend, so these suites run on a plain checkout without agents,
+# MCP clients or LLM credentials. Legacy claim suites remain for the explicit
+# #1391 exception until its owner confirms the handoff.
 #
 # WHAT THIS DOES NOT DO
 #
@@ -27,13 +23,8 @@
 #           suites belongs on a runner with a plain checkout, not inside django.
 #   docker  test_dev_image_* use it where they can; absent it, they skip.
 #
-# ONE RULE FOR THE SUITES
-#
-# A suite that is green here and red on a runner reads something it did not fake.
-# The known case is free disk: agent_capacity measures /, and no fixture can, so
-# its tests pin the disk requirement off and test that dimension with thresholds
-# taken from the host. When suites start disagreeing between machines, look for
-# the input nobody fabricated rather than assuming the runner is broken.
+# Suites must isolate host-dependent inputs so the same checkout can be tested
+# locally and in CI. Report skipped Docker checks rather than implying they ran.
 #
 # Usage: scripts/check_repo_tooling.sh
 

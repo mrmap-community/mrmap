@@ -2,7 +2,9 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "enabledManagers": ["npm", "pip_requirements", "dockerfile", "docker-compose", "github-actions"],
-  "dependencyDashboard": true,
+  "dependencyDashboard": {
+    "enabled": true
+  },
   "prCreation": "immediate",
   "automerge": false,
   "branchConcurrentLimit": 1,

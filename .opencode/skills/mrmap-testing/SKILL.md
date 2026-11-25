@@ -35,8 +35,8 @@ Load when the task adds or debugs any test: `backend/tests/django/`, `backend/te
 - Every new feature file carries `@fixtures:<file>.json` tags (dependency order!) or
   `@no_fixtures` — `before_feature` refuses anything else.
 - One `django-tests`/`behave` run per Compose stack (shared `test_mrmap` database); each job in its
-  own stack per root `AGENTS.md` "Docker ownership"; `scripts/agent_capacity` before starting a
-  stack, `--need suite` before the full unit suite.
+  own stack per root `AGENTS.md` "Docker ownership". Resource admission and
+  concurrency limits belong to the operator/external execution environment.
 
 ## Recommended patterns (project code, mirror these)
 

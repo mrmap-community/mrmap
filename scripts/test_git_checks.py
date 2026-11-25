@@ -310,7 +310,6 @@ class HookTests(unittest.TestCase):
         destination = self.root / "scripts/git_checks.py"
         destination.parent.mkdir()
         shutil.copy2(ROOT / "scripts/git_checks.py", destination)
-        self.write("scripts/agent_capacity", "raise SystemExit(0)\n")
         self.write("scripts/dev_image_id.py", "print('0123456789ab')\n")
         self.write(".env", "COMPOSE_PROJECT_NAME=developer-stack\n")
         self.write("docker/backend/.mrmap.env", "fixture\n")
@@ -427,7 +426,6 @@ class HookTests(unittest.TestCase):
                     containers.check(stage, backend, frontend)
                     containers.close()
                 commands = [call.args[0] for call in command.call_args_list]
-                self.assertIn(str(self.root / "scripts/agent_capacity"), [str(x) for x in commands[0]])
                 compose = [args for args in commands if args[:2] == ["docker", "compose"]]
                 self.assertTrue(all(args[2:4] == ["-p", containers.project] for args in compose))
                 checks = [args for args in compose if "run" in args]

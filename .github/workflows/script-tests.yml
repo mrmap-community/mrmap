@@ -2,13 +2,9 @@ name: Script tests
 
 # WHY THIS JOB EXISTS, AND WHY IT RUNS ON A BARE RUNNER.
 #
-# scripts/ holds the tooling the agent orchestration runs: the claim board and
-# issue identity in scripts/wip, the host admission gate in scripts/agent_capacity,
-# the human decision protocol in scripts/decisions. None of it is reached by the QA
-# jobs, for a structural reason rather than an oversight: those run inside a
-# container that binds only ./backend, so scripts/ is not present in the image that
-# performs the linting. A regression here surfaces as an agent mislabelling or
-# double-claiming work on somebody's host.
+# Host-side release, migration, documentation and decision tools live in scripts/.
+# QA containers bind only ./backend, so they cannot run these offline suites.
+# This job uses an ordinary checkout; no coding-agent platform or LLM token is needed.
 #
 # Two measurements set the shape of this job, and both are worth keeping:
 #
@@ -34,7 +30,9 @@ on:
     types: [checks_requested]
     branches: [master, develop]
   pull_request:
-    branches: [master, develop]
+    # epic/** too: an epic child branch that edits scripts/ must be held
+    # to the same offline suites as one based on develop (#1594, epic #1588).
+    branches: [master, develop, 'epic/**']
     types: [opened, synchronize, reopened]
 
 concurrency:
@@ -52,10 +50,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # 3.13 is what the deployment host runs the orchestration tooling with.
-          python-version: '3.13'
+          python-version: '3.15'
 
       # Prints one line per suite with that suite's own verdict, and the output
       # of any failing one, so a red check is readable without a debug session.

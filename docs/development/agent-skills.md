@@ -37,7 +37,7 @@ as such (e.g. extending hardened lxml parsing in `mrmap-ogc`).
 | `mrmap-ogc` | Capabilities/mappers per version, `ows_lib` rules, `/csw`, exception reports, untrusted XML, outbound-request hardening | OGC/ISO XML, WMS/WFS/CSW code paths, monitoring probes | none (no MCP covers OGC/ISO) |
 | `mrmap-security` | Guardian object permissions, security proxy, auth (session/Basic/Knox/WS), secrets, SSRF/XML surfaces | Permissions, proxy, auth, credentials, outbound HTTP | `postgres` (introspection only), `sonarqube` (findings) |
 | `mrmap-testing` | Unit-test conventions, Behave tiers T0–T3 & fixture tags, Vitest, query-count asserts, coverage gates | Adding/debugging any test, fixtures, red CI jobs | `postgres` (slot DB reads only) |
-| `mrmap-github-workflow` | Claiming (`scripts/wip`), branches/worktrees, PR readiness (definition of done), `scripts/decisions`, human-only acts | Starting issue work, branch/PR steps, board/decision tooling | `sonarqube` (PR findings) |
+| `mrmap-github-workflow` | GitHub Flow (`docs/source/development/github-flow.rst`), branches/worktrees, PR readiness (definition of done), `scripts/decisions`, human-only acts | Starting issue work, branch/PR steps, native assignment and legacy board/decision tooling | `sonarqube` (PR findings) |
 
 Cross-references between skills exist (e.g. `mrmap-ogc` ↔ `mrmap-security`, `mrmap-testing` ←
 area skills); OpenCode lists all skills each step, so agents can load several.
@@ -56,16 +56,19 @@ area skills); OpenCode lists all skills each step, so agents can load several.
 All eight skills were validated end-to-end at introduction: discovery in the live session, load via
 the `skill` tool, and a read-only fact-check of every referenced path/command against the checkout.
 
-## Interaction with the external orchestrator (AO)
+## Optional external clients
 
-* Orchestration stays external to the repository (root `AGENTS.md`); skills add no scheduler, hook
-  or watcher and change no claim/branch/PR behaviour.
+* AO is retired. OpenHands, OpenCode, Codex and other clients are optional;
+  ordinary Git/GitHub CLI and the area test commands remain sufficient.
+* Skills add no scheduler, claim authority or mandatory execution path. Core runtime,
+  build, deployment, CI and releases require no MCP client or LLM credentials.
 * A worker session gets the skills automatically because they live in the checkout: discovery is
   from the project root, so any worktree of this repo exposes them.
 * Skills are read-mostly guidance; they never authorize an action. The human-only acts
   (approve/merge/resolve/`agent: approved`) remain human-only regardless of which skills are loaded
   (`mrmap-github-workflow` encodes the deferral path).
-* Capacity: skills point at `scripts/agent_capacity` before any stack; they add no new stack starts.
+* Resource management, concurrency and workspace isolation belong to the operator/external
+  execution environment. Skills do not start workers, change limits or replace those controls.
 
 ## Adding or changing a skill
 

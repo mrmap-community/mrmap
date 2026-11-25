@@ -22,7 +22,8 @@ class WorkerHealthcheckTests(TestCase):
         self.inspect.ping.return_value = {"celery@local": {"ok": "pong"}}
 
     def test_broker_configuration_and_directed_ping(self):
-        with patch.dict("os.environ", {"REDIS_HOST": "broker", "REDIS_PORT": "6380"}):
+        with patch.dict("os.environ", {"REDIS_HOST": "broker", "REDIS_PORT": "6380",
+                                       "REDIS_PASSWORD": ""}):
             self.assertTrue(worker_healthcheck.ping("celery@local"))
         self.factory.assert_called_once_with(
             "healthcheck", broker="redis://broker:6380",
@@ -30,6 +31,17 @@ class WorkerHealthcheckTests(TestCase):
         self.connection.ensure_connection.assert_called_once_with(max_retries=0)
         self.app.control.inspect.assert_called_once_with(
             destination=["celery@local"], timeout=2, connection=self.connection)
+
+    def test_the_broker_url_carries_the_credential_of_the_instance(self):
+        # the healthcheck of #1616 speaks to the same instance as the workers
+        # do, which authenticates since #1473 - without the credential the
+        # probe of a healthy fleet answers unhealthy on every deployment
+        with patch.dict("os.environ", {"REDIS_HOST": "broker", "REDIS_PORT": "6380",
+                                       "REDIS_PASSWORD": "s3cr#t@"}):
+            self.assertTrue(worker_healthcheck.ping("celery@local"))
+        self.factory.assert_called_once_with(
+            "healthcheck", broker="redis://:s3cr%23t%40@broker:6380",
+            fixups=[], set_as_current=False)
 
     def test_missing_wrong_worker_and_bad_replies_are_unhealthy(self):
         for reply in (None, {}, {"celery@other": {"ok": "pong"}},

@@ -7,15 +7,11 @@ Agent Capacity And Cgroups
 
 .. sidebar:: Issues #1053, #1054 (epic #1051)
 
-   The gate is ``scripts/agent_capacity``; its offline checks are
-   ``scripts/test_agent_capacity.py`` (no docker, no network, no real cgroup
-   needed). The copy-paste rule for agents stays in ``AGENTS.md`` under "Check
-   host capacity before starting another stack"; this page is the background:
-   which number the gate actually reads, what each threshold means, and how to
-   look at the same metrics by hand. The ceiling over all of it is the
-   operator's: :ref:`development-agent-capacity-ceiling` says what raising it
-   changes, what it costs and which numbers have to be read for a claim about
-   it to hold (#1054).
+   **Retired:** ``scripts/agent_capacity`` and
+   ``scripts/test_agent_capacity.py`` were removed by #1753. This page remains
+   historical evidence for the measurements that led to repository retirement.
+   Host/resource admission is now owned by the operator or external execution
+   environment; no replacement repository script is required or approved.
 
 Several agents share one machine, and since 2026-11-05 they share it inside a
 container: the OpenCode session and the dockerd it starts for its test stacks
@@ -72,8 +68,15 @@ What the gate measures
      - ``/proc/<pid>/cmdline`` of the agent executable (``opencode`` by default)
      - how many workers are already running
    * - disk
-     - free bytes on ``/``
+     - free bytes on ``/``, or on ``AGENT_DISK_PATH`` when set
      - is there room for another database cluster and build cache
+
+When the gate runs in a sandbox whose ``/`` is a temporary filesystem, set
+``AGENT_DISK_PATH`` to an accessible path on the filesystem holding Docker's
+data. Verify Docker's data root on the host first; the checkout and Docker data
+may be on different filesystems. The gate still measures the available space
+and applies the same threshold. Run the gate on the host when its Docker data
+filesystem or cgroup limits are not visible inside the sandbox.
 
 Two decisions are baked into the memory metric and worth stating:
 

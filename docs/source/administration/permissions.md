@@ -15,7 +15,7 @@ on the proxy axis grants no write access to the resource, and the permission to 
 resource grants nothing at all when its service is secured. The single point where the two
 touch is a side effect: saving an allowed operation forces `ProxySetting.camouflage` to
 `True` for its service, because MrMap must answer the client itself to be able to restrict
-it. See [Security Proxy](../../architecture.md#security-proxy) for the proxy in the domain
+it. See [Security Proxy](../design/architecture.md#security-proxy) for the proxy in the domain
 overview.
 
 Both axes are about **users, groups and objects**. Neither has roles today, which is what
@@ -112,7 +112,7 @@ primary key is a UUID compares that text column by casting it to a UUID, and whe
 query plan evaluates the cast only for the rows of the looked-up model is its own decision:
 one row of a model with an integer primary key can make the lookup of a service fail with
 `invalid input syntax for type uuid`. Models which guardian's
-[performance guide](https://django-guardian.readthedocs.io/en/stable/userguide/performance.html#direct-foreign-keys)
+[performance guide](https://django-guardian.readthedocs.io/en/stable/userguide/performance/#direct-foreign-keys)
 calls direct-foreign-key models have a table of their own here, and every model MrMap grants
 something on has one:
 

@@ -373,6 +373,17 @@ results.append(check("an agent comment never answers, whatever marker it carries
                      [state["ask_states"][q]["state"] for q in ("Q7", "Q8")]
                      == ["Pending", "Pending"] and not state["new_events"]))
 
+# Historical machine comments still cannot answer; quoted markers in a human
+# reply do not hide the actual human answer after the board module is removed.
+for marker in ('<!-- agent-claim {"v":1} -->',
+               '<!-- agent-question client=old id=1 -->', '<!-- agent-board v1 -->'):
+    state = scan([request_comment(), human("2026-11-02T06:00:00Z", marker + "\nQ7: C")])
+    results.append(check("historical marker cannot become a decision: %s" % marker,
+                         state["ask_states"]["Q7"]["state"] == "Pending"))
+    state = scan([request_comment(), human("2026-11-02T06:00:00Z", "> " + marker + "\nQ7: C")])
+    results.append(check("quoted marker preserves the human reply: %s" % marker,
+                         state["ask_states"]["Q7"]["state"] == "Accepted"))
+
 # the #992 case: an unmarked questionnaire whose own fenced template answers itself
 legacy = request_comment(marked=False)
 legacy["body"] += "\n### How to answer\n\n```text\nQ7: C\nQ8: B\n```\n"
@@ -732,19 +743,14 @@ results.append(check("a reopen event makes an older answer stop counting",
                      == "Pending"))
 
 # --- which issue does a branch name? (the #1196 class: a prompt echo is not a claim)
-# The rule is scripts/wip's function, not a copy of its pattern, so this checks
-# the reuse holds rather than comparing two strings that could drift.
-results.append(check("the branch rule is scripts/wip's, not a copy of its pattern",
-                     getattr(d, "BRANCH_ISSUE_RE", None) is None
-                     and hasattr(d.wip, "branch_issue")))
-for branch, want in [("ao/issue-123-add-x", 123),        # what the controller asks AO for
+for branch, want in [("ao/issue-123-add-x", 123),        # historical branch shape
                      ("feature/issue-123-topic", 123),   # the repository convention
                      ("issue_123", 123), ("issue123", 123), ("#123-topic", 123),
                      ("ao/implement-github-issue-6/root", None),  # a prompt echo
                      ("fix-issue-123", None),                      # mid-segment
                      ("release-2024-issue-3", None),
                      ("main", None), ("", None), (None, None)]:
-    got = d.wip.branch_issue(branch)
+    got = d.branch_issue(branch)
     results.append(check("branch_issue(%r) is %r" % (branch, want), got == want, f"got={got}"))
 
 

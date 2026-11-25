@@ -1,0 +1,453 @@
+{
+  "checks": [
+    {
+      "detail": "a child does not get the one base the decision table gives it",
+      "expected": {
+        "children": {
+          "1591": {
+            "base": "epic/epic-integration",
+            "reasons": []
+          },
+          "1593": {
+            "base": "epic/epic-integration",
+            "reasons": []
+          }
+        }
+      },
+      "id": "child-selection",
+      "observed": {
+        "1591": {
+          "base": "epic/epic-integration",
+          "reasons": []
+        },
+        "1593": {
+          "base": "epic/epic-integration",
+          "reasons": []
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "the epic branch is not the canonical branch cut from develop at creation",
+      "expected": {
+        "cut_from": "develop",
+        "exists": true
+      },
+      "id": "branch-creation",
+      "observed": {
+        "cut_from": "develop",
+        "exists": true,
+        "name": "epic/epic-integration"
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a child does not start from the epic head, or an open branch was rebased instead of merging the epic head (R12)",
+      "expected": {
+        "children_off_head": []
+      },
+      "id": "child-starts-from-epic-head",
+      "observed": {
+        "children_off_head": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a child PR does not carry exactly the required check set its base triggers, or its base gets no CI at all",
+      "expected": {
+        "901": {
+          "failing": [],
+          "jobs": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ]
+        },
+        "902": {
+          "failing": [],
+          "jobs": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ]
+        }
+      },
+      "id": "child-pr-checks",
+      "observed": {
+        "901": {
+          "base": "epic/epic-integration",
+          "failing": [],
+          "jobs": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ],
+          "required": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ]
+        },
+        "902": {
+          "base": "epic/epic-integration",
+          "failing": [],
+          "jobs": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ],
+          "required": [
+            "classify",
+            "codeql-required",
+            "frontend-tests",
+            "repo-tooling",
+            "unit-tests"
+          ]
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a dependency resolves differently than by ancestry: closed is not implemented, and merged-only-into-another-private-branch is not available either",
+      "expected": {
+        "1591->1412": {
+          "merged": true,
+          "on_develop": true,
+          "on_epic": true,
+          "state": "COMPLETED"
+        }
+      },
+      "id": "blocker-satisfied-by-ancestry",
+      "observed": {
+        "1591->1412": {
+          "merged": true,
+          "on_develop": true,
+          "on_epic": true,
+          "state": "COMPLETED"
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "readiness does not answer R7: every required child merged INTO the epic, every dependency an ancestor of the epic head AND of develop, checks green, conflicts settled",
+      "expected": {
+        "ready": true,
+        "reasons": []
+      },
+      "id": "readiness",
+      "observed": {
+        "ready": true,
+        "reasons": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "the epic does not integrate through exactly one human-approved merge commit into develop (rule 9)",
+      "expected": {
+        "base": "develop",
+        "count": 1,
+        "head": "epic/epic-integration",
+        "merge": true,
+        "merged_by": "jokiefer"
+      },
+      "id": "integration-pr",
+      "observed": {
+        "base": "develop",
+        "count": 1,
+        "head": "epic/epic-integration",
+        "merge": true,
+        "merged_by": "jokiefer"
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a wrong base was not refused, or an agent retargeted a PR (R5/R6 name a person as the actor)",
+      "expected": {},
+      "id": "wrong-base",
+      "observed": {
+        "901": {
+          "by_agent": false,
+          "wrong": false
+        },
+        "902": {
+          "by_agent": false,
+          "wrong": false
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a PR whose head is the epic branch does not target develop (R6)",
+      "expected": {
+        "pulls": []
+      },
+      "id": "epic-head-base",
+      "observed": {
+        "pulls": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "paused or claimed work was treated as schedulable",
+      "expected": {
+        "1591": {
+          "claimed": true,
+          "paused": false
+        }
+      },
+      "id": "paused-or-claimed",
+      "observed": {
+        "1591": {
+          "claimed": true,
+          "paused": false
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a claim does not record the integration target the scheduling decision used",
+      "expected": {
+        "1591": {
+          "target": "epic/epic-integration"
+        }
+      },
+      "id": "claim-carries-target",
+      "observed": {
+        "1591": {
+          "decision": "epic/epic-integration",
+          "target": "epic/epic-integration"
+        }
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "cancelling the epic left a child PR open while the epic is closed",
+      "expected": {
+        "epic_state": "OPEN",
+        "no_open_prs_for": []
+      },
+      "id": "cancellation",
+      "observed": {
+        "epic_state": "OPEN",
+        "open_child_prs": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "two children's migrations collide on the epic head without the renumbering that settles it",
+      "expected": {
+        "conflicts": [],
+        "renumbered": []
+      },
+      "id": "migration-conflict",
+      "observed": {
+        "conflicts": [],
+        "renumbered": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "the epic history does not fold into one integration entry whose merge keeps the epic title while every child merge commit stays reachable and a breaking fact survives on the title",
+      "expected": {
+        "breaking_survives": true,
+        "child_titles_survive": true,
+        "one_integration_entry": true,
+        "squashed": false
+      },
+      "id": "release-semantic-history",
+      "observed": {
+        "breaking_survives": true,
+        "child_titles_survive": true,
+        "one_integration_entry": true,
+        "squashed": false
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "the epic cannot be rolled back with a plain revert PR; a history rewrite or a force-push is not a recovery",
+      "expected": {
+        "force_pushed": false,
+        "revert_merged_into": null,
+        "reverted": false,
+        "rewrote_history": false
+      },
+      "id": "rollback",
+      "observed": {
+        "force_pushed": false,
+        "revert_merged_into": null,
+        "reverted": false,
+        "rewrote_history": false
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "after the integration merge the topic continues on develop (R10); the epic branch is retired by the person who merged and never recreated",
+      "expected": {
+        "branch_exists": true,
+        "recreated": false,
+        "work_on_develop": true
+      },
+      "id": "recovery-after-deletion",
+      "observed": {
+        "branch_exists": true,
+        "recreated": false,
+        "work_on_develop": true
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "an everyday workflow in the epic path builds documentation - publication is release-only (#1589)",
+      "expected": {
+        "doc_jobs": [
+          "docs-build"
+        ],
+        "in_pr_path": []
+      },
+      "id": "no-docs-job",
+      "observed": {
+        "doc_jobs": [
+          "docs-build"
+        ],
+        "in_pr_path": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "CI does not trigger for the epic base where the contract requires it - a child PR there would be green without checks",
+      "expected": {
+        "covered_by": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ],
+        "required": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ]
+      },
+      "id": "epic-ci-coverage",
+      "observed": {
+        "covered_by": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ],
+        "everyday": [
+          "codeql",
+          "pr-classification",
+          "qa",
+          "script-tests"
+        ],
+        "missing": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "an agent approved, labelled or merged the work it authored",
+      "expected": {
+        "offenders": []
+      },
+      "id": "no-self-approval",
+      "observed": {
+        "offenders": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "a commit reached a permanent branch without a merged PR carrying it",
+      "expected": {
+        "permanent_commits": []
+      },
+      "id": "no-direct-push",
+      "observed": {
+        "permanent_commits": []
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "master moved: nothing in this epic may reach production outside the protected promotion path (#1584); only a promotion_waiver naming that runbook passes",
+      "expected": {
+        "master_moved": false
+      },
+      "id": "production-untouched",
+      "observed": {
+        "master_moved": false,
+        "master_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "waiver": null
+      },
+      "ok": true,
+      "severity": "check"
+    },
+    {
+      "detail": "the integration grew a scheduler of its own instead of extending AO and the existing eligibility screen",
+      "expected": {
+        "scheduler_files": []
+      },
+      "id": "no-competing-orchestrator",
+      "observed": {
+        "scheduler_files": []
+      },
+      "ok": true,
+      "severity": "check"
+    }
+  ],
+  "commands": [
+    "git ls-remote --heads origin epic/epic-integration",
+    "git merge-base --is-ancestor 2222222222222222222222222222222222222222 epic/epic-integration",
+    "git merge-base --is-ancestor 2222222222222222222222222222222222222222 develop",
+    "git rev-parse --verify cccccccccccccccccccccccccccccccccccccccc",
+    "git merge-base --is-ancestor cccccccccccccccccccccccccccccccccccccccc epic/epic-integration",
+    "git rev-parse --verify ffffffffffffffffffffffffffffffffffffffff",
+    "git merge-base --is-ancestor ffffffffffffffffffffffffffffffffffffffff epic/epic-integration",
+    "git merge-base --is-ancestor 4444444444444444444444444444444444444444 develop"
+  ],
+  "commands_run": 8,
+  "counts": {
+    "branches": 3,
+    "commits": 9,
+    "issues": 2,
+    "pulls": 4
+  },
+  "epic": 1588,
+  "generated": "2026-11-24T22:33:44+00:00",
+  "mode": "dry-run",
+  "ok": true,
+  "repo": "mrmap-community/mrmap",
+  "scenario": "epic-integration-happy-path",
+  "schema": "epic-integration-dryrun/v1",
+  "writes": []
+}

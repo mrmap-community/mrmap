@@ -33,7 +33,9 @@ const measure = (page: import('@playwright/test').Page): Measured[] => {
       // an answer without a body keeps the wire size as its measure
     }
     entries.push({
-      url: url.replace('http://localhost:18085', ''),
+      // the origin is stripped, not substituted: the stack publishes any
+      // free host port (see README), so the spec must not assume one
+      url: url.replace(/^\w+:\/\/[^/]+/, ''),
       status: response.status(),
       contentEncoding: response.headers()['content-encoding'] ?? 'identity',
       wireBytes: sizes.responseBodySize,

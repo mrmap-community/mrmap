@@ -30,27 +30,36 @@ export MRMAP_BUILD_REVISION=$(git rev-parse HEAD)             # stamped into the
 
 docker compose up -d postgis redis mapserver backend
 docker compose up -d frontend        # builds the nginx image: npm install + vite build
+curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
+  --retry-max-time 120 "http://localhost:${EXTERNAL_PORT}/api/auth/session" -o /dev/null
 ```
 
 `EXTERNAL_*` is what the bundle is built against and what the `frontend`
 service publishes — port 18085 here, so the browser and the API share one
 origin behind nginx. Pick a free host port if 18085 is taken. The backend
-runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack;
-the acceptance surface is the nginx edge and the built bundle, identical to
-production for everything this suite measures (compression, routing, cache,
-assets, SPA behaviour).
+runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack.
+Wait for the API probe after starting nginx: nginx's health check alone does
+not prove the backend has finished starting. The acceptance surface is the
+nginx edge and the built bundle, identical to production for everything this
+suite measures (compression, routing, cache, assets, SPA behaviour).
 
 ## 2. The fixtures
 
 ```bash
-docker compose run --rm --no-deps -T backend \
+docker compose exec -T backend \
   python manage.py shell -c "$(cat frontend/e2e/acceptance_seed.py)"
 ```
 
-The seed flushes the disposable acceptance database and loads the
+Run the seed in the already-started backend so it does not start a second
+container running migrations against the same database. The seed flushes the
+disposable acceptance database and loads the
 repository's own behave fixtures (`test_users`, `test_keywords`, `test_crs`,
-`test_csw`, `test_wms`, `test_datasetmetadata`), so the browser gate sees the
-same deterministic rows the Gherkin suite pins by PK. It then creates the
+`test_csw`, `test_wms`, `test_datasetmetadata`, `test_background`,
+`test_harvesting_states`), so the browser gate sees the same deterministic rows
+the Gherkin suite pins by PK. The last two seed the screens whose lists were
+empty in the first acceptance run — a scenario that asserts rows on a screen
+with no rows cannot fail, which is why they belong to the seed and not to a
+scenario. It then creates the
 login user `acceptance` (password `Acceptance-e2e` — a fixture-only local
 credential, a superuser, which sees every seeded record through the audited
 break-glass of decision Q6=A), points WMS1 at the compose mapserver (real
@@ -72,9 +81,19 @@ docker run --rm --network host --ipc=host \
 `--network host` reaches the published `frontend` port from the agent host's
 network namespace; the browsers live in the image (`PLAYWRIGHT_BROWSERS_PATH`
 is baked in), the test package is pinned to `@playwright/test` 1.65.1 matching
-the image. Artifacts land in `.output/` (gitignored): `results.json`, traces
-and screenshots of failures, and `boot-metrics.json` — the measured #946
+the image. `npm ci` installs the harness — including `typescript`, so
+`npm run type-check` is a gate the package itself carries, not an import from
+the application. Artifacts land in `.output/` (gitignored): `results.json`,
+traces and screenshots of failures, and `boot-metrics.json` — the measured #946
 numbers (transferred vs decoded bytes per large payload).
+
+Before the run ends, `support/artifactReporter.ts` scrubs those artifacts
+(#1688 "Artifact redaction"): every credential-shaped value in any JSON below
+`.output/` is replaced and the login state of the setup project is deleted, so
+the `sessionid` cookie and the `authorization` entry of the `acceptance`
+superuser never leave the runner with a failure trace. A credential that
+survives the scrub turns the run red — the check is an assertion, not a log
+line, which is why it is a reporter's `onEnd` and not a worker `AfterAll`.
 
 Environment caveats recorded at the first full green run (2026-11-19,
 develop e68310921): the page's `index.html` also references two leaflet
@@ -82,3 +101,43 @@ scripts from the unpkg CDN — the harness needs outbound network, and tile
 requests to openstreetmap.org shape the map's backdrop but no assertion
 depends on them. The numbers of #946 are only comparable within this stack —
 the issue's rule against comparing unlike environments applies.
+
+## 4. The Gherkin layer (issue #1689)
+
+`playwright-bdd` 9.2.1 compiles `features/*.feature` into `.features-gen/`
+(gitignored) and the result runs as the `bdd` **project of this same config** —
+one runner, one login state, one artifact directory for both layers. It is not
+a second runtime: no Vite server, no second browser, no second stack.
+
+```bash
+# one command for everything: generated scenarios + the plain specs of #1034
+bash -lc 'npm ci --no-audit --no-fund && npm test'
+
+# the Gherkin layer alone, and the tiers of it
+npm run type-check         # the package's own tsc gate, no application imports
+npm run bdd:gen            # compile only — fails on an undefined step
+npm run bdd:smoke          # the @smoke tier, i.e. everything but the canary
+npm run bdd:test           # every scenario including the canary
+npm run bdd:demonstrate    # the canary alone: must exit nonzero (#1689 AC)
+npm run bdd:steps          # the step grammar as documentation
+```
+
+`npm test` generates before it runs — `bddgen && playwright test …` — because a
+gate that stays green when `.features-gen/` is missing would not gate the
+Gherkin layer at all: Playwright finds no `bdd` project and reports success. It
+also excludes `@intentional-failure`: that scenario asserts text the
+application never renders, which is the proof that a red scenario fails the run
+loudly and leaves a trace. It is opt-in by name, never part of a green tier.
+
+Every run also writes the Cucumber-compatible reports of the Gherkin layer into
+`cucumber-report/` (gitignored): `cucumber.json` for machine consumers and
+`cucumber.html` as the readable report. They live beside, not inside, `.output/`
+because Playwright wipes its `outputDir` when a run begins — the Cucumber
+wrapper opens its stream while reporters are constructed, so a file inside
+`.output/` is deleted again before anything is written to it. The trace of a red
+scenario stays where Playwright puts it: `.output/<test-dir>/trace.zip`.
+
+Where to put a scenario, and what a step may say, is specified by #1688 (step
+grammar) and #1687 (waiting and assertion invariants): a step is one of
+`Given/When/Then` of the grammar, all UI knowledge lives in
+`support/adapters/`, and no step waits on a timeout or a CSS selector.

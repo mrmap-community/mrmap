@@ -9,16 +9,22 @@ the CLI or MrMap's task registry. ``docker-compose.yml`` runs it for
 import os
 import socket
 import sys
+from urllib.parse import quote
 
 from celery import Celery
 
 
 def ping(destination):
     # Match MrMap.settings.BROKER_URL without loading the application. The
-    # stock deployment uses Celery's default control exchange and JSON.
+    # stock deployment uses Celery's default control exchange and JSON. The
+    # password is the same variable settings reads (#1473) and joins the URL
+    # the same way: kombu percent-decodes the userinfo, so the password is
+    # encoded here; empty means the plain host:port form of no auth.
     host = os.environ.get("REDIS_HOST", "localhost")
     port = os.environ.get("REDIS_PORT", "6379")
-    with Celery("healthcheck", broker=f"redis://{host}:{port}",
+    password = os.environ.get("REDIS_PASSWORD", "")
+    userinfo = f":{quote(password, safe='!$&()*+,;=')}@" if password else ""
+    with Celery("healthcheck", broker=f"redis://{userinfo}{host}:{port}",
                 fixups=[], set_as_current=False) as app:
         app.conf.update(
             broker_connection_timeout=2,

@@ -1,0 +1,73 @@
+/*
+ * MrMap documentation portal (#1597, epic #1589).
+ *
+ * Deliberately small. sphinx_rtd_theme already provides the navigation, the
+ * skip-to-content link, the landmarks and the readable measure for prose, and
+ * overriding a theme from the docs tree is how a portal ends up with a
+ * stylesheet nobody owns. These rules cover only what the theme gets wrong for
+ * *this* corpus: the long code blocks the configuration pages quote, the wide
+ * tables the design notes carry, and the two containers docs/source/_ext/
+ * mrmap_docs.py emits. The class names below are the ones that extension
+ * writes - a rule for a class nothing emits is dead weight that reads as intent.
+ */
+
+/* Long lines: the corpus quotes settings, YAML and SQL. A block that overflows
+ * its column pushes the whole page sideways on a phone, which is the commonest
+ * way a runbook page becomes unreadable. */
+pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* The design notes carry tables wider than the reading column. Scrolling the
+ * table inside its own box keeps the prose measure intact. */
+table.docutils {
+    display: block;
+    overflow-x: auto;
+}
+
+/* Offline diagram mode: a mermaid or graphviz block becomes its visible source
+ * inside a labelled container. Without this the source reads as an accident
+ * rather than as a diagram the build chose not to render. */
+.mrmap-diagram {
+    margin: 1em 0;
+    padding: 0.75em 1em;
+    border-left: 3px solid #2980b9;
+    background: #f8f9fa;
+}
+
+.mrmap-diagram__title,
+.mrmap-diagram__note {
+    font-size: 0.85em;
+    font-style: italic;
+    color: #404040;
+}
+
+.mrmap-diagram__alt {
+    margin-bottom: 0.5em;
+}
+
+/* An autodoc placeholder names the module whose reference was not generated. It
+ * must not read as documentation that happens to be short. */
+.mrmap-reference-unavailable {
+    margin: 1em 0;
+    padding: 0.5em 0.75em;
+    border-left: 3px solid #6c757d;
+    background: #f8f9fa;
+}
+
+.mrmap-reference-unavailable__title {
+    font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+    .mrmap-diagram,
+    .mrmap-reference-unavailable {
+        background: #2d2d2d;
+    }
+
+    .mrmap-diagram__title,
+    .mrmap-diagram__note {
+        color: #bfbfbf;
+    }
+}

@@ -1,0 +1,394 @@
+{
+  "_about": "Machine-readable description of the low-memory deployment modes of mrmap (issue #1624, epic #1612). This file follows the convention of scripts/release_lifecycle.json (#1585): it is the interface the documentation automation (#1604) generates from and the interface an offline suite verifies against. scripts/test_low_memory_deployment.py holds every fact here against the committed reality it names - the compose files, the two resolvers which actually decode the knobs, the measurement pages it quotes - so a mode which stops being real goes red here before an operator reads it. It describes the modes and their measured tradeoffs; it holds no number which is not on a linked page, and it labels every figure measured or derived.",
+  "schema_version": 1,
+  "epic": 1612,
+  "runbook": {
+    "page": "docs/source/administration/low-memory-operator-runbook.rst",
+    "label": "low-memory-operator-runbook",
+    "sections": [
+      "Modes",
+      "Startup and shutdown",
+      "Dependencies and required services",
+      "The knobs and their defaults",
+      "Tradeoffs",
+      "Health checks",
+      "Telemetry",
+      "Scenarios",
+      "Rollout",
+      "Rollback and upgrade",
+      "Evidence and open risks"
+    ]
+  },
+  "authority": {
+    "admission": "operator/external execution environment",
+    "admission_never_overridden_by": "this page, the runbook or any number in this file",
+    "matrix_checker": "scripts/compose_profiles_smoke.py",
+    "sampler": "scripts/stack_memory_profile",
+    "web_bench": "scripts/http_process_bench.py"
+  },
+  "modes": [
+    {
+      "id": "full",
+      "compose_files": [
+        "docker-compose.yml"
+      ],
+      "profiles": [],
+      "web_shape": "4 workers x 4 threads HTTP, 1 ASGI websocket worker, preload off",
+      "pool_bounds": "4 reserved / 20 open per pooled process",
+      "is_contract": true,
+      "note": "the documented deployment contract of docs/source/installation/index.rst - unchanged by epic #1612, including the log store, both operator UIs and the cold-start wait on victoria-logs"
+    },
+    {
+      "id": "lightweight",
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.lightweight.yml"
+      ],
+      "profiles": [
+        "observability",
+        "admin",
+        "testing"
+      ],
+      "web_shape": "same as full unless the mode below is set",
+      "pool_bounds": "same as full unless the mode below is set",
+      "is_contract": false,
+      "note": "opt-in layer, applied LAST; profiles are opt-in so an inactive tier is never created, never restarted after a reboot and publishes no host port"
+    },
+    {
+      "id": "low-memory-web-tier",
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.lightweight.yml"
+      ],
+      "profiles": [],
+      "env": {
+        "MRMAP_LOW_MEMORY": "1"
+      },
+      "web_shape": "1 worker x 2 threads HTTP, 1 ASGI websocket worker, preload off",
+      "pool_bounds": "1 reserved / 4 open per pooled process",
+      "is_contract": false,
+      "note": "one variable moves the web shape and the pool bounds together (#1617 and #1621 read the same mode); an explicit GUNICORN_* or *_BACKEND_RESERVED_CONNECTIONS value always wins over the mode"
+    },
+    {
+      "id": "test-concurrency",
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.dev.yml",
+        "docker-compose.prebuilt.yml",
+        "docker-compose.lightweight.yml",
+        "docker-compose.test-low-memory.yml"
+      ],
+      "profiles": [
+        "testing"
+      ],
+      "env": {
+        "MRMAP_TEST_WORKERS": "1"
+      },
+      "web_shape": "not a deployment mode - test containers only",
+      "pool_bounds": "not a deployment mode - test containers only",
+      "is_contract": false,
+      "note": "the #1619 preset limits the test runners to one worker; it changes no pool, heap, database or production setting and does not waive the admission gate"
+    }
+  ],
+  "tiers": {
+    "observability": [
+      "victoria-logs",
+      "grafana"
+    ],
+    "admin": [
+      "pgadmin",
+      "flower"
+    ],
+    "testing": [
+      "pre-commit-check",
+      "behave",
+      "django-tests",
+      "frontend-tests"
+    ]
+  },
+  "core_services": [
+    "postgis",
+    "redis",
+    "docker-api",
+    "backend",
+    "celery-worker",
+    "celery-beat",
+    "frontend"
+  ],
+  "knobs": [
+    {
+      "name": "CELERY_WORKER_CONCURRENCY",
+      "default": "4",
+      "owner": "docker-compose.yml",
+      "reader": "celery (environment)",
+      "docs": "development-environment"
+    },
+    {
+      "name": "CELERY_WORKER_MAX_TASKS_PER_CHILD",
+      "default": "1000",
+      "owner": "docker-compose.yml",
+      "reader": "celery (environment)",
+      "docs": "development-environment"
+    },
+    {
+      "name": "CELERY_WORKER_MAX_MEMORY_PER_CHILD",
+      "default": "",
+      "owner": "docker-compose.yml",
+      "reader": "celery (environment)",
+      "docs": "celery-queues"
+    },
+    {
+      "name": "CELERY_WORKER_REVOKES_MAX",
+      "default": "2000000",
+      "owner": "docker-compose.yml",
+      "reader": "celery (environment)",
+      "docs": "celery-queues"
+    },
+    {
+      "name": "REDIS_MAXMEMORY",
+      "default": "768mb",
+      "owner": "docker-compose.yml",
+      "reader": "redis-server command line",
+      "docs": "development-environment"
+    },
+    {
+      "name": "GUNICORN_WORKERS",
+      "default": "4 (1 with MRMAP_LOW_MEMORY)",
+      "owner": "backend/.bash_scripts/process_defaults.sh",
+      "reader": "backend/.bash_scripts/startup.sh",
+      "docs": "http-process-profiles"
+    },
+    {
+      "name": "GUNICORN_THREADS",
+      "default": "4 (2 with MRMAP_LOW_MEMORY)",
+      "owner": "backend/.bash_scripts/process_defaults.sh",
+      "reader": "backend/.bash_scripts/startup.sh",
+      "docs": "http-process-profiles"
+    },
+    {
+      "name": "GUNICORN_WS_WORKERS",
+      "default": "1",
+      "owner": "backend/.bash_scripts/process_defaults.sh",
+      "reader": "backend/.bash_scripts/startup_ws.sh",
+      "docs": "http-process-profiles"
+    },
+    {
+      "name": "GUNICORN_PRELOAD",
+      "default": "off",
+      "owner": "backend/.bash_scripts/process_defaults.sh",
+      "reader": "backend/.bash_scripts/startup.sh",
+      "docs": "http-process-profiles"
+    },
+    {
+      "name": "MRMAP_LOW_MEMORY",
+      "default": "off",
+      "owner": "docker-compose.yml pass-through",
+      "reader": "backend/.bash_scripts/process_defaults.sh and backend/MrMap/settings.py",
+      "docs": "http-process-profiles"
+    },
+    {
+      "name": "MIN_BACKEND_RESERVED_CONNECTIONS",
+      "default": "4 (1 with MRMAP_LOW_MEMORY)",
+      "owner": "docker/backend/.mrmap.env",
+      "reader": "backend/MrMap/settings.py",
+      "docs": "db-pool-memory"
+    },
+    {
+      "name": "MAX_BACKEND_RESERVED_CONNECTIONS",
+      "default": "20 (4 with MRMAP_LOW_MEMORY)",
+      "owner": "docker/backend/.mrmap.env",
+      "reader": "backend/MrMap/settings.py",
+      "docs": "db-pool-memory"
+    },
+    {
+      "name": "MRMAP_TEST_WORKERS",
+      "default": "1 with the #1619 preset; otherwise Django 4 / Vitest automatic",
+      "owner": "docker-compose.test-low-memory.yml",
+      "reader": "the test runners of django-tests and frontend-tests",
+      "docs": "test-memory"
+    }
+  ],
+  "health_checks": [
+    {
+      "service": "postgis",
+      "test": [
+        "CMD-SHELL",
+        "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""
+      ],
+      "interval": "10s"
+    },
+    {
+      "service": "redis",
+      "test": [
+        "CMD-SHELL",
+        "redis-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping"
+      ],
+      "interval": "5s"
+    },
+    {
+      "service": "celery-worker",
+      "test": [
+        "CMD-SHELL",
+        "python -m system.worker_healthcheck"
+      ],
+      "interval": "15s"
+    },
+    {
+      "service": "celery-beat",
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import pathlib,time; p=pathlib.Path('/var/mrmap/run/beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"
+      ],
+      "interval": "10s"
+    }
+  ],
+  "figures": [
+    {
+      "id": "full-warm-idle",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "charge_mib": 3949,
+      "committed_mib": 2005,
+      "row": "**stack sum**",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "container"
+    },
+    {
+      "id": "lightweight-core-warm-idle",
+      "kind": "derived",
+      "source": "compose-profiles",
+      "charge_mib": 1558,
+      "committed_mib": 1340,
+      "row": "**lightweight default (core only)**",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "combination"
+    },
+    {
+      "id": "lightweight-plus-observability-warm-idle",
+      "kind": "derived",
+      "source": "compose-profiles",
+      "charge_mib": 1613,
+      "committed_mib": 1379,
+      "row": "lightweight + ``observability``",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "combination"
+    },
+    {
+      "id": "web-tier-production-idle",
+      "kind": "measured",
+      "source": "http-process-profiles",
+      "charge_mib": 641,
+      "committed_mib": 632,
+      "row": "production 4 x 4",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
+    },
+    {
+      "id": "web-tier-low-memory-idle",
+      "kind": "measured",
+      "source": "http-process-profiles",
+      "charge_mib": 290,
+      "committed_mib": 283,
+      "row": "low-memory 1 x 2",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
+    },
+    {
+      "id": "web-tier-production-preload-idle",
+      "kind": "measured",
+      "source": "http-process-profiles",
+      "charge_mib": 324,
+      "committed_mib": 315,
+      "row": "production 4 x 4, preload",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
+    },
+    {
+      "id": "redis-warm-idle",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "charge_mib": 12,
+      "committed_mib": 10,
+      "row": "redis",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "container"
+    },
+    {
+      "id": "suite-full-transient",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "row": "suite-full",
+      "columns": [
+        "stack charge peak",
+        "committed peak"
+      ],
+      "charge_mib": 7350,
+      "committed_mib": 4973,
+      "note": "the development stack of twelve services with the check containers booting; scenario B of the runbook carries its +3.3 GiB / +2.9 GiB delta over the 4002/2063 idle row as an UPPER BOUND for a core-only host, never as an expectation",
+      "key_column": "phase"
+    },
+    {
+      "id": "lightweight-plus-admin-warm-idle",
+      "kind": "derived",
+      "source": "compose-profiles",
+      "key_column": "combination",
+      "row": "lightweight + ``admin``",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "charge_mib": 1936,
+      "committed_mib": 1621,
+      "note": "the row Rollout step 3 gates an admin-on stack on"
+    },
+    {
+      "id": "full-stack-warm-idle-phase",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "key_column": "phase",
+      "row": "warm-idle",
+      "columns": [
+        "stack charge peak",
+        "committed peak"
+      ],
+      "charge_mib": 4002,
+      "committed_mib": 2063,
+      "note": "the idle row the suite-full transient is measured against"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "agent-cgroup-16gib",
+      "status": "measured",
+      "note": "the environment of #1613, #1617, #1621 and #1619: one agent cgroup limited to 16 GiB, kernel 6.12, docker 29.8.2; historical measurement environment; resource management and concurrency now belong to the operator/external execution environment"
+    },
+    {
+      "id": "developer-host-32gib",
+      "status": "not measured",
+      "note": "the 32-GiB Ubuntu host of the epic goal, running MrMap beside a local coding model. No number on any page of this repository measured one; a deployment fitting it is a projection to be tested on that host, not a safety promise"
+    }
+  ]
+}

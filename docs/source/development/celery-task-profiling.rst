@@ -31,7 +31,7 @@ so an operator can leave it on for one task while chasing one incident.
 What one switch turns on
 ========================
 
-Four environment variables reach the settings of the same name
+Six environment variables reach the settings of the same name
 (``backend/MrMap/settings.py``); every read happens per signal, so a worker
 picks up a change after its next task without a rebuild:
 
@@ -51,8 +51,24 @@ picks up a change after its next task without a rebuild:
 ``MRMAP_TASK_PROFILING_BUFFER_LIMIT``
     how many reports one process holds before it starts dropping them
     (default 200). A drop is counted, never blocking and never raised.
+``MRMAP_TASK_PROFILING_MEMORY_MIB``
+    how far an attempt must push the process's high water mark before an
+    unaccounted run is called ``memory_bound`` rather than
+    ``cpu_or_unaccounted`` (default ``128``). An absolute figure rather than a
+    share of the attempt: a peak is worth naming because of how close it comes
+    to the container's ceiling, not because of how long the attempt ran. ``0``
+    switches the reading off, which leaves ``cpu_or_unaccounted`` the only
+    answer for a slow attempt whose SQL and HTTP totals explain nothing.
+``MRMAP_TASK_PROFILING_MEMORY_SAMPLE_SECONDS``
+    the seam duration from which the closing memory read is worth paying for
+    (default ``0.5``). The ``smaps_rollup`` behind the private-dirty figure is
+    a read over every mapping of the process, so a task of ten thousand fast
+    queries must not pay it per query, while the statement or request which
+    held the cursor for seconds is exactly where a peak is expected to appear.
+    The read which opens an attempt's span is unconditional, since that is what
+    the movement is measured from.
 
-Three more numbers tune the reading rather than the collection. They are read
+Four more numbers tune the reading rather than the collection. They are read
 from the settings through the same ``getattr`` seam, each with the default in
 brackets, so a deployment overrides them in the settings file when it needs to
 and nobody has to name them otherwise: ``TASK_PROFILING_SLOW_SECONDS`` (the
@@ -104,9 +120,11 @@ What a report says
 ===================
 
 The committed sample is
-``evidence/task-profiling-sample-output.json`` - four attempts produced by the
+:download:`evidence/task-profiling-sample-output.json
+<evidence/task-profiling-sample-output.json>` - four attempts produced by the
 shipped code path, one per diagnosis, at the default thresholds. Its four
-``shape`` values are the whole vocabulary:
+``shape`` values are the four readings #1389 names; the fifth the code answers
+today arrived with #1620 and is documented after them:
 
 ``sql_bound``
     the ``build_webmapservice`` attempt ran 61.6 s of which 61.0 s was SQL, and
@@ -133,11 +151,54 @@ shipped code path, one per diagnosis, at the default thresholds. Its four
     recorded on its attempt, so a chain of quick retries which together occupy a
     worker for ten minutes reads as what it is instead of vanishing.
 
-The other three values answer the honest edges: ``cpu_or_unaccounted`` for a
+The other values answer the honest edges: ``cpu_or_unaccounted`` for a
 slow attempt whose SQL and HTTP totals do not explain it - *named*, never
 renamed into a fake CPU total - ``mixed`` for a slow attempt no category
 dominates, and ``null`` for an attempt never measured against an active time,
 which stays unknown.
+
+``memory_bound`` (#1620)
+    the fifth reading of an unaccounted slow attempt: it consulted only after
+    neither SQL nor HTTP dominated, and only once the attempt pushed the
+    process's high water mark by ``MRMAP_TASK_PROFILING_MEMORY_MIB`` (128 MiB
+    by default). Without it the only answer a memory-hungry task can get is
+    ``cpu_or_unaccounted``, which sends the reader looking at CPU when the cost
+    is the objects the attempt held. The committed sample predates it and
+    therefore shows four shapes, not five - whoever refreshes that sample must
+    add a ``memory_bound`` attempt *and* the six ``memory_*`` keys below, or
+    the sample will contradict this section.
+
+Alongside the shape, a profiled attempt carries what it did to the memory of
+its worker, read off procfs:
+
+``memory_peak_rise_mib``
+    how far the attempt pushed the process's high water mark - the number a
+    peak measurement is really about, since a prefork worker's peak is only
+    ever reached during some attempt's work;
+``memory_retained_mib``
+    how much resident memory the attempt did *not* give back - the growth in
+    RSS between its first and its last sample, which is what a retained object
+    looks like from outside, and the retained-object half of #1620;
+``memory_peak_mib`` / ``memory_private_dirty_mib``
+    the absolute peak and the private dirty set at the last sample;
+``memory_limit_mib`` / ``memory_of_limit``
+    the container's ceiling and how far the peak reached into it, because a
+    ceiling is what turns a peak into a risk of an OOM kill. The ceiling is
+    read per signal and never cached: a prefork worker lives across
+    ``docker update --memory``, which is exactly what an operator reaches for
+    during the incident a report is read in, and a cached ceiling would keep
+    judging every later peak against a limit which no longer exists.
+
+The absolute values belong to the process, not to the attempt - a prefork
+worker is reused and already holds whatever earlier attempts left behind - so
+everything attributable is the *movement* inside the attempt's span. Each key
+is present only when the reading behind it answered: a procfs without
+``smaps_rollup`` costs ``memory_private_dirty_mib``, an unlimited container
+costs ``memory_limit_mib`` and ``memory_of_limit``, and with no procfs at all -
+or an attempt never sampled - the keys are simply absent. An absent reading is
+never reported as ``null`` or as a zero: a reader must not be able to mistake
+"the platform could not answer" for "the attempt measured zero", which in an
+OOM investigation is the difference between a lead and a dead end.
 
 Chains and retries correlate through ``root_id``/``parent_id``/``queue``, which
 celery already carries: every report of one chain shares its ``root_id``, so a

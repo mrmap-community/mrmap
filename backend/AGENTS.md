@@ -150,9 +150,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-dep
 ```
 
 Full Django suite (uses the service's coverage command). This is the heavier
-job class measured by #1055 - ask the capacity gate with
-`scripts/agent_capacity --need suite` before starting one, not the plain
-default, so a second heavy job is refused while the suite is charging:
+job class measured by #1055. Before starting one, the operator/external execution
+environment must admit its larger memory budget and limit concurrent workloads;
+keep one database/test suite per isolated Compose project:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm django-tests

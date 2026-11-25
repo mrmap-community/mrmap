@@ -14,9 +14,7 @@ came from an actor GitHub reports as belonging to the repository, appends one
 audit-trail comment per decided question, and `decisions register` syncs the
 "Decision register" table in the issue body from that audit trail.
 
-The audit trail is the truth; the register table is a generated view of it,
-exactly like the claim comments are the truth and the WIP board is a view of
-those. Answering a design question is never implementation approval: the
+The audit trail is the truth; the register table is a generated view of it. Answering a design question is never implementation approval: the
 `agent: approved` label and the human pull-request review stay with people.
 
 Usage:
@@ -45,8 +43,6 @@ Offline checks for this file live beside it: python3 scripts/test_decisions.py
 
 import argparse
 import hashlib
-import importlib.machinery
-import importlib.util
 import json
 import os
 import random
@@ -54,13 +50,31 @@ import re
 import string
 import subprocess
 import sys
+from datetime import datetime, timezone
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_spec = importlib.util.spec_from_loader(
-    "mrmap_wip", importlib.machinery.SourceFileLoader("mrmap_wip", os.path.join(_HERE, "wip")))
-wip = importlib.util.module_from_spec(_spec)
-sys.modules.setdefault("mrmap_wip", wip)
-_spec.loader.exec_module(wip)
+# Keep decision issue identity independent of the retired claim-board module.
+BRANCH_ISSUE_RE = re.compile(r"(?:^|/)(?:issue[-_]?|#)(\d+)")
+LEGACY_MARKS = (
+    re.compile(r"<!-- agent-claim (\{.*?\}) -->"),
+    re.compile(r"<!-- agent-question client=(\S+) id=(\S+) -->"),
+    re.compile(r"agent-board v1"),
+)
+
+
+def branch_issue(branch):
+    match = BRANCH_ISSUE_RE.search(branch or "")
+    return int(match.group(1)) if match else None
+
+
+def unquoted_match(pattern, body):
+    """Quoted historical markers belong to a human reply, not its source comment."""
+    for line in body.splitlines():
+        if not line.lstrip().startswith(">"):
+            match = pattern.search(line)
+            if match:
+                return match
+    return None
+
 
 REQUEST_RE = re.compile(r"<!--\s*decision-request\s+(\{.*?\})\s*-->", re.DOTALL)
 AUDIT_RE = re.compile(r"<!--\s*decision-audit\s+(\{.*?\})\s*-->", re.DOTALL)
@@ -150,25 +164,13 @@ except Exception:  # a frozen identity beats a crashing import
 def infer_issue(explicit):
     """The issue to act on. A branch that only echoes a prompt names nothing.
 
-    The number is read with scripts/wip's own `branch_issue`, the same function
-    the board claims go through: only a convention-shaped segment (`issue-<N>`
-    at the start of a path segment) carries an issue. AO names worktree branches
-    from the spawn prompt text, so a slug like `ao/implement-github-issue-6/root`
-    echoes a prompt and declares nothing - #1196 claimed closed issues #5-#7 that
-    way, and a decision request posted on a wrong issue asks a human to decide
-    something for work that is not theirs. Reusing the function rather than
-    copying the pattern is deliberate: two rules that can drift are two rules
-    that will.
-
-    What deliberately differs from `wip claim` is the conflict policy. There, an
-    explicit number that disagrees with a convention-shaped branch is refused,
-    because the branch *is* the claim. Here it is not: recording and reconciling
-    decisions for other issues from a housekeeping branch that names its own
-    issue is a normal maintenance act. So a mismatch is named on stderr and the
-    explicit number - the caller's stated intent - is used.
+    Only an issue-number segment at the start of a path component names an
+    issue. A prompt echo containing digits does not. An explicit issue number
+    takes precedence, with a note when it differs from the branch's number.
+    This keeps the existing decision protocol usable without claim tooling.
     """
     branch = cur_branch()
-    parsed = wip.branch_issue(branch)
+    parsed = branch_issue(branch)
     if explicit:
         if not re.fullmatch(r"#?\d+", str(explicit)):
             die("'%s' is not an issue number" % explicit)
@@ -225,7 +227,7 @@ def event_key(qid, src_ref, state, option):
 
 
 def now_iso():
-    return wip.now_iso()
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ------------------------------------------------------------- scanning --
@@ -330,14 +332,12 @@ def adopt_recommendation(outcome, ask):
 def machine_comment(c):
     """Comments this repository's tools manage never ask themselves and never answer.
 
-    wip's is_machine_comment covers the claim, question and board markers on
-    unquoted lines; the decision markers are added here so an agent's request
-    comment cannot answer the questions it asks.
+    Historical claim/question/board markers remain excluded after retirement,
+    alongside this protocol's request and audit markers. A quoted marker does
+    not turn a human reply into a machine comment.
     """
     body = c.get("body") or ""
-    if wip.is_machine_comment(c):
-        return True
-    return any(rx and wip.unquoted_match(rx, body) for rx in DEC_MARKS)
+    return any(unquoted_match(pattern, body) for pattern in (*LEGACY_MARKS, *DEC_MARKS))
 
 
 def c_user(c):

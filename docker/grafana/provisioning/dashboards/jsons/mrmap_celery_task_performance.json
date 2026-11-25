@@ -1,0 +1,456 @@
+{
+ "uid": "mrmap-celery-task-performance",
+ "title": "MrMap Celery task performance",
+ "tags": [
+  "mrmap",
+  "celery",
+  "performance"
+ ],
+ "timezone": "browser",
+ "editable": true,
+ "schemaVersion": 39,
+ "version": 1,
+ "refresh": "",
+ "time": {
+  "from": "now-6h",
+  "to": "now"
+ },
+ "description": "Celery task-performance series of #1391 (epic #1387 V2): who occupies the workers, which classes are slow, and the drill-down from a slow class to one attempt. Published by system.tasks.publish_task_performance while MRMAP_TASK_PERFORMANCE_EXPORT=on; the record contract and the operator runbook are in docs/source/development/celery-task-performance.rst.",
+ "panels": [
+  {
+   "id": 1,
+   "type": "timeseries",
+   "title": "Fleet occupancy (worker slot seconds per window)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "What fraction of the worker pool was busy. One record per window (MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES); an empty bucket means beat did not fire, not that nothing ran - see the windows panel. docs/source/development/celery-task-performance.rst (#1391).",
+   "gridPos": {
+    "h": 8,
+    "w": 16,
+    "x": 0,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `slot_seconds=<slot_seconds> ` | stats by (_time:5m) sum(slot_seconds) as slot_seconds"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "type": "timeseries",
+   "title": "Windows emitted (fire coverage)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Coverage of the series itself: seconds of window actually published. A gap here is a missing beat fire, and any gap in the other panels means this one first.",
+   "gridPos": {
+    "h": 8,
+    "w": 8,
+    "x": 16,
+    "y": 0
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `window_seconds=<window_seconds> ` | stats by (_time:5m) sum(window_seconds) as window_seconds"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "timeseries",
+   "title": "Task class occupancy (slot seconds)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Who occupies the workers: worker slot seconds per task class per window. The class is the module of the task name under the bounded class rule of #1326, so the cardinality stays bounded.",
+   "gridPos": {
+    "h": 9,
+    "w": 16,
+    "x": 0,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "showLegend": true
+     },
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `slot_seconds=<slot_seconds> ` | stats by (task_class, _time:5m) sum(slot_seconds) as slot_seconds | sort by (slot_seconds desc)"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "table",
+   "title": "Task class occupancy (interval total)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The same series ranked over the whole interval - the row an operator clicks into.",
+   "gridPos": {
+    "h": 9,
+    "w": 8,
+    "x": 16,
+    "y": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `slot_seconds=<slot_seconds> ` | stats by (task_class) sum(slot_seconds) as slot_seconds | sort by (slot_seconds desc)"
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "table",
+   "title": "Slow classes (95th percentile of a run)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Slow-task operator drill-down entry: the wall time of the 95th percentile of a single run, highest window of the interval. Absent means nothing was measured, not fast - #1330 keeps the two apart.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 17
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `task_class=<task_class> ` | extract `active_p95=<active_p95> ` | stats by (task_class) max(active_p95) as active_p95 | sort by (active_p95 desc)"
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "table",
+   "title": "Attempts still open, by class (running vs past the grace)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The standing state of the attempt table, read off the coverage records of the last fire: open_running is an attempt the fleet may still be executing (expected, and a genuinely long-running task keeps showing here), open_abandoned is an attempt older than the abandon grace whose worker never reported an end - the crash residue. The two are never added together: a long task must not read as crashed workers. Newest fire per class, never an aggregate: these records are a gauge read per fire, so max() over the interval would show the worst fire of the window after a deployment recovered from its crash, and sum() would count one residue once per fire. Bounded newest-first at 200 rows, the default MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS - the cap of one fire's class_coverage records - so the listing is complete for a default deployment; a deployment which raised that knob beyond 200 sees the newest 200 classes and the rest are absent without a marker, which is why the bound is pinned against the setting by the dashboard test.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 17
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_coverage\" | extract `task_class=<task_class> ` | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | fields _time, task_class, open_running, open_abandoned, open_total | sort by (_time) desc | limit 200"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "type": "timeseries",
+   "title": "Failed, retried and revoked attempts (per window)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The outcomes of the window, from the fleet record: the issue asks for failures and retries to be visible without a broker export, and they are the first thing to compare against a class which suddenly occupies more of the workers - a retry burns the slot again. Plotted per window rather than per interval, because a retry storm is a moment, not a total. An absent line is an unmeasured count of #1330, not a zero.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 25
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "A",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `failed=<failed> ` | stats by (_time:5m) sum(failed) as failed"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "B",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `retried=<retried> ` | stats by (_time:5m) sum(retried) as retried"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "C",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `revoked=<revoked> ` | stats by (_time:5m) sum(revoked) as revoked"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "type": "timeseries",
+   "title": "Queue wait beside wall time (95th percentile)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The two durations of #1330, on one plot and deliberately never added: a task is slow either because it waited for a worker or because it ran long, and the two have different fixes - more workers versus a smaller task. wait_p95 is only a number where a publish timestamp made it measurable; the wait_coverage of the fleet record says how much of the window had one.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 25
+   },
+   "targets": [
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "A",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `wait_p95=<wait_p95> ` | stats by (_time:5m) max(wait_p95) as wait_p95"
+    },
+    {
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "logs",
+     "refId": "B",
+     "expr": "\"Celery task performance\" \"event=fleet\" | extract `active_p95=<active_p95> ` | stats by (_time:5m) max(active_p95) as active_p95"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "table",
+   "title": "Queues (executions and occupancy)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Executions and worker slot seconds per queue, without a broker export.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_bucket\" | extract `queue=<queue> ` | extract `executions=<executions> ` | extract `slot_seconds=<slot_seconds> ` | stats by (queue) sum(executions) as executions, sum(slot_seconds) as slot_seconds | sort by (executions desc)"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "type": "table",
+   "title": "Periodic tasks behind the samples",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "Which beat rows the sampled attempts came from; the empty name is a task called directly. Epic #1324: a row which stops firing shows up as its absence here.",
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 33
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_sample\" | extract `periodic_name=<periodic_name> ` | stats by (periodic_name) count() as samples"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "type": "table",
+   "title": "Drill-down samples of the heaviest classes",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The operator's path from a slow class to one attempt: task_id is the key of the CeleryTaskAttempt of #1330. Capped on purpose (MRMAP_TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES x MRMAP_TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS).",
+   "gridPos": {
+    "h": 10,
+    "w": 24,
+    "x": 0,
+    "y": 41
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=class_sample\" | extract `task_class=<task_class> ` | extract `task_id=<task_id> ` | extract `outcome=<outcome> ` | extract `active_seconds=<active_seconds> ` | extract `wait_seconds=<wait_seconds> ` | fields _time, task_class, task_id, outcome, active_seconds, wait_seconds | sort by (_time) desc"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "stat",
+   "title": "Coverage of the deployment (crash residue right now)",
+   "datasource": {
+    "type": "victoriametrics-logs-datasource",
+    "uid": "victorialogs"
+   },
+   "description": "The series reports its own gaps: attempts still open without an end, split by whether they may still be running or are past the abandon grace. A deployment whose workers died mid-task shows open_abandoned > 0 even though it publishes no executions. Read the residue row before trusting any number beside it. Newest fire, never an aggregate: this is the standing state of the table read at every fire, so max() over the interval answers how bad the worst fire of the window was - and keeps showing a crash the deployment has since recovered from.",
+   "gridPos": {
+    "h": 5,
+    "w": 24,
+    "x": 0,
+    "y": 51
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {}
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "victoriametrics-logs-datasource",
+      "uid": "victorialogs"
+     },
+     "editorMode": "code",
+     "queryType": "stats",
+     "expr": "\"Celery task performance\" \"event=coverage\" | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | fields _time, open_running, open_abandoned, open_total | sort by (_time) desc | limit 1"
+    }
+   ]
+  }
+ ]
+}

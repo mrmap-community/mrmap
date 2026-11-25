@@ -29,7 +29,7 @@ Pillow==13.0.0
 # http client lib
 requests==2.34.2
 # wsgi application server
-gunicorn==26.2.0
+gunicorn==27.0.1
 # asgi application server
 uvicorn==0.54.0
 # adds rest based views
@@ -40,7 +40,7 @@ djangorestframework-gis==1.3.0
 djangorestframework-jsonapi==9.0.0
 # adds redis cache backed
 # BLOCKING: websockets (channels) are timedout
-redis==8.1.0
+redis==8.2.0
 # adds background task processing 
 celery==5.7.0
 # BLOCKING: django-celery-beat 2.9.0 depends on Django<6.1 and >=2.2
@@ -53,8 +53,8 @@ channels[daphne]==4.3.2
 channels-redis==4.3.0
 django-cte==5.0.1
 drf-spectacular-jsonapi==0.7.0
-camel-converter==6.0.1
-django-rest-knox==5.1.1
+camel-converter==6.0.2
+django-rest-knox==6.0.0
 django-pgviews-redux==1.3.0
 # manages the keyword maintenance triggers through migrations (#1009)
 django-pgtrigger==4.17.0

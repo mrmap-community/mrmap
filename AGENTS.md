@@ -14,6 +14,17 @@ The `AGENTS.md` nearest to the files you edit is the most specific one and wins 
 
 Before implementing changes, inspect the surrounding code and existing project patterns. Prefer extending existing abstractions over introducing new ones.
 
+## GitHub Native First and agent independence
+
+Use native issues, parent/sub-issues, dependencies, assignees, Draft PRs and Projects.
+A person or external coordinator assigns one worker after checking blockers and
+conflicting work. Assignment is not a lock; dependencies are not enforced merge gates.
+Core runtime, build, deployment, migrations, CI, monitoring, backup/recovery, tests
+and releases must work without an agent platform, MCP client or LLM credentials.
+OpenHands, OpenCode, Codex and other clients are optional. AI-specific features use
+replaceable providers, isolated credentials and validated outputs. Optional model-written
+documentation narrative must not make a coding-agent platform a build dependency.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
@@ -33,23 +44,16 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
-  application; `scripts/wip` is the work claim board described under "Claiming work", and
+  application; `scripts/wip` is the legacy work claim board described under "Assigning work and legacy claims", and
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
-  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
-  the host capacity gate described under "Check host capacity before starting another stack".
-  An orchestrator that already tracks its own jobs asks the gate with `--stacks` and
-  `--processes`, so the count that decides is the count of jobs it actually runs.
-  Nothing in this repository starts, schedules or supervises an agent: development
-  orchestration is external, done by Agent Orchestrator (AO), whose worker sessions run
-  against a checkout of this repository the way a human's session does. The in-repository
-  supervisor that did this before the migration is retired and removed (#1052 retired by
-  #1102); do not bring back a scheduler, a daemon, a systemd unit or a CI watcher here.
-  What the migration leaves untouched is who holds the authority: only a person applies
-  `agent: approved` to an issue, only a person reviews a pull request and decides its
-  merge, and a thread a human raised stays open until that human resolves it. An agent
-  asked for an act it may not do (approve, merge, resolve threads, rewrite an open branch,
-  change branch protection or CI, grant access, commit a secret) hands that ask to a
-  person as a question on the issue through `scripts/wip ask` instead of trying it.
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
+  The claim/eligibility tools remain only for the owner-confirmed #1391 exception;
+  they are not prerequisites for new development. See the retirement conditions in
+  `docs/source/development/github-flow-transition.rst`.
+  Development execution and resource management belong to the external environment.
+  AO is retired. Optional clients do not authorize reviews, merges, thread resolution,
+  access changes or permanent-branch writes. Ask a person on the issue for actions
+  outside the worker's authority. Do not add a scheduler, daemon or CI watcher here.
   `scripts/nginx_routing_smoke.py` asserts which URLs the nginx of the frontend answers with the
   SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
   of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
@@ -152,6 +156,8 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/architecture.md` — domain overview (services, update jobs, monitoring, security proxy).
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
+- `docs/source/development/github-flow.rst` — the canonical contribution workflow.
+- `docs/source/development/github-flow-transition.rst` — migration inventory and operator actions.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
 - `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
@@ -322,50 +328,16 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
   other jobs' resources as task cleanup.
 
-#### Check host capacity before starting another stack
+#### Resource ownership before starting another stack
 
-Isolation keeps jobs from corrupting each other, but it does not make the host
-bigger — and on an agent host the jobs do not own the machine either: the
-OpenCode session and the dockerd that starts its test stacks share one container
-cgroup, so the room that matters is the cgroup's, not the machine's. Before
-starting a new agent Compose stack — as a nightly runner deciding whether to
-launch one more job, or before any `docker compose up` in a fresh worktree — run
-`scripts/agent_capacity`. It is host-only Python with no network and no
-application dependency: it reports the 15-minute load per core, the **effective**
-memory (the smaller of `MemAvailable` and the headroom of this cgroup and every
-parent, counting what cannot be reclaimed), free disk on `/`, the running
-`mrmap-agent-*` stacks and agent processes and the memory pressure, prints a
-single verdict line and exits `0` when the job still fits or `1` when it does
-not. It refuses newcomers; it never pauses, renices or kills a running job.
-
-Ask for the class of work you are about to start: `scripts/agent_capacity`
-decides about a heavy Compose test stack (the default), `--need suite` about a
-stack that runs the full unit suite (measured heavier than a targeted check),
-`--need process` about one more agent worker without a stack, `--json` answers
-for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
-`--wait N` queues up to N seconds for a refusal to clear instead of exiting
-busy; it never displaces a running job. The counts are
-prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
-and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
-job can tune the gate without editing the file: `AGENT_MAX_CPU_PRESSURE` (10,
-the container cgroup's own CPU stall — the outer host's load average decides
-only where no `cpu.pressure` is readable, because it counts tenants this
-container does not control), `AGENT_MAX_LOAD_PER_CORE` (1.5),
-`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
-`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
-(16, the floor when no memory limit of this cgroup is visible),
-`AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
-`AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)
-and `AGENT_MAX_PROCESSES` (6); inside a 16 GiB agent container `AGENT_MAX_STACKS=1`
-is the honest setting. It never opens a socket and caps its `docker ps` call with
-a timeout, so a host that is merely offline or whose docker daemon is stuck still
-gets a verdict instead of hanging. What each metric means, why page cache is not
-charged against a cgroup, how to read the same numbers by hand, the measured
-before/after, and the operator runbook for the ceiling itself — raise the agent
-container's limit or move the docker daemon out of it, and what to measure either
-way (#1054): `docs/source/development/agent-capacity.rst`. The admission rules
-have offline checks — `python3 scripts/test_agent_capacity.py`, which needs
-neither docker nor the network.
+The operator/external execution environment owns host/container resource limits,
+admission and concurrency. Confirm that it can carry the selected workload before
+starting Docker; full suites need more headroom than targeted checks. Account for
+parent cgroup limits, other running jobs and disk, rather than host RAM alone.
+If that environment has not admitted the work, do not start another stack.
+MrMap provides no capacity or agent scheduling system. Keep each job's isolated
+Compose state and ownership/cleanup rules above; do not change limits, interrupt
+workers or remove another job's resources to make room.
 
 ## Development guidelines
 
@@ -431,12 +403,21 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
-- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
-  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the human decision protocol in `decisions` — are verified with
   `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
   the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
-  reach these files at all.
+  reach these files at all. Redirect its stdin (`scripts/check_repo_tooling.sh </dev/null`):
+  `test_pr_classify.py` reads a PR history from standard input in one of its checks, and with stdin
+  left open it blocks there forever — the harness prints the suites finished so far and then stalls,
+  which reads as a hang rather than as a failure.
 - Add or update tests when behavior changes.
+- In a `check()`-based suite, a check must be able to *report* a failure: read what a check asserts
+  through a lookup that yields a value on absence (`res.get("scope")`, a helper returning `None`
+  rather than `findings[0]`), and pass the detail as a single operand (`"... %s" % (detail,)`).
+  Indexing into the result directly makes the suite die on a `KeyError` or a `%` formatting error
+  the moment the tool regresses, so the remaining checks never run and the regression reads as a
+  crash instead of a failed check. Prove a new check is load-bearing by reverting the fix it covers
+  and reading the failure list, not by asserting that it would fail.
 - Do not modify tests merely to make an incorrect implementation pass.
 - Report commands run, their results, and any check that could not be run.
 
@@ -463,12 +444,17 @@ identifier itself is not an option — it breaks document matching against upstr
 - `develop` is the default development and integration branch.
 - `master` is reserved for stable releases.
 - Base new branches and worktrees on current `origin/develop`.
-- For epic sub-issues, use the designated epic integration
-  branch if applicable.
-- Always explicitly specify the pull request base.
-- Feature, bugfix and housekeeping PRs target `develop`
-  or their designated epic integration branch.
-- Epic integration PRs target `develop`.
+- Use GitHub Flow: one small independently safe issue and PR, based on current
+  `origin/develop`, with an explicit `--base develop`. Epics are native parent issues;
+  a parent, title prefix or slug does not require an integration branch.
+- Follow `docs/source/development/github-flow.rst` for the canonical workflow and
+  `docs/source/development/github-flow-transition.rst` for the cutover inventory.
+- Existing branch arrangements may finish only as explicit temporary exceptions agreed
+  with their owners. Retargeting, branch deletion and live protection/access changes stay
+  with people; preserve unique commits, reviews and active work.
+- The mandatory epic branch contract and its automatic strict rollout were superseded
+  by #1592; #1593 removes their tooling and redundant project synchronization. Native
+  Projects and manual updates follow `docs/source/development/github-flow.rst`.
 - Only the same repository's `develop` branch may target
   `master` in a pull request.
 - Maintainer-directed synchronization from `master` back
@@ -505,57 +491,25 @@ identifier itself is not an option — it breaks document matching against upstr
   <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
   link and prefix disagree, fix the prefix.
 
-### Claiming work
+### Assigning work and legacy claims
 
-Several agents and machines work on this repository in parallel; which client
-works on what lives in GitHub, not in chat sessions. `scripts/wip` (host
-Python + `gh`, no application dependency) maintains it: one claim comment per
-issue and client, the `status: wip` label, and the pinned "🤖 Agent Work
-Board" issue listing the active claims.
+A person or external coordinator explicitly assigns one worker. Before starting, inspect
+native blockers, assignees, linked branches and open Draft PRs, and reconcile any legacy
+claim with its owner. Assignees and dependencies are planning signals, not atomic locks
+or automatic merge gates. Keep the single-worker model; do not start conflicting work.
+Approval and pause labels remain human-owned during transition.
 
-- Run `scripts/wip claim` from the repository root before the first file edit
-  or commit of a session; the issue number comes from the `issue-<N>` part of
-  the branch name. Claiming is idempotent, so re-running is always safe.
-- Claiming refuses while another client holds a fresh claim on the issue; the
-  message names the holder and its heartbeat. Then pick a different issue —
-  never work two clients on one issue. A claim whose heartbeat went stale
-  passes with a warning; `scripts/wip claim --force` takes a foreign claim
-  over deliberately, e.g. after the holder was confirmed gone.
-- Run `scripts/wip claim` again after every `git push`; it refreshes the
-  heartbeat, and a claim without a heartbeat for three days is flagged stale
-  on the board.
-- When a step needs a human — before asking a question, requesting a
-  permission decision or waiting for credentials — run
-  `scripts/wip wait "<what you need>"`; the board lists the claim under
-  *Needs user* (first) until the next `scripts/wip claim` marks it running
-  again.
-- `scripts/wip ask "<question>"` hands the whole question to GitHub, not just
-  the one-line reason: it posts the full text as one machine-managed question
-  comment (`<!-- agent-question client=<tag> id=<id> -->`) on the issue, then
-  runs the `wait` flow with a one-line summary. It is idempotent per client —
-  re-`ask` while the question is still open refreshes that comment instead of
-  stacking another — so a blocked job can be re-run without spamming the issue.
-  Add `--issue N` to point at a specific issue; otherwise it uses the branch.
-- `scripts/wip answers` reads the answers back: it lists the current client's
-  open questions and the human replies to them (comments newer than the
-  question, ignoring the machine-managed claim/question/board comments), prints
-  the answer text, and stamps an answered question so it is never surfaced
-  twice. Read it after a `Needs user` claim, then `scripts/wip claim` to resume.
-- Run `scripts/wip done` when the pull request is ready for review or the
-  work is abandoned.
-- The claims are also a merge gate: do not merge a pull request whose issue
-  still shows a live claim — live means a client is working and not finished,
-  the board even names what it waits for. Run `scripts/wip ls` before
-  merging; when the merge finishes your own work, release your claim
-  (`scripts/wip done`) as part of being ready.
-- Check `scripts/wip ls` before picking up an issue; somebody may hold it.
-- The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
-  the board issue are machine-managed; never edit them by hand. `claim`, `wait`
-  and `done` refresh the board as they run; regenerate it by hand with
-  `scripts/wip board` when a refresh warned.
-- If `gh` is not authenticated on the host, say so once and continue without
-  claiming; claiming must never block the actual work.
+The maintainer recorded #1391 / PR #1732 as an explicit temporary legacy exception.
+Preserve its claim, branches, worktrees and worker. Its owner must confirm the handoff
+before the legacy claim and eligibility files can be removed. New work uses native
+assignment and does not invoke those tools.
 
+New work requires no agent-specific claim, eligibility checker, heartbeat or epic resolver.
+The legacy `scripts/wip` board and existing claims remain evidence until their owners
+reconcile them under #1753. Never automatically remove a foreign claim, take over stale
+work or interrupt an agent. A worker that already holds a claim may finish its own
+`wait`/`ask`/`done` lifecycle. Human-only requests may still use `scripts/wip ask` during
+transition; ordinary contributors can ask directly on the issue.
 
 ## Working with uncertainty
 

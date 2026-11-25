@@ -59,7 +59,7 @@ RUN /usr/local/bin/python -m pip install --upgrade pip && \
 ##############################################################
 # Final Image
 ##############################################################  
-FROM nginx:1.31.8-alpine-slim AS production-image
+FROM nginx:1.31.10-alpine-slim AS production-image
 
 COPY --from=frontend-compile-image /app/dist /var/www/mrmap/frontend/
 COPY --from=backend-compile-image ./static /var/www/mrmap/backend/

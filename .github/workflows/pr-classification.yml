@@ -33,9 +33,13 @@ name: PR Classification
 
 on:
   pull_request:
+    # epic/** too: a child PR merged into an epic branch produces the merge commit the
+    # release planner of #1581 reads for that child, so its title class is enforced on the
+    # epic branch exactly as it is on develop (#1594, epic #1588).
     branches:
       - master
       - develop
+      - 'epic/**'
     types:
       - opened
       - reopened
@@ -63,11 +67,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           # 3.13 is what the orchestration host runs scripts/ with; the tool is stdlib
           # only and needs neither GDAL nor the application.
-          python-version: '3.13'
+          python-version: '3.15'
 
       # The commits of the pull request are what makes a hidden breaking change visible:
       # the marker may be written on a commit and never on the title, and then the merge

@@ -10,17 +10,21 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 import logging
 import os
 import re
-import socket
 import sys
 from datetime import timedelta
 from glob import glob
+from urllib.parse import quote
 from warnings import warn
 
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
 from django.utils.translation import gettext_lazy as _
 from kombu import Exchange, Queue
 from MrMap import celery_queues
 from MrMap.celery import is_celery_process, is_this_a_celery_beat_process
+from system.logging.fallback import (
+    DEFAULT_SYSLOG_HOST, DEFAULT_SYSLOG_PORT, syslog_reachable,
+    warn_without_syslog)
 from system.logging.formatter import RFC5424Formatter
 
 from . import VERSION
@@ -74,13 +78,64 @@ MEDIA_ROOT = MEDIA_ROOT if check_path_access(
 if not os.path.exists(MEDIA_ROOT):
     os.makedirs(MEDIA_ROOT)
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", get_random_secret_key())
-
 # SECURITY WARNING: don't run with debug turned on in production!
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
 DEBUG = int(os.environ.get("DJANGO_DEBUG", default=0))
 MRMAP_PRODUCTION = os.environ.get("MRMAP_PRODUCTION", default="False")
 MRMAP_PRODUCTION = True if MRMAP_PRODUCTION == "True" else False
+
+
+def _secret_key_from_env(environ, production: bool) -> str:
+    """The signing key for one environment (#1473, audit SEC-12).
+
+    A missing ``DJANGO_SECRET_KEY`` used to fall back to
+    ``get_random_secret_key()`` on *every* import, which is per process and per
+    boot. Under ``MRMAP_PRODUCTION`` that fallback is fatal instead: it silently
+    invalidates every session, knox token and signed payload of a restarted
+    deployment (a rolling restart logs all users out and rejects in-flight
+    tokens), and it destroys the contents of any cache whose keys derive from
+    the key. Worse, a deployment which *believes* it set the key but did not
+    (renamed variable, missing ``.env``) cannot tell, because a random key works
+    until the next restart. A production deployment must therefore hand over the
+    key explicitly; compose already refuses to start without it
+    (``${DJANGO_SECRET_KEY:?...}``), this is the same rule for every other way
+    of running the application image.
+
+    Outside production the random fallback stays: throwaway checkout and CI
+    deployments which have no value to keep.
+    """
+    key = environ.get("DJANGO_SECRET_KEY")
+    if key:
+        return key
+    if production:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is required when MRMAP_PRODUCTION is True: a "
+            "random key per boot invalidates every session, token and signed "
+            "payload of a restarted deployment. Set it in the deployment's "
+            "environment (docs/source/development/environment.rst).")
+    return get_random_secret_key()
+
+
+SECRET_KEY = _secret_key_from_env(os.environ, MRMAP_PRODUCTION)
+
+
+def _split_env_list(raw: str) -> list:
+    """The entries of a ";"/"," separated env value, without surrounding blanks."""
+    return [entry.strip() for entry in raw.replace(",", ";").split(";") if entry.strip()]
+
+
+def _flag_from_env(environ, name: str, default: bool) -> bool:
+    """A boolean deployment flag spelled ``"True"``/``"False"``, else the default.
+
+    Same spelling as ``MRMAP_PRODUCTION`` itself: compose passes these values as
+    strings, and any non-empty string reads as true in Python, so the string
+    comparison - never ``bool(value)`` - is the whole of the parsing (#1141).
+    """
+    value = environ.get(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip() == "True"
+
 
 # The username of the superuser this deployment seeds on migrate (accounts/
 # apps.py) - a deployment value, not a code value. Named once here, because
@@ -127,6 +182,14 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First, ahead of ``SecurityMiddleware``: the response phase of this
+    # middleware is what answers the Content-Security-Policy of every backend
+    # answer (#1473), and a middleware only sees the responses of the ones
+    # *below* it - ``SecurityMiddleware`` answers its SSL redirect from inside
+    # its own request phase and never calls further down, so a policy which
+    # should also cover that 301 has to be listed above it. Nothing else about
+    # the position matters: the middleware does nothing in the request phase.
+    "MrMap.middleware.ContentSecurityPolicyMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Listed above the Vary middleware, so in the response phase it runs
     # after that one and repeats the cleaned Vary on its 304 (#946).
@@ -141,6 +204,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",  # for django admin pages
+    # Answers ``X_FRAME_OPTIONS`` (#1473). The setting alone does nothing:
+    # without this middleware the value of the knob never reaches a response,
+    # which is the kind of hygiene which reads as configured and is not.
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
     "system.logging.middleware.LogSlowRequestsMiddleware",
 ]
@@ -169,6 +236,40 @@ TEMPLATES = [
 
 DEBUG_TOOLBAR_MIDDLEWARE = "debug_toolbar.middleware.DebugToolbarMiddleware"
 
+# Which clients may see the debug toolbar when it is installed at all. The
+# toolbar answers SQL, settings, request bodies and the environment of the
+# request; the callback used to be ``lambda request: True``, which skipped even
+# django-debug-toolbar's own INTERNAL_IPS gate and showed all of that to whoever
+# reached the deployment first. Loopback only, and never under
+# MRMAP_PRODUCTION - DJANGO_DEBUG alone does not make a deployment a
+# development one (#1473, audit SEC-12). A developer behind a proxy which
+# rewrites the client address, or a remote development machine, names its
+# addresses in DJANGO_DEBUG_TOOLBAR_INTERNAL_IPS.
+DEBUG_TOOLBAR_INTERNAL_IPS_DEFAULT = "127.0.0.1;::1"
+
+
+def _debug_toolbar_internal_ips_from_env(environ) -> list:
+    return _split_env_list(
+        environ.get("DJANGO_DEBUG_TOOLBAR_INTERNAL_IPS", DEBUG_TOOLBAR_INTERNAL_IPS_DEFAULT))
+
+
+DEBUG_TOOLBAR_INTERNAL_IPS = _debug_toolbar_internal_ips_from_env(os.environ)
+
+
+def show_debug_toolbar(request, production=MRMAP_PRODUCTION, internal_ips=None):
+    """Whether the debug toolbar may render for one request.
+
+    The two arguments default to the module's own values so that the decision is
+    testable without re-importing the settings; django-debug-toolbar calls the
+    callback with the request alone.
+    """
+    if production:
+        return False
+    if internal_ips is None:
+        internal_ips = DEBUG_TOOLBAR_INTERNAL_IPS
+    return request.META.get("REMOTE_ADDR") in internal_ips
+
+
 if DEBUG and not TESTING:
     INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE.append(DEBUG_TOOLBAR_MIDDLEWARE)
@@ -193,7 +294,7 @@ if DEBUG and not TESTING:
             # Problematisches Panel für binary content
             "debug_toolbar.panels.alerts.AlertsPanel",
         },
-        "SHOW_TOOLBAR_CALLBACK": lambda request: True,
+        "SHOW_TOOLBAR_CALLBACK": "MrMap.settings.show_debug_toolbar",
         "PRETTIFY_SQL": True,
     }
 
@@ -240,8 +341,8 @@ ALLOWED_HOSTS_PRESET = "localhost;127.0.0.1;[::1];mrmap-appserver;172.17.0.1;tes
 
 
 def _split_host_list(raw: str) -> list:
-    """The entries of a ";"/"," separated env value, without surrounding blanks."""
-    return [host.strip() for host in raw.replace(",", ";").split(";") if host.strip()]
+    """The hosts of a ";"/"," separated env value, without surrounding blanks."""
+    return _split_env_list(raw)
 
 
 def _bare_host(entry: str) -> str:
@@ -272,26 +373,298 @@ ALLOWED_HOST_DEFAULTS = _split_host_list(os.environ.get(
     "DJANGO_ALLOWED_HOST_DEFAULTS", ALLOWED_HOSTS_PRESET))
 ALLOWED_HOSTS = _allowed_hosts_from_env(os.environ)
 
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "DJANGO_CSRF_TRUSTED_ORIGINS", ";".join(
-        [f"https://{host};http://{host}" for host in ALLOWED_HOSTS]
-        + ([] if MRMAP_PRODUCTION else ["http://localhost:5173", "http://127.0.0.1:5173"]))
-).split(";")
+# The vite dev server never speaks TLS, so the loopback origins of the
+# development frontend are http. An http origin in the list of a *production*
+# deployment is what lets a CSRF token cross the wire in clear text, which is
+# why the preset only joins outside production.
+CSRF_DEV_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
-# The Vite development frontend authenticates with the backend's session cookie.
-# Keep credentialed development requests restricted to the local frontend origins.
-CORS_ALLOW_CREDENTIALS = not MRMAP_PRODUCTION
-if os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS"):
-    CORS_ALLOWED_ORIGINS = os.environ.get(
-        "DJANGO_CORS_ALLOWED_ORIGINS").split(";")
-elif not MRMAP_PRODUCTION:
-    CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
-else:
-    warn("all cors origins are allowed! To limit to a set of origins use the DJANGO_CORS_ALLOWED_ORIGINS environment variable.")
-    CORS_ALLOW_ALL_ORIGINS = True
+
+def _csrf_trusted_origins_from_env(environ, production: bool) -> list:
+    """The origins whose same-origin POSTs may carry this site's CSRF token.
+
+    These used to be derived from the merged host allow-list, for *every* entry
+    and both schemes: one ``DJANGO_ALLOWED_HOSTS`` entry of a deployment added
+    ``http://internal-host`` next to ``https://internal-host``, and the whole
+    preset of service host names (``mrmap-appserver``, ``172.17.0.1``, ...)
+    became trusted browser origins - a plaintext trust nobody chose, next to the
+    http trust a production deployment must never carry (audit SEC-12, #1473).
+    The explicit ``DJANGO_CSRF_TRUSTED_ORIGINS`` is now the only source a
+    production deployment has, and every scheme it names is honoured - a
+    deployment which serves plain https only spells out exactly that, and one
+    behind a TLS terminator which forwards plain http names that origin itself.
+    An unset value means django's own same-origin check and nothing else, which
+    is what the same-origin topology of ``docker/nginx/mrmap.conf`` needs.
+    Outside production the vite origins of the development frontend join: those
+    log in through the session of this backend (#835, decision Q8=B).
+    """
+    origins = _split_env_list(environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", ""))
+    if not production:
+        origins = origins + CSRF_DEV_ORIGINS
+    return sorted(set(origins))
+
+
+CSRF_TRUSTED_ORIGINS = _csrf_trusted_origins_from_env(os.environ, MRMAP_PRODUCTION)
+
+
+def _cors_decisions_from_env(environ, production: bool):
+    """Where cross-origin requests to the API may come from for one environment.
+
+    ``DJANGO_CORS_ALLOWED_ORIGINS`` is the only source of origins. When it is
+    set, it answers in every deployment mode: the development frontend on the
+    vite port and any split-origin deployment both set it. When it is empty:
+
+    * development gets the vite loopback origins - the development frontend
+      authenticates with this backend's session cookie and therefore needs
+      credentialed CORS (#835);
+    * production gets no cross-origin allowance at all. The shipped topology is
+      same-origin - the nginx of ``docker/nginx/mrmap.conf`` serves the SPA and
+      proxies ``/api``, ``/csw`` and ``/ws`` on the very host and port the SPA is
+      loaded from - so there is no cross-origin consumer left to serve, and the
+      previous ``CORS_ALLOW_ALL_ORIGINS = True`` let any website read the API as
+      the logged-in user of any browser which visited it (audit SEC-17, #1473):
+      requests authenticated by an ``Authorization`` header need no cookies at
+      all, so the credentialed flag was never the guard.
+
+    Returns ``(origins, allow_all, credentials)``. ``allow_all`` is always
+    ``False``: every origin is no longer a default, it is a decision.
+    """
+    explicit = _split_env_list(environ.get("DJANGO_CORS_ALLOWED_ORIGINS", ""))
+    if explicit:
+        return sorted(set(explicit)), False, not production
+    if not production:
+        return sorted(set(CSRF_DEV_ORIGINS)), False, True
+    return [], False, False
+
+
+CORS_ALLOWED_ORIGINS, CORS_ALLOW_ALL_ORIGINS, CORS_ALLOW_CREDENTIALS = _cors_decisions_from_env(
+    os.environ, MRMAP_PRODUCTION)
+if not CORS_ALLOWED_ORIGINS:
+    warn(
+        "no CORS origins are allowed: no cross-origin consumer may call the API. "
+        "Set DJANGO_CORS_ALLOWED_ORIGINS if a frontend is served from another "
+        "origin than the backend (docs/source/development/environment.rst).")
 
 USE_X_FORWARDED_HOST = True
+# What makes both of the following trust the reverse proxy rather than the
+# client: this exact pair. ``USE_X_FORWARDED_HOST`` makes the ``Host`` header
+# of the proxy authoritative, ``SECURE_PROXY_SSL_HEADER`` makes the protocol
+# of the *proxy* authoritative - and only when the named header carries the
+# named value, so a client which forges ``X-Forwarded-Proto`` on a direct
+# connection gets no say. Both of them are only honest while the edge really
+# sets what it forwards: the nginx of ``docker/nginx/mrmap.conf`` normalizes
+# ``X-Forwarded-Proto`` with a ``map`` instead of passing the client value
+# through verbatim, and a deployment with another edge in front owes the same
+# normalization, or it reads its own https traffic as plain http and the SSL
+# redirect below 301s it in a loop. See
+# docs/source/development/environment.rst, ``DJANGO_SECURE_SSL_REDIRECT``.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+################################################################
+# HTTP transport security (#1473, audit SEC-12)
+################################################################
+# The hardening Django ships, gated on MRMAP_PRODUCTION: the deployment this
+# repository ships runs behind nginx and TLS, so a production deployment gets
+# the whole block by default and an http-only development stack must not even
+# try it - a redirect to https the dev stack does not speak would just break
+# it. Each setting is overridable on its own, because a deployment in front of
+# a TLS terminator which cannot serve HSTS, or one which terminates TLS
+# itself, needs to narrow the block without dropping the rest.
+#
+# ``SECURE_SSL_REDIRECT`` is the one knob of the block which can take a
+# deployment down: with ``MRMAP_PRODUCTION`` a plain-http request is 301'd to
+# https, which is only correct when a TLS endpoint really answers that https
+# *and* names the protocol to Django - see the ``SECURE_PROXY_SSL_HEADER``
+# note above. A deployment whose TLS dies in front of this container and which
+# wants to answer plain http sets ``DJANGO_SECURE_SSL_REDIRECT=False``.
+SECURE_SSL_REDIRECT = _flag_from_env(os.environ, "DJANGO_SECURE_SSL_REDIRECT", MRMAP_PRODUCTION)
+
+
+def _hsts_seconds_from_env(environ, production: bool) -> int:
+    """The HSTS ``max-age`` of one environment, in seconds.
+
+    Blank means the default of the deployment mode, as it does for every other
+    knob of the block. A value which is not a number is refused while the
+    settings load rather than being read as some other number elsewhere: the
+    header is a one-way door once a browser has seen it, so a deployment which
+    meant a year and typed ``1y`` must not find out from a browser which refuses
+    http to its host, and must not silently get the mode's default either.
+    """
+    raw = environ.get("DJANGO_SECURE_HSTS_SECONDS")
+    if raw is None or not raw.strip():
+        return 31536000 if production else 0
+    value = raw.strip()
+    # not int(value): int() also swallows the underscore separators of a Python
+    # literal, so a deployment which typed 1_000_000 would get what it typed
+    # while believing it had named a value no one else reads the same way
+    if not re.fullmatch(r"-?\d+", value):
+        raise ImproperlyConfigured(
+            f"DJANGO_SECURE_HSTS_SECONDS must be a number of seconds, got "
+            f"{raw!r}. Set 0 to send no Strict-Transport-Security header at all.")
+    seconds = int(value)
+    if seconds < 0:
+        raise ImproperlyConfigured(
+            f"DJANGO_SECURE_HSTS_SECONDS must not be negative, got {seconds}. "
+            "Set 0 to send no Strict-Transport-Security header at all.")
+    return seconds
+
+
+SECURE_HSTS_SECONDS = _hsts_seconds_from_env(os.environ, MRMAP_PRODUCTION)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _flag_from_env(
+    os.environ, "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", MRMAP_PRODUCTION)
+SECURE_HSTS_PRELOAD = _flag_from_env(os.environ, "DJANGO_SECURE_HSTS_PRELOAD", False)
+SECURE_CONTENT_TYPE_NOSNIFF = _flag_from_env(
+    os.environ, "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", True)
+SECURE_REFERRER_POLICY = (
+    os.environ.get("DJANGO_SECURE_REFERRER_POLICY") or "same-origin")
+# A browser must only ever frame this application's own pages. Django's
+# middleware answers the header; the edge of the frontend repeats it
+# (docker/nginx/mrmap.conf) for the answers it serves itself.
+X_FRAME_OPTIONS = os.environ.get("DJANGO_X_FRAME_OPTIONS") or "DENY"
+if SECURE_SSL_REDIRECT and SECURE_HSTS_SECONDS == 0:
+    warn(
+        "SECURE_SSL_REDIRECT is active with an HSTS max-age of 0: the browser "
+        "may still talk plain http to this deployment tomorrow. Set "
+        "DJANGO_SECURE_HSTS_SECONDS or disable the redirect.")
+
+################################################################
+# Content-Security-Policy (#1473, audit SEC-17)
+################################################################
+# Which sources a browser may load this application from. The audit opened
+# this because the knox token of the token login lives in ``localStorage``
+# and any injected script can read it - and after #835 the browser session
+# joined it, so the one XSS that reads the token also rides the session
+# cookie, and no SameSite or HttpOnly flag of the cookie block above helps
+# against script which runs *in* the page. CSP is the layer which makes
+# injected script unable to do anything with what it read: it may not fetch
+# an address, post to a collector, or phone home at all, because every
+# outbound load has to be a source this list names.
+#
+# The policy answers the backend's own answers - XML documents of the OGC
+# endpoints, error pages, the browsable API of a development deployment. The
+# SPA and its own assets are answered by nginx, whose edge carries the same
+# policy (docker/nginx/mrmap.conf); both lists are written from the same
+# facts: the references of frontend/index.html (leaflet and leaflet-geoman
+# from unpkg, the Roboto stylesheet from the Google Fonts CDN) and what the
+# built bundle loads itself (the monaco editor from jsDelivr, the map tiles
+# of the record editor from the OSM tile hosts).
+#
+# ``connect-src`` carries no ``wss:``. That spelling is a *scheme* source -- a
+# source with a scheme and no host -- so it admits ``wss://`` to every address
+# there is, which is the outbound channel this header exists to close: injected
+# script which had read a credential would be free to post it to a collector, and
+# from a browser inside a company network to ``wss://10.0.0.7:PORT`` as well,
+# which is a pivot towards hosts the deployment can reach and the public cannot.
+# The application does not need the breadth: the only socket it opens is its own
+# origin (``RealtimeBus.tsx`` builds it from ``VITE_API_BASE_URL`` /
+# ``VITE_API_PORT``, which ``docker-compose.yml`` feeds from ``EXTERNAL_BASE_URL``
+# / ``EXTERNAL_PORT`` -- the very host and port the SPA was loaded from), and CSP
+# normalizes ``wss`` to ``https`` when it matches a source, so ``'self'`` admits
+# it. Where a socket really leaves the origin, it is a development decision and
+# joins below, the way the vite origins join ``CSRF_TRUSTED_ORIGINS``.
+#
+# ``'unsafe-inline'`` for styles is not a hole: the styling-in-CSS and
+# inline-style attributes of MUI, leaflet and monaco are the mechanism those
+# libraries position map overlays and editor decorations with, and CSP
+# governs script much more than style - inline style cannot read a token and
+# cannot reach the network. Scripts stay without it, which is the whole
+# point. ``blob:`` for images and workers is what the preview overlays
+# (``URL.createObjectURL``) and library worker bootstraps need; a blob URL
+# is same-origin and its script is bound by this very policy. The third-party
+# *image* source is the basemap of the record editor (``GeoJsonMap`` and
+# ``CoverageMap`` load OSM tiles); an image load cannot read its own answer,
+# so it is not the channel this header exists to close, and naming it keeps
+# the shipped deployment working. The authenticated OGC answers are not here
+# at all on purpose: the SPA fetches them through ``/mrmap-proxy`` - same
+# origin, covered by ``'self'`` - and draws them from a blob URL.
+CSP_DEFAULT = (
+    "default-src 'self'; "
+    "script-src 'self' https://unpkg.com https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
+    "font-src 'self' data: https://fonts.gstatic.com; "
+    "img-src 'self' data: blob: https://unpkg.com https://*.tile.openstreetmap.org; "
+    "connect-src 'self'; "
+    "worker-src 'self' blob:; "
+    "object-src 'none'; "
+    "base-uri 'self'; "
+    "form-action 'self'; "
+    "frame-ancestors 'none'"
+)
+# A deployment which is served over TLS (the SSL redirect above is on) tells
+# the browser to upgrade anything it still loads over plain http, so a
+# stored ``http://`` resource reference cannot be downgraded on the wire.
+CSP_UPGRADE_INSECURE = "; upgrade-insecure-requests"
+# Sockets a development deployment opens outside the page's own origin, and the
+# origin of the vite dev server which opens them. The vite server proxies nothing
+# (``frontend/vite.config.mjs`` has no ``server.proxy``), so a page served from
+# ``:5173`` reaches the API and the websocket of the backend on ``:8001`` - two
+# origins, both loopback, both spelled out here instead of bought with a
+# ``wss:`` that would also be in force in production. The shipped deployment
+# needs neither: its edge serves the SPA and proxies ``/ws/`` on one origin.
+CSP_DEV_CONNECT_SRC = "ws://localhost:8001 ws://127.0.0.1:8001"
+
+
+def _shipped_policy_has_no_wildcard_socket(policy: str) -> str:
+    """Refuse a shipped policy whose ``connect-src`` carries a scheme source.
+
+    A source with a scheme and no host (``wss:``, ``ws:``) matches that scheme to
+    every address, which is the channel the policy exists to close. The guard
+    covers what this repository ships in either deployment mode - not
+    ``DJANGO_CONTENT_SECURITY_POLICY``, which is an operator naming their own
+    complete policy and stays their decision.
+    """
+    for part in policy.split(";"):
+        directive = part.strip()
+        if not directive.startswith("connect-src"):
+            continue
+        offenders = [source for source in directive.split()[1:]
+                     if source.endswith(":") and not source.startswith("'")]
+        if offenders:
+            raise ImproperlyConfigured(
+                f"{', '.join(offenders)} in connect-src is a scheme source: it "
+                "admits that scheme to every host, which is the outbound channel "
+                "this policy exists to close. Name the origin of the socket "
+                "instead, or - for a development-only socket - add it to "
+                "CSP_DEV_CONNECT_SRC.")
+    return policy
+
+
+def _content_security_policy_from_env(environ, production: bool) -> str:
+    """The Content-Security-Policy header value of a deployment.
+
+    ``DJANGO_CONTENT_SECURITY_POLICY`` replaces the whole policy verbatim -
+    a deployment which embeds its own map viewer in an iframe, loads the SPA
+    from another host or runs a frontend which needs another source names
+    its complete policy there. An empty value turns the header off for the
+    backend's own answers; the edge of ``docker/nginx/mrmap.conf`` keeps
+    serving its own copy for the SPA, so "off" here never means "unprotected
+    deployment".
+
+    The shipped default is served in every deployment mode: it documents the
+    sources of this application, not a production decision, and a policy
+    which is only ever exercised in production is a policy whose breakage is
+    discovered in production. Only the two loopback sockets of the vite dev
+    server join outside production, because that is the one topology where a
+    socket leaves the page's origin; production gets ``connect-src 'self'`` and
+    nothing else. Neither shipped policy may carry a bare ``ws:``/``wss:``,
+    which the guard below refuses at import rather than in a browser.
+    ``upgrade-insecure-requests`` joins under
+    ``MRMAP_PRODUCTION``, where the TLS of the deployment is a promise.
+    """
+    explicit = environ.get("DJANGO_CONTENT_SECURITY_POLICY")
+    if explicit is not None:
+        return explicit.strip()
+    policy = CSP_DEFAULT
+    if not production:
+        policy = policy.replace(
+            "connect-src 'self';", f"connect-src 'self' {CSP_DEV_CONNECT_SRC};")
+    policy += CSP_UPGRADE_INSECURE if production else ""
+    return _shipped_policy_has_no_wildcard_socket(policy)
+
+
+CONTENT_SECURITY_POLICY = _content_security_policy_from_env(
+    os.environ, MRMAP_PRODUCTION)
+
 
 # GIT repo links
 GIT_REPO_URI = "https://github.com/mrmap-community/mrmap"
@@ -476,7 +849,48 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 ################################################################
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
-BROKER_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}"
+
+# Authentication of the shared instance (#1473, audit SEC-17). The instance is
+# the celery broker, the celery result backend and the Django cache at once,
+# so *any* client which reaches its port can enqueue work this fleet executes,
+# read task results, or flush the queue and the cache - the broker contract of
+# #1618, that queued work survives, is worthless while an unauthenticated port
+# exists. The redis service of docker-compose.yml therefore starts with
+# ``--requirepass`` from ``${REDIS_PASSWORD:?...}``: the same channel the
+# maxmemory bound of #1618 uses, because redis expands no variable inside its
+# config file and a committed file is no place for a secret anyway. Every
+# client of this project authenticates with the same variable - celery, its
+# result backend and the Django cache through the userinfo of the URLs below
+# (redis-py percent-decodes them), the channel layer through the ``password``
+# option of its host entry. An empty value means "no auth", the contract of a
+# development stack which shares its broker with nothing else; the shipped
+# production stack requires the variable at compose level.
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+
+
+def _redis_url_authority(password: str, host: str, port: str) -> str:
+    """The ``host:port`` of a Redis URL, with the password as userinfo.
+
+    The percent-encoding is the one kombu's ``maybe_unquote`` undoes
+    (kombu/utils/urls.py): unreserved characters and ``!$&()*+,;=`` pass
+    through a URL userinfo unquoted, so only what is reserved there is
+    encoded - encoding any other byte would hand Redis a literal percent
+    sign. Logging is not the reason to be careful with the value: kombu
+    masks the userinfo of a broker URL in its own log and exception lines
+    (``kombu.connection.Connection.as_uri``). The encoding matters because
+    a special character which is *not* encoded silently changes the host the
+    client connects to, which is a connection failure nobody can read.
+    """
+    userinfo = f":{quote(password, safe='!$&()*+,;=')}@" if password else ""
+    return f"{userinfo}{host}:{port}"
+
+
+# The URL of the instance every Redis client of the project talks to, auth
+# included. An empty password yields the plain ``host:port`` form: no auth,
+# which stays the contract of the development stack. The database number is
+# appended by the consumers (``/0`` for celery, ``/1`` for the cache), which
+# is why this ends with the port.
+BROKER_URL = f"redis://{_redis_url_authority(REDIS_PASSWORD, REDIS_HOST, REDIS_PORT)}"
 
 # Cache
 # Use local redis installation as cache
@@ -771,6 +1185,49 @@ TASK_PROFILING_SAMPLE_RATE = float(
 # buffered profiles per worker process; an overflow marks the dropped
 # profile partial and counts the drop, never blocks the task
 TASK_PROFILING_BUFFER_LIMIT = 200
+# the scheduled exporter of the task-performance dashboard of #1391 (epic
+# #1387 V2): OFF by default, because the series exists for a deployment
+# which runs the Grafana of the stack. What it publishes is one structured
+# record per (task class, queue) bucket per window over the #1330 attempt
+# rows - never a query on a dashboard refresh, never one record per attempt
+# (docs/source/development/celery-task-performance.rst).
+TASK_PERFORMANCE_EXPORT_ENABLED = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT", "").strip().lower() in (
+    "on", "1", "true")
+# the span one published window covers, and the cadence its beat row fires at:
+# system/apps.py builds the crontab from this same value, and every window
+# continues where the last one ended, so this span is the intent of a window
+# rather than its clock: a fire which arrives late widens the next window
+# instead of double counting it or leaving a hole in the series
+TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES", "5"))
+# the buckets of one window (heaviest first); the cardinality of the series
+# is bounded by the (class, queue) pairs of the deployment and a window over
+# the cap says it is partial rather than silently dropping the tail
+TASK_PERFORMANCE_EXPORT_MAX_BUCKETS = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS", "200"))
+# the heaviest classes whose newest attempts ride along as drill-down
+# records, and how many rows per class - an operator's click, never a
+# per-task time series (a task uuid must not become a label, #1391)
+TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES", "3"))
+TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS", "5"))
+# how far the very first window of a deployment looks back when there is no
+# cursor to continue from; it counts what the attempt retention still holds
+# and names itself first_window in the summary
+TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES", "60"))
+# a peak this far above where the attempt started is its own diagnosis
+# (#1620): an attempt which spent neither SQL nor HTTP time but pushed the
+# worker's resident set this far is memory-bound, not "cpu_or_unaccounted"
+TASK_PROFILING_MEMORY_MIB = int(
+    os.environ.get("MRMAP_TASK_PROFILING_MEMORY_MIB", "128") or 0)
+# a seam of at least this many seconds is worth a memory read: the procfs
+# rollup behind it costs more than a count, so only the slow statements and
+# requests - where a peak is expected - pay for it (#1620)
+TASK_PROFILING_MEMORY_SAMPLE_SECONDS = float(
+    os.environ.get("MRMAP_TASK_PROFILING_MEMORY_SAMPLE_SECONDS", "0.5") or 0)
 # the broker round trip of the topology inspect and how long its answer is
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60
@@ -811,6 +1268,72 @@ CAPACITY_COST_GROUP_LIMIT = 5_000
 # - a tunable threshold, not a statement that capacity above it is safe
 CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
 
+# ------------------------------------------------------------------
+# Continuous slow-task detection (#1390, epic #1387 V2)
+#
+# The V1 telemetry of #1330 measured how long attempts took; this is the
+# detection that reads it: on a beat cadence it compares each task class
+# against its own previous window, looks for executions still running past
+# their class' budget (only actionable when a worker confirms them), and
+# reports the telemetry gaps which would otherwise read as healthy. All of
+# it is read from the attempt samples - no extra instrumentation per task.
+# Off by default: the defaults below are deliberately generous so turning
+# it on never starts an incident storm; a threshold runbook is on
+# docs/source/development/celery-task-performance.rst.
+# ------------------------------------------------------------------
+# the detector's kill switch; the beat row exists either way, so enabling is
+# an environment change and not a migrate
+TASK_PERFORMANCE_ENABLED = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE", "").strip().lower() in ("on", "1", "true")
+# how often beat asks the question, and the rolling window each fire measures
+# (its comparable baseline is the equally long window before it)
+TASK_PERFORMANCE_INTERVAL_MINUTES = 15
+TASK_PERFORMANCE_WINDOW_HOURS = 24
+# how few terminal attempts a class needs to be judged at all, or to be
+# trusted as a baseline; fewer answer "insufficient" and publish nothing,
+# which is how a sparse class stays unjudged instead of guessed
+TASK_PERFORMANCE_MIN_SAMPLES = 5
+# the active-time budget a class without a policy of its own is judged
+# against, and the budget an attempt still RUNNING is judged against; the
+# long floor keeps a class with a tiny budget from reporting every ordinary
+# execution of itself
+TASK_PERFORMANCE_DEFAULT_BUDGET_SECONDS = 600
+TASK_PERFORMANCE_DEFAULT_LONG_SECONDS = 1800
+TASK_PERFORMANCE_LONG_MIN_ACTIVE_SECONDS = 60
+# how far past the abandon grace of the attempt samples an open attempt may
+# still count as live; past it the row is crash residue (#1330), never a
+# running task, and it belongs to the coverage condition
+TASK_PERFORMANCE_LONG_GRACE_SECONDS = 300
+# the regression rule: how much worse than its own previous window a class
+# must be, how much of that a heavy tail may account for on its own (an
+# isolated spike is a completed-slow finding, not a regression), and the
+# shortest baseline a ratio may be computed against at all - multiplying a
+# sub-second baseline is false precision
+TASK_PERFORMANCE_REGRESSION_FACTOR = 2.0
+TASK_PERFORMANCE_SPIKE_SHARE = 0.10
+TASK_PERFORMANCE_REGRESSION_MIN_BASELINE_SECONDS = 1.0
+# the budgets of one fire: task classes judged, incidents published, and
+# what still counts as complete telemetry. A deployment which outruns the
+# class budget reports it truncated; a mass slowdown is a bounded number of
+# incidents, not one per class.
+TASK_PERFORMANCE_MAX_CLASSES = 200
+TASK_PERFORMANCE_MAX_VERDICTS_PER_FIRE = 25
+TASK_PERFORMANCE_COVERAGE_MIN_STAMPED = 0.5
+# how long past the abandon grace unmeasured open attempts may go unremarked,
+# and how old the last sample of a class may be before it answers "no data"
+# instead of a stale "healthy"
+TASK_PERFORMANCE_ABANDON_STALE_HOURS = 6
+TASK_PERFORMANCE_STALE_AFTER_HOURS = 72
+# per-class budgets: keys are a full celery task name or "queue:<name>",
+# values may set budget_seconds, long_running_seconds, regression_factor,
+# spike_share or disabled. A policy of neither shape is refused at boot, since
+# a policy which silently never matched would look like a budget which was
+# honoured; TASK_PERFORMANCE_POLICIES is the env-friendly JSON form of the
+# same map and loses to this one key by key.
+TASK_PERFORMANCE_POLICY = {}
+TASK_PERFORMANCE_POLICIES = os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_POLICIES", "") or {}
+
 ################################################################
 # django channels settings
 ################################################################
@@ -822,6 +1345,11 @@ CHANNEL_LAYERS = {
                 "host": REDIS_HOST,
                 "port": REDIS_PORT,
                 "socket_timeout": 6,
+                # The auth of #1473: the channel layer talks to the same
+                # instance as the broker and the cache, so it carries the same
+                # credential. channels_redis passes this dict to redis's
+                # ConnectionPool, where an empty password means no AUTH.
+                "password": REDIS_PASSWORD,
             }],
             "capacity": 1500,  # default 100
             "expiry": 10,  # default 60
@@ -917,10 +1445,17 @@ def _cookie_secure_from_env(environ, production: bool) -> bool:
     The explicit ``DJANGO_COOKIE_SECURE`` wins over the deployment-mode default,
     so an http-only deployment can opt out and a https staging deployment which
     is not flagged as production can opt in.
+
+    Blank is not a spelling of ``False``. It is what an unset variable looks like
+    once anything has passed it through, and reading it as an answer would drop
+    ``Secure`` from the session cookie of a production deployment on the strength
+    of a value nobody wrote - the same reason ``_flag_from_env`` above treats it
+    as "no decision" and the reason the pass-through in ``docker-compose.yml``
+    uses the bare-name form. Only the two spellings of the block decide.
     """
     override = environ.get("DJANGO_COOKIE_SECURE")
-    if override is not None:
-        return override == "True"
+    if override is not None and override.strip():
+        return override.strip() == "True"
     return production
 
 
@@ -1077,11 +1612,9 @@ LOGGING = {
 }
 # point the syslog handler at any RFC 5424 capable receiver; the default is the
 # victoria-logs service of the compose stack
-SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", "victoria-logs")
-SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", "5514"))
-try:
-    """if syslog server is not reachable the application will not startup otherwise"""
-    socket.getaddrinfo(SYSLOG_HOST, SYSLOG_PORT, proto=socket.IPPROTO_UDP)
+SYSLOG_HOST = os.getenv("MRMAP_SYSLOG_HOST", DEFAULT_SYSLOG_HOST)
+SYSLOG_PORT = int(os.getenv("MRMAP_SYSLOG_PORT", str(DEFAULT_SYSLOG_PORT)))
+if syslog_reachable(SYSLOG_HOST, SYSLOG_PORT):
     LOGGING["handlers"].update({
         "syslog": {
             "class": "logging.handlers.SysLogHandler",
@@ -1094,8 +1627,11 @@ try:
     LOGGING["loggers"]["django"]["handlers"].append("syslog")
     LOGGING["loggers"]["celery"]["handlers"].append("syslog")
     print("syslog logging handler configured.")
-except socket.gaierror:
-    print("syslog server is not reachable. skipping syslog handler setup.")
+else:
+    # the documented fallback of the lightweight mode (#1614), loud since #1622:
+    # without the sink every structured record of this process is console-only,
+    # which is only acceptable when the deployment asked for it
+    warn_without_syslog(SYSLOG_HOST, SYSLOG_PORT)
 
 # the request duration in ms which is worth a "Slow Request Detected" record; the
 # middleware of system/logging/middleware.py reads it while it builds itself

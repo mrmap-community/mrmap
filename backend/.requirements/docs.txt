@@ -1,9 +1,56 @@
-Sphinx==4.5.0
-sphinx-rtd-theme==1.3.0
+# Isolated documentation environment (#1597, epic #1589).
+#
+# Building the portal needs **only** this file: no backend dependencies, no
+# Django, no GDAL, no database. `conf.py` reads the release string from the root
+# VERSION file and `docs/source/_ext/mrmap_docs.py` decides what autodoc may
+# claim when the application is not importable, so a contributor builds the docs
+# with a venv plus this file and nothing else.
+#
+# Every line is pinned, transitive dependencies included, because the ADR-0001
+# gate V-11 is "the committed pins build". The previous file pinned Sphinx 4.5.0
+# beside sphinxcontrib-* 2.x - all five of which require Sphinx >= 5.0 - so the
+# committed set aborted in about a second with a version error, and nothing
+# noticed, because no job built the documentation on an ordinary change. Pinning
+# the transitive closure is what makes that class of failure impossible rather
+# than merely fixed once: an unpinned transitive upgrade cannot silently move
+# under a pinned Sphinx again.
+#
+# To refresh: build in a clean venv, re-freeze only what `pip freeze` lists
+# below, and run `python3 scripts/test_docs_build.py`.
+alabaster==1.0.0
+babel==2.18.0
+certifi==2026.11.20
+charset-normalizer==3.5.3
+docutils==0.21.2
+idna==3.20
+imagesize==2.0.1
+Jinja2==3.1.6
+markdown-it-py==3.0.0
+MarkupSafe==3.0.4
+mdit-py-plugins==0.7.0
+mdurl==0.1.2
+myst-parser==4.0.1
+packaging==26.4
+Pygments==2.21.0
+PyYAML==6.0.4
+requests==2.34.2
+roman-numerals==4.1.0
+roman-numerals-py==4.1.0
+snowballstemmer==3.1.1
+Sphinx==8.2.3
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-jsmath==2.0.0
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
+
+# Named by the portal's own build: the theme, the version selector, and the two
+# extensions `mrmap_docs` loads only when a page asks for them (a graphviz
+# block, or a mermaid block in the explicit `render` mode). Pinned so the
+# artifact is reproducible rather than theme-dependent-on-latest.
+sphinx-rtd-theme==3.0.2
+sphinxcontrib-jquery==4.1
 sphinx-multiversion==0.2.4
+sphinxcontrib-httpdomain==2.0.0
+sphinxcontrib-mermaid==2.1.1

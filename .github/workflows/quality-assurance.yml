@@ -7,7 +7,10 @@ on:
     types: [checks_requested]
     branches: [master, develop]
   pull_request:
-    branches: [master, develop]
+    # epic/** runs the same required checks as develop: a child PR into an epic
+    # integration branch must not be mergeable unchecked (#1594, epic #1588). An addition
+    # of coverage - no path here skips a check for a branch, an author or a label.
+    branches: [master, develop, 'epic/**']
     types: [opened, synchronize, reopened]
   schedule:
     - cron: 0 16 * * *
@@ -33,6 +36,10 @@ env:
   DJANGO_ADMIN_USER: mrmap
   DJANGO_ADMIN_PASSWORD: mrmap
   DJANGO_SECRET_KEY: mrmap-ci-secret-key-for-disposable-test-containers
+  # the credential the redis service authenticates with since #1473; compose
+  # interpolates every service, so this covers the redis service, the backend
+  # consumers and flower alike - a disposable CI value, not a secret
+  REDIS_PASSWORD: mrmap-ci-redis-password
   GRAFANA_ADMIN_USER: admin
   GRAFANA_ADMIN_PASSWORD: mrmap-ci-password
   PGADMIN_USER: admin@example.com
@@ -293,7 +300,7 @@ jobs:
           ))
           PYTHON
       - name: Analyze code and check the SonarCloud quality gate
-        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
+        uses: SonarSource/sonarqube-scan-action@70bad232163b09d998ea0707ee80c0ec80798c16 # v8.5.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io

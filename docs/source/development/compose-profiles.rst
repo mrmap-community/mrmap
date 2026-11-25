@@ -106,7 +106,7 @@ the service for the invocation which layered the file that declares it.
 ``COMPOSE_PROFILES`` in ``.env`` is the persistent switch for a host that always
 wants (or never wants) a tier:
 
-.. code:: env
+.. code:: bash
 
     # a monitoring host which always wants the log store and its UI
     COMPOSE_PROFILES=observability
@@ -151,7 +151,7 @@ The log store the backend waits for
 
 ``docker-compose.yml`` gives ``backend`` a ``depends_on`` on
 ``victoria-logs`` with ``condition: service_started``, and that wait is
- load-bearing: ``settings.py`` decides once, at import, whether the syslog
+load-bearing: ``settings.py`` decides once, at import, whether the syslog
 handler of the application attaches, by looking the log store up
 (``MRMAP_SYSLOG_HOST``, default ``victoria-logs``). Start the backend before the
 store and the process runs the whole time without its log handler.

@@ -1,8 +1,8 @@
 .. _collecting-vocabulary:
 
-=======================
+========================
 Vocabulary of collecting
-=======================
+========================
 
 Registering an OGC service can collect the metadata documents the service
 points at. That path shares its words with the harvesting of a catalogue:

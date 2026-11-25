@@ -39,22 +39,22 @@ that makes the first reduction below safe.
 Transformations per single-document import (after #1415)
 ---------------------------------------------------------
 
-===================  ============================================================
-Stage                Work per imported file
-===================  ============================================================
-parse                one ``etree.fromstring`` of the stored document
-detach copy          none for the root-node document; one serialize + one
-                     reparse per node that must be cut out of a wrapper
-hierarchyLevel       one traversal, by ``from_xml``; the bucket check of a
-                     catalogue run reads the answer carried on the mapper
-map                  one ``xml_to_django`` traversal; persistence and the
-                     #981 extraction read its result, no second pass
-backup serialization none when no record is written; one
-                     ``serialize_document`` when a record is created or
-                     updated (shared by all written records of the run)
-cache                the parsed instances are released with the import
-                     instead of being held until the TTL of the global cache
-===================  ============================================================
+====================  ============================================================
+Stage                 Work per imported file
+====================  ============================================================
+parse                 one ``etree.fromstring`` of the stored document
+detach copy           none for the root-node document; one serialize + one
+                      reparse per node that must be cut out of a wrapper
+hierarchyLevel        one traversal, by ``from_xml``; the bucket check of a
+                      catalogue run reads the answer carried on the mapper
+map                   one ``xml_to_django`` traversal; persistence and the
+                      #981 extraction read its result, no second pass
+backup serialization  none when no record is written; one
+                      ``serialize_document`` when a record is created or
+                      updated (shared by all written records of the run)
+cache                 the parsed instances are released with the import
+                      instead of being held until the TTL of the global cache
+====================  ============================================================
 
 What #1415 reduced
 --------------------
@@ -125,7 +125,7 @@ Confirmed SQL findings (for #1392, not implemented here)
 * ``build_final_key_map`` asks the database with one ``Q`` per instance OR-ed
   together; the per-table key shape could become a bounded bulk plan.
 * The ORM side of the shared-reference cadence: every coupling re-runs the
-  lookup-table upserts, re-``set``s the record's M2M relations and runs the
+  lookup-table upserts, the ``set`` of the record's M2M relations and the
   superseded-relation bookkeeping even when the record row is not written.
 
 Each is a database-side question of the task-SQL epic; the review comments

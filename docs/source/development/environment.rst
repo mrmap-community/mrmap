@@ -172,7 +172,7 @@ why it is not gated on ``MRMAP_PRODUCTION``.
 
 The value of ``Referrer-Policy``. Default ``same-origin``: only a same-origin
 request is told which page referred it. Any `django value
-<https://docs.djangoproject.com/en/5.2/ref/clickjacking/#setting-a-referrer-policy>`__
+<https://docs.djangoproject.com/en/5.2/ref/settings/#secure-referrer-policy>`__
 is accepted verbatim; a deployment which must hand the referring address to a
 third-party map or statistics host names e.g. ``strict-origin-when-cross-origin``
 here, and gives up the fact that a cross-origin collector cannot see the path of

@@ -107,22 +107,18 @@ The parsing
 The bump
     ``DefaultVersioningStrategy``, measured from the parse above:
 
-    ====================== ============== ================== ==================
-    window                 default        this config        why
-    ====================== ============== ================== ==================
-    ``feat``               0.1.0 → 0.2.0  0.2.0              minor
-    ``fix`` / ``perf`` /   0.1.1          0.1.1              patch
-    ``refactor`` / hidden-
-    but-parsed types
-    ``feat`` + ``fix``     0.2.0          0.2.0              highest wins
-    ``feat!`` or a         1.0.0          0.2.0              ``bump-minor-pre-major``:
-    ``BREAKING CHANGE``                                     below 1.0.0 a
-                                                            breaking change is
-                                                            the minor this
-                                                            project promised
-    ``docs``/``chore``/…   0.1.1          -                  notes empty →
-    only                                                    no PR at all
-    ====================== ============== ================== ==================
+    ======================================  =============  ===========  ======================================
+    window                                  default        this config  why
+    ======================================  =============  ===========  ======================================
+    ``feat``                                0.1.0 → 0.2.0  0.2.0        minor
+    ``fix`` / ``perf`` / ``refactor`` /     0.1.1          0.1.1        patch
+    hidden-but-parsed types
+    ``feat`` + ``fix``                      0.2.0          0.2.0        highest wins
+    ``feat!`` or a ``BREAKING CHANGE``      1.0.0          0.2.0        ``bump-minor-pre-major``: below 1.0.0
+                                                                        a breaking change is the minor this
+                                                                        project promised
+    ``docs``/``chore``/… only               0.1.1          -            notes empty → no PR at all
+    ======================================  =============  ===========  ======================================
 
     ``bump-minor-pre-major`` is the ADR recommendation of #1578 (Q2) kept as a
     one-key reversible choice while Q2 stays Pending: without it, the first

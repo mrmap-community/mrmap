@@ -14,6 +14,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    :maxdepth: 4
 
    communication
+   documentation-portal
    getting-started
    project-structure
    environment
@@ -32,6 +33,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    orm-static-analysis
    capacity-snapshot
    background-notifications
+   collecting-vocabulary
    background-operations
    background-jobs
    prebuilt-images

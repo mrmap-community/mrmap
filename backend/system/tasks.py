@@ -245,9 +245,9 @@ def publish_task_performance(self, *args, **kwargs):
     off deployment has neither the row nor the cost. The cadence and the
     bounds of the export are in ``settings.py``; the record shape, the panels
     it feeds and the operator runbook are in
-    docs/source/development/celery-task-performance.rst.
+    docs/source/development/celery-task-performance-export.rst.
     """
-    from system.task_performance import export_task_performance
+    from system.task_performance_export import export_task_performance
 
     summary = export_task_performance()
     if summary.get("window_published"):
@@ -277,4 +277,41 @@ def publish_task_performance(self, *args, **kwargs):
     elif summary.get("reason"):
         logger.info("Task performance (#1391): nothing published - %s.",
                     summary["reason"])
+    return summary
+
+
+@shared_task(queue=celery_queues.DB_ROUTINES, bind=True, base=SingletonTask)
+def detect_task_performance(self, *args, **kwargs):
+    """Looks for slow, regressing and long-running tasks (#1390).
+
+    The continuous half of epic #1387's V2: not one query per task and never
+    on a request path, but one bounded evaluation per fire over the attempt
+    samples #1330 already writes - completed slow outliers, p95/slot-cost
+    regressions against each class' own previous window, currently active
+    executions past their class' budget (only when an answering worker
+    confirms them) and the coverage gaps which would otherwise read as
+    healthy. Verdicts become the existing incidents of #1319; queue waiting
+    is reported as its own labelled condition and stays #1324's capacity
+    question.
+
+    Runs on ``db-routines`` as a singleton on a beat interval row created at
+    migrate (``system/apps.py``), so a fire still reading the broker costs
+    the next one nothing but a skip. ``TASK_PERFORMANCE_ENABLED`` switches
+    the work itself off; the row stays, so turning it back on is an
+    environment change only.
+    """
+    from system.task_performance import evaluate_task_performance
+
+    summary = evaluate_task_performance()
+    if summary["status"] == "disabled":
+        return summary
+    logger.info(
+        "Task performance (#1390): %s classes over the window %s..%s, %s "
+        "conditions, %s verdicts published, %s incidents resolved, worker "
+        "inspection %s.",
+        summary["classes"], summary["window"]["since"],
+        summary["window"]["until"],
+        ", ".join(summary["conditions"]) or "none",
+        len(summary["published"]), summary["resolved"],
+        summary["worker_inspection"])
     return summary

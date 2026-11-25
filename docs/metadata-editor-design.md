@@ -16,7 +16,7 @@ Every statement below carries one of these grades:
 
 | grade | meaning |
 | --- | --- |
-| **[OBSERVED]** | seen in a running system operated by the author, screenshots under [`images/metadata-editor/`](images/metadata-editor/) |
+| **[OBSERVED]** | seen in a running system operated by the author, screenshots under [`images/metadata-editor/`](images/metadata-editor/README.md) |
 | **[SOURCE]** | read in the source code of the project (file paths given) |
 | **[DOCS]** | from project documentation only, not reproduced |
 | **[UNVERIFIED]** | plausible, not confirmed — must be answered before implementation |

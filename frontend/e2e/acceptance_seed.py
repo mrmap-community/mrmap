@@ -3,7 +3,7 @@
 # Runs against the development database of the acceptance stack, from the
 # repository root, e.g.:
 #
-#   docker compose run --rm --no-deps -T backend \
+#   docker compose exec -T backend \
 #     python manage.py shell -c "$(cat frontend/e2e/acceptance_seed.py)"
 #
 # It loads the repository's own behave fixtures (the same deterministic rows
@@ -17,10 +17,9 @@ from django.contrib.gis.geos import MultiPolygon, Polygon
 
 # 0) the acceptance database is disposable: flush makes the seed rerunnable.
 # `interactive` is the dest of --noinput, so it is the only spelling that
-# actually skips the "Type 'yes' to continue" prompt — `no_input=True` is not
-# an option of the command and silently leaves the prompt in place, which hangs
-# any run that has no terminal (README §2 pipes the seed through `docker compose
-# run -T`).
+# actually skips the "Type 'yes' to continue" prompt. `no_input=True` is not
+# a valid option for flush and raises an error. This seed runs in the already
+# started backend container, so it can safely run without an interactive TTY.
 call_command("flush", interactive=False, verbosity=0)
 
 # 1) the repo's own deterministic fixtures: users, the WMS service with its

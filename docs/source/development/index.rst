@@ -14,13 +14,14 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    :maxdepth: 4
 
    communication
+   documentation-portal
    getting-started
    project-structure
    environment
    celery-queues
    celery-result-backend
    celery-capacity-telemetry
-   celery-task-performance
+   celery-task-performance-export
    celery-task-orm-audit
    outbound-ogc-request-audit
    update-metadata-refresh-policy
@@ -28,11 +29,13 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    queryset-manager-conventions
    celery-task-sql-regression
    celery-task-profiling
+   celery-task-performance
    etf-conformity-retirement
    metadata-transform-inventory
    orm-static-analysis
    capacity-snapshot
    background-notifications
+   collecting-vocabulary
    background-operations
    background-jobs
    prebuilt-images

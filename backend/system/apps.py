@@ -19,6 +19,10 @@ CAPACITY_SNAPSHOT_REFRESH_TASK_NAME = "refresh capacity snapshot"
 #: beat; the tests look the row up by it
 TASK_PERFORMANCE_EXPORT_TASK_NAME = "publish celery task performance"
 
+#: the name the slow-task detector of #1390 has in the schedule of beat; the
+#: tests look the row up by it
+TASK_PERFORMANCE_DETECTION_TASK_NAME = "detect task performance"
+
 
 def create_slow_request_dump_cleanup_task(sender, **kwargs):
     """Creates the periodic task which keeps the slow request dumps bounded.
@@ -168,6 +172,38 @@ def create_task_performance_export_task(sender, **kwargs):
     )
 
 
+def create_task_performance_detection_task(sender, **kwargs):
+    """Creates the periodic task which looks for slow tasks (#1390).
+
+    Slow execution must be detectable before a user complains about it, and
+    the look must not be per task or per request - so it is a scheduled fire
+    over the attempt samples of #1330, beside the watchdog of #1320 which
+    asks a different question (standing vs slow). Like the watchdog it fires
+    on an interval rather than a crontab slot, because the budgets it judges
+    are shorter than an hour; the row is keyed by its name, so a deployment
+    which re-scheduled it over the api keeps its choice.
+
+    The switch of the work itself is the setting ``TASK_PERFORMANCE_ENABLED``
+    - the row stays created when detection is off, so a deployment can enable
+    detection by environment alone, without a migrate.
+    """
+    from django.conf import settings
+    from django_celery_beat.models import IntervalSchedule, PeriodicTask
+
+    interval = max(1, int(getattr(
+        settings, "TASK_PERFORMANCE_INTERVAL_MINUTES", 15)))
+    schedule, _ = IntervalSchedule.objects.get_or_create(
+        every=interval, period=IntervalSchedule.MINUTES)
+
+    PeriodicTask.objects.get_or_create(
+        name=TASK_PERFORMANCE_DETECTION_TASK_NAME,
+        defaults={
+            "interval": schedule,
+            "task": "system.tasks.detect_task_performance",
+        }
+    )
+
+
 class SystemConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'system'
@@ -193,6 +229,10 @@ class SystemConfig(AppConfig):
         )
         post_migrate.connect(
             create_capacity_snapshot_refresh_task,
+            sender=self
+        )
+        post_migrate.connect(
+            create_task_performance_detection_task,
             sender=self
         )
         post_migrate.connect(

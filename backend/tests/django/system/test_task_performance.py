@@ -1,772 +1,1021 @@
-"""The exporter the task dashboard of #1391 reads its series from.
+"""Continuous slow-task detection of #1390: the acceptance criteria.
 
-``task_performance`` turns one window of the #1330 attempt rows into a bounded
-structured syslog record per (task class, queue) plus one fleet record, and
-nothing else. What these tests pin down are the promises the issue makes about
-that shape:
+The detector reads the attempt samples #1330 writes and decides four separate
+conditions per task class. What these tests pin down is the list of cases the
+issue names, because every one of them is a case a naive elapsed-time check
+gets wrong:
 
-*   off by default: no records, and no beat row for a deployment which never
-    installed the dashboard;
-*   the windows do not overlap, so a fire which is late, doubled, or missing
-    cannot double count and cannot shift what a range of the series adds up to;
-*   never a record per attempt and never a query per attempt - the cost of a
-    fire is fixed and small however busy its window was;
-*   an unmeasured duration stays out of the record instead of becoming a zero,
-    occupied seconds never contain queue waiting, and the coverage fields say
-    how much could be seen at all;
-*   the drill-down rows carry the measurement columns and the correlation keys
-    of #1330, and nothing that would let a per-attempt row become a label of a
-    time series;
-*   a broken read or a log store which is down costs the window and is named in
-    the summary - it never raises into the caller, because this is telemetry of
-    the family of #1330's collector and #1320's publishers.
+*   a 4 h queue wait in front of a 2 s execution is NOT a 4 h slow task, and a
+    4 h active execution IS detectable while it is still running;
+*   a p50/p95 shift is a regression, an isolated spike is not, a normal heavy
+    tail is not, and a small sample answers ``insufficient`` with no number
+    attached;
+*   long-running detection survives a delayed inspection, an unreachable
+    worker, a retry redelivery, a worker death and the completion race;
+*   incidents deduplicate, resolve on recovery and stay permission-filtered
+    through #1319's one rule;
+*   the fire is bounded in statements and in writes, and an outage of the
+    collector costs telemetry, never an execution.
 
-The records are collected through the logging machinery, off the root logger
-the deployment actually syslogs, because the promise under test is what the
-syslog line carries: a record keeps its structured data only as far as a real
-handler sees it.
+The broker inspection is patched on ``celery.app.control.Control.inspect``
+exactly as the watchdog tests of #1320 patch it - ``inspect`` is a
+cached_property, so only a class patch reaches it.
 """
-
-import logging
-import re
 import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.contrib.contenttypes.models import ContentType
 from django_celery_beat.models import PeriodicTask
-from django.core.cache import cache
-from django.core.cache.backends.base import DEFAULT_TIMEOUT
-from django.core.cache.backends.locmem import LocMemCache
-from django.db import connection
 from django.test import TestCase, override_settings
-from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from system.apps import (TASK_PERFORMANCE_EXPORT_TASK_NAME,
-                         create_task_performance_export_task)
-from system.capacity_measures import task_class_of
+from MrMap.celery import app
+from notify.enums import (IncidentSeverityEnum, IncidentSourceEnum,
+                          IncidentStatusEnum, ProcessStatusEnum)
+from notify.models import BackgroundProcess, OperationalIncident
+from registry.models.service import CatalogueService
+from system.apps import (TASK_PERFORMANCE_DETECTION_TASK_NAME,
+                         create_task_performance_detection_task)
 from system.models import AttemptQuality, CeleryTaskAttempt
-from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_CLASS_COVERAGE,
-                                     EVENT_COVERAGE, EVENT_FLEET,
-                                     EVENT_SAMPLE, TELEMETRY_SDID,
-                                     WINDOW_CURSOR_KEY, _cursor_ttl,
-                                     _logfmt_value, export_task_performance)
-from system.tasks import publish_task_performance
+from system.task_performance import (CODE_COVERAGE_DISABLED,
+                                     CODE_COVERAGE_STALE,
+                                     CODE_COVERAGE_STAMP, CODE_LONG_RUNNING,
+                                     CODE_COMPLETED_SLOW, CODE_REGRESSION,
+                                     class_code, evaluate_long_running,
+                                     evaluate_task_performance,
+                                     judge_completed_slow, judge_long_running,
+                                     judge_regression)
 
-LOGGER = "MrMap.root"
+# the inspection is patched on the class, like #1320: `Control.inspect` is a
+# cached_property, so an instance-path patch never reaches it
+INSPECT = "celery.app.control.Control.inspect"
 
-#: the cadence the exporter's beat row fires at by default, which is also the
-#: span of one window (MRMAP_TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES)
-DEFAULT_CADENCE_MINUTES = 5
+CSW_PK = "9cc4889d-0cd4-4c3b-8975-58de6d30db41"
 
-LOC_MEM = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "task-performance-tests",
-    },
-}
+TASK = "registry.tasks.harvest.fetch_md_metadata"
+SLOW_TASK = "registry.tasks.harvest.run_harvesting"
 
-#: the locmem cache of these tests, on the backend which remembers timeouts
-RECORDING_CACHES = {
-    "default": {
-        "BACKEND": "tests.django.system.test_task_performance"
-                   "._TimeoutRecordingLocMem",
-        "LOCATION": "task-performance-timeout-tests",
-    },
-}
-
-ENABLED = override_settings(
-    CACHES=LOC_MEM,
-    TASK_PERFORMANCE_EXPORT_ENABLED=True,
-    TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES=60,
-    TASK_PERFORMANCE_EXPORT_MAX_BUCKETS=200,
-    TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES=3,
-    TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS=5)
-
-#: the fields a record must never carry, whatever the attempt table grows
-FORBIDDEN_FIELDS = ("args", "kwargs", "url", "headers", "payload", "request",
-                    "body", "task_args", "task_kwargs")
+#: the switch of the detector plus budgets small enough for a fixture to
+#: cross them deterministically
+DETECT = override_settings(
+    TASK_PERFORMANCE_ENABLED=True,
+    TASK_PERFORMANCE_MIN_SAMPLES=5,
+    TASK_PERFORMANCE_DEFAULT_BUDGET_SECONDS=10,
+    TASK_PERFORMANCE_DEFAULT_LONG_SECONDS=30,
+    TASK_PERFORMANCE_LONG_MIN_ACTIVE_SECONDS=1,
+    TASK_PERFORMANCE_LONG_GRACE_SECONDS=300,
+    TASK_PERFORMANCE_REGRESSION_FACTOR=2.0,
+    TASK_PERFORMANCE_SPIKE_SHARE=0.10,
+    TASK_PERFORMANCE_REGRESSION_MIN_BASELINE_SECONDS=1.0,
+    TASK_PERFORMANCE_COVERAGE_MIN_STAMPED=0.5,
+    CAPACITY_TELEMETRY_ENABLED=True,
+    CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS=48)
 
 
-def seed(task_id=None, attempt_no=0, queue="default",
-         task_name="registry.tasks.harvest.harvest_metadata",
-         outcome="success", active=2.0, wait=None, started_ago_seconds=0,
-         quality=None, periodic_name="harvest hourly", root_id=None):
-    # a real periodic name is two words, which is the shape of the
-    # value on the wire: quoted in the tail, so every fire of these
-    # tests also proves a value with a space survives the store
+def slow_code(task_name=TASK, queue=""):
+    return class_code(CODE_COMPLETED_SLOW, task_name, queue)
 
-    """One attempt row, written the way the #1330 collector writes it."""
-    started = timezone.now() - timedelta(seconds=started_ago_seconds)
-    published = (started - timedelta(seconds=wait)
-                 if wait is not None else None)
+
+def regression_code(task_name=TASK, queue=""):
+    return class_code(CODE_REGRESSION, task_name, queue)
+
+
+def long_code(task_name=TASK, queue=""):
+    return class_code(CODE_LONG_RUNNING, task_name, queue)
+
+
+def seed(task_name=TASK, queue="", outcome="success", active=1.0, wait=0.0,
+         started_ago=0, task_id=None, attempt_no=0, worker="celery@w1",
+         quality=None):
+    """One attempt row as the collector of #1330 would have written it."""
+    started = timezone.now() - timedelta(seconds=started_ago)
     terminal = outcome != ""
     return CeleryTaskAttempt.objects.create(
         task_id=task_id or str(uuid.uuid4()),
         attempt_no=attempt_no,
         task_name=task_name,
         queue=queue,
-        worker="celery@worker-1",
-        root_id=root_id or "",
-        periodic_name=periodic_name,
-        published_at=published,
+        worker=worker,
+        published_at=started - timedelta(seconds=wait)
+        if (terminal and wait is not None) else None,
         started_at=started,
-        finished_at=started + timedelta(seconds=active or 0)
-        if terminal else None,
+        finished_at=started + timedelta(seconds=active) if terminal else None,
         active_seconds=active if terminal else None,
-        wait_seconds=float(wait) if wait is not None else None,
+        wait_seconds=float(wait) if (terminal and wait is not None) else None,
         outcome=outcome,
         quality=quality or [],
     )
 
 
-class Records(list):
-    """The structured records of one fire, collected off the root logger."""
-
-    class Handler(logging.Handler):
-        def __init__(self, owner):
-            super().__init__()
-            self.owner = owner
-
-        def emit(self, record):
-            structured = getattr(record, "structured_data", None)
-            if not structured:
-                return
-            sdid, payload = next(iter(structured.items()))
-            self.owner.append({
-                "message": record.getMessage(),
-                "level": record.levelno,
-                "disable_python_meta": getattr(
-                    record, "disable_python_meta", False),
-                "suppress_dump": getattr(record, "suppress_dump", False),
-                "sdid": sdid,
-                "payload": payload,
-            })
-
-    @classmethod
-    def collect(cls, case):
-        collected = cls()
-        handler = cls.Handler(collected)
-        logger = logging.getLogger(LOGGER)
-        previous_level = logger.level
-        logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
-
-        def detach():
-            logger.removeHandler(handler)
-            logger.setLevel(previous_level)
-
-        case.addCleanup(detach)
-        return collected
-
-    def for_event(self, event):
-        return [record for record in self if record["payload"]["event"] ==
-                event]
-
-    def payload(self, event, index=0):
-        return self.for_event(event)[index]["payload"]
+def seed_class(count, active, task_name=TASK, queue="", started_every=60,
+               started_ago_offset=0, **kwargs):
+    """``count`` terminal attempts of one class, spaced inside a window."""
+    return [seed(task_name=task_name, queue=queue, active=active,
+                 started_ago=index * started_every + 5 + started_ago_offset,
+                 **kwargs)
+            for index in range(count)]
 
 
-class ExportOffByDefaultTests(TestCase):
+def broker(inspect, active=None, conf=None, dark=False):
+    """The answers one fire reads from the broker (see #1320's helper).
 
-    def test_a_fire_without_the_mode_publishes_nothing(self):
-        seed()
-        # a quiet log is the point: a deployment which never installed the
-        # dashboard should not pay records nobody reads, not even a note that
-        # it is not writing them
-        records = Records.collect(self)
-        summary = export_task_performance()
-        self.assertEqual(summary["published"], 0)
-        self.assertIn("off", summary["reason"])
-        self.assertEqual(records, [])
-
-    def test_beat_gets_no_row_while_the_mode_is_off(self):
-        create_task_performance_export_task(sender=None)
-        self.assertFalse(PeriodicTask.objects.filter(
-            name=TASK_PERFORMANCE_EXPORT_TASK_NAME).exists())
-
-    @override_settings(CACHES=LOC_MEM, TASK_PERFORMANCE_EXPORT_ENABLED=True)
-    def test_an_operator_who_turned_the_mode_off_loses_the_row(self):
-        create_task_performance_export_task(sender=None)
-        self.assertTrue(PeriodicTask.objects.filter(
-            name=TASK_PERFORMANCE_EXPORT_TASK_NAME).exists())
-        with override_settings(TASK_PERFORMANCE_EXPORT_ENABLED=False):
-            create_task_performance_export_task(sender=None)
-        self.assertFalse(PeriodicTask.objects.filter(
-            name=TASK_PERFORMANCE_EXPORT_TASK_NAME).exists())
-
-
-@ENABLED
-class PublishedRecordsTests(TestCase):
-    """The shape and the content of what one fire writes."""
-
-    def setUp(self):
-        cache.delete(WINDOW_CURSOR_KEY)
-        self.records = Records.collect(self)
-
-    def test_one_fleet_record_and_one_record_per_class_and_queue(self):
-        seed(task_name="registry.tasks.harvest.harvest_metadata", active=10.0)
-        seed(task_name="registry.tasks.harvest.harvest_result", active=4.0)
-        seed(task_name="notify.tasks.send_mail", queue="notify", active=1.0)
-        summary = export_task_performance()
-        self.assertEqual(summary["buckets"], 2)
-        self.assertEqual(len(self.records.for_event(EVENT_FLEET)), 1)
-        self.assertEqual(
-            sorted((record["payload"]["task_class"],
-                    record["payload"]["queue"])
-                   for record in self.records.for_event(EVENT_CLASS_BUCKET)),
-            [("notify.tasks.send_mail", "notify"),
-             ("registry.tasks.harvest", "default")])
-
-    def test_the_numbers_of_a_record_are_the_numbers_of_the_query(self):
-        # the acceptance criterion: what the dashboard plots is what the
-        # bounded capacity_measures query answers for the same window
-        seed(wait=4 * 3600, active=2.0)
-        export_task_performance()
-        payload = self.records.payload(EVENT_CLASS_BUCKET)
-        self.assertAlmostEqual(float(payload["slot_seconds"]), 2.0)
-        self.assertAlmostEqual(float(payload["wait_p95"]), 4 * 3600)
-        self.assertEqual(payload["executions"], "1")
-        self.assertEqual(payload["succeeded"], "1")
-        self.assertEqual(payload["wait_samples"], "1")
-        self.assertAlmostEqual(
-            float(self.records.payload(EVENT_FLEET)["slot_seconds"]), 2.0)
-
-    def test_unmeasured_values_stay_out_of_the_record(self):
-        seed(wait=None)
-        export_task_performance()
-        payload = self.records.payload(EVENT_CLASS_BUCKET)
-        for field in ("wait_p50", "wait_p95", "wait_max"):
-            self.assertNotIn(field, payload,
-                             "%s must be absent, not zero" % field)
-        self.assertIn("active_p95", payload)
-
-    def test_records_carry_their_window_and_the_fleet_its_coverage(self):
-        seed()
-        export_task_performance()
-        payload = self.records.payload(EVENT_CLASS_BUCKET)
-        start = timezone.datetime.fromisoformat(payload["window_start"])
-        end = timezone.datetime.fromisoformat(payload["window_end"])
-        self.assertAlmostEqual(
-            float(payload["window_seconds"]),
-            (end - start).total_seconds())
-        self.assertAlmostEqual(
-            float(self.records.payload(EVENT_FLEET)["wait_coverage"]), 0.0)
-
-    def test_records_suppress_the_dump_and_the_code_position(self):
-        # a scheduled exporter must not leave one json file per window below
-        # the media root for numbers the syslog line already carries (#1033)
-        seed()
-        export_task_performance()
-        self.assertTrue(self.records)
-        for record in self.records:
-            self.assertTrue(record["suppress_dump"])
-            self.assertTrue(record["disable_python_meta"])
-            self.assertEqual(record["sdid"], TELEMETRY_SDID)
-
-    def test_no_record_carries_an_argument_a_url_or_a_payload(self):
-        seed(periodic_name="harvest hourly", root_id="root-1")
-        export_task_performance()
-        self.assertTrue(self.records)
-        for record in self.records:
-            for field in FORBIDDEN_FIELDS:
-                self.assertNotIn(field, record["payload"])
-
-    def test_drilldown_samples_are_rows_to_read_not_a_series(self):
-        for index in range(4):
-            seed(task_name="registry.tasks.harvest.task%d" % index,
-                 periodic_name="harvest hourly", root_id="root-%d" % index,
-                 started_ago_seconds=index)
-        with override_settings(
-                TASK_PERFORMANCE_EXPORT_ENABLED=True, CACHES=LOC_MEM,
-                TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS=2,
-                TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES=3,
-                TASK_PERFORMANCE_EXPORT_MAX_BUCKETS=200,
-                TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES=60):
-            summary = export_task_performance()
-        samples = self.records.for_event(EVENT_SAMPLE)
-        self.assertEqual(len(samples), 2)
-        self.assertEqual(summary["drilldown_classes"],
-                         ["registry.tasks.harvest"])
-        payload = samples[0]["payload"]
-        self.assertEqual(payload["task_class"], "registry.tasks.harvest")
-        self.assertEqual(payload["periodic_name"], "harvest hourly")
-        self.assertIn(payload["root_id"],
-                      {"root-0", "root-1", "root-2", "root-3"})
-        self.assertIn("task_id", payload)
-
-    def test_a_fire_which_could_not_read_its_window_costs_that_window(self):
-        # the window is lost and says so - the standing coverage read is not a
-        # question about the window and travels anyway, because the operator
-        # of a broken deployment still needs the coverage panel to move
-        seed()
-        with patch("system.task_performance.window_buckets",
-                   side_effect=RuntimeError("db is gone")):
-            summary = export_task_performance()
-        self.assertEqual(summary["window_published"], 0)
-        self.assertEqual(summary["published"], summary["coverage_published"])
-        self.assertGreaterEqual(summary["published"], 1)
-        self.assertEqual(summary["reason"], "db is gone")
-        self.assertEqual(self.records.for_event(EVENT_FLEET), [])
-        self.assertEqual(self.records.payload(EVENT_COVERAGE)["open_total"],
-                         "0")
-
-    def test_a_broken_drilldown_read_keeps_the_series(self):
-        seed()
-        with patch("system.task_performance.drilldown_samples",
-                   side_effect=RuntimeError("no samples")):
-            summary = export_task_performance()
-        self.assertGreaterEqual(summary["published"], 2)
-        self.assertEqual(self.records.for_event(EVENT_SAMPLE), [])
-        self.assertEqual(len(self.records.for_event(EVENT_FLEET)), 1)
-
-    def test_a_broken_coverage_read_keeps_the_series(self):
-        seed()
-        with patch("system.task_performance.uncertain_coverage",
-                   side_effect=RuntimeError("no residue read")):
-            summary = export_task_performance()
-        self.assertGreaterEqual(summary["published"], 2)
-        self.assertEqual(self.records.for_event(EVENT_COVERAGE), [])
-        self.assertEqual(len(self.records.for_event(EVENT_FLEET)), 1)
-
-
-@ENABLED
-class CoverageRecordsTests(TestCase):
-    """The crash residue of the attempt table, published every fire.
-
-    The rows here are seeded the way a crashed worker actually leaves them -
-    an open row whose ``started_at`` *and* whose ``recorded_at`` are hours old,
-    because the collector wrote it when the task started and nothing has
-    touched it since - which is the state the windowed counters of the series
-    can never reach: by the time the sweep of ``system.tasks`` flags such a
-    row, the row has left every window the exporter will ever publish.
+    ``dark`` is the honest case of a broker which reached no worker at all;
+    otherwise every view answers its empty shape unless named, and ``conf``
+    defaults to the one answering worker - the normal state nothing may be
+    claimed against. A previously cached inspection is dropped first, because
+    ``Control.inspect`` is a cached_property.
     """
+    app.control.__dict__.pop("inspect", None)
+    views = inspect.return_value
+    if dark:
+        for name in ("active", "conf"):
+            getattr(views, name).return_value = None
+        return
+    answers = {
+        "active": active if active is not None else {},
+        "conf": conf if conf is not None else {"celery@w1": {}},
+    }
+    for name, value in answers.items():
+        getattr(views, name).return_value = value
 
-    def setUp(self):
-        cache.clear()
-        self.records = Records.collect(self)
 
-    def crashed_row(self, task_name="registry.tasks.harvest.work",
-                    hours_ago=49):
-        row = CeleryTaskAttempt.objects.create(
-            task_id=str(uuid.uuid4()), attempt_no=0, task_name=task_name,
-            queue="default", worker="celery@worker-1",
-            started_at=timezone.now() - timedelta(hours=hours_ago),
-            outcome="", quality=[])
-        CeleryTaskAttempt.objects.filter(pk=row.pk).update(
-            recorded_at=row.started_at)
-        return row
+def active_entry(task_id, worker="celery@w1"):
+    """One inspected worker entry which reports the attempt as its own."""
+    return {worker: [{"id": str(task_id), "request": {"id": str(task_id)}}]}
 
-    def test_the_residue_of_a_crash_reaches_the_dashboard(self):
-        # the deployment's workers died mid-task: the exporter of the next
-        # minutes publishes no executions of that class and still says the
-        # attempts are open without an end
-        self.crashed_row()
-        export_task_performance()
-        payload = self.records.payload(EVENT_COVERAGE)
-        self.assertEqual(payload["open_abandoned"], "1")
-        self.assertEqual(payload["open_running"], "0")
-        self.assertEqual(payload["open_total"], "1")
-        self.assertEqual(payload["grace_seconds"], str(48 * 3600))
-        self.assertEqual(payload["source"], "measured_worker")
-        self.assertIn("measured_at", payload)
 
-    def test_a_quiet_window_still_publishes_its_coverage(self):
-        # an empty window is when the coverage matters most: a deployment
-        # whose workers died publishes no executions at all, and must still
-        # say its attempts are open without an end
-        self.crashed_row()
-        cache.set(WINDOW_CURSOR_KEY,
-                  (timezone.now() - timedelta(seconds=1)).isoformat())
-        summary = export_task_performance()
-        self.assertEqual(summary["executions"], 0)
-        self.assertEqual(self.records.for_event(EVENT_CLASS_BUCKET), [])
-        payload = self.records.payload(EVENT_COVERAGE)
-        self.assertEqual(payload["open_abandoned"], "1")
-        self.assertEqual(self.records.payload(EVENT_FLEET)["executions"], "0")
+class DetectorTestMixin:
+    """The incident-side reading shared by the fire tests."""
 
-    def test_a_still_running_attempt_is_not_reported_as_crash_residue(self):
-        # the counterfactual the review asked for: a genuinely long-running
-        # task must not move the number an operator reads as "workers died"
-        self.crashed_row(hours_ago=1)
-        export_task_performance()
-        payload = self.records.payload(EVENT_COVERAGE)
-        self.assertEqual(payload["open_abandoned"], "0")
-        self.assertEqual(payload["open_running"], "1")
-        self.assertEqual(payload["open_total"], "1")
+    def active(self, code=None):
+        query = OperationalIncident.objects.filter(
+            status=IncidentStatusEnum.ACTIVE.value)
+        return query.filter(code=code) if code else query
 
-    def test_the_residue_is_also_attributed_to_its_class(self):
-        # all three are older than the grace, so all three are residue, and
-        # the class rows say which class is holding how much of them
-        self.crashed_row(task_name="registry.tasks.harvest.work")
-        self.crashed_row(task_name="registry.tasks.harvest.other")
-        self.crashed_row(task_name="notify.tasks.send_mail")
-        export_task_performance()
-        rows = self.records.for_event(EVENT_CLASS_COVERAGE)
+
+class CompletedSlowTests(DetectorTestMixin, TestCase):
+    """The queue/execution split of #1390's first acceptance criterion."""
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
+
+    @DETECT
+    def test_a_four_hour_wait_in_front_of_two_seconds_is_not_slow(self):
+        # the acceptance example verbatim: 4 h of broker waiting, 2 s of
+        # execution - the wait is a capacity finding (#1324), never a slow task
+        seed_class(6, active=2.0, wait=4 * 3600)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_finished_attempt_over_its_budget_is_one_incident(self):
+        seed_class(5, active=12.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 1)
+        incident = self.active(slow_code()).get()
+        self.assertEqual(incident.source, IncidentSourceEnum.SYSTEM.value)
+        self.assertEqual(incident.scope, "system")
+        self.assertEqual(incident.severity,
+                         IncidentSeverityEnum.WARNING.value)
+        self.assertEqual(incident.details["task_name"], TASK)
+        self.assertAlmostEqual(
+            incident.details["observed_max_active_seconds"], 12.0)
+        self.assertEqual(incident.details["budget_seconds"], 10)
+        # the queue-wait numbers travel with the verdict, labelled apart
+        self.assertIsNotNone(incident.details["max_wait_seconds"])
+
+    @DETECT
+    def test_a_recurring_slow_class_stays_one_incident_with_a_count(self):
+        seed_class(5, active=12.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+            evaluate_task_performance()
+        incidents = self.active(slow_code())
+        self.assertEqual(incidents.count(), 1)
+        self.assertEqual(incidents.get().occurrence_count, 2)
+
+    @DETECT
+    def test_recovery_resolves_the_standing_slow_incident(self):
+        slow = seed_class(5, active=12.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+        self.assertEqual(self.active(slow_code()).count(), 1)
+        # the next window answers inside the budget: recovery, proven by the
+        # same evidence which raised the verdict
+        for row in slow:
+            CeleryTaskAttempt.objects.filter(pk=row.pk).update(
+                active_seconds=2.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(slow_code()).count(), 0)
         self.assertEqual(
-            sorted((record["payload"]["task_class"],
-                    record["payload"]["open_abandoned"],
-                    record["payload"]["open_running"],
-                    record["payload"]["open_total"])
-                   for record in rows),
-            [("notify.tasks.send_mail", "1", "0", "1"),
-             ("registry.tasks.harvest", "2", "0", "2")])
-        # the fleet row still answers the whole table, not the classes published
-        self.assertEqual(self.records.payload(EVENT_COVERAGE)["open_total"],
-                         "3")
+            OperationalIncident.objects.get(code=slow_code()).status,
+            IncidentStatusEnum.RESOLVED.value)
 
-    def test_the_coverage_is_a_gauge_in_the_summary(self):
-        # the beat task logs this line, so an operator reading the worker
-        # log of a crashed deployment sees the residue without Grafana
-        self.crashed_row()
-        summary = export_task_performance()
-        self.assertEqual(summary["open_abandoned"], 1)
-        self.assertEqual(summary["open_running"], 0)
+    @DETECT
+    def test_two_slow_classes_are_two_incidents(self):
+        # the class is part of the code, so one recovery never resolves the
+        # other class's standing verdict
+        seed_class(5, active=12.0, task_name=TASK)
+        seed_class(5, active=12.0, task_name=SLOW_TASK)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 2)
+        self.assertEqual(self.active(slow_code()).count(), 1)
+        self.assertEqual(
+            self.active(slow_code(SLOW_TASK)).count(), 1)
 
-    def test_a_finished_attempt_leaves_the_residue(self):
-        crashed = self.crashed_row()
+    @DETECT
+    def test_a_class_silenced_by_its_policy_reports_nothing(self):
+        seed_class(5, active=12.0, task_name=SLOW_TASK)
+        with override_settings(TASK_PERFORMANCE_POLICY={
+                SLOW_TASK: {"disabled": True}}):
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_congested_route_is_named_as_the_suspected_latency(self):
+        # a slow class whose queue waited more than its baseline too carries
+        # the suspicion that the route in front of it is the reason - labelled
+        # as #1324's capacity question, never as the slow task itself
+        seed_class(6, active=2.0, wait=1.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=12.0, wait=600.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance(publish=False)
+        slow = next(item for item in summary["verdicts"]
+                    if item.get("code") == slow_code())
+        self.assertEqual(slow["suspected_external_latency"]["suspected"],
+                         "queue_backlog")
+        self.assertEqual(slow["suspected_external_latency"]["owner"], "#1324")
+
+    @DETECT
+    def test_a_slow_class_with_a_free_route_suspects_nothing(self):
+        seed_class(6, active=12.0, wait=1.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=12.0, wait=1.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance(publish=False)
+        slow = next(item for item in summary["verdicts"]
+                    if item.get("code") == slow_code())
+        self.assertIsNone(slow["suspected_external_latency"])
+
+    @DETECT
+    def test_a_queue_policy_overrides_the_default_budget(self):
+        # the class is slow for the global default and fine for its own queue
+        seed_class(5, active=12.0, queue="harvest-import")
+        with override_settings(TASK_PERFORMANCE_POLICY={
+                "queue:harvest-import": {"budget_seconds": 60}}):
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_sparse_class_is_never_judged(self):
+        # never alert merely because the sample is thin: no number, no verdict
+        seed_class(2, active=12.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_no_data_at_all_publishes_nothing(self):
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["classes"], 0)
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+
+class RegressionTests(DetectorTestMixin, TestCase):
+    """p95/slot-cost shift vs isolated spike vs heavy tail vs small sample."""
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
+
+    @DETECT
+    def test_a_p95_shift_is_a_regression(self):
+        # the baseline window (25..47 h ago) at 2 s, the current window at
+        # 8 s: the whole distribution moved and nothing merely spiked
+        seed_class(6, active=2.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=8.0, started_every=3600 * 3)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        regression = [item for item in summary["verdicts"]
+                      if item.get("code") == regression_code()]
+        self.assertEqual(len(regression), 1)
+        self.assertEqual(regression[0]["comparison"], "active_p95")
+        self.assertGreater(regression[0]["p95_ratio"], 2.0)
+        self.assertEqual(self.active(regression_code()).count(), 1)
+
+    @DETECT
+    def test_an_isolated_spike_is_a_slow_finding_not_a_regression(self):
+        # nine attempts at 2 s and one at 60 s: the p95 of ten samples lands
+        # right on the spike and moved far past the factor, yet only 1 of 10
+        # exceeded the budget - a spike is called what it is (completed_slow)
+        # and never also a regression (#1390)
+        seed_class(6, active=2.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(9, active=2.0, started_every=3600 * 2)
+        seed(active=60.0, started_ago=30)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        codes = [item.get("code") for item in summary["verdicts"]]
+        self.assertIn(slow_code(), codes)
+        self.assertNotIn(regression_code(), codes)
+        self.assertEqual(self.active(regression_code()).count(), 0)
+        # and the slow finding says what it is: one sample over the budget
+        spike = next(item for item in summary["verdicts"]
+                     if item.get("code") == slow_code())
+        self.assertEqual(spike["samples_over_budget"], 1)
+        self.assertAlmostEqual(spike["exceeded_share"], 0.1)
+
+    @DETECT
+    def test_a_normal_heavy_tail_is_no_regression(self):
+        # a class which legitimately runs long sometimes is answered by its
+        # own class policy - a budget which says how long it may take and a
+        # factor which says how much of its own history is normal noise - not
+        # by re-baselining it here
+        seed_class(6, active=2.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=8.0, started_every=3600 * 3)
+        with override_settings(TASK_PERFORMANCE_POLICY={
+                TASK: {"budget_seconds": 20, "regression_factor": 5.0}}):
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_sub_second_baseline_is_no_ratio(self):
+        # a sub-second baseline multiplied by a factor is false precision:
+        # the comparison answers insufficient and publishes nothing
+        seed_class(6, active=0.4, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=1.8, started_every=3600 * 3)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(self.active(regression_code()).count(), 0)
+        self.assertEqual(summary["classes"], 1)
+        verdicts = [item for item in summary["verdicts"]
+                    if item.get("code") == regression_code()]
+        self.assertEqual(verdicts, [])
+
+    @DETECT
+    def test_a_small_baseline_sample_is_no_regression(self):
+        seed_class(2, active=2.0, started_every=3600 * 3,
+                   started_ago_offset=3600 * 25)
+        seed_class(6, active=9.0, started_every=3600 * 3)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(self.active(regression_code()).count(), 0)
+        self.assertEqual([item for item in summary["verdicts"]
+                          if item.get("code") == regression_code()], [])
+
+
+class LongRunningTests(DetectorTestMixin, TestCase):
+    """The currently-active condition and its failure cases."""
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
+
+    def long_attempt(self, minutes=120, task_id=None, worker="celery@w1"):
+        return seed(outcome="", active=None, wait=None,
+                    started_ago=minutes * 60, task_id=task_id,
+                    worker=worker)
+
+    @DETECT
+    def test_a_four_hour_active_execution_is_detectable_now(self):
+        # the acceptance example: detectable WHILE it runs, worker confirming
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 1)
+        incident = self.active(long_code()).get()
+        self.assertEqual(incident.severity, IncidentSeverityEnum.ERROR.value)
+        self.assertEqual(incident.details["task_id"], attempt.task_id)
+        self.assertEqual(incident.details["confidence"], "high")
+        self.assertGreater(incident.details["active_seconds"], 4 * 3600 - 60)
+
+    @DETECT
+    def test_an_attempt_below_its_budget_is_not_long_running(self):
+        self.long_attempt(minutes=1)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_queued_message_is_no_execution_at_all(self):
+        # queue waiting is not execution: a message which never started has
+        # no attempt row, and 4 h of waiting in front of 2 s of work stays a
+        # capacity answer, not a long task (#1324)
+        seed(outcome="success", active=2.0, wait=4 * 3600, started_ago=60)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+
+    @DETECT
+    def test_an_unreachable_owner_is_unknown_not_healthy_or_confirmed(self):
+        attempt = self.long_attempt(minutes=240, worker="celery@dead")
+        with patch(INSPECT) as inspect:
+            # another worker answers; the owner of the attempt does not
+            broker(inspect, conf={"celery@other": {}})
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+        suspicion = next(item for item in summary["verdicts"]
+                         if item.get("code") == long_code())
+        self.assertEqual(suspicion["task_id"], attempt.task_id)
+        self.assertEqual(suspicion["measured"], "unknown")
+        self.assertEqual(suspicion["confidence"], "low")
+        self.assertEqual(suspicion["reason"], "worker_unreachable")
+
+    @DETECT
+    def test_a_dark_broker_claims_nothing_about_current_activity(self):
+        self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, dark=True)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["worker_inspection"], "unknown")
+        self.assertIn("worker_inspection", summary["unknown"])
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_delayed_inspection_still_catches_a_long_attempt_later(self):
+        # a fire which reached nothing about the worker publishes nothing;
+        # the next fire, with the worker answering, makes it actionable -
+        # detection missed nothing, it only stayed unknown meanwhile
+        attempt = self.long_attempt(minutes=400)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            first = evaluate_task_performance()
+            self.assertEqual(first["published"], [])
+            broker(inspect, active=active_entry(attempt.task_id))
+            summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 1)
+
+    @DETECT
+    def test_a_finished_attempt_is_no_long_running_verdict(self):
+        # the completion race: the owning worker answered and does not report
+        # the attempt - it finished between the row and the inspection
+        attempt = self.long_attempt(minutes=240)
         CeleryTaskAttempt.objects.create(
-            task_id=crashed.task_id, attempt_no=crashed.attempt_no,
-            task_name=crashed.task_name, queue=crashed.queue,
-            started_at=crashed.started_at, finished_at=timezone.now(),
-            active_seconds=3.0, outcome="success")
-        export_task_performance()
-        payload = self.records.payload(EVENT_COVERAGE)
-        self.assertEqual(payload["open_total"], "0")
+            task_id=attempt.task_id, attempt_no=0, task_name=TASK,
+            queue="", worker="celery@w1",
+            started_at=attempt.started_at,
+            finished_at=timezone.now(), active_seconds=240 * 60,
+            # a stamped terminal row: the class' coverage stays intact, so
+            # the only verdict this fire could publish is a long-running one
+            wait_seconds=1.0, outcome="success")
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(self.active(CODE_LONG_RUNNING).count(), 0)
 
-    def test_a_fire_without_an_elapsed_window_publishes_the_coverage_anyway(self):
-        # the standing read of the table is not a question about the window:
-        # a doubled fire or a clock which went backwards leaves the cursor
-        # ahead of now, the series says so and publishes no window - but the
-        # crash residue still travels. This is also every off-minute fire of a
-        # deployment whose cadence knob is a whole hour: system/apps.py
-        # collapses such a crontab to one minute of the hour, so the fires in
-        # between took the window's early return and a crashed deployment
-        # waited an hour for its coverage panel to move
-        self.crashed_row()
-        cache.set(WINDOW_CURSOR_KEY,
-                  (timezone.now() + timedelta(minutes=5)).isoformat())
-        summary = export_task_performance()
-        self.assertEqual(summary["window_published"], 0)
-        self.assertIn("no window", summary["reason"])
-        self.assertEqual(summary["published"], summary["coverage_published"])
-        self.assertGreaterEqual(summary["published"], 1)
-        payload = self.records.payload(EVENT_COVERAGE)
-        self.assertEqual(payload["open_abandoned"], "1")
-        self.assertEqual(self.records.for_event(EVENT_FLEET), [])
+    @DETECT
+    def test_a_worker_death_past_the_grace_is_coverage_not_a_long_task(self):
+        # an attempt older than the abandon grace is crash residue: reporting
+        # it as still running would name a dead worker a slow task. It is
+        # inside the retention of the samples, where the row really does
+        # still stand open in the table.
+        attempt = self.long_attempt(minutes=60 * 60)
+        CeleryTaskAttempt.objects.filter(pk=attempt.pk).update(
+            quality=[AttemptQuality.ABANDONED.value])
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(
+                attempt.task_id, worker="celery@dead"))
+            summary = evaluate_task_performance()
+        codes = [item.get("code") for item in summary["verdicts"]]
+        self.assertNotIn(long_code(), codes)
+        self.assertIn(CODE_COVERAGE_STALE, codes)
 
-    def test_the_beat_task_logs_the_residue_of_a_fire_without_a_window(self):
-        # the worker log of a deployment whose workers died has to say so even
-        # on a fire which had no window to publish
-        self.crashed_row()
-        cache.set(WINDOW_CURSOR_KEY,
-                  (timezone.now() + timedelta(minutes=5)).isoformat())
-        with self.assertLogs(LOGGER, level="INFO") as logs:
-            publish_task_performance.run()
-        line = "\n".join(logs.output)
-        self.assertIn("no window elapsed", line)
-        self.assertIn("crash residue", line)
+    @DETECT
+    def test_a_retry_redelivery_is_the_attempt_which_reports_itself(self):
+        # celery retries under the same uuid: attempt 0 ended, attempt 1 runs;
+        # only the attempt an active worker reports becomes the verdict
+        first = seed(outcome="retry", active=5.0, started_ago=4 * 3600)
+        second = seed(outcome="", active=None, wait=None,
+                      started_ago=3 * 3600, task_id=first.task_id,
+                      attempt_no=1)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(second.task_id))
+            summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 1)
+        incident = self.active(long_code()).get()
+        self.assertEqual(incident.details["attempt_no"], 1)
 
+    @DETECT
+    def test_a_standing_long_running_incident_resolves_when_work_stops(self):
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        # the worker answers and no longer reports it: the attempt completed,
+        # died or was redelivered - the evidence of the verdict is gone
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
 
-@ENABLED
-class WindowCursorTests(TestCase):
-    """The windows of a deployment are non-overlapping by construction."""
+    @DETECT
+    def test_a_dark_fire_keeps_a_standing_long_running_incident_standing(self):
+        # the observer's blindness is not evidence that the work stopped: a
+        # fire which reached no worker neither claims current activity nor
+        # resolves it (#1390 - unknown is never conclusively healthy)
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        with patch(INSPECT) as inspect:
+            broker(inspect, dark=True)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["worker_inspection"], "unknown")
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(self.active(long_code()).count(), 1)
+        # the next fire which does reach the worker decides, with evidence
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
 
-    def setUp(self):
-        cache.clear()
-        self.records = Records.collect(self)
+    @DETECT
+    def test_an_unreachable_owner_never_resolves_a_long_running_incident(self):
+        # partial blindness is still blindness: the fleet answered, only not
+        # the worker which owns the attempt, so nothing proves it stopped
+        attempt = self.long_attempt(minutes=240, worker="celery@dead")
+        with patch(INSPECT) as inspect:
+            broker(inspect,
+                   active=active_entry(attempt.task_id, worker="celery@dead"),
+                   conf={"celery@dead": {}, "celery@w1": {}})
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        with patch(INSPECT) as inspect:
+            broker(inspect, conf={"celery@w1": {}})
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(self.active(long_code()).count(), 1)
 
-    def test_the_first_fire_looks_back_over_the_configured_span(self):
-        seed(started_ago_seconds=3600)
-        summary = export_task_performance()
-        self.assertEqual(summary["resumed_from"], "first_window")
-        self.assertAlmostEqual(_window_minutes(summary), 60, places=1)
+    @DETECT
+    def test_a_completed_long_running_attempt_resolves_its_incident(self):
+        # the completion race's honest end: the collector writes the terminal
+        # row BESIDE the open one, and that pair is a finished execution - the
+        # same reading the candidate side of this module uses, so the standing
+        # error incident of a confirmed long task ends when it completes
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.create(
+            task_id=attempt.task_id, attempt_no=attempt.attempt_no,
+            task_name=TASK, started_at=attempt.started_at,
+            finished_at=timezone.now(), active_seconds=240 * 60,
+            outcome="success")
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
 
-    def test_the_next_fire_continues_where_the_last_window_ended(self):
-        export_task_performance()
-        first = self.records.payload(EVENT_FLEET)
-        cache.set(WINDOW_CURSOR_KEY, first["window_end"])
-        export_task_performance()
-        second = self.records.payload(EVENT_FLEET, index=1)
-        self.assertEqual(second["window_start"], first["window_end"])
+    @DETECT
+    def test_a_terminal_row_alone_resolves_without_the_open_row(self):
+        # retention may have flushed the open row of the same identity
+        # already; the terminal twin alone is the completion, too
+        attempt = self.long_attempt(minutes=240)
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.filter(pk=attempt.pk).update(
+            outcome="success", finished_at=timezone.now(), active_seconds=240 * 60)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
 
-    def test_an_unreadable_cursor_starts_a_new_window_instead_of_guessing(self):
-        cache.set(WINDOW_CURSOR_KEY, "not a moment")
-        with self.assertLogs(LOGGER, level="WARNING") as logs:
-            summary = export_task_performance()
-        self.assertEqual(summary["resumed_from"], "first_window")
-        self.assertTrue([line for line in logs.output
-                         if "could not be read" in line])
+    @DETECT
+    def test_a_dead_attempt_resolves_on_evidence_and_becomes_coverage(self):
+        # the worker death of #1390: past the abandon grace the row is crash
+        # residue, which the coverage condition owns - so the long-running
+        # incident ends and the coverage one takes its place
+        attempt = self.long_attempt(minutes=240, worker="celery@dead")
+        with patch(INSPECT) as inspect:
+            broker(inspect,
+                   active=active_entry(attempt.task_id, worker="celery@dead"),
+                   conf={"celery@dead": {}, "celery@w1": {}})
+            evaluate_task_performance()
+        self.assertEqual(self.active(long_code()).count(), 1)
+        CeleryTaskAttempt.objects.filter(pk=attempt.pk).update(
+            started_at=timezone.now() - timedelta(seconds=55 * 3600))
+        with patch(INSPECT) as inspect:
+            broker(inspect, conf={"celery@w1": {}})
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(long_code()).count(), 0)
+        self.assertEqual(self.active(CODE_COVERAGE_STALE).count(), 1)
 
-    def test_the_windows_of_a_busy_period_add_up_to_what_it_measured(self):
-        # a doubled, late or missing fire must not double count: what the
-        # published windows add up to is what the attempts were. The two fires
-        # are a minute apart, which is how a beat cadence actually arrives.
-        with patch.object(timezone, "now",
-                          return_value=timezone.now() - timedelta(minutes=1)):
-            seed(active=2.0, started_ago_seconds=30)
-            export_task_performance()
-        seed(active=3.0, started_ago_seconds=5)
-        export_task_performance()
-        fleets = [record["payload"]
-                  for record in self.records.for_event(EVENT_FLEET)]
-        self.assertEqual(len(fleets), 2)
+    def test_confirmation_is_matched_per_worker(self):
+        # celery retries keep the task uuid: another worker reporting the same
+        # id confirms nothing about this attempt (#1390's redelivery case)
+        decision = judge_long_running(
+            4 * 3600, 3600, True, own_worker_answered=False)
+        self.assertEqual(decision["condition"], "long_running")
+        self.assertEqual(decision["measured"], "unknown")
+        self.assertEqual(decision["confidence"], "low")
+        self.assertEqual(decision["reason"], "worker_unreachable")
+
+    def test_only_the_owning_worker_confirmation_is_high_confidence(self):
+        decision = judge_long_running(
+            4 * 3600, 3600, True, own_worker_answered=True)
+        self.assertEqual(decision["condition"], "long_running")
+        self.assertEqual(decision["measured"], "measured")
+        self.assertEqual(decision["confidence"], "high")
+        # a reported attempt the owning worker does not report is the
+        # completion race: healthy, with the reason named
+        raced = judge_long_running(
+            4 * 3600, 3600, False, own_worker_answered=True)
+        self.assertEqual(raced["condition"], "healthy")
+        self.assertEqual(raced["reason"], "finished_or_died")
+
+    @DETECT
+    def test_a_long_running_verdict_names_the_process_resource(self):
+        service = CatalogueService.objects.get(pk=CSW_PK)
+        process = BackgroundProcess.objects.create(
+            process_type="harvesting", phase="records to db",
+            description="a harvest whose task runs for hours",
+            status=ProcessStatusEnum.RUNNING.value,
+            related_resource_type=ContentType.objects.get_for_model(service),
+            related_id=service.pk)
+        attempt = self.long_attempt(minutes=240)
+        process.append_celery_task_ids([attempt.task_id])
+
+        with patch(INSPECT) as inspect:
+            broker(inspect, active=active_entry(attempt.task_id))
+            evaluate_task_performance()
+
+        incident = self.active(long_code()).get()
+        self.assertEqual(incident.scope, "resource")
+        self.assertEqual(incident.source, IncidentSourceEnum.HARVESTING.value)
+        self.assertEqual(incident.catalogue_service_id, service.pk)
         self.assertEqual(
-            sum(float(fleet["executions"]) for fleet in fleets), 2)
-        self.assertAlmostEqual(
-            sum(float(fleet["slot_seconds"]) for fleet in fleets), 5.0)
-        self.assertEqual(fleets[1]["window_start"], fleets[0]["window_end"])
+            incident.details["background_process"], str(process.pk))
+
+    @DETECT
+    def test_a_completed_execution_is_never_a_long_running_candidate(self):
+        # a finished attempt keeps its open row beside its terminal one
+        # (#1330); that pair is a completed execution, not a running task
+        open_row = self.long_attempt(minutes=240)
+        CeleryTaskAttempt.objects.create(
+            task_id=open_row.task_id, attempt_no=0, task_name=TASK,
+            started_at=open_row.started_at, finished_at=timezone.now(),
+            active_seconds=240 * 60, outcome="success")
+        confirmed, suspicions = evaluate_long_running(
+            timezone.now(), {"active": {}, "conf": {"celery@w1": {}}})
+        self.assertEqual(confirmed, [])
+        self.assertEqual(suspicions, [])
 
 
-@ENABLED
-class BoundedCostTests(TestCase):
-    """The acceptance criterion: cost independent of the window's volume."""
+class CoverageTests(DetectorTestMixin, TestCase):
+    """The fourth condition: what the telemetry cannot see."""
 
-    def setUp(self):
-        cache.clear()
-        self.records = Records.collect(self)
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
 
-    def test_a_busy_window_costs_the_same_records_as_a_quiet_one(self):
-        for index in range(200):
-            seed(task_name="registry.tasks.harvest.task%d" % (index % 2),
-                 queue="q%d" % (index % 3), active=1.0,
-                 started_ago_seconds=index % 60)
-        with CaptureQueriesContext(connection) as queries:
-            summary = export_task_performance()
-        # the grouped bucket read, the two uncertain reads, the fleet
-        # aggregate, the drill-down read and the cursor's cache round trips -
-        # a fixed count, never one per attempt
-        self.assertLessEqual(len(queries), 10)
-        # 1 fleet + the (class x queue) buckets + the samples of one class
-        self.assertLessEqual(summary["published"], 15)
-        self.assertEqual(summary["executions"], 200)
+    @DETECT
+    def test_unstamped_attempts_are_reported_as_blind_waiting(self):
+        # attempts ran, but without a publish stamp their waiting is unknown
+        seed_class(6, active=2.0, wait=None)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+        incident = self.active(CODE_COVERAGE_STAMP).get()
+        self.assertEqual(incident.scope, "system")
+        self.assertEqual(incident.details["stamped_share"], 0.0)
 
-    def test_the_bucket_cap_keeps_the_cardinality_bounded(self):
-        for index in range(5):
-            seed(task_name="registry.tasks.harvest%d.task" % index,
-                 queue="q%d" % index, active=float(5 - index))
-        with override_settings(
-                CACHES=LOC_MEM, TASK_PERFORMANCE_EXPORT_ENABLED=True,
-                TASK_PERFORMANCE_EXPORT_MAX_BUCKETS=2,
-                TASK_PERFORMANCE_EXPORT_DRILLDOWN_CLASSES=3,
-                TASK_PERFORMANCE_EXPORT_SAMPLES_PER_CLASS=5,
-                TASK_PERFORMANCE_EXPORT_FIRST_WINDOW_MINUTES=60):
-            summary = export_task_performance()
-        self.assertEqual(summary["buckets"], 2)
-        self.assertTrue(summary["truncated"])
-        self.assertIn("partial", summary.get("note", ""))
-        # the fleet row still answers the whole window
-        self.assertEqual(summary["executions"], 5)
+    @DETECT
+    def test_stamp_coverage_at_the_bound_is_silent(self):
+        # half of the window stamped is exactly the bound: silence (#1390
+        # reports inadequate coverage, not merely imperfect coverage)
+        seed_class(3, active=2.0, wait=None)
+        seed_class(3, active=2.0, wait=1.0)
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+        self.assertEqual(self.active(CODE_COVERAGE_STAMP).count(), 0)
 
-    def test_the_uncertain_observations_ride_along_as_counts(self):
-        # what a window flushed, and only that: a row seeded already flagged
-        # and written now is the one state the sweep reaches ~48 h after a row
-        # was written, never inside a window, so this proves the windowed
-        # counters of #1330 still travel - it says nothing about crash
-        # residue, which CoverageRecordsTests pins on a realistic row
-        seed(outcome="", active=None, started_ago_seconds=10,
-             quality=[AttemptQuality.ABANDONED.value])
-        export_task_performance()
-        payload = self.records.payload(EVENT_FLEET)
-        self.assertEqual(payload["uncertain_open"], "1")
-        self.assertEqual(payload["uncertain_abandoned"], "1")
+    @DETECT
+    def test_open_attempts_past_the_grace_are_a_coverage_verdict(self):
+        old = seed(outcome="", active=None, wait=None,
+                   started_ago=55 * 3600)
+        CeleryTaskAttempt.objects.filter(pk=old.pk).update(
+            quality=[AttemptQuality.ABANDONED.value])
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+        self.assertEqual(self.active(CODE_COVERAGE_STALE).count(), 1)
 
-    def test_the_published_class_is_the_class_of_the_policy(self):
-        seed(task_name="notify.tasks.send_mail")
-        export_task_performance()
-        published = {record["payload"]["task_class"] for record
-                     in self.records.for_event(EVENT_CLASS_BUCKET)}
-        self.assertEqual(published,
-                         {task_class_of("notify.tasks.send_mail")})
+    @DETECT
+    def test_telemetry_switched_off_while_work_stands_open_is_coverage(self):
+        BackgroundProcess.objects.create(
+            process_type="harvesting", phase="records to db",
+            description="work with nobody measuring it",
+            status=ProcessStatusEnum.RUNNING.value)
+        with override_settings(CAPACITY_TELEMETRY_ENABLED=False):
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                evaluate_task_performance()
+        self.assertEqual(self.active(CODE_COVERAGE_DISABLED).count(), 1)
 
-
-@ENABLED
-class MessageTailTests(TestCase):
-    """The ``key=value`` tail is what the log store keeps and the panels parse.
-
-    A record which suppresses its dump reaches VictoriaLogs as its message
-    only: the structured data area of the syslog line is ``-`` for it, so the
-    tail of the message is the wire contract of #1391 rather than a readable
-    convenience. What the shipped Grafana dashboard does with it is select a
-    record by ``key=value`` pairs and pull the values out with ``extract``
-    placeholders, and the two properties below are what makes that work; both
-    were found by running the panels against the store, not by reading about
-    it. The assertions parse the formatted line the way the store does.
-    """
-
-    def setUp(self):
-        cache.clear()
-        self.records = Records.collect(self)
-
-    def test_a_message_is_marker_event_fields_and_the_structured_data_id(self):
-        seed(periodic_name="harvest hourly")
-        export_task_performance()
-        for record in self.records:
-            message = record["message"]
-            event = record["payload"]["event"]
-            self.assertTrue(message.startswith(
-                "Celery task performance %s event=%s " % (event, event)),
-                "the event is a key=value pair so a panel of one event type "
-                "cannot match another whose name begins the same way: %r"
-                % message[:80])
-            self.assertTrue(message.endswith(" sd=%s" % TELEMETRY_SDID),
-                            "the UDP syslog handler appends a NUL to every "
-                            "datagram and the store's placeholder is greedy, "
-                            "so a field of its own has to end the message: %r"
-                            % message[-60:])
-
-    def test_every_field_of_a_record_reads_back_the_way_the_store_reads_it(
-            self):
-        # a field the shipped store cannot hand back is a field no panel can
-        # group by or sum, which shows up as an empty panel rather than an
-        # error - so the parse below is the store's own rule, applied to every
-        # field of every record of one fire
-        seed(periodic_name="harvest hourly", root_id="root-1", wait=0.5)
-        export_task_performance()
-        self.assertTrue(self.records)
-        for record in self.records:
-            fields = _store_fields(record["message"])
-            self.assertEqual(
-                set(fields), set(record["payload"]) | {"sd"},
-                "the tail of the %s record does not carry exactly the fields "
-                "of the record: %s" % (record["payload"]["event"],
-                                       sorted(set(fields)
-                                              ^ set(record["payload"])))
-            )
-            for key, value in record["payload"].items():
-                self.assertEqual(
-                    fields[key], value,
-                    "the store would read %s of the %s record as %r, not %r"
-                    % (key, record["payload"]["event"], fields[key], value))
-
-    def test_a_number_stays_bare_and_a_name_with_a_space_is_quoted(self):
-        # the store keeps an unquoted value numeric, which is what lets a
-        # panel sum() the seconds of #1391, so quoting is only ever the answer
-        # for a value which would otherwise be read as two tokens - and a
-        # periodic name is exactly that, because a PeriodicTask is named in
-        # words
-        seed(periodic_name="harvest hourly")
-        export_task_performance()
-        fleet = self.records.payload(EVENT_FLEET)
-        fleet_message = self.records.for_event(EVENT_FLEET)[0]["message"]
-        self.assertIn(" slot_seconds=%s " % fleet["slot_seconds"],
-                      fleet_message,
-                      "a quoted number is text to the store and cannot be "
-                      "summed")
-        self.assertIn(" truncated=%s " % fleet["truncated"], fleet_message)
-        sample_message = self.records.for_event(EVENT_SAMPLE)[0]["message"]
-        self.assertIn(' periodic_name="harvest hourly" ', sample_message,
-                      "a value with a space reaches the store as two tokens "
-                      "unless it is quoted")
-
-    def test_the_quoting_rule_of_the_tail(self):
-        # the shapes a builder does not currently produce, stated on the rule
-        # itself so the wire contract does not depend on what the attempt
-        # table happens to contain today
-        self.assertEqual(_logfmt_value(""), '""',
-                         "nothing at all is not a value the store could tell "
-                         "apart from a missing field")
-        self.assertEqual(_logfmt_value(2.5), "2.5")
-        self.assertEqual(_logfmt_value(True), "true")
-        self.assertEqual(_logfmt_value("a b"), '"a b"')
-        self.assertEqual(_logfmt_value('a"b'), '"a\\"b"')
-        self.assertEqual(_logfmt_value("a\\b"), '"a\\\\b"')
+    @DETECT
+    def test_coverage_verdicts_resolve_when_the_reading_is_complete(self):
+        old = seed(outcome="", active=None, wait=None,
+                   started_ago=55 * 3600)
+        CeleryTaskAttempt.objects.filter(pk=old.pk).update(
+            quality=[AttemptQuality.ABANDONED.value])
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            evaluate_task_performance()
+        self.assertEqual(self.active(CODE_COVERAGE_STALE).count(), 1)
+        CeleryTaskAttempt.objects.filter(pk=old.pk).delete()
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(self.active(CODE_COVERAGE_STALE).count(), 0)
 
 
-#: one ``key=`` of a message tail, as the store's ``extract`` sees it
-_KEY = re.compile(r"([a-z0-9_]+)=")
+class OutageAndBudgetTests(DetectorTestMixin, TestCase):
+    """Detection must never touch the work it observes (#1390's last AC)."""
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
+
+    @DETECT
+    def test_a_broken_sample_read_costs_nothing_but_the_fire(self):
+        with patch("system.task_performance._aggregate_classes") as aggregate:
+            aggregate.side_effect = RuntimeError("the database did not answer")
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                summary = evaluate_task_performance()
+        self.assertEqual(summary["published"], [])
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(summary["unknown"], ["sample_read"])
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_one_fire_costs_its_fixed_reads_and_nothing_per_task(self):
+        # the windowed aggregate of the current window, the same aggregate of
+        # the baseline window (one batched read for all classes, never one per
+        # class), the coverage aggregate, the stale-open count, one exceedance
+        # count per judged class and the open-attempt read - fixed per fire
+        # and per class, independent of the 24 attempts in the window
+        for index in range(4):
+            seed_class(6, active=2.0, task_name=f"task.class.{index}")
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            with self.assertNumQueries(9):
+                evaluate_task_performance(publish=False)
+
+    def test_detection_off_evaluates_nothing(self):
+        with override_settings(TASK_PERFORMANCE_ENABLED=False):
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["status"], "disabled")
+        self.assertEqual(self.active().count(), 0)
+
+    @DETECT
+    def test_a_mass_slowdown_is_bounded_by_the_verdict_ceiling(self):
+        for index in range(4):
+            seed_class(5, active=12.0, task_name=f"slow.class.{index}")
+        with override_settings(TASK_PERFORMANCE_MAX_VERDICTS_PER_FIRE=2):
+            with patch(INSPECT) as inspect:
+                broker(inspect)
+                summary = evaluate_task_performance()
+        self.assertEqual(len(summary["published"]), 2)
+        self.assertEqual(
+            self.active().filter(
+                code__startswith=CODE_COMPLETED_SLOW).count(), 2)
 
 
-def _store_fields(message):
-    """The ``key=value`` tail of a message, read the way the store reads it.
+class ResolutionSafetyTests(DetectorTestMixin, TestCase):
+    """Only this module's own incidents are ever resolved."""
 
-    ``extract `key=<value> ```` hands the placeholder the text up to the next
-    space which is not inside double quotes and strips those quotes; this is
-    that rule. Escapes are out of its scope on purpose - no value of this
-    record can contain a quote in practice, and the escaping of one is tested
-    against the writer of it instead.
-    """
-    # past "Celery task performance" and the event word which follows it
-    tail = message.split(" ", 3)[3]
-    # the event is written twice by design: once as the word after the marker,
-    # so the log line is human-readable, and once as a field - the word is
-    # skipped, the field is what the store reads
-    tail = tail[tail.find(" "):].lstrip()
-    fields = {}
-    position = 0
-    while position < len(tail):
-        key = _KEY.match(tail, position)
-        if key is None:
-            break
-        end = key.end()
-        quoted = False
-        while end < len(tail) and (tail[end] != " " or quoted):
-            if tail[end] == '"':
-                quoted = not quoted
-            end += 1
-        fields[key.group(1)] = tail[key.end():end].strip('"')
-        position = end + 1
-    return fields
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_wms.json", "test_csw.json"]
+
+    @DETECT
+    def test_a_foreign_incident_of_another_family_stands(self):
+        OperationalIncident.objects.report(
+            code="operational_retry_window_expired",
+            source=IncidentSourceEnum.SYSTEM.value,
+            severity=IncidentSeverityEnum.WARNING.value,
+            summary="another watchdog's verdict",
+            details={"task_name": TASK, "queue": ""})
+        with patch(INSPECT) as inspect:
+            broker(inspect)
+            summary = evaluate_task_performance()
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(
+            self.active("operational_retry_window_expired").count(), 1)
 
 
-@ENABLED
-class CursorLifetimeTests(TestCase):
-    """The cursor has to outlive the cadence it is read on.
+class PureJudgeTests(TestCase):
+    """The decision core without a database: the defined outcomes of #1390."""
 
-    The window of a fire continues where the last one ended, which is what
-    keeps a doubled, late or missed fire from double counting - and that only
-    holds while the cursor is still there when the next fire looks for it. A
-    cache configured without a ``TIMEOUT`` drops a key after 300 seconds (the
-    Django default and the value django-redis ships), which is exactly the
-    default cadence, so a cursor written without an explicit timeout expires
-    just as the next fire reads it and every fire republishes its whole
-    look-back. The recording backend below is how a test sees the timeout the
-    exporter handed the cache; the cache itself is Django's own.
-    """
+    ROW = {"samples": 10, "active_max": 12.0, "active_p50": 2.0,
+           "active_p95": 2.5, "slot_seconds": 20.0, "wait_max": 4 * 3600,
+           "last_started": None}
 
-    def setUp(self):
-        cache.clear()
-        self.records = Records.collect(self)
+    def test_small_sample_answers_insufficient_not_a_number(self):
+        verdict = judge_completed_slow(
+            dict(self.ROW, samples=2), budget=10, samples_over=2)
+        self.assertEqual(verdict["condition"], "insufficient")
+        self.assertNotIn("observed_max_active_seconds", verdict)
 
-    def test_a_fire_stores_the_cursor_longer_than_its_cadence(self):
-        seed(active=2.0, started_ago_seconds=30)
-        _TimeoutRecordingLocMem.timeouts = {}
-        with override_settings(CACHES=RECORDING_CACHES):
-            export_task_performance()
-            stored = _TimeoutRecordingLocMem.timeouts.get(WINDOW_CURSOR_KEY)
-        self.assertIsNotNone(
-            stored, "the exporter left the cursor to the cache default, "
-                    "which on the shipped setup is the cadence itself")
-        self.assertGreater(
-            stored, DEFAULT_CADENCE_MINUTES * 60,
-            "the cursor would expire before the next fire looks for it")
+    def test_stale_class_answers_no_data(self):
+        verdict = judge_completed_slow(self.ROW, budget=10, samples_over=9,
+                                       stale=True)
+        self.assertEqual(verdict["condition"], "no_data")
 
-    def test_the_cursor_ttl_outlives_every_cadence_the_knob_allows(self):
-        # the cadence is a setting and system/apps.py schedules the beat row
-        # from the same value, so the ttl has to scale with it rather than be
-        # a constant which a longer cadence silently outruns
-        for minutes in (1, 5, 7, 60, 120):
-            with self.settings(TASK_PERFORMANCE_EXPORT_WINDOW_MINUTES=minutes):
-                self.assertGreater(
-                    _cursor_ttl(), minutes * 60,
-                    "a %s minute cadence would outrun the cursor ttl"
-                    % minutes)
+    def test_regression_needs_both_windows_sampled(self):
+        baseline = {"samples": 1, "active_p95": 2.0, "active_p50": 2.0,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            self.ROW, baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=0)
+        self.assertEqual(verdict["condition"], "insufficient")
+
+    def test_no_comparable_baseline_answers_insufficient(self):
+        baseline = {"samples": 10, "active_p95": 0.2, "active_p50": 0.2,
+                    "slot_seconds": 0.3}
+        verdict = judge_regression(
+            dict(self.ROW, active_p95=0.9, slot_seconds=3.0), baseline,
+            factor=2.0, min_baseline=1.0, spike_allowance=0.1,
+            samples_over_baseline=0)
+        self.assertEqual(verdict["condition"], "insufficient")
+        self.assertIsNone(verdict["p95_ratio"])
+
+    def test_a_shift_is_a_regression_and_a_spike_is_not(self):
+        baseline = {"samples": 10, "active_p95": 2.2, "active_p50": 2.0,
+                    "slot_seconds": 22.0}
+        # the whole distribution moved: the middle of the window is beyond the
+        # factor too, which is what a shift is
+        shifted = judge_regression(
+            dict(self.ROW, active_p50=4.5, active_p95=5.0), baseline,
+            factor=2.0, min_baseline=1.0, spike_allowance=0.1,
+            samples_over_baseline=0)
+        self.assertEqual(shifted["condition"], "regression")
+        # only the tail moved: the middle of the window stayed where it was and
+        # one attempt of ten is beyond the class' old p95 - the spike of
+        # #1390, which completed_slow already called slow
+        spiked = judge_regression(
+            dict(self.ROW, active_p95=5.0), baseline, factor=2.0,
+            min_baseline=1.0, spike_allowance=0.1, samples_over_baseline=1)
+        self.assertEqual(spiked["condition"], "healthy")
+        self.assertTrue(spiked["spike_only"])
+
+    def test_slot_cost_regression_without_a_p95_ratio(self):
+        # no p95 anywhere means no old range which could have been exceeded,
+        # which is exactly what the caller passes (see _evaluate_class): the
+        # spike question has no answer here and must not silence the move
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 22.0}
+        verdict = judge_regression(
+            dict(self.ROW, active_p50=None, active_p95=None,
+                 slot_seconds=48.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1)
+        self.assertEqual(verdict["condition"], "regression")
+        self.assertEqual(verdict["comparison"], "slot_cost")
+        self.assertIsNone(verdict["exceeded_share"])
+
+    def test_a_sub_second_slot_cost_is_no_comparison_either(self):
+        # the false-precision guard is not a p95-only rule: two windows of ten
+        # attempts each, a quarter of a second per attempt, multiplied into a
+        # "2.8x slower" - never
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 2.5}
+        verdict = judge_regression(
+            dict(self.ROW, active_p50=None, active_p95=None,
+                 slot_seconds=7.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=0)
+        self.assertEqual(verdict["condition"], "insufficient")
+
+    def test_more_executions_alone_is_no_slot_cost_regression(self):
+        # the slot-cost arm compares PER ATTEMPT: a class which merely ran
+        # twice as often has double the totals and the same cost per
+        # execution, which is volume, not a slowdown (#1390's false precision)
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=80.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=0)
+        self.assertEqual(verdict["condition"], "healthy")
+        self.assertNotIn("comparison", verdict)
+        # the totals still travel as reported numbers, the ratio does not
+        self.assertAlmostEqual(verdict["slot_cost_ratio"], 1.0)
+        self.assertAlmostEqual(verdict["cost_per_attempt"], 2.0)
+        self.assertAlmostEqual(verdict["baseline_cost_per_attempt"], 2.0)
+        self.assertAlmostEqual(verdict["slot_seconds"], 80.0)
+        self.assertAlmostEqual(verdict["baseline_slot_seconds"], 20.0)
+
+    def test_a_slot_cost_regression_survives_a_change_in_volume(self):
+        # the same arm still answers when the cost per execution really moved,
+        # whether or not the window also holds more of them
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=10)
+        self.assertEqual(verdict["condition"], "regression")
+        self.assertEqual(verdict["comparison"], "slot_cost")
+        self.assertAlmostEqual(verdict["slot_cost_ratio"], 2.25)
+
+    def test_an_isolated_spike_is_no_slot_cost_regression_either(self):
+        # both arms answer the same question with the same rule: an isolated
+        # spike, seen only through the occupied cost, is the spike
+        # completed_slow already called and not a second verdict
+        baseline = {"samples": 10, "active_p95": None, "active_p50": None,
+                    "slot_seconds": 20.0}
+        verdict = judge_regression(
+            dict(self.ROW, samples=40, active_p50=None, active_p95=None,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=1)
+        self.assertEqual(verdict["condition"], "healthy")
+        self.assertTrue(verdict["spike_only"])
+
+    def test_a_cost_arm_spike_needs_no_p95_ratio_to_be_filtered(self):
+        # a sub-second p95 on both sides routes the comparison to the cost
+        # arm; there the exceedance share over the class' own old p95 still
+        # answers the spike question, so volume, tail or shift is decided the
+        # same way as in the p95 arm
+        baseline = {"samples": 10, "active_p95": 0.4, "active_p50": 0.3,
+                    "slot_seconds": 20.0}
+        spiked = judge_regression(
+            dict(self.ROW, samples=40, active_p95=0.9, active_p50=0.3,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=1)
+        self.assertEqual(spiked["condition"], "healthy")
+        self.assertTrue(spiked["spike_only"])
+        # most of the window beyond the old range is not a tail any more
+        shifted = judge_regression(
+            dict(self.ROW, samples=40, active_p95=0.9, active_p50=0.3,
+                 slot_seconds=180.0), baseline, factor=2.0, min_baseline=1.0,
+            spike_allowance=0.1, samples_over_baseline=30)
+        self.assertEqual(shifted["condition"], "regression")
+        self.assertEqual(shifted["comparison"], "slot_cost")
 
 
-class _TimeoutRecordingLocMem(LocMemCache):
-    """LocMemCache which remembers the timeout a key was stored with."""
+class BeatRowTests(TestCase):
+    """The detector runs on beat, as a row keyed by its name."""
 
-    timeouts = {}
-
-    def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None,
-            **kwargs):
-        answer = super().set(key, value, timeout=timeout, version=version,
-                             **kwargs)
-        self.timeouts[key] = timeout
-        return answer
-
-
-def _window_minutes(summary):
-    start = timezone.datetime.fromisoformat(summary["window_start"])
-    end = timezone.datetime.fromisoformat(summary["window_end"])
-    return (end - start).total_seconds() / 60
+    def test_beat_hands_the_detection_over_on_an_interval(self):
+        create_task_performance_detection_task(sender=None)
+        row = PeriodicTask.objects.get(
+            name=TASK_PERFORMANCE_DETECTION_TASK_NAME)
+        self.assertEqual(row.task, "system.tasks.detect_task_performance")
+        self.assertEqual(row.interval.every, 15)
+        self.assertEqual(row.interval.period, "minutes")
+        # idempotent like every beat row of this deployment
+        create_task_performance_detection_task(sender=None)
+        self.assertEqual(
+            PeriodicTask.objects.filter(
+                name=TASK_PERFORMANCE_DETECTION_TASK_NAME).count(), 1)

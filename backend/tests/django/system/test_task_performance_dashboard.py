@@ -6,7 +6,7 @@ contract live in two languages and nothing but a test keeps them together.
 What a panel can select or aggregate is exactly what the exporter wrote as a
 ``key=value`` token of the message tail, so the assertions below read the
 shipped dashboard file and check every query against the field names and the
-event tokens of ``system.task_performance``.
+event tokens of ``system.task_performance_export``.
 
 These are not render tests and they do not start Grafana: they catch the
 drift which is otherwise invisible until a dashboard quietly shows nothing -
@@ -22,9 +22,10 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_CLASS_COVERAGE,
-                                     EVENT_COVERAGE, EVENT_FLEET,
-                                     EVENT_SAMPLE)
+from system.task_performance_export import (EVENT_CLASS_BUCKET,
+                                            EVENT_CLASS_COVERAGE,
+                                            EVENT_COVERAGE, EVENT_FLEET,
+                                            EVENT_SAMPLE)
 
 MARKER = "Celery task performance"
 
@@ -164,7 +165,7 @@ class QueryContractTests(SimpleTestCase):
         # fire, and max() over the interval answers "how bad was the worst
         # fire" - a deployment which recovered from its crash would keep
         # showing the crash. So a residue panel reads the newest coverage
-        # records and nothing else (docs .../celery-task-performance.rst
+        # records and nothing else (docs .../celery-task-performance-export.rst
         # keeps the prose of this contract in step)
         residue_panels = [
             (panel, target) for panel, target in _targets()
@@ -237,8 +238,8 @@ def published_fields():
 
     from django.utils import timezone
 
-    from system.task_performance import (_bucket_records, _coverage_records,
-                                         _fleet_record, _sample_records)
+    from system.task_performance_export import (
+        _bucket_records, _coverage_records, _fleet_record, _sample_records)
 
     now = timezone.now()
     window = {"since": now - timedelta(minutes=5), "until": now}
@@ -270,7 +271,7 @@ def published_fields():
         queue="default", worker="celery@worker-1", periodic_name="harvest hourly",
         root_id="root-1", task_id="task-1", attempt_no=1, outcome="failure",
         active_seconds=1.0, wait_seconds=None, started_at=now, finished_at=now)
-    with patch("system.task_performance.drilldown_samples",
+    with patch("system.task_performance_export.drilldown_samples",
                return_value=[row]):
         sample_fields = set(_sample_records(answer, ["registry.tasks"],
                                             "cursor")[0])

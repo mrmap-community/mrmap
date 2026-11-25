@@ -52,7 +52,7 @@ Serial tests may take substantially longer. This mode does not waive the
 ``scripts/agent_capacity`` admission decision, even on a 16-GiB host.
 
 Allocation sources and limits of the evidence
-============================================
+=============================================
 
 The measured starting point is :ref:`runtime-memory-baselines` (#1613), not a
 new measurement of this change. That full four-worker run attributed 2885 MiB
@@ -112,7 +112,7 @@ Once the isolated dependencies are prepared, a full test arm is::
 
     python3 scripts/stack_memory_profile sample \
       --project "$COMPOSE_PROJECT_NAME" --phase django-1 \
-      --interval 0.25 --proc-interval 1 --out /tmp/test-memory.jsonl \
+      --interval 0.25 --proc-interval 1 --pss --out /tmp/test-memory.jsonl \
       --during 'docker compose run --rm --no-deps -e MRMAP_TEST_WORKERS=1 django-tests > /tmp/django-1.log 2>&1'
     python3 scripts/stack_memory_profile report --in /tmp/test-memory.jsonl
 
@@ -134,19 +134,25 @@ skips are permitted. Verify combined Django/Behave coverage against the existing
 shell/config probe is not evidence that application coverage stayed complete.
 
 The sampler's per-process RSS is diagnostic and can double-count shared pages;
-do not sum it as private memory. Its container command probe can sample PSS
-for one process, not the whole Django process tree. For PostgreSQL/Python PSS,
-collect readable ``/proc/<pid>/smaps_rollup`` in the Docker host's PID namespace,
-and mark it unavailable if permissions prevent that. Capture ``memory.stat``
-``shmem`` and ``slab_reclaimable`` at the same sample instants when examining
-shared memory and reclaimability: file charge includes shmem, so it is not all
-reclaimable page cache. Never add shmem to file charge again. Capture parent
-``memory.events`` before/after, since OOM deltas inside a test container alone
-do not prove that its ancestor avoided OOM. Container-local and parent peaks
-answer different questions and belong in separate report columns.
+do not sum it as private memory. ``sample --pss`` additionally samples
+``smaps_rollup`` for every process found in each container cgroup, grouping
+complete PSS sums by command. A row is unavailable unless every process in that
+sample was readable; this is deliberately not a partial sum. The ``command``
+probe still measures only its immediate child. PSS reads are sampled at the
+``--proc-interval`` cadence and can miss brief peaks.
+
+Capture ``memory.stat`` ``shmem`` and ``slab_reclaimable`` at the same sample
+instants when examining shared memory and reclaimability: file charge includes
+shmem, so it is not all reclaimable page cache. Never add shmem to file charge
+again. The sampler also reports ``oom_delta`` and ``oom_kill_delta`` for its
+own cgroup over the phase, as well as container-local deltas. The sampler cgroup
+is the parent audit only when it contains both the profiler and dockerd; record
+that scope and do not attribute an increment to the test if unrelated work ran
+inside the same cgroup. Container-local and parent peaks answer different
+questions and belong in separate report columns.
 
 Verification status (2026-11-23)
-==============================
+================================
 
 On commit ``5cb425edf``, a host with an Intel i7-7700K (8 logical CPUs), Linux
 ``7.0.0-44-generic`` and Docker 29.4.3 ran each arm once in a fresh isolated
@@ -157,15 +163,15 @@ test setup; frontend dependency installation was completed before sampling.
 The stack peak is the highest sampled sum of container cgroup charges, in MiB;
 it is not an independent measurement of private RAM or an ancestor peak.
 
-====================  ============  ==============  =============
-Workload              Workers       Stack peak MiB  Elapsed seconds
-====================  ============  ==============  =============
-Django with coverage  4 (default)              5113           1285
-Django with coverage  1                       2361           2859
-Vitest with coverage  automatic               2802            153
-Vitest with coverage  1                        930            485
-Behave with coverage  serial                   723            176
-====================  ============  ==============  =============
+====================  ===========  ==============  ===============
+Workload              Workers      Stack peak MiB  Elapsed seconds
+====================  ===========  ==============  ===============
+Django with coverage  4 (default)            5113             1285
+Django with coverage  1                      2361             2859
+Vitest with coverage  automatic              2802              153
+Vitest with coverage  1                       930               485
+Behave with coverage  serial                  723              176
+====================  ===========  ==============  ===============
 
 Both Django arms passed 3245 tests with the same 3 skips; each reported 92.28%
 line and 81.25% branch coverage. Both Vitest arms passed 1794 tests in 217 files;
@@ -180,14 +186,212 @@ These are single runs, not repeated cold and warm comparisons. They show a
 lower sampled container charge and longer elapsed time on this host; they do
 not establish a general performance claim. The default and preset use the same
 revision and normal defaults, rather than a separate baseline checkout.
-The targeted Django module was not profiled separately.
-The first Playwright setup raced fixture seeding with backend migrations and
-failed when ``created_at`` already existed; a later attempt also exposed an
-API-readiness race. After waiting for backend startup and confirming its session
-endpoint before opening the SPA, all 28 Playwright acceptance tests passed in
-1.5 minutes. This is functional browser verification, not a Playwright memory
-profile. The owned Compose project was removed. Repeated arms, a Playwright
-memory profile, PSS and a separate parent OOM audit remain unmeasured.
+
+Follow-up full-suite comparison (2026-11-23)
+--------------------------------------------
+
+A paired four-worker coverage run used the same host, dependency image
+``a6db4c98151b``, fresh isolated projects and the same sampler settings
+(``--interval 0.25 --proc-interval 15 --pss``). Baseline
+``21994fb30`` predates the #1619 worker-limit change; candidate ``35809ac8e``
+is the candidate tree. A second matched pair repeated both four-worker arms.
+The sampler phase includes test-container startup and test database setup;
+the test time is the Django runner's own summary.
+
+.. list-table::
+    :header-rows: 1
+    :widths: auto
+
+    * - Pair
+      - Revision
+      - Workers
+      - Tests / existing skips
+      - Test time (s)
+      - Profile time (s)
+      - Stack peak (MiB)
+      - Committed peak (MiB)
+    * - 1
+      - ``21994fb30``
+      - 4
+      - 3245 / 3
+      - 1253.3
+      - 1362.4
+      - 4943
+      - 3651
+    * - 1
+      - ``35809ac8e``
+      - 4
+      - 3245 / 3
+      - 1314.5
+      - 1427.0
+      - 5124
+      - 3811
+    * - 2
+      - ``21994fb30``
+      - 4
+      - 3245 / 3
+      - 959.6
+      - 1055.5
+      - 5263
+      - 3779
+    * - 2
+      - ``35809ac8e``
+      - 4
+      - 3245 / 3
+      - 966.4
+      - 1050.7
+      - 5420
+      - 3942
+
+All four runs passed and produced XML coverage reports; each had the same 3
+existing skips. The candidate was 4.9% slower in pair 1 and
+0.7% slower in pair 2. Baseline times ranged from 959.6 to 1253.3 seconds,
+showing substantial run-to-run variation; these two pairs do not support a
+general no-regression claim. The opt-in layer leaves normal CI unchanged:
+four Django workers and Vitest's automatic policy remain the defaults.
+Sampler-cgroup ``oom``/``oom_kill`` deltas were 0/0 in both pairs. Python PSS
+peaks were 3084/3202 MiB (9/8 readable processes) in pair 1 and 3233/3433 MiB
+(8/8 readable processes) in pair 2. PostgreSQL PSS was unavailable in all
+four runs; its RSS/shmem process view and container cgroup metrics were still
+captured, and no PSS value is inferred.
+
+Targeted Django database-cold and database-warm runs used
+``tests.django.registry.tests_update_candidates`` (five tests) in a fresh
+project for each worker count. ``--keepdb`` preserved the database for the
+second run. Dependencies were already running before each sample; the cold
+profile includes first test-database creation and migrations.
+
+.. list-table::
+    :header-rows: 1
+    :widths: auto
+
+    * - Workers
+      - DB run
+      - Tests / result
+      - Test time (s)
+      - Profile time (s)
+      - Stack peak (MiB)
+      - Test container peak (MiB)
+    * - 4
+      - cold
+      - 5 / passed
+      - 1.223
+      - 107.1
+      - 491
+      - 232
+    * - 4
+      - warm
+      - 5 / passed
+      - 1.344
+      - 12.8
+      - 418
+      - 172
+    * - 1
+      - cold
+      - 5 / passed
+      - 1.017
+      - 102.1
+      - 490
+      - 233
+    * - 1
+      - warm
+      - 5 / passed
+      - 1.173
+      - 11.7
+      - 418
+      - 172
+
+The test runner's Python PSS peaks were 286/227 MiB (four-worker cold/warm)
+and 286/222 MiB (one-worker cold/warm). PostgreSQL PSS remained unreadable.
+The sampler-cgroup OOM deltas were 0/0 in all four phases. These targeted
+results are database-startup diagnostics, not coverage runs or a substitute for
+full-suite runtime comparisons.
+
+Additional candidate full-suite modes (2026-11-23)
+--------------------------------------------------
+
+On candidate ``35809ac8e``, fresh isolated projects and the same backend image
+were used for one- and two-worker full coverage runs. Each passed 3245 tests
+with the same 3 existing skips, produced XML coverage, and reported identical
+coverage (92.28% lines, 81.25% branches).
+
+.. list-table::
+    :header-rows: 1
+    :widths: auto
+
+    * - Workers
+      - Test time (s)
+      - Profile time (s)
+      - Stack peak (MiB)
+      - Test-container peak (MiB)
+      - Python PSS peak (MiB)
+      - Sampler-cgroup OOM deltas
+    * - 1
+      - 2444.8
+      - 2535.3
+      - 2315
+      - 1200
+      - 1085
+      - 0/0
+    * - 2
+      - 1509.5
+      - 1634.9
+      - 3792
+      - 2437
+      - 2381
+      - 0/0
+
+The full frontend suite without coverage also passed 1794 tests in 217 files
+with automatic workers (129.5 s test time, 131.0 s profile time, 2386 MiB
+stack peak, OOM deltas 0/0). The default and one-worker coverage results above
+preserve the same four frontend coverage metrics.
+
+Browser acceptance profile (2026-11-23)
+---------------------------------------
+
+The built SPA was served through nginx on the lightweight Compose stack. Backend
+dependencies, migrations, fixture loading, nginx startup and Playwright's
+``npm ci`` completed before sampling. The profile covers the 28-test
+``npx playwright test`` run, not stack startup or dependency installation.
+The API readiness probe was added to the documented recipe because nginx can
+be healthy while the backend is still starting.
+
+.. list-table::
+    :header-rows: 1
+    :widths: auto
+
+    * - Workload
+      - Tests
+      - Test time (s)
+      - Profile time (s)
+      - Stack peak (MiB)
+    * - Playwright
+      - 28 passed, 0 skipped
+      - 97.3
+      - 98.6
+      - 1459
+
+The stack's committed peak was 1201 MiB. Sampler-cgroup OOM and OOM-kill deltas
+were 0/0; that cgroup peak was 7004 MiB with no visible limit and also contains
+the host's Docker daemon, so it is not attributable to this stack alone.
+Backend Python PSS peaked at 481 MiB and Gunicorn PSS at 177 MiB. Browser and
+PostgreSQL PSS were unreadable and are not reported as zero. The isolated
+Compose project and its named volumes were removed after the run.
+
+Acceptance conclusion and limitations
+-------------------------------------
+
+The measured full-suite and browser modes passed with their existing test
+counts, coverage outputs and no new skips; each workload used an isolated
+project, and owned containers, volumes and networks were removed. The
+four-worker baseline/candidate comparison has two matched pairs: the candidate
+was 4.9% and 0.7% slower, while the baseline times varied by about 30%. This is
+not conclusive evidence of a systemic regression or of equivalence. The
+one-/two-worker candidate profiles and frontend profiles are single runs.
+Because the low-memory layer is opt-in and does not change CI defaults, keep
+four Django workers and Vitest's automatic policy as-is; report these as
+host-specific measurements, not performance guarantees. PostgreSQL PSS remains
+explicitly unavailable unless host permissions change.
 
 ``python3 scripts/test_test_memory_mode.py`` checks all eight combinations of
 prebuilt-backend/prebuilt-frontend/lightweight layers, and exercises the shipped

@@ -164,68 +164,13 @@ Open native epics, all unassigned, each retain their parent/sub-issue links:
 * #681 assisted monitoring: no epic branch; future children use develop.
 * #669 discovery: no epic branch; future children use develop.
 
-All five open PRs were non-Draft, unassigned, and based on develop. Keep their
-existing branches, commits, reviews and base; no retarget is needed:
-
-.. list-table:: Per-PR transition plan
-   :header-rows: 1
-   :widths: 16 36 48
-
-   * - PR / issue
-     - Head
-     - Owner action
-   * - #1774 / #1474
-     - agent/issue-1474
-     - Preserve the SSRF design review; request human assignment before resuming.
-   * - #1772
-     - renovate/frontend-non-major-dependencies
-     - Keep Renovate's existing dependency review and required checks.
-   * - #1738 / #1498
-     - agent/issue-1498
-     - Preserve retention inventory review; request human assignment before resuming.
-   * - #1732 / #1391
-     - agent/issue-1391
-     - Preserve performance review and reconcile with the active claim owner.
-   * - #1681
-     - release-please--branches--develop
-     - Preserve release planning and its human decision under #1577; no release
-       action is authorized by this transition.
-
-All five open PRs target develop, have no assignees, and are not Drafts:
-
-.. list-table:: Per-PR transition plan
-   :header-rows: 1
-   :widths: 16 40 44
-
-   * - PR / issue
-     - Existing head
-     - Owner action
-   * - #1774 / #1474
-     - agent/issue-1474
-     - Preserve SSRF design review; human reviewer still required. No retarget.
-   * - #1772
-     - renovate/frontend-non-major-dependencies
-     - Preserve Renovate checks and normal human review. No retarget.
-   * - #1738 / #1498
-     - agent/issue-1498
-     - Preserve retention inventory review; human reviewer still required. No retarget.
-   * - #1732 / #1391
-     - agent/issue-1391
-     - Reconcile with the active claim owner before assignment; preserve review.
-   * - #1681
-     - release-please--branches--develop
-     - Preserve the existing release planning review and #1577 controls.
-
-These heads and their reviews remain intact. Only a person may agree a change
-of base or branch cleanup after checking unique commits against develop again.
-No temporary epic-target exception has been approved by this document.
-
 The open-issue assignment search returned no assigned issues. This is planning
 metadata only; it does not cancel external work. ``scripts/wip ls`` found foreign
 claim #1391, client ``canvas-42a37bd494fd``, branch ``tmp-claim-origin``. Its owner
 must finish/reconcile it under #1753; no claim was removed or agent interrupted.
 This task also registered its own #1592 claim as ``PC-Jonas:mrmap`` under the
-pre-cutover instructions; finish that lifecycle without creating a second lock.
+pre-cutover instructions; that own claim was released when PR #1790 became ready
+for review. The foreign claim remains untouched.
 Board #917 is historical coordination evidence, not the future merge gate.
 
 Reproduce the read-only audit
@@ -311,7 +256,6 @@ Sandbox ruleset **28088403** requires a PR, one approval, resolved review thread
 and ``synthetic-check`` from GitHub Actions; it bans deletion/force pushes and
 has no bypass actors. `Initial synthetic CI passed
 <https://github.com/mrmap-community/workflow-sandbox/actions/runs/45645962644>`_.
-This proves setup and execution, not yet the required PR/review/merge demonstration.
 The user then configured bot authentication. The test issue #1 is assigned to
 mrmap-agent-bot, its linked branch is ``fix/issue-1-greeting``, and Draft PR #2
 was opened by mrmap-agent-bot. The issue recorded a manual blocked reason.
@@ -327,8 +271,8 @@ The remaining ``test_xml_parse_guard.py`` failure scans the pre-existing ignored
 third-party text serialization. No virtualenv or unrelated guard was changed.
 A restricted first run also could not create local fixture sockets; the full
 run with local socket access resolved those environment failures. No application
-Compose stack was created. Full Sphinx HTML validation was not run; targeted
-offline portal validation passed.
+Compose stack was created. Full Sphinx was unavailable on the host; targeted
+offline portal validation passed and the strict CI build passed as linked below.
 
 `Sandbox PR #2 <https://github.com/mrmap-community/workflow-sandbox/pull/2>`_
 was created as a Draft by mrmap-agent-bot from the native linked branch.
@@ -336,19 +280,13 @@ was created as a Draft by mrmap-agent-bot from the native linked branch.
 <https://github.com/mrmap-community/workflow-sandbox/actions/runs/45646305831>`_
 left it BLOCKED with REVIEW_REQUIRED. The bot restored the valid greeting,
 added only a synthetic note, removed the manual blocked label while retaining
-assignment, and marked the PR ready. Independent human approval by jokiefer was recorded at 15:34:49 UTC.
+assignment, and marked the PR ready. Independent human approval by jokiefer
+was recorded at 15:34:49 UTC.
 jokiefer then merged the PR at 15:36:16 UTC (16:36:16 Europe/Berlin), merge commit
 ``72481bb9b749bb0db706db6fa4beb09ce8421d90``. GitHub reports linked
 `issue #1 <https://github.com/mrmap-community/workflow-sandbox/issues/1>`_ closed
 at 15:36:18 UTC. The default-branch native issue-closing demonstration passed.
 No agent approved or merged the PR; no sandbox protection bypass was configured.
-
-The full tooling run passed 39 of 40 suites. The unrelated XML parse guard scans
-the local untracked ``backend/.venv`` and reports lxml's own text serialization;
-no application XML code changed here. Socket-based fixture tests require running
-the suite outside the restricted execution sandbox. Full Sphinx was not run
-because no host Sphinx environment is available; the targeted portal structural
-suite passed. No application Compose stack was started.
 
 The main PR's `strict portal build passed in GitHub Actions
 <https://github.com/mrmap-community/mrmap/actions/runs/45646651293>`_, including

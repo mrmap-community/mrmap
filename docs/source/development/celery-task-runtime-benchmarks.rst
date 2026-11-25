@@ -129,7 +129,19 @@ a way that only showed up as an empty artifact an hour later:
   at ``/opt/mrmap`` - so a record written anywhere else inside it is invisible
   outside, and the nightly would upload nothing. The runner is given the host
   path and derives the container path from it, so the two cannot drift apart.
-- ``--family`` selects the workload. The bench classes compare themselves against
+  The directory belongs to one run: it is emptied of the previous run's
+  artifacts before anything is written, and the files which feed ``report`` are
+  read from the manifest the workload process appended to as it wrote. A rerun
+  into a used ``--out`` therefore reports the cells it measured itself - not a
+  family it never selected, and not the repeats of the run before it, whose
+  count would have inflated the ``cv`` the stability floor reads.
+- ``--family`` selects the workload, and is checked before the stack boots: the
+  name has to be a first-party family which a bench class actually measures, so
+  a typo and a registry family nobody timed are refused in a second instead of
+  ending in a two-minute stack which skipped everything.
+  ``scripts/task_perf_bench.py families`` lists both sets, and
+  ``families --check NAME`` runs that same check on one name.
+  The bench classes compare themselves against
   ``MRMAP_TASK_PERF_FAMILY``, which the runner passes through, and every other
   family **skips itself out loud** rather than being measured anyway: a nightly
   which asked for one family measures one family, and a report over part of a run

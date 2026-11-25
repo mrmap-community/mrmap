@@ -28,6 +28,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    queryset-manager-conventions
    celery-task-sql-regression
    celery-task-profiling
+   celery-task-performance
    etf-conformity-retirement
    metadata-transform-inventory
    orm-static-analysis

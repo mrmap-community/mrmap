@@ -22,13 +22,12 @@ plan a person executes rather than in an action. That is this tool's whole job: 
 rows from the same native facts #1591 will read, name the actor for every owed action, and
 be honest when a fact cannot be read.
 
-Advisory first, for the measured reason #1580 gives
----------------------------------------------------
-Like the title enforcement of #1580 (`scripts/pr_classify`), the rollout has two halves,
-dated in `scripts/epic_rollout.json`: until `advisory_from` nothing here is news to
-anybody, from `strict_from` the *readiness* findings fail. The dates are in the policy
-file and overridable through `MRMAP_EPIC_ROLLOUT_STRICT_FROM`, because a rollout date is a
-deployment's call and a rule's author should not own it.
+Historical rollout, superseded by #1592
+--------------------------------------
+The dates in scripts/epic_rollout.json are retained as historical evidence. Auto
+mode is permanently advisory, including with a legacy date environment override.
+Explicit --mode strict remains for reproducing old diagnostics until #1593 removes
+this tool. New work follows docs/source/development/github-flow.rst.
 
 The split of what may fail is deliberate. A wrong PR base is a *plan item* with a person as
 its actor - rule 15 and rows R5/R12 forbid an agent from fixing it, so failing this tool on
@@ -56,7 +55,7 @@ Usage:
                 always read the whole open set, because a scoped version of them would both
                 invent defects about other epics and hide the one that concerns this one.
                 The scope is reported as `scope`, separately from `inventory`.
-  --mode M      auto (default) picks by the policy dates; advisory/strict force it
+  --mode M      auto (default) stays advisory (#1592); strict is historical diagnostics
 
 Exit codes: 0 the plan is complete and (in strict mode) the rollout has no finding;
 1 strict mode with findings; 2 the tool could not answer (fail closed).
@@ -219,8 +218,8 @@ def mode_for(today, policy, mode="auto", path=POLICY_PATH):
     """Which half of the rollout a run is in: 'advisory' or 'strict'."""
     if mode in ("advisory", "strict"):
         return mode
-    strict, _ = strict_from(policy, path)
-    return "strict" if str(today) >= str(strict) else "advisory"
+    # #1592 cancels automatic activation; explicit strict is legacy diagnostics only.
+    return "advisory"
 
 
 # --------------------------------------------------------------------------- GitHub reads
@@ -843,7 +842,7 @@ def render_human(res):
                      % (p["mode"], len(res["blocking"]), ", ".join(res["blocking"])))
         if p["mode"] == "advisory":
             lines.append("ADVISORY: reported without failing, because the rollout is advisory "
-                         "until %s." % p["strict_from"])
+                         "per #1592; the former strict date %s is cancelled." % p["strict_from"])
     return "\n".join(lines)
 
 
@@ -860,7 +859,7 @@ def main(argv=None, runner=None, repo_root=None, today=None):
     ap.add_argument("--today", default=None, help="pretend it is this ISO date")
     ap.add_argument("--epic", type=int, default=None, help="plan one epic instead of all open ones")
     ap.add_argument("--mode", choices=("auto", "advisory", "strict"), default="auto",
-                    help="auto is advisory before the policy's strict_from, strict from it")
+                    help="auto stays advisory; strict is historical diagnostics (#1592)")
     args = ap.parse_args(argv)
 
     if runner is None:

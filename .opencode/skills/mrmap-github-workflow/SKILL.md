@@ -1,12 +1,12 @@
 ---
 name: MrMap GitHub Workflow
-description: "Doing MrMap development work on GitHub — claiming an issue, branch/worktree setup, the epic branch base rule (scripts/epic_rollout.py), commits, pushes, pull-request readiness, definition of done, asking humans for decisions, the wip claim board, labels/epics, or respecting human-only actions (approve/merge/resolve)."
+description: "Doing MrMap development work on GitHub — claiming an issue, branch/worktree setup, the native GitHub Flow contribution loop, commits, pushes, pull-request readiness, definition of done, asking humans for decisions, the wip claim board, labels/epics, or respecting human-only actions (approve/merge/resolve)."
 ---
 
 # MrMap GitHub Workflow
 
 Task skill for the contribution loop around the code. The authorities are root `AGENTS.md`
-("Git conventions", "Claiming work", "Asking for human decisions"), `CONTRIBUTING.md`,
+("Git conventions", "Assigning work and legacy claims", "Asking for human decisions"), `CONTRIBUTING.md`,
 `docs/source/development/definition_of_done.rst` and `docs/source/development/decision-requests.rst`.
 This skill sequences them; it does not restate every rule — read the named files.
 
@@ -18,12 +18,11 @@ whether an action needs a human.
 
 ## Non-negotiables (sources named)
 
-- Work on an issue starts with `scripts/wip claim` **before the first file edit** (idempotent);
-  re-run after every `git push`; `scripts/wip wait "<need>"` when blocked on a human;
-  `scripts/wip ask` to hand a question to the issue; `scripts/wip answers` to read replies;
-  `scripts/wip done` when the PR is ready or work is abandoned; `scripts/wip ls` before picking up
-  or merging (no merge over a live claim). `gh` unauthenticated → say so once and continue
-  (root `AGENTS.md`).
+- Follow `docs/source/development/github-flow.rst`: explicit assignment by a human or
+  external coordinator, one worker, verify blockers and conflicting work, link a branch,
+  open a Draft PR. Native assignees/dependencies are planning signals, not atomic locks.
+  No new claim, heartbeat or eligibility checker is required. Preserve foreign legacy
+  claims until their owners reconcile them; #1753 owns retirement of the old board.
 - Branches: `<type>/<short-topic>`; worktrees `git worktree add <dir> -b <type>/issue-<N>-<topic>
   origin/develop` after `git fetch origin`; **no merging `origin/develop` into a branch** before the
   PR (the merge queue tests integration); never force-push/rebase a branch open for review;
@@ -47,18 +46,11 @@ whether an action needs a human.
   watcher — do not reintroduce one (root `AGENTS.md`).
 
 
-- Always explicitly specify the PR base: `develop`, or — for a child of an open epic that
-  declares a `slug:` first body line — `epic/<slug>` of its own epic and nothing else. An epic
-  branch is cut by a **person** from the tip of `origin/develop` and never created, deleted,
-  retargeted or pushed to directly by an agent; the epic's single integration PR (`epic/<slug>`
-  → `develop`) is human-approved and human-merged (`AGENTS.md` "Git conventions",
-  `docs/source/development/epic-integration-contract.rst`). Before starting work on an epic
-  child, or before opening any PR whose base is not `develop`, run
-  `python3 scripts/epic_rollout.py --epic <epic number>` (or without `--epic` for every open
-  epic at once): it prints the decision row, the lawful base and the actor owed every
-  outstanding step. `scripts/epic_rollout.json` is the reviewed rollout
-  policy (dates, bootstrap exemption, time-limited legacy exceptions); an epic exempt from the
-  contract targets `develop` only while that file says so with a reason and an expiry.
+- Always explicitly specify `--base develop`, including for native epic sub-issues.
+  Epics are parent issues only. Existing arrangements need an owner-approved temporary
+  exception recorded in `docs/source/development/github-flow-transition.rst`.
+  The epic branch contract and its dated rollout are superseded by #1592; retained
+  diagnostics are not prerequisites. Retargeting and branch cleanup remain human acts.
 - Only the same repository's `develop` branch may target
   `master`. Never delete, force-push or directly push to either permanent branch.
 - Use merge commits when synchronizing permanent branches.
@@ -91,18 +83,11 @@ them through it instead of scraping the check output, and fix them where reporte
 
 - Hand-editing machine-managed artifacts: claim comments (`<!-- agent-claim … -->`),
   `status: wip`, the Agent Work Board issue (#917), decision markers.
-- Working without a claim because "the change is small" — claiming never blocks work, skipping it
-  races another client.
 - Sleep/wait loops around CI or docker (root `AGENTS.md` "Running shell commands").
 - Mixing unrelated formatting/refactoring, changelog entries, or labels into a PR
   (`CONTRIBUTING.md`, root `AGENTS.md`).
-- Basing an epic child PR on `develop`, or opening one into another epic's branch or a
-  sibling child branch (R2/R5 of the contract); creating, deleting or force-pushing an
-  `epic/*` branch, or retargeting a PR to "fix" its base — those are person-owned acts
-  (`epic_rollout.py` names the actor).
-- Starting work on an epic child without reading its row: `python3 scripts/epic_rollout.py
-  --epic <N>` says the lawful base, and `scripts/epic_rollout.json` says whether the epic is
-  exempt — an exemption that is not in that file is not an exemption.
+- Automatically retargeting existing PRs, deleting branches, removing foreign claims or
+  interrupting active workers during the transition.
 - Inventing conventions for missing pieces (e.g. inventing a "ready for review" label): check
   `gh label list` / templates, ask via `scripts/decisions` or `scripts/wip ask`.
 
@@ -112,9 +97,6 @@ them through it instead of scraping the check output, and fix them where reporte
 - Offline checks for the tooling itself: `python3 scripts/test_wip_board_sync.py`,
   `python3 scripts/test_decisions.py`, `python3 scripts/test_epic_rollout.py` (no `gh`, no
   network; CI runs them via `scripts/check_repo_tooling.sh`).
-- Before an epic child's PR: `python3 scripts/epic_rollout.py --epic <epic number>` names the
-  row, the base and the actor; the same tool's readiness findings are what says the rollout is
-  on, and `--json` is the shape for a machine to read.
 - Before hand-back: `git status` clean of unintended files, zero leftover containers/networks/
   volumes of the job's project (names reported per root `AGENTS.md`).
 

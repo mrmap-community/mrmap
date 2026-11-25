@@ -48,6 +48,8 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    task-memory-shapes
    compose-profiles
    decision-requests
+   github-flow
+   github-flow-transition
    epic-integration-contract
    epic-branch-resolution
    epic-integration-validation

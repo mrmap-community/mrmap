@@ -77,10 +77,10 @@ WHAT IT DELIBERATELY IS NOT
 
 ROLLOUT
 -------
-The same shape #1580 chose for titles: `--mode auto` is advisory before `STRICT_FROM`
-and strict from it, so no branch open today has its base called a failure under
-somebody's feet. `MRMAP_EPIC_STRICT_FROM` moves the date; `--today` fixes the clock so
-the offline suite can exercise both halves.
+Superseded by #1592. Auto remains advisory on every date, including when a legacy
+strict-date environment override is present. Explicit --mode strict is retained only
+for historical diagnostics pending removal in #1593. This tool is not a prerequisite
+for GitHub Flow; see docs/source/development/github-flow.rst.
 
 Commands
 --------
@@ -111,11 +111,8 @@ from subprocess import TimeoutExpired
 
 SCHEMA = "epic-branch/v1"
 
-# The day the check stops advising and starts failing. Until then every violation is
-# reported and the exit stays 0, because every branch and every open pull request of
-# this repository predates the rule - the argument #1580 makes for titles, verbatim.
-# The date belongs to #1594's rollout; moving it is a deployment's call through the
-# environment variable, or a policy change in a pull request that says so in its title.
+# Historical date, superseded by #1592. It remains in diagnostic output only;
+# neither this date nor its environment override can activate automatic strict mode.
 STRICT_FROM = "2026-12-21"
 STRICT_FROM_ENV = "MRMAP_EPIC_STRICT_FROM"
 
@@ -1327,7 +1324,8 @@ def strict_from():
 def mode_for(today, mode="auto"):
     if mode != "auto":
         return mode
-    return "strict" if today >= strict_from() else "advisory"
+    # #1592 supersedes the dated rollout; explicit strict is legacy diagnostics only.
+    return "advisory"
 
 
 def today_or(value):
@@ -1455,8 +1453,8 @@ def self_test():
                             "ok" if got == want else "FAIL %r" % got))
         ok = ok and got == want
     for mode, today, want in (("auto", "2026-12-20", "advisory"),
-                              ("auto", STRICT_FROM, "strict"),
-                              ("auto", "2027-01-01", "strict"),
+                              ("auto", STRICT_FROM, "advisory"),
+                              ("auto", "2027-01-01", "advisory"),
                               ("strict", "2020-01-01", "strict")):
         got = mode_for(today, mode)
         print("%-32s %s" % ("mode_for(%s, %s)" % (mode, today),

@@ -22,6 +22,7 @@ import io
 import json
 import os
 import sys
+from unittest.mock import patch
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_loader(
@@ -43,6 +44,15 @@ def check(name, ok, detail=""):
 
 def codes_of(res):
     return sorted(f["code"] for f in res.get("findings") or [])
+
+
+# A past deployment override must not reactivate the superseded epic policy.
+for day in ("2026-12-15", "2026-12-21", "2030-01-01"):
+    with patch.dict(
+            os.environ, {m.STRICT_FROM_ENV: "2020-01-01"}):
+        check("superseded epic policy stays advisory on %s" % day,
+              m.mode_for(day) == "advisory")
+check("explicit legacy strict remains available", m.mode_for("2030-01-01", "strict") == "strict")
 
 
 class Fixture:

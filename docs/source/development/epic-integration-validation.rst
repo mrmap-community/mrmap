@@ -1,3 +1,9 @@
+.. note::
+
+   Historical evidence retained for existing work. Issue #1592 supersedes the
+   mandatory epic branch workflow and its scheduled strict rollout. New work follows
+   :doc:`github-flow`; :doc:`github-flow-transition` records remaining operator actions.
+
 .. _epic-integration-validation:
 
 =====================================================

@@ -131,7 +131,9 @@ record below; #1593 does not reuse or delete that sandbox. Targeted portal
 structural validation passes. ``scripts/check_repo_tooling.sh </dev/null``
 passed 35 of the remaining 36 suites. The unchanged XML parse guard also scans
 the local untracked ``backend/.venv`` and flags lxml's own text serialization,
-the same workspace-only failure recorded under #1592. Validator retirement
+the same workspace-only failure recorded under #1592. Running that unchanged
+XML suite against a temporary clean local clone of this commit passed all 38
+checks; the temporary clone was removed afterward. Validator retirement
 passes with 93 checks (Docker skips are reported by that suite). No application,
 schema or migration changed and no Compose stack was started.
 

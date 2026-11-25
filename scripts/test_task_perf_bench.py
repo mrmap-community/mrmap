@@ -1316,6 +1316,36 @@ class CliContractTest(unittest.TestCase):
                              "the retired legacy conformity tasks (#1527/#1458/"
                              "#1530) have no task left to benchmark")
 
+    def test_families_check_refuses_what_a_run_cannot_measure(self):
+        """`--family` is a run of two minutes; the check answers in a second.
+
+        The three refusals are the three ways a name can fail, and the third is
+        the one no character class can see: a family the registry declares which
+        no bench class measures would boot PostGIS, skip every class, write no
+        workload file and fail its own "holds no workload file" guard.
+        """
+        for name, code in (
+                ("harvesting.import_chunk", 0),      # declared and measured
+                ("harvesting.import_chunx", 2),      # a well-formed typo
+                ("registry.tasks.harvest", 2),       # a task path, not a family
+                ("1bad", 2),                         # not a name at all
+                ("harvesting.finish", 3)):           # declared, nobody measures it
+            err = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                rc = task_perf_bench.main(["families", "--check", name])
+            self.assertEqual(code, rc, "%s: %s" % (name, err.getvalue()))
+            if code:
+                self.assertIn(name, err.getvalue())
+        # the listing shows the same gap, so it is visible before a name is chosen
+        out = io.StringIO()
+        with redirect_stdout(out):
+            task_perf_bench.main(["families"])
+        printed = out.getvalue()
+        self.assertIn("measured=yes", printed)
+        self.assertIn("harvesting.finish", printed)
+        self.assertRegex(printed,
+                         r"harvesting\.finish[\s\S]{0,700}?measured=no bench class")
+
     def test_a_bench_module_names_only_declared_families(self):
         """The generator and the analyzer agree on the family vocabulary."""
         with open(BENCH_SUPPORT, encoding="utf-8") as handle:

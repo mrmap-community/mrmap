@@ -1605,6 +1605,7 @@ def cmd_families(args):
             return 2 if reason.startswith("not a ") else 3
         print("families: %s is declared and measured" % args.check)
         return 0
+    measured = measured_families()
     for entry in family_catalog():
         print("%-28s queue=%-14s fixtures=%-24s %s" % (
             entry["family"], entry["queue"], ",".join(entry["fixtures"]),
@@ -1615,6 +1616,12 @@ def cmd_families(args):
             "", json.dumps(contract, sort_keys=True) if contract
             else "none declared: the N+1 and duplicate-call detectors judge only "
                  "super-linear growth until a human names it"))
+        # the gap the dispatch menu cannot express: a declared family with no
+        # bench class is a `--family` choice which boots the stack and measures
+        # nothing, so it is shown here rather than discovered an hour later
+        print("%-28s measured=%s" % (
+            "", "yes" if entry["family"] in measured
+            else "no bench class: --family would skip everything"))
     return 0
 
 

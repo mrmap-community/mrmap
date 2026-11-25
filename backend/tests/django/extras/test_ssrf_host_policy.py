@@ -19,6 +19,7 @@ from extras.ssrf import (GuardedHTTPAdapter, GuardedSession, address_is_allowed,
                          host_is_allowed, judge_targets, url_is_fetchable)
 from registry.models.metadata import fetch_metadata_document
 from registry.models.service import WebMapService
+from registry.ows_lib.wms.wms import WebMapServiceClient
 from requests import Session
 from requests.exceptions import ConnectionError
 
@@ -354,6 +355,56 @@ class FetchPathPolicyTest(SimpleTestCase):
                 # the mocked answer is no document; what is asserted is who opened it
                 fetch_metadata_document('http://10.0.0.9/md.xml')
         self.assertTrue(guarded.called)
+
+
+class ClientSessionTest(SimpleTestCase):
+    """the session an `OgcClient` asks through
+
+    A client which only maps an already loaded capabilities document answers without ever
+    asking anyone, which is what the serializer of a service list does for every WMS of the
+    page. It must not pay for a session and its connection pool, and the client which does
+    ask must get a session which carries the policy.
+    """
+
+    CAPABILITIES = (
+        b'<WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms"'
+        b' xmlns:xlink="http://www.w3.org/1999/xlink">'
+        b'<Service><Name>WMS</Name></Service>'
+        b'<Capability><Request>'
+        b'<GetCapabilities><Format>text/xml</Format><DCPType><HTTP><Get>'
+        b'<OnlineResource xlink:href="https://example.test/wms?"/>'
+        b'</Get></HTTP></DCPType></GetCapabilities>'
+        b'<GetMap><Format>image/png</Format><DCPType><HTTP><Get>'
+        b'<OnlineResource xlink:href="https://example.test/wms?"/>'
+        b'</Get></HTTP></DCPType></GetMap></Request></Capability></WMS_Capabilities>')
+
+    def test_a_client_which_never_asks_never_builds_a_session(self):
+        # patched where it is looked up: core.py holds the name it imports itself
+        with patch('registry.ows_lib.client.core.GuardedSession') as guarded:
+            client = WebMapServiceClient(self.CAPABILITIES)
+            # mapping the document and building a request out of it asks nobody anything -
+            # this is the path of the service list serializer (#1774 review)
+            self.assertEqual(client.service_type, 'WMS')
+            self.assertIn('SERVICE=WMS', client.get_capabilities_request().url)
+        guarded.assert_not_called()
+
+    def test_the_session_of_a_client_is_guarded_and_its_own(self):
+        first = WebMapServiceClient(self.CAPABILITIES)
+        second = WebMapServiceClient(self.CAPABILITIES)
+        self.addCleanup(first.session.close)
+        self.addCleanup(second.session.close)
+        self.assertIsInstance(first.session, GuardedSession)
+        self.assertIsNot(first.session, second.session,
+                         'two clients share one session and therefore one connection pool')
+        for prefix in ('http://', 'https://'):
+            with self.subTest(prefix=prefix):
+                self.assertIsInstance(first.session.get_adapter(f'{prefix}example/x'),
+                                      GuardedHTTPAdapter)
+
+    def test_the_session_of_the_caller_is_the_session_of_the_client(self):
+        given = Session()
+        client = WebMapServiceClient(self.CAPABILITIES, session=given)
+        self.assertIs(client.session, given)
 
 
 class ConfiguredNetworksTest(SimpleTestCase):

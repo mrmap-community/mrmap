@@ -44,7 +44,9 @@ last window it could be counted in. ``uncertain_coverage`` in
 ``system.capacity_measures`` answers the standing question - open attempts
 partitioned at the abandon grace into "may still be running" and "the worker is
 gone" - and each fire publishes it as ``coverage`` and ``class_coverage`` gauge
-records, which the dashboard reads with ``max()`` rather than ``sum()``.
+records, which the dashboard reads from its newest fire rather than aggregating
+them: a published window can fail or be skipped, but the standing read of the
+table travels on every fire and a gauge has exactly one answer per fire.
 
 Failure rule: this is telemetry, of the family of #1330's collector and #1320's
 publishers. A window whose read or write fails costs the dashboard that window
@@ -335,7 +337,8 @@ def _coverage_records(coverage):
 
     ``measured_at`` is when the read happened, not a window edge: these
     records are a gauge read at every fire, not a partition of anything, so a
-    panel reads them with ``max()`` over the interval rather than ``sum()``.
+    panel reads them from their newest fire rather than aggregating them over
+    the interval.
     """
     measured_at = _moment(timezone.now())
 
@@ -428,6 +431,40 @@ def _log(record):
     })
 
 
+def _publish(records):
+    """Write records to the log store; answer how many made it.
+
+    A store which is down costs the records of this fire and names them in the
+    warning - it never raises into the beat task, and a partial fire says so
+    by the count it returns rather than by a whole window lost.
+    """
+    published = 0
+    for record in records:
+        try:
+            _log(record)
+            published += 1
+        except Exception as error:  # a log store which is down costs records
+            logger.warning("task performance export (#1391): %s of %s records "
+                           "could not be written: %s",
+                           published, len(records), error)
+            break
+    return published
+
+
+def _coverage_summary(coverage):
+    """The standing residue in the summary the beat task logs.
+
+    Present whenever the read worked, including for a fire which published no
+    window: an operator reading the worker log of a deployment whose workers
+    died sees the residue without Grafana, which is the whole point of
+    publishing it on a fire with nothing to publish.
+    """
+    if coverage is None:
+        return {}
+    return {"open_running": coverage["open_running"],
+            "open_abandoned": coverage["open_abandoned"]}
+
+
 def _next_window(now):
     """The window this fire covers: ``(last published end, now]``.
 
@@ -470,11 +507,39 @@ def export_task_performance():
 
     now = timezone.now()
     since, resumed_from = _next_window(now)
+
+    # The standing read of the table goes first and has its own reason to
+    # return, because it is not a question about this window: it is published
+    # even for a window which held no attempt at all, since a deployment whose
+    # workers died publishes no executions and exactly then the coverage
+    # matters. It cannot ride below the window's early return either: the one
+    # knob is both the span of a window and the cadence of this beat row
+    # (system/apps.py builds the crontab from it), and a cadence of whole
+    # hours collapses the minute list to one minute of the hour - so every
+    # off-minute fire of such a deployment returns below here for the window
+    # and would publish no coverage at all for an hour. Its own read, its own
+    # failure: a coverage read which fails costs the coverage records, never
+    # the series.
+    coverage = None
+    try:
+        coverage = uncertain_coverage(group_by_class=True,
+                                      limit=_max_buckets())
+    except Exception as error:
+        logger.warning("task performance export (#1391): the crash residue of "
+                       "the attempt table could not be read: %s", error)
+    coverage_records = _coverage_records(coverage) if coverage else []
+    coverage_published = _publish(coverage_records)
+
     if now <= since:
         # no window elapsed since the last fire; there is nothing to cover
-        # and nothing to say about the window it would have had
-        return {"published": 0, "reason": "no window elapsed since the last",
-                "window_start": _moment(since), "window_end": _moment(now)}
+        # and nothing to say about the window it would have had - the coverage
+        # above is still the standing truth of the table and was published
+        return {"published": coverage_published,
+                "coverage_published": coverage_published,
+                "window_published": 0,
+                "reason": "no window elapsed since the last",
+                "window_start": _moment(since), "window_end": _moment(now),
+                **_coverage_summary(coverage)}
 
     try:
         answer = window_buckets(since=since, until=now, limit=_max_buckets(),
@@ -483,8 +548,12 @@ def export_task_performance():
         logger.warning("task performance export (#1391): the window of %s "
                        "could not be measured: %s", _moment(since), error)
         cache.set(WINDOW_CURSOR_KEY, now.isoformat(), _cursor_ttl())
-        return {"published": 0, "reason": str(error),
-                "window_start": _moment(since), "window_end": _moment(now)}
+        return {"published": coverage_published,
+                "coverage_published": coverage_published,
+                "window_published": 0,
+                "reason": str(error),
+                "window_start": _moment(since), "window_end": _moment(now),
+                **_coverage_summary(coverage)}
 
     classes = [bucket["task_class"] for bucket
                in answer["buckets"][:_drilldown_classes()]]
@@ -499,35 +568,13 @@ def export_task_performance():
             logger.warning("task performance export (#1391): the drill-down "
                            "of %s could not be read: %s", classes, error)
 
-    # the coverage read is the standing question of the table, not a question
-    # about this window: it has to be published even for a window which held
-    # no attempt at all, because a deployment whose workers died publishes no
-    # executions and exactly that is when the coverage matters. Its own read,
-    # its own failure - a coverage read which fails costs the coverage
-    # records, never the series.
-    coverage = None
-    try:
-        coverage = uncertain_coverage(group_by_class=True,
-                                      limit=_max_buckets())
-        records += _coverage_records(coverage)
-    except Exception as error:
-        logger.warning("task performance export (#1391): the crash residue of "
-                       "the attempt table could not be read: %s", error)
-
-    published = 0
-    for record in records:
-        try:
-            _log(record)
-            published += 1
-        except Exception as error:  # a log store which is down costs records
-            logger.warning("task performance export (#1391): %s of %s records "
-                           "of the window %s could not be written: %s",
-                           published, len(records), _moment(now), error)
-            break
+    window_published = _publish(records)
 
     cache.set(WINDOW_CURSOR_KEY, now.isoformat(), _cursor_ttl())
     summary = {
-        "published": published,
+        "published": coverage_published + window_published,
+        "coverage_published": coverage_published,
+        "window_published": window_published,
         "window_start": _moment(since),
         "window_end": _moment(now),
         "executions": answer["fleet"]["executions"],
@@ -536,10 +583,8 @@ def export_task_performance():
         "truncated": answer["truncated"],
         "drilldown_classes": classes,
         "resumed_from": resumed_from,
+        **_coverage_summary(coverage),
     }
-    if coverage is not None:
-        summary["open_running"] = coverage["open_running"]
-        summary["open_abandoned"] = coverage["open_abandoned"]
     if answer["truncated"]:
         summary["note"] = (
             "the window held more than %s (class, queue) buckets; the "

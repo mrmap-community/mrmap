@@ -142,9 +142,14 @@ hide crashed workers among the running ones. The read counts the age as well
 as the flag, so it does not wait for the next sweep to notice what the age
 already says.
 
-Because these are gauge reads, a panel aggregates them with ``max()`` over the
-interval, never ``sum()``: summing an "is it still open?" count over the fires
-of an hour counts one residue once per fire.
+Because these are gauge reads, a panel reads them from the newest fire and
+never aggregates them over the interval: ``sum()`` of an "is it still open?"
+count over the fires of an hour counts one residue once per fire, and
+``max()`` answers "how bad was the worst fire" - a deployment which recovered
+from its crash would keep showing it. The exporter publishes the read at every
+fire, including a fire which had no window to publish, so the newest record is
+as current as the beat cadence; a coverage record older than the cadence means
+the beat row is not firing at all.
 
 A record carries no argument, no URL and no payload; ``task_class``,
 ``task_name``, ``queue``, ``worker``, ``periodic_name``, ``outcome`` and
@@ -229,12 +234,14 @@ and a reviewer or an operator can copy one straight into Explore.
 ``Coverage of the deployment``
     ``open_running``, ``open_abandoned`` and ``open_total`` of the ``coverage``
     record - the crash residue the attempt table is holding right now, read
-    with ``max()`` because it is a gauge and not a window total. A dashboard
-    which cannot see its own coverage presents a gap as performance, and #1330
-    made an unmeasured value explicit for a reason. Read this row before
-    trusting any number beside it: a deployment whose workers died mid-task
-    publishes no executions and still shows residue here, which is exactly the
-    state the windowed counters of the series cannot express.
+    from the newest fire because it is a gauge and not a window total: an
+    aggregate over the interval, ``max()`` included, would answer "how bad was
+    the worst fire" and keep showing a crash the deployment recovered from. A
+    dashboard which cannot see its own coverage presents a gap as performance,
+    and #1330 made an unmeasured value explicit for a reason. Read this row
+    before trusting any number beside it: a deployment whose workers died
+    mid-task publishes no executions and still shows residue here, which is
+    exactly the state the windowed counters of the series cannot express.
 
 A panel selects one event type of the series like this (the query of the
 fleet occupancy panel)::
@@ -282,9 +289,9 @@ The sequence the dashboard exists for, from the operator's side:
    incident from one in ``open_abandoned``: the first is a long task, the
    second is a dead worker, and the beat log line of the exporter names both
    without Grafana.
-3. **Click the slow row.** ``Slow classes`` ranks classes by ``active_p95``
-   and ``Attempts still open, by class`` ranks them by their crash residue.
-   Pick the class from the row.
+3. **Click the slow row.** ``Slow classes`` ranks classes by ``active_p95``;
+   ``Attempts still open, by class`` lists the newest coverage record of each
+   class, open runs and crash residue apart. Pick the class from the row.
 4. **Open the samples table** for that class. Each row is one attempt with its
    ``task_id``, queue, outcome, wall and wait seconds, and whether it came
    from a beat row. The samples are capped on purpose (the heaviest classes,

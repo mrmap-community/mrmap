@@ -204,7 +204,7 @@
     "type": "victoriametrics-logs-datasource",
     "uid": "victorialogs"
    },
-   "description": "The standing state of the attempt table, read off the coverage records of the last fire: open_running is an attempt the fleet may still be executing (expected, and a genuinely long-running task keeps showing here), open_abandoned is an attempt older than the abandon grace whose worker never reported an end - the crash residue. The two are never added together: a long task must not read as crashed workers. max(), not sum(): these records are a gauge read per fire, not a partition of the interval.",
+   "description": "The standing state of the attempt table, read off the coverage records of the last fire: open_running is an attempt the fleet may still be executing (expected, and a genuinely long-running task keeps showing here), open_abandoned is an attempt older than the abandon grace whose worker never reported an end - the crash residue. The two are never added together: a long task must not read as crashed workers. Newest fire per class, never an aggregate: these records are a gauge read per fire, so max() over the interval would show the worst fire of the window after a deployment recovered from its crash, and sum() would count one residue once per fire.",
    "gridPos": {
     "h": 8,
     "w": 12,
@@ -226,7 +226,7 @@
      },
      "editorMode": "code",
      "queryType": "stats",
-     "expr": "\"Celery task performance\" \"event=class_coverage\" | extract `task_class=<task_class> ` | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | stats by (task_class) max(open_running) as open_running, max(open_abandoned) as open_abandoned, max(open_total) as open_total | sort by (open_abandoned desc)"
+     "expr": "\"Celery task performance\" \"event=class_coverage\" | extract `task_class=<task_class> ` | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | fields _time, task_class, open_running, open_abandoned, open_total | sort by (_time) desc | limit 40"
     }
    ]
   },
@@ -426,7 +426,7 @@
     "type": "victoriametrics-logs-datasource",
     "uid": "victorialogs"
    },
-   "description": "The series reports its own gaps: attempts still open without an end, split by whether they may still be running or are past the abandon grace. A deployment whose workers died mid-task shows open_abandoned > 0 even though it publishes no executions. Read the residue row before trusting any number beside it. max() over the interval - this is the standing state of the table, not a per-window count.",
+   "description": "The series reports its own gaps: attempts still open without an end, split by whether they may still be running or are past the abandon grace. A deployment whose workers died mid-task shows open_abandoned > 0 even though it publishes no executions. Read the residue row before trusting any number beside it. Newest fire, never an aggregate: this is the standing state of the table read at every fire, so max() over the interval answers how bad the worst fire of the window was - and keeps showing a crash the deployment has since recovered from.",
    "gridPos": {
     "h": 5,
     "w": 24,
@@ -448,7 +448,7 @@
      },
      "editorMode": "code",
      "queryType": "stats",
-     "expr": "\"Celery task performance\" \"event=coverage\" | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | stats max(open_running) as open_running, max(open_abandoned) as open_abandoned, max(open_total) as open_total"
+     "expr": "\"Celery task performance\" \"event=coverage\" | extract `open_running=<open_running> ` | extract `open_abandoned=<open_abandoned> ` | extract `open_total=<open_total> ` | fields _time, open_running, open_abandoned, open_total | sort by (_time) desc | limit 1"
     }
    ]
   }

@@ -157,12 +157,15 @@ class QueryContractTests(SimpleTestCase):
                         "panel %s reads %s off a %s record, which does not "
                         "carry it" % (panel["id"], field, event))
 
-    def test_the_crash_residue_is_read_as_a_gauge_not_a_window_sum(self):
+    def test_the_crash_residue_is_read_as_the_newest_fire_not_an_aggregate(self):
         # the coverage panels are the reason the standing coverage records
-        # exist: summing an "is it still open?" count over the windows of an
-        # interval counts the same residue once per fire, and the windowed
-        # uncertain counters of #1330 can never carry it at all (the sweep
-        # flags a row ~48 h after the last window it could be counted in)
+        # exist, and a standing read has exactly one answer per fire: summing
+        # it over the windows of an interval counts the same residue once per
+        # fire, and max() over the interval answers "how bad was the worst
+        # fire" - a deployment which recovered from its crash would keep
+        # showing the crash. So a residue panel reads the newest coverage
+        # records and nothing else (docs .../celery-task-performance.rst
+        # keeps the prose of this contract in step)
         residue_panels = [
             (panel, target) for panel, target in _targets()
             if "open_abandoned" in target["expr"]
@@ -176,9 +179,17 @@ class QueryContractTests(SimpleTestCase):
                             "panel %s reads the crash residue off records of "
                             "another event; only the standing coverage records "
                             "carry it" % panel["id"])
-            self.assertIn("max(", target["expr"],
-                          "panel %s sums a gauge over the interval, which "
-                          "counts one residue once per fire" % panel["id"])
+            self.assertNotIn("sum(", target["expr"],
+                             "panel %s sums a gauge over the interval, which "
+                             "counts one residue once per fire" % panel["id"])
+            self.assertNotIn("max(", target["expr"],
+                             "panel %s takes the maximum of a gauge over the "
+                             "interval, which keeps showing a crash the "
+                             "deployment recovered from" % panel["id"])
+            self.assertIn("sort by (_time) desc", target["expr"],
+                          "panel %s does not read the gauge from its newest "
+                          "fire, so it has no answer for right now"
+                          % panel["id"])
 
     def test_an_extract_pattern_ends_where_the_store_can_stop(self):
         # ``extract `key=<value> ```` is a greedy placeholder; without the
@@ -195,9 +206,18 @@ class QueryContractTests(SimpleTestCase):
     def test_the_series_is_aggregated_not_listed_except_where_it_is_a_table(self):
         # the point of #1391 is that a dashboard refresh never becomes a query
         # per attempt, so a panel of the series either aggregates or is a
-        # bounded table of the drill-down records
+        # bounded listing of records the exporter itself bounded: the
+        # drill-down samples, and the coverage gauges - one fire per beat, a
+        # newest-fire read, never one record per attempt
         for panel, target in _targets():
             if panel["type"] == "table" and EVENT_SAMPLE in target["expr"]:
+                continue
+            if EVENT_COVERAGE in target["expr"] \
+                    or EVENT_CLASS_COVERAGE in target["expr"]:
+                self.assertIn("limit", target["expr"],
+                              "panel %s lists the coverage records unbounded, "
+                              "which turns a refresh into a scan of the "
+                              "retention" % panel["id"])
                 continue
             self.assertIn("stats", target["expr"],
                           "panel %s lists the series instead of aggregating "

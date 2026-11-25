@@ -250,7 +250,7 @@ def publish_task_performance(self, *args, **kwargs):
     from system.task_performance import export_task_performance
 
     summary = export_task_performance()
-    if summary.get("published"):
+    if summary.get("window_published"):
         logger.info(
             "Task performance (#1391): published %s records for the window "
             "%s to %s - %s executions, %s occupied slot-seconds over %s "
@@ -262,6 +262,18 @@ def publish_task_performance(self, *args, **kwargs):
             summary.get("open_running", "n/a"),
             summary.get("open_abandoned", "n/a"),
             summary["resumed_from"])
+    elif summary.get("coverage_published"):
+        # a fire with no window to cover still published the standing read of
+        # the table, which is what the coverage panel of the dashboard shows;
+        # saying only "nothing published" here would hide the one number an
+        # operator of a dead-worker deployment is reading
+        logger.info(
+            "Task performance (#1391): no window elapsed - published %s "
+            "coverage records, %s attempts open and %s of them past the "
+            "grace (crash residue).",
+            summary["coverage_published"],
+            summary.get("open_running", "n/a"),
+            summary.get("open_abandoned", "n/a"))
     elif summary.get("reason"):
         logger.info("Task performance (#1391): nothing published - %s.",
                     summary["reason"])

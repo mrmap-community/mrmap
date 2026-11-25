@@ -51,6 +51,7 @@ from system.task_performance import (EVENT_CLASS_BUCKET, EVENT_CLASS_COVERAGE,
                                      EVENT_SAMPLE, TELEMETRY_SDID,
                                      WINDOW_CURSOR_KEY, _cursor_ttl,
                                      _logfmt_value, export_task_performance)
+from system.tasks import publish_task_performance
 
 LOGGER = "MrMap.root"
 
@@ -295,12 +296,20 @@ class PublishedRecordsTests(TestCase):
         self.assertIn("task_id", payload)
 
     def test_a_fire_which_could_not_read_its_window_costs_that_window(self):
+        # the window is lost and says so - the standing coverage read is not a
+        # question about the window and travels anyway, because the operator
+        # of a broken deployment still needs the coverage panel to move
         seed()
         with patch("system.task_performance.window_buckets",
                    side_effect=RuntimeError("db is gone")):
             summary = export_task_performance()
-        self.assertEqual(summary["published"], 0)
+        self.assertEqual(summary["window_published"], 0)
+        self.assertEqual(summary["published"], summary["coverage_published"])
+        self.assertGreaterEqual(summary["published"], 1)
         self.assertEqual(summary["reason"], "db is gone")
+        self.assertEqual(self.records.for_event(EVENT_FLEET), [])
+        self.assertEqual(self.records.payload(EVENT_COVERAGE)["open_total"],
+                         "0")
 
     def test_a_broken_drilldown_read_keeps_the_series(self):
         seed()
@@ -425,6 +434,39 @@ class CoverageRecordsTests(TestCase):
         payload = self.records.payload(EVENT_COVERAGE)
         self.assertEqual(payload["open_total"], "0")
 
+    def test_a_fire_without_an_elapsed_window_publishes_the_coverage_anyway(self):
+        # the standing read of the table is not a question about the window:
+        # a doubled fire or a clock which went backwards leaves the cursor
+        # ahead of now, the series says so and publishes no window - but the
+        # crash residue still travels. This is also every off-minute fire of a
+        # deployment whose cadence knob is a whole hour: system/apps.py
+        # collapses such a crontab to one minute of the hour, so the fires in
+        # between took the window's early return and a crashed deployment
+        # waited an hour for its coverage panel to move
+        self.crashed_row()
+        cache.set(WINDOW_CURSOR_KEY,
+                  (timezone.now() + timedelta(minutes=5)).isoformat())
+        summary = export_task_performance()
+        self.assertEqual(summary["window_published"], 0)
+        self.assertIn("no window", summary["reason"])
+        self.assertEqual(summary["published"], summary["coverage_published"])
+        self.assertGreaterEqual(summary["published"], 1)
+        payload = self.records.payload(EVENT_COVERAGE)
+        self.assertEqual(payload["open_abandoned"], "1")
+        self.assertEqual(self.records.for_event(EVENT_FLEET), [])
+
+    def test_the_beat_task_logs_the_residue_of_a_fire_without_a_window(self):
+        # the worker log of a deployment whose workers died has to say so even
+        # on a fire which had no window to publish
+        self.crashed_row()
+        cache.set(WINDOW_CURSOR_KEY,
+                  (timezone.now() + timedelta(minutes=5)).isoformat())
+        with self.assertLogs(LOGGER, level="INFO") as logs:
+            publish_task_performance.run()
+        line = "\n".join(logs.output)
+        self.assertIn("no window elapsed", line)
+        self.assertIn("crash residue", line)
+
 
 @ENABLED
 class WindowCursorTests(TestCase):
@@ -447,15 +489,6 @@ class WindowCursorTests(TestCase):
         export_task_performance()
         second = self.records.payload(EVENT_FLEET, index=1)
         self.assertEqual(second["window_start"], first["window_end"])
-
-    def test_a_fire_without_an_elapsed_window_says_so(self):
-        # a doubled fire or a clock which went backwards leaves the cursor
-        # ahead of now; there is no window to cover and nothing is published
-        cache.set(WINDOW_CURSOR_KEY,
-                  (timezone.now() + timedelta(minutes=5)).isoformat())
-        summary = export_task_performance()
-        self.assertEqual(summary["published"], 0)
-        self.assertIn("no window", summary["reason"])
 
     def test_an_unreadable_cursor_starts_a_new_window_instead_of_guessing(self):
         cache.set(WINDOW_CURSOR_KEY, "not a moment")

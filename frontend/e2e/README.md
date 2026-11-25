@@ -30,24 +30,29 @@ export MRMAP_BUILD_REVISION=$(git rev-parse HEAD)             # stamped into the
 
 docker compose up -d postgis redis mapserver backend
 docker compose up -d frontend        # builds the nginx image: npm install + vite build
+curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
+  --retry-max-time 120 "http://localhost:${EXTERNAL_PORT}/api/auth/session" -o /dev/null
 ```
 
 `EXTERNAL_*` is what the bundle is built against and what the `frontend`
 service publishes — port 18085 here, so the browser and the API share one
 origin behind nginx. Pick a free host port if 18085 is taken. The backend
-runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack;
-the acceptance surface is the nginx edge and the built bundle, identical to
-production for everything this suite measures (compression, routing, cache,
-assets, SPA behaviour).
+runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack.
+Wait for the API probe after starting nginx: nginx's health check alone does
+not prove the backend has finished starting. The acceptance surface is the
+nginx edge and the built bundle, identical to production for everything this
+suite measures (compression, routing, cache, assets, SPA behaviour).
 
 ## 2. The fixtures
 
 ```bash
-docker compose run --rm --no-deps -T backend \
+docker compose exec -T backend \
   python manage.py shell -c "$(cat frontend/e2e/acceptance_seed.py)"
 ```
 
-The seed flushes the disposable acceptance database and loads the
+Run the seed in the already-started backend so it does not start a second
+container running migrations against the same database. The seed flushes the
+disposable acceptance database and loads the
 repository's own behave fixtures (`test_users`, `test_keywords`, `test_crs`,
 `test_csw`, `test_wms`, `test_datasetmetadata`, `test_background`,
 `test_harvesting_states`), so the browser gate sees the same deterministic rows

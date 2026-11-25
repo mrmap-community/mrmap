@@ -51,7 +51,8 @@ def make_cgroup(root, path, current=None, peak=None, limit=None,
     return directory
 
 
-def make_proc(root, pid, comm, vmrss=None, anon=None, file_=None, shmem=None):
+def make_proc(root, pid, comm, vmrss=None, anon=None, file_=None, shmem=None,
+              pss=None):
     """A /proc/<pid> with the two files the process view reads."""
     process = Path(root) / str(pid)
     process.mkdir(parents=True, exist_ok=True)
@@ -66,6 +67,8 @@ def make_proc(root, pid, comm, vmrss=None, anon=None, file_=None, shmem=None):
     if shmem is not None:
         lines.append(f"RssShmem:\t{shmem} kB")
     (process / "status").write_text(f"Name:\t{comm}\n" + "".join(l + "\n" for l in lines))
+    if pss is not None:
+        (process / "smaps_rollup").write_text(f"Pss:\t{pss} kB\n")
     return process
 
 
@@ -83,11 +86,11 @@ class ProcessViewTests(unittest.TestCase):
         make_cgroup(self.cgroup_root, "/docker/pg", procs=[11])
         make_cgroup(self.cgroup_root, "/docker/pg/system.slice", procs=[12, 13])
         make_proc(self.proc_root, 11, "postgres", vmrss=27440, anon=1980,
-                  file_=12020, shmem=13440)
+                  file_=12020, shmem=13440, pss=15000)
         make_proc(self.proc_root, 12, "postgres", vmrss=30552, anon=2256,
-                  file_=2952, shmem=25344)
+                  file_=2952, shmem=25344, pss=17500)
         make_proc(self.proc_root, 13, "postgres", vmrss=10656, anon=2000,
-                  file_=3000, shmem=5000)
+                  file_=3000, shmem=5000, pss=9000)
 
     def test_the_cgroup_lists_its_own_and_its_childrens_processes(self):
         self.assertEqual({11, 12, 13},
@@ -122,6 +125,21 @@ class ProcessViewTests(unittest.TestCase):
         # cgroup charge cannot answer on its own
         self.assertEqual((13440 + 25344 + 5000) * 1024, row["shmem"])
 
+    def test_pss_is_summed_only_when_every_process_is_readable(self):
+        complete = profile.sample_processes(
+            "/docker/pg", cgroup_root=str(self.cgroup_root),
+            proc_root=str(self.proc_root), include_pss=True)
+        self.assertEqual((15000 + 17500 + 9000) * 1024,
+                         complete["postgres"]["pss"])
+        self.assertEqual(3, complete["postgres"]["pss_readable"])
+
+        (self.proc_root / "13" / "smaps_rollup").unlink()
+        partial = profile.sample_processes(
+            "/docker/pg", cgroup_root=str(self.cgroup_root),
+            proc_root=str(self.proc_root), include_pss=True)
+        self.assertIsNone(partial["postgres"]["pss"])
+        self.assertEqual(2, partial["postgres"]["pss_readable"])
+
     def test_the_phase_keeps_the_peak_of_each_command(self):
         sampler = profile.Sampler("proj", "p", interval=1,
                                   cgroup_root=str(self.cgroup_root),
@@ -134,6 +152,21 @@ class ProcessViewTests(unittest.TestCase):
         self.assertEqual((3, 40, 9, 2, 3),
                          (kept["processes"], kept["vmrss_peak"], kept["anon"],
                           kept["file"], kept["shmem"]))
+
+    def test_the_phase_keeps_complete_pss_peaks_and_readability(self):
+        sampler = profile.Sampler("proj", "p", interval=1,
+                                  cgroup_root="/missing",
+                                  proc_root="/missing", include_pss=True)
+        sampler.merge_procs("pg", {"postgres": {
+            "processes": 3, "vmrss_peak": 10, "anon": 1, "file": 2,
+            "shmem": 3, "pss": 30, "pss_readable": 3}})
+        sampler.merge_procs("pg", {"postgres": {
+            "processes": 3, "vmrss_peak": 9, "anon": 1, "file": 2,
+            "shmem": 3, "pss": None, "pss_readable": 2}})
+        row = sampler.procs["pg"]["postgres"]
+        self.assertEqual((30, 3, 1),
+                         (row["pss_peak"], row["pss_readable_peak"],
+                          row["pss_complete_samples"]))
 
 
 class MathTests(unittest.TestCase):
@@ -212,9 +245,9 @@ class SamplerTests(unittest.TestCase):
                     cpu="usage_usec 2000000\n",
                     procs=[22])
         make_proc(self.proc_root, 11, "gunicorn", vmrss=40000, anon=30000,
-                  file_=9000, shmem=1000)
+                  file_=9000, shmem=1000, pss=32000)
         make_proc(self.proc_root, 22, "redis-server", vmrss=10000, anon=9000,
-                  file_=1000, shmem=0)
+                  file_=1000, shmem=0, pss=9500)
         for pid, path in (("11", "/docker/one"), ("22", "/docker/two")):
             (self.proc_root / pid).mkdir(parents=True, exist_ok=True)
             (self.proc_root / pid / "cgroup").write_text(f"0::{path}\n")
@@ -265,6 +298,8 @@ class SamplerTests(unittest.TestCase):
         self.assertEqual(150, report["stack_sum_current_peak"])
         self.assertEqual(5000, report["sampler_cgroup"]["current_p50"])
         self.assertEqual(1 << 34, report["sampler_cgroup"]["limit"])
+        self.assertEqual(0, report["sampler_cgroup"]["oom_delta"])
+        self.assertEqual("/init.scope", report["sampler_cgroup"]["cgroup"])
 
     def test_the_environment_names_the_tree_and_the_host(self):
         report = self.sample_and_report()
@@ -275,6 +310,27 @@ class SamplerTests(unittest.TestCase):
         # the fake files never change, so a window over them is +0
         report = self.sample_and_report()
         self.assertEqual(0, report["containers"]["one"]["oom_delta"])
+
+    def test_parent_oom_counters_report_a_window_delta(self):
+        original_read_cgroup = profile.read_cgroup
+        self_counter = 0
+
+        def read_cgroup(path, cgroup_root=profile.CGROUP_ROOT):
+            nonlocal self_counter
+            reading = original_read_cgroup(path, cgroup_root=cgroup_root)
+            if path == "/init.scope":
+                self_counter += 1
+                reading["events"]["oom"] = self_counter
+                reading["events"]["oom_kill"] = self_counter // 2
+            return reading
+
+        with patch.object(profile, "read_cgroup", side_effect=read_cgroup):
+            report = self.sample_and_report()
+        self.assertGreater(report["sampler_cgroup"]["oom_delta"], 0)
+        self.assertGreater(report["sampler_cgroup"]["oom_kill_delta"], 0)
+
+    def test_missing_event_counters_are_not_reported_as_zero(self):
+        self.assertIsNone(profile.counter_delta({}, {"oom": 0}, "oom"))
 
     def test_cpu_is_the_delta_of_the_cumulative_counter(self):
         report = self.sample_and_report()
@@ -290,6 +346,16 @@ class SamplerTests(unittest.TestCase):
         self.assertEqual(40000 * 1024, procs["gunicorn"]["vmrss_peak"])
         self.assertEqual(1000 * 1024, procs["gunicorn"]["shmem"])
         self.assertEqual(1, report["proc_samples"])
+
+    def test_pss_can_be_enabled_for_a_full_sample(self):
+        sampler = profile.Sampler(
+            "proj", "phase-x", interval=0.01, cgroup_root=str(self.cgroup_root),
+            proc_root=str(self.proc_root), include_pss=True)
+        report = sampler.run(duration=0.05)
+        procs = report["containers"]["one"]["procs"]
+        self.assertTrue(report["pss_enabled"])
+        self.assertEqual(32000 * 1024, procs["gunicorn"]["pss_peak"])
+        self.assertGreater(procs["gunicorn"]["pss_complete_samples"], 0)
 
 
 class ReportCommandTests(unittest.TestCase):

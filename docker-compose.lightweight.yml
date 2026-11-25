@@ -33,9 +33,13 @@
 #   observability   victoria-logs, grafana
 #                   The log store and its UI. Without them the application's own
 #                   syslog handler is skipped by settings.py (its DNS lookup of
-#                   `victoria-logs` fails and it says so on stdout), which is
+#                   `victoria-logs` fails and it says so on stdout, and warns
+#                   through the fallback of system/logging/fallback.py), which is
 #                   the fallback #1614 relies on: the application starts and
 #                   logs to its console either way.
+#                   When the tier IS layered back on, #1622 gives these two and
+#                   the two admin UIs below a memory ceiling each - see
+#                   "THE CEILINGS OF THE TIER" below.
 #   admin           pgadmin, flower
 #                   Two UIs over data the application itself also serves. The
 #                   edge's /grafana/, /pgadmin/ and /flower/ locations answer
@@ -62,6 +66,32 @@
 #   mapserver                 a runtime dependency of the dev stack (and the
 #                             exact dependency of the suites which assert OGC
 #                             responses), started by name where it is needed
+#
+# THE CEILINGS OF THE TIER (#1622)
+#
+# The four services of the observability and admin tier carry a memory ceiling
+# here which `docker-compose.yml` does not give them: the full deployment keeps
+# its uncapped contract, a deployment which layers this file and then switches
+# a tier back on runs that tier bounded. The numbers are the committed p50 of
+# #1613 rounded up with headroom - grafana 345 M anon under a 1 G limit,
+# pgadmin 231 M under 512 M, flower 50 M under 256 M, victoria-logs 39 M under
+# 256 M - so a hit means a leak or an oversized deployment, never a normal
+# query. A container which crosses its `mem_limit` is OOM-killed and, carrying
+# `restart: unless-stopped`, comes back; `docker events` and the restart count
+# of `docker inspect` are loud about it. It is not a silent degradation: this
+# tier is a pure observer, so bounding it cannot drop application data.
+# grafana's measured 1958 M charge needs no room in the number because ~82 %
+# of it is page cache, which cgroup v2 reclaims at the limit instead of
+# killing for. Each ceiling is overridable per .env (GRAFANA_MEM_LIMIT,
+# PGADMIN_MEM_LIMIT, FLOWER_MEM_LIMIT, VICTORIA_LOGS_MEM_LIMIT), mirroring
+# REDIS_MAXMEMORY of #1618: the right bound depends on the host, the value
+# here is the shipping default. `mem_reservation` is deliberately NOT set: a
+# soft reservation would keep charging the host for a tier which may be idle
+# for days, which is the opposite of the point.
+#
+# scripts/compose_profiles_smoke.py checks that all four carry a ceiling in
+# every lightweight combination, that the full mode carries none of them, and
+# that the values stay inside the documented bounds.
 #
 # THE TWO LINES WHICH ARE NOT ABOUT PROFILES
 #
@@ -110,21 +140,27 @@ services:
   # --- observability tier ------------------------------------------------
   # The log store and its UI. See the header for the two consequences: the
   # application's syslog handler falls back to its console, and the container
-  # logs of postgis/frontend stay local.
+  # logs of postgis/frontend stay local. Both carry a memory ceiling here and
+  # nowhere else - see "THE CEILINGS OF THE TIER" in the header.
   victoria-logs:
     profiles: [observability]
+    mem_limit: ${VICTORIA_LOGS_MEM_LIMIT:-256m}
 
   grafana:
     profiles: [observability]
+    mem_limit: ${GRAFANA_MEM_LIMIT:-1g}
 
   # --- admin tier --------------------------------------------------------
   # Two operator UIs. Both read what the application's own API and status pages
-  # expose, so nothing inside MrMap depends on them.
+  # expose, so nothing inside MrMap depends on them. Ceiling rationale:
+  # "THE CEILINGS OF THE TIER".
   pgadmin:
     profiles: [admin]
+    mem_limit: ${PGADMIN_MEM_LIMIT:-512m}
 
   flower:
     profiles: [admin]
+    mem_limit: ${FLOWER_MEM_LIMIT:-256m}
 
   # --- testing tier ------------------------------------------------------
   # The one-off check containers, which docker-compose.dev.yml defines. Layered

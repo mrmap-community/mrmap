@@ -674,8 +674,15 @@ class ServiceUpdateJob(models.Model):
             describes=service)
         element_model.objects.filter(
             describes__in=[*re_describe.values(), *taken_back]).delete()
+        # the move reads the key of every reference of the adopted elements -
+        # and nothing but the key (#1620): the stored document text of these
+        # rows is a copy of the same capabilities document once per element,
+        # which for a service with thousands of layers paid the whole document
+        # thousands of times into the updating worker between this read and
+        # the bulk update below
         references = list(
-            element_model.objects.filter(describes__in=list(re_describe)))
+            element_model.objects.filter(
+                describes__in=list(re_describe)).defer("remote_content"))
         if references:
             for reference in references:
                 reference.describes_id = re_describe[reference.describes_id]

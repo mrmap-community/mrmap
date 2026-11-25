@@ -1,0 +1,42 @@
+{
+  "_about": "Machine-readable rollout policy of the epic branch contract (#1594, epic #1588). docs/source/development/epic-integration-contract.rst (#1590) is the contract; THIS file is the deployment schedule of that contract: when the base rule starts advising, when it starts blocking, and which epics are exempt from it while it rolls out. scripts/test_epic_rollout.py holds every fact here against the contract page and the workflows it names, so the schedule cannot drift from the mechanism that enforces it. The policy is an input to scripts/epic_rollout.py, which turns it into the dry-run migration plan; nothing here is read by CI and nothing here grants an approval, a merge, a branch creation or a branch protection change.",
+  "schema_version": 1,
+  "contract": "docs/source/development/epic-integration-contract.rst",
+  "branch_prefix": "epic/",
+  "slug_pattern": "^[a-z0-9][a-z0-9-]{0,19}$",
+  "rollout": {
+    "advisory_from": "2026-11-24",
+    "strict_from": "2026-12-15",
+    "strict_from_env": "MRMAP_EPIC_ROLLOUT_STRICT_FROM",
+    "note": "Same shape as the title enforcement of #1580 (scripts/pr_classify STRICT_FROM), for the same measured reason: every branch and pull request that predates the rule was written without it, and nobody should have a base changed under their feet. Advisory means scripts/epic_rollout.py reports the row and nothing fails; strict means #1591's check fails it. Moving either date is a maintainer's call through the environment variable below, or a policy change in a pull request that says so in its own title.",
+    "ci_coverage": [
+      ".github/workflows/quality-assurance.yml",
+      ".github/workflows/script-tests.yml",
+      ".github/workflows/codeql.yml",
+      ".github/workflows/pr-classification.yml"
+    ],
+    "ci_coverage_note": "The four workflows whose pull_request trigger carries epic/** since this rollout, so a child PR into epic/<slug> runs the same required checks as one into develop. This is an addition of coverage and no path in any of them may skip a check for a branch, an author or a label."
+  },
+  "branch_lifecycle": {
+    "created_by": "a person, from the repository's branch settings, from the tip of origin/develop",
+    "created_when": "when the epic's first child is approved and claimed",
+    "deleted_by": "the person who merged the epic's integration PR, in the same act",
+    "never_by_an_agent": "creation, deletion, rename, force-push, retarget and protection are human-only acts",
+    "merge_queue": "child PRs are not queued (the epic branch is the integration point and a plain human-approved merge commit merges them); the epic's integration PR into develop uses the queue like any other PR into develop"
+  },
+  "bootstrap": {
+    "epics": [1588],
+    "reason": "Rule 16 of the contract: enforcing an epic branch on the epic that has to build the enforcement is a cycle, so this epic's own children follow R3 and target develop. The exemption ends when the epic's integration PR merges, and the tool verifies that instead of trusting a date: an epic listed here whose epic/<slug> branch stands with no integration PR open is reported as an unfinished bootstrap.",
+    "until_integration_pr_merged": true
+  },
+  "legacy_exceptions": [
+    {
+      "epic": 1442,
+      "reason": "In-flight epic named by the contract's Migration of existing work: four of its seven children are already merged into develop, so cutting a branch now would give the remaining children an integration target their siblings never had, and retargeting the open child PRs is the disruption the epic objective forbids. It adopts the contract at its next un-started child, which is also when it owes the `slug:` declaration rule 1 requires (it has none, so R3 covers it until then).",
+      "targets": "develop",
+      "recorded_in": "#1590",
+      "expires": "2026-12-15"
+    }
+  ],
+  "legacy_exceptions_note": "Every entry is an epic a person recorded, with the issue that records it and an expiry date. An entry past its `expires` date stops exempting anything: the plan reports `legacy-exception-expired` and the epic is judged on the contract's own rows, so an exception cannot quietly become permanent. A bootstrap exemption belongs in `bootstrap`, not here - the two are different facts and are checked differently."
+}

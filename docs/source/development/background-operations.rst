@@ -1,8 +1,8 @@
 .. _background-operations:
 
-====================
+=====================
 Background operations
-====================
+=====================
 
 A ``BackgroundProcess`` (``notify/models.py``) is what the deployment answers
 when it is asked *what is it doing right now*. Harvests, service updates,

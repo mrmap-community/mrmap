@@ -386,30 +386,40 @@ name-based, which is why it is expressible without touching history:
   ``ao/<topic>/issue-<N>`` shape gets its base from R1/R2, not its name.
 * **Legacy epics without ``slug:``.** R3 handles them: no branch, children on
   ``develop``, and the slug is declared when the epic's next child is
-  scheduled. This is why the slug lives in the epic body and not only in a
+  scheduled; ``scripts/epic_rollout.py`` reports the owed ``declare-slug`` action
+  with ``person`` as its actor, so the debt is visible instead of assumed. This
+  is why the slug lives in the epic body and not only in a
   branch name: the declaration is the thing a tool can read from an issue
   alone, which is what an agent after a context loss has.
 * **Rollout safety.** Enforcement is introduced in advisory mode first, exactly
   as #1580 introduced title enforcement, for the same reason: 99 % of the
   existing branches and every PR already open predate the rule, and nobody
-  should have a base changed under their feet. ``#1594`` owns the advisory date
-  and the flip.
+  should have a base changed under their feet. The two dates and the exemptions
+  are one reviewed file, ``scripts/epic_rollout.json``, read by
+  ``scripts/epic_rollout.py`` — the tool that turns this table into the dry-run
+  migration plan. Like #1580's, the date is overridable per deployment
+  (``MRMAP_EPIC_ROLLOUT_STRICT_FROM``), because the day a rule stops advising is
+  the deployment's call and not the rule author's. [#1594 — delivered]
 
 The CI contract
 ---------------
 
 This is the constraint most likely to sink the design if it is handled late,
-and it is why the measured gap above matters.
+and it is why the gap measured above had to close before the first child PR.
+#1594 closed it; the bullets below say what has to stay true.
 
 * A child PR into ``epic/<slug>`` must run the same required checks as one into
   ``develop``. The trigger lists of ``quality-assurance.yml``,
-  ``script-tests.yml``, ``codeql.yml`` and ``pr-classification.yml`` are
-  restricted to ``[master, develop]``; they need ``epic/**`` added. This is an
-  *addition* of coverage, and it is explicitly not a weakening: no path in any
-  of these workflows may skip a check for a branch, an author or a label.
-  [#1594 — it is the rules-and-rollout issue, and per the automation policy an
-  agent may only add such a file where the approved issue demands it, disclosed
-  in the PR body.]
+  ``script-tests.yml``, ``codeql.yml`` and ``pr-classification.yml`` were
+  restricted to ``[master, develop]``; #1594 added ``epic/**`` to all four, so a
+  child PR now runs the QA suites, the ``scripts/`` suites, CodeQL and the title
+  classification exactly as a PR into ``develop`` does. This is an *addition* of
+  coverage, and it is explicitly not a weakening: no path in any of these
+  workflows may skip a check for a branch, an author or a label. The four files
+  are named in ``scripts/epic_rollout.json`` and each one's ``pull_request``
+  trigger is re-read by ``scripts/test_epic_rollout.py``, which CI runs — so a
+  later edit that drops the pattern out of one of them fails a check instead of
+  quietly returning the gap this bullet measured. [#1594 — delivered]
 * **Migration-graph and merge-queue checks must know the epic head.** The
   one-leaf-per-app guard (#1157, ``scripts/migration_graph_smoke.py``) compares
   (branch ∪ develop); against an epic branch it must treat the epic head as the
@@ -435,16 +445,19 @@ Open questions
 Named rather than silently decided, each with the issue that owns it and the
 recommendation this page proposes:
 
-* **Who cuts the branch?** Recommendation: a person, from the repository's
-  settings, once per epic, when the epic's first child is approved and claimed.
-  Rationale: branch protection, and rule 3's "from current develop" is
-  auditable that way. Owner: #1594 (rollout rules).
-* **Does a child PR get the merge queue?** Recommendation: no for child PRs
-  (the epic branch is the integration point and the merge is a plain
-  human-approved merge commit); yes for the integration PR into ``develop``.
-  Rationale: the queue serialises against the base it is configured for, and
-  six children queueing against a branch that moves under them buys nothing.
-  Owner: #1594, with the branch-protection settings as the implementing act.
+* **Who cuts the branch?** Decided by #1594 as recommended: a person, from the
+  repository's branch settings, once per epic, when the epic's first child is
+  approved and claimed; ``AGENTS.md`` states it and ``scripts/epic_rollout.py``
+  emits ``create-epic-branch`` with ``actor: person`` rather than letting an
+  agent act. The branch-protection settings themselves are a maintainer act
+  GitHub does not let a tool assert, so the plan also owes a
+  ``protect-epic-branch`` action for the same person and the suite pins the
+  statement in ``AGENTS.md`` rather than the remote settings. [#1594 — decided]
+* **Does a child PR get the merge queue?** Decided by #1594 as recommended: no
+  for child PRs, yes for the integration PR into ``develop``. The decision is
+  recorded in ``scripts/epic_rollout.json`` under ``branch_lifecycle.merge_queue``
+  so it is readable next to the protection rule it belongs to, and the
+  implementing act is the branch protection of ``epic/<slug>``. [#1594 — decided]
 * **Does an epic get one version or do its children?** The baseline of #1578
   (``release-versioning-baseline.rst``) and its ``Q4`` are still Pending. Under
   this contract the answer is structurally the same either way — the epic's
@@ -463,10 +476,12 @@ recommendation this page proposes:
   new children on a closed epic; the risk of reading an old branch as current
   is closed by the "branch still stands" clause of rule 2 rather than by
   reserving slugs forever. Owner: #1591.
-* **Hotfix into a stale epic branch.** If a production fix touches code only
-  present on ``epic/<slug>``, it is R8-shaped: the epic integrates, or the fix
-  goes to ``develop`` and the epic merges ``develop``. An agent does not decide
-  which; it asks a person. Owner: #1594.
+* **Hotfix into a stale epic branch.** Decided by #1594 as recommended: it is
+  R8-shaped — the epic integrates, or the fix goes to ``develop`` and the epic
+  merges ``develop`` — and an agent does not choose. The choosing is a question
+  for a person through ``scripts/wip ask``: an agent that finds itself needing a
+  change that only exists on ``epic/<slug>`` asks rather than picking a base,
+  because both lawful answers are a person's call. [#1594 — decided]
 
 Handoff
 =======
@@ -502,10 +517,14 @@ Every measurement above, from the repository root. All read-only toward GitHub.
    # the only target check runs only on a base of master
    sed -n '/^on:/,/^jobs:/p' .github/workflows/branch-policy.yml
 
-   # CI triggers are restricted to master/develop — the rollout gap
+   # CI triggers carry epic/** — the coverage #1594 added to close the gap
    grep -n 'branches:' .github/workflows/quality-assurance.yml \
        .github/workflows/script-tests.yml .github/workflows/codeql.yml \
        .github/workflows/pr-classification.yml
+
+   # the rollout plan itself, and the policy dates behind it
+   python3 scripts/epic_rollout.py --dry-run
+   python3 -m json.tool scripts/epic_rollout.json
 
    # the native hierarchy is populated for the epic of this issue
    gh api repos/mrmap-community/mrmap/issues/1588/sub_issues \

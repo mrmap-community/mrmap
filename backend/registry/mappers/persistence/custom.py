@@ -149,10 +149,23 @@ def _write_record_of(instance, handler, change_reason, document_backup):
             if (db_obj := _record_of(instance.__class__, instance.file_identifier)) is None:
                 raise
 
-    if db_obj is not None and not created and instance.date_stamp > db_obj.date_stamp:
-        _apply_values(db_obj, values)
-        _save_record(db_obj, document_backup(), change_reason)
-        update = True
+    if db_obj is not None and not created:
+        date_stamp_from_document = getattr(
+            instance, "_date_stamp_from_document", False)
+
+        if date_stamp_from_document:
+            republished = instance.date_stamp > db_obj.date_stamp
+        else:
+            # Missing gmd:dateStamp has no publication revision to compare.
+            # Compare the document and preserve the stored harvest stamp.
+            republished = not db_obj.document_equals(
+                document_backup().encode("UTF-8"))
+            values.pop("date_stamp", None)
+
+        if republished:
+            _apply_values(db_obj, values)
+            _save_record(db_obj, document_backup(), change_reason)
+            update = True
 
     db_obj._custom_state = created, update
     return db_obj

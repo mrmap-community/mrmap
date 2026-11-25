@@ -52,7 +52,7 @@ Serial tests may take substantially longer. This mode does not waive the
 ``scripts/agent_capacity`` admission decision, even on a 16-GiB host.
 
 Allocation sources and limits of the evidence
-============================================
+=============================================
 
 The measured starting point is :ref:`runtime-memory-baselines` (#1613), not a
 new measurement of this change. That full four-worker run attributed 2885 MiB
@@ -152,7 +152,7 @@ inside the same cgroup. Container-local and parent peaks answer different
 questions and belong in separate report columns.
 
 Verification status (2026-11-23)
-==============================
+================================
 
 On commit ``5cb425edf``, a host with an Intel i7-7700K (8 logical CPUs), Linux
 ``7.0.0-44-generic`` and Docker 29.4.3 ran each arm once in a fresh isolated
@@ -163,15 +163,15 @@ test setup; frontend dependency installation was completed before sampling.
 The stack peak is the highest sampled sum of container cgroup charges, in MiB;
 it is not an independent measurement of private RAM or an ancestor peak.
 
-====================  ============  ==============  =============
-Workload              Workers       Stack peak MiB  Elapsed seconds
-====================  ============  ==============  =============
-Django with coverage  4 (default)              5113           1285
-Django with coverage  1                       2361           2859
-Vitest with coverage  automatic               2802            153
-Vitest with coverage  1                        930            485
-Behave with coverage  serial                   723            176
-====================  ============  ==============  =============
+====================  ===========  ==============  ===============
+Workload              Workers      Stack peak MiB  Elapsed seconds
+====================  ===========  ==============  ===============
+Django with coverage  4 (default)            5113             1285
+Django with coverage  1                      2361             2859
+Vitest with coverage  automatic              2802              153
+Vitest with coverage  1                       930               485
+Behave with coverage  serial                  723              176
+====================  ===========  ==============  ===============
 
 Both Django arms passed 3245 tests with the same 3 skips; each reported 92.28%
 line and 81.25% branch coverage. Both Vitest arms passed 1794 tests in 217 files;

@@ -69,7 +69,7 @@ Now you are able to debug code in vscode. See full example video below.
 
 
 4. Automatic linting and formatting
-==================================
+===================================
 
 Install the workspace recommendations from ``.vscode/extensions.json``: Python, Pylance,
 Flake8, autopep8 and ESLint. Select the project's ``.venv`` with ``Python: Select Interpreter``.

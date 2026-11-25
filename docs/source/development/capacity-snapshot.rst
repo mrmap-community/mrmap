@@ -198,16 +198,32 @@ The gaps vocabulary
 Settings
 ========
 
-===================================  =================================================
-``CAPACITY_SNAPSHOT_TTL_SECONDS``      freshness target of the cached snapshot (900)
-``CAPACITY_SNAPSHOT_HORIZON_DAYS``     / ``..._MAX_HORIZON_DAYS``  counted horizon (7 / 31)
-``CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS`` / ``..._MIN_REBUILD_SECONDS``  one builder at a time, minimum rebuild distance
-``CAPACITY_FINGERPRINT_CACHE_SECONDS`` the digest's own cache interval (30)
-``CAPACITY_SNAPSHOT_BUCKET_SECONDS`` / ``..._MAX_BUCKETS``  histogram resolution (3600 / 744)
+===================================================================================================  =================
+``CAPACITY_SNAPSHOT_TTL_SECONDS``                                                                    freshness target
+                                                                                                     of the cached
+                                                                                                     snapshot (900)
+``CAPACITY_SNAPSHOT_HORIZON_DAYS`` / ``..._MAX_HORIZON_DAYS``                                        /
+                                                                                                     ``..._MAX_HORIZON_DAYS``
+                                                                                                     counted horizon
+                                                                                                     (7 / 31)
+``CAPACITY_SNAPSHOT_BUILD_LOCK_SECONDS`` / ``..._MIN_REBUILD_SECONDS``                               one builder at a
+                                                                                                     time, minimum
+                                                                                                     rebuild distance
+                                                                                                     ``CAPACITY_FINGERPRINT_CACHE_SECONDS``
+                                                                                                     the digest's own
+                                                                                                     cache interval
+                                                                                                     (30)
+``CAPACITY_SNAPSHOT_BUCKET_SECONDS`` / ``..._MAX_BUCKETS``                                           histogram
+                                                                                                     resolution (3600
+                                                                                                     / 744)
 ``CAPACITY_SNAPSHOT_MAX_SCHEDULES`` / ``..._MAX_OCCURRENCES`` / ``..._MAX_OCCURRENCES_PER_SETTING``  the walk budgets
-``CAPACITY_COST_LOOKBACK_DAYS`` / ``..._COST_MIN_SAMPLES`` / ``..._COST_GROUP_LIMIT``  the costing window and its bounds
-``CAPACITY_RHO_ADVISORY_THRESHOLD``    the advisory line that travels with rho (0.7)
-===================================  =================================================
+``CAPACITY_COST_LOOKBACK_DAYS`` / ``..._COST_MIN_SAMPLES`` / ``..._COST_GROUP_LIMIT``                the costing
+                                                                                                     window and its
+                                                                                                     bounds
+``CAPACITY_RHO_ADVISORY_THRESHOLD``                                                                  the advisory line
+                                                                                                     that travels with
+                                                                                                     rho (0.7)
+===================================================================================================  =================
 
 What may not be claimed
 =======================

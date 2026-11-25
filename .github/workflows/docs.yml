@@ -1,0 +1,131 @@
+name: Documentation build
+
+# WHY THIS JOB EXISTS (#1597, epic #1589).
+#
+# The portal is generated in part and read by people who cannot see whether it
+# was built from a green tree. Before this job existed, nothing built the docs
+# on an ordinary change: the committed pin set was internally contradictory
+# (Sphinx 4.5 with sphinxcontrib-* 2.x, which require Sphinx >= 5.0) and aborted
+# in a second, and nothing noticed, because the only builds were the docs image
+# and Read the Docs - neither of which runs on a pull request. A documentation
+# deployment is far too late a place to learn that a page is unreachable, an
+# include names a file that is not there, or a toctree entry resolved to nothing.
+#
+# WHAT IT RUNS, AND WHY THAT IS ENOUGH.
+#
+#   - The offline structural suite (scripts/test_docs_build.py): generated pages
+#     match their generator, every page is reachable, every :doc:/:ref:/include/
+#     relative link resolves, no directive is written in the wrong dialect.
+#   - The strict HTML build (-W --keep-going). This is the part only Sphinx can
+#     answer, and it covers three acceptance criteria at once: missing assets
+#     (Sphinx warns for an image it cannot find, which -W turns into a failure),
+#     diagrams (a mermaid or graphviz block that neither renders nor degrades
+#     warns), and build identity (provenance.json, whose presence and content
+#     the step after the build asserts).
+#   - The build runs offline. That is deliberate and is the offline-build
+#     criterion: the portal must build without the application importable,
+#     without GDAL, without a database and without network access. The one
+#     exception below is linkcheck, which cannot mean anything without network.
+#
+# linkcheck runs informational rather than as a gate. A broken upstream URL is
+# real information for the docs author, and it is not a reason to refuse a pull
+# request that never touched the page quoting it - the entrypoint of the docs
+# image (docker/docs/entrypoint.sh) and Read the Docs are where the whole corpus
+# is link-checked as a failing condition.
+#
+# No credentials, no database, no container image: the environment is the one
+# committed pin file, which is what makes the artifact reproducible.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, develop]
+  merge_group:
+    types: [checks_requested]
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  portal:
+    name: build the portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          # The docs toolchain is pinned in backend/.requirements/docs.txt; this
+          # is the interpreter that pin was frozen with.
+          python-version: '3.13'
+
+      - name: Install the pinned docs environment
+        run: |
+          python -m venv /tmp/docsenv
+          /tmp/docsenv/bin/python -m pip install --upgrade pip
+          /tmp/docsenv/bin/python -m pip install -r backend/.requirements/docs.txt
+
+      # Offline structural facts about the portal, held without building it.
+      - name: Run the portal suite
+        run: python scripts/test_docs_build.py
+
+      # -W makes every warning a failure; --keep-going lists all of them instead
+      # of stopping at the first, which is what makes a red build readable.
+      - name: Build the portal strictly
+        run: >
+          /tmp/docsenv/bin/python -m sphinx -b html -E -W --keep-going
+          -d /tmp/doctrees docs/source docs/build/html
+
+      # Build identity: an artifact that cannot say what it was built from is not
+      # reviewable. The documented commit of a pull-request checkout is a SHA
+      # taken from the tree rather than a ref, so assert the field and its shape,
+      # not a value this runner cannot know.
+      - name: Assert the build recorded its identity
+        run: |
+          /tmp/docsenv/bin/python - <<'PYTHON'
+          import json, pathlib, re, sys
+          path = pathlib.Path("docs/build/html/provenance.json")
+          if not path.is_file():
+              sys.exit("provenance.json was not written: the build cannot say what it built")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          problems = []
+          if data.get("schema") != "mrmap.docs.provenance.v1":
+              problems.append(f"schema: {data.get('schema')!r}")
+          if not re.fullmatch(r"[0-9a-f]{40}", str(data.get("documented_commit") or "")):
+              problems.append(f"documented_commit: {data.get('documented_commit')!r}")
+          for key in ("builder", "version", "release", "toolchain", "source_digest"):
+              if not data.get(key):
+                  problems.append(f"{key} missing")
+          if not data["toolchain"].get("sphinx"):
+              problems.append("toolchain.sphinx missing")
+          if problems:
+              sys.exit("provenance.json is not complete: " + "; ".join(problems))
+          print(f"provenance ok: sphinx {data['toolchain']['sphinx']}, "
+                f"commit {data['documented_commit'][:12]}, "
+                f"{data['pages']} pages, autodoc {data['autodoc']}")
+          PYTHON
+
+      # The whole corpus checked for dead links, reported and not gated: see the
+      # header for why an upstream 500 must not refuse an unrelated pull request.
+      - name: Check links (informational)
+        continue-on-error: true
+        run: >
+          /tmp/docsenv/bin/python -m sphinx -b linkcheck -E --keep-going
+          -d /tmp/doctrees docs/source docs/build/linkcheck
+
+      - name: Publish the artifacts for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-portal
+          path: docs/build/html
+          retention-days: 14

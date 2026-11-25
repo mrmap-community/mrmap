@@ -1,8 +1,8 @@
 .. _queryset-manager-conventions:
 
-========================================
+==========================================
 QuerySet and Manager conventions for tasks
-========================================
+==========================================
 
 This page is the convention of #1397: where the read queries of a Celery task
 (or any other background consumer) are built, how such a method is named and

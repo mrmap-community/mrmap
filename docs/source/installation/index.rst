@@ -68,7 +68,7 @@ Download the project from `github <https://github.com/mrmap-community/mrmap/arch
 
 create .env file under your mrmap path with the following variables. Please setup your own strong passwords! 
 
-.. code-block:: env
+.. code-block:: bash
 
     EXTERNAL_BASE_URL=mrmap.example.com
     EXTERNAL_PORT=443

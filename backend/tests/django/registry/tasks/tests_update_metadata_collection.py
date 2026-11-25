@@ -24,7 +24,6 @@ from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
 from notify.enums import ProcessStatusEnum
 from notify.models import BackgroundProcess
-from registry.enums.metadata import ReferenceWorkStateEnum
 from registry.enums.update import UpdateJobStatusEnum
 from registry.models.harvest import TemporaryMdMetadataFile
 from registry.models.metadata import (LayerRemoteMetadata,
@@ -34,7 +33,7 @@ from registry.models.update import (CatalogueServiceUpdateJob,
                                     WebFeatureServiceUpdateJob,
                                     WebMapServiceUpdateJob,
                                     update_job_for_process)
-from registry.tasks.service import (advertised_references, collect_reference,
+from registry.tasks.service import (advertised_references,
                                     finish_metadata_collection)
 from registry.tasks.update import collect_update_metadata
 from requests.sessions import Session

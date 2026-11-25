@@ -123,8 +123,14 @@ rules of ``AGENTS.md``.
     MRMAP_LOW_MEMORY=1 docker compose -f docker-compose.yml \
         -f docker-compose.lightweight.yml up -d --force-recreate backend
 
-    # shut down this project only
-    docker compose down
+    # shut down THIS project and nothing else: down re-reads .env on every
+    # invocation, so the project is named explicitly rather than inherited
+    # (AGENTS.md requires the same before any removal - a copied .env still
+    # carries somebody else's COMPOSE_PROJECT_NAME). Look before you delete:
+    docker ps -a --filter \
+      "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME"
+    docker compose -p "$COMPOSE_PROJECT_NAME" -f docker-compose.yml \
+      -f docker-compose.lightweight.yml down
 
 Three shutdown facts an operator has to know:
 
@@ -377,8 +383,14 @@ mutate nothing and their offline suites run in
         --phase lite-boot --during 'docker compose up -d' --out runs.jsonl
     scripts/stack_memory_profile report --in runs.jsonl
 
-    # web-tier throughput / latency of an arm
-    python3 scripts/http_process_bench.py load --arm lowmem ... --out bench.jsonl
+    # web-tier throughput / latency of one arm - the weighted endpoint plan
+    # the #1617/#1621 arms ran, with its cheap peer (see db-pool-memory for
+    # the full campaign; --base-url defaults to the bench's own backend port)
+    python3 scripts/http_process_bench.py load --arm lowmem --phase api-load \
+        --endpoint /api/registry/keywords*3 --endpoint /api/registry/wms*2 \
+        --endpoint /api/registry/harvesting/harvesting-jobs*1 \
+        --requests 3000 --concurrency 16 --peer-endpoint /__cheap_peer__ \
+        --peer-interval 0.25 --out bench.jsonl
     python3 scripts/http_process_bench.py report --in bench.jsonl
 
 Routine operator readings, one per knob that bounds something:
@@ -392,13 +404,28 @@ Routine operator readings, one per knob that bounds something:
     docker compose exec redis redis-cli INFO stats | grep -E 'evicted_keys|evicted'
     docker compose exec redis redis-cli CONFIG GET maxmemory
 
-    # PostgreSQL: who holds connections (pool totals, not per process)
-    docker compose exec -T postgis psql -U "$DB_USER" -d "${POSTGRES_DB:-mrmap}" -At -c \
-      "SELECT application_name, state, count(*) FROM pg_stat_activity \
-       WHERE datname = current_database() GROUP BY 1,2"
+    # PostgreSQL: who holds connections (pool totals, not per process). The
+    # names are read INSIDE the container - single quotes keep the host shell
+    # from expanding them - which is exactly what the postgis healthcheck's
+    # pg_isready does; see the note under this block.
+    docker compose exec -T postgis sh -c \
+      'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c \
+       "SELECT application_name, state, count(*) FROM pg_stat_activity \
+        WHERE datname = current_database() GROUP BY 1,2"'
 
     # OOM accounting of the stack's cgroups (0 expected in every phase)
     docker compose exec redis sh -c 'cat /sys/fs/cgroup/memory.events 2>/dev/null || true'
+
+The ``psql`` line names its user and database **inside** the container on
+purpose. ``docker compose exec`` enters the postgis image as root, and the
+image has no ``root`` role - ``POSTGRES_USER`` is whatever ``DB_USER`` said -
+so a bare ``docker compose exec postgis psql -At -c ...`` answers
+``FATAL: role "root" does not exist``; the reading
+:ref:`db-pool-memory <db-pool-memory>` ran from a shell already inside the
+container as the right user. The single quotes are what stop the **host**
+shell, which never holds these variables (``.env`` is read by Compose and not
+exported), from substituting empty ones - the same escape
+``docker-compose.yml`` uses in the ``pg_isready`` test.
 
 Re-measuring means starting a stack: ``scripts/agent_capacity`` first, in a
 project you own, torn down afterwards. The repeatable regression reporting
@@ -420,10 +447,13 @@ beside its own session. The admission gate decides for it, per class:
 ``--need stack`` requires 6 GiB effective, ``--need suite`` 8 GiB (the
 full-suite arm took the stack to 7350 M charge / 4973 M committed, and
 ~7 GiB of the 16 GiB were unreclaimable while it ran). The lightweight
-stack's own floor is 1379 M committed derived at idle (1558 M charge); the
-web tier in low-memory shape adds 283 M committed to the picture instead of
-632 M. What to run: the lightweight mode, ``MRMAP_LOW_MEMORY=1`` if the
-agent's traffic is background, and never a second stack the gate refuses.
+stack's own floor is the core-only budget row - 1558 M charge / 1340 M
+committed, derived (:ref:`compose-profiles <compose-profiles>`); with the
+``observability`` tier on that row reads 1613 M / 1379 M instead, still
+under a tenth of the cgroup. The web tier in low-memory shape adds 283 M
+committed to the picture instead of 632 M. What to run: the lightweight
+mode, ``MRMAP_LOW_MEMORY=1`` if the agent's traffic is background, and
+never a second stack the gate refuses.
 A full-suite run in the same cgroup is a ``--need suite`` job by admission,
 not by taste.
 
@@ -433,10 +463,17 @@ measurement as an open task. What the measured evidence supports is a
 configuration to validate there, labelled as a projection: the
 lightweight core (derived 1558 M charge / 1340 M committed idle) with the
 low-memory web tier, plus the coding model's own footprint and the
-transient to survive - the +3.3 GiB charge / +2.9 GiB committed a full
-test suite adds on top of the stack (**measured** delta in the 16-GiB
-environment, which does not transfer automatically to a 32-GiB host with a
-different kernel, allocator pressure and model runtime). Treat every fit
+transient to survive, carried over as the **worst case measured so far**
+rather than as a fit: the ``suite-full`` phase took a **development** stack
+- twelve services including the observability tier, with the check
+containers booting - from 4002 M / 2063 M idle to 7350 M / 4973 M
+:ref:`charged and committed <runtime-memory-baselines>`, a **+3.3 GiB /
++2.9 GiB** delta measured in the 16-GiB environment. Adding it to a
+core-only base is arithmetic across two different configurations, so it is
+an upper bound and never an expectation: no core-only stack with a suite was
+ever sampled, which is exactly what #1623 owes before anyone calls this
+host safe. It also does not transfer automatically to a 32-GiB host with a
+different kernel, allocator pressure and model runtime. Treat every fit
 claim for that host as an open measurement until someone runs
 ``scripts/stack_memory_profile`` there and appends the phases to
 :ref:`runtime-memory-baselines`. Do not conclude the host is safe because
@@ -456,8 +493,11 @@ observed failure at that gate, not a feeling.
 2. **Bring up the mode you intend to run** (Startup and shutdown above);
    wait for the four healthchecks and ``/api/system/info``.
 3. **Sample the idle floor** for 10 minutes (``lite-warm-idle`` above) and
-   compare with the mode's budget row: the committed number must sit at or
-   under the quoted figure of the mode; a stack which idles far above its
+   compare with the **budget row of the mode you started**, from the table
+   in :ref:`compose-profiles <compose-profiles>` - core only: 1340 M
+   committed (1558 M charge); with ``observability`` on: 1379 M (1613 M);
+   with ``admin`` on: 1621 M (1936 M). The committed number must sit at or
+   under the figure of that row; a stack which idles far above its
    row is not the configuration the page describes.
 4. **Drive the representative workload** you actually care about through
    the mode - the API reads (``http_process_bench.py load``), a

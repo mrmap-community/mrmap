@@ -29,6 +29,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess  # nosec B404 - sourcing the resolver in sh is the check
 import sys
 from pathlib import Path
@@ -95,6 +96,66 @@ def compose_service_block(text, service):
     match = re.search(rf"^  {re.escape(service)}:\s*$(.*?)(?=^  \S|\Z)",
                       text, re.MULTILINE | re.DOTALL)
     return match.group(1) if match else ""
+
+
+def list_table_rows(text, key_column, columns):
+    """Rows of the unique reST ``list-table`` keyed by ``key_column`` and
+    carrying ``columns``, parsed one cell per ``* -``/``- `` line with
+    continuation lines appended to the cell they belong to.
+
+    Figures bind to a ROW and a COLUMN, not to a page: a budget table carries
+    a dozen configurations, and a number that merely appears somewhere on the
+    page says nothing about which configuration was quoted - the exact slip
+    class this page exists to prevent.
+    """
+    key = key_column.strip()
+    wanted = [c.strip() for c in columns]
+    tables = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if not lines[i].lstrip().startswith(".. list-table"):
+            i += 1
+            continue
+        j, rows, cell = i + 1, [], None
+        while j < len(lines):
+            line = lines[j]
+            if line.startswith("   :") or not line.strip():
+                j += 1
+                continue
+            first = re.match(r"^   \* - (.*)$", line)
+            rest = re.match(r"^     -(?: (.*))?$", line)
+            if first:
+                cell = [first.group(1).strip()]
+                rows.append(cell)
+            elif cell is not None and rest:
+                cell.append((rest.group(1) or "").strip())
+            elif cell is not None and line.startswith("       ") and line.strip():
+                cell[-1] += " " + line.strip()
+            else:
+                break
+            j += 1
+        if rows and rows[0][0].strip() == key and all(c in rows[0] for c in wanted):
+            tables.append(rows)
+        i = j
+    if len(tables) != 1:
+        return None, f"{len(tables)} tables keyed {key!r} with columns {wanted}"
+    return tables[0], None
+
+
+def table_cell(text, key_column, columns, row_label, column):
+    """The cell of ``row_label`` under ``column`` of that table."""
+    rows, err = list_table_rows(text, key_column, columns)
+    if rows is None:
+        return None, err
+    header, body = rows[0], rows[1:]
+    index = header.index(column.strip())
+    for cells in body:
+        if cells[0].strip() == row_label.strip():
+            if len(cells) <= index:
+                return None, f"row {row_label!r} has no cell {index}"
+            return cells[index], None
+    return None, f"no row {row_label!r} (have {[c[0] for c in body][:8]})"
 
 
 def main():
@@ -255,7 +316,13 @@ def main():
                   f"start_period: {probe['start_period']}" in block,
                   probe["start_period"])
 
-    # --- quoted figures exist on the page cited as their source --------------------
+    # --- quoted figures sit in the ROW of the configuration quoted ------------------
+    # A number merely appearing on a page is not evidence. The first draft of
+    # this runbook paired the core-only CHARGE (1558 M) with the
+    # observability-on COMMITTED (1379 M) - two rows of the same table - and a
+    # "does the value appear on the page" check cannot see that. Every figure
+    # therefore binds to page + key column + row label + column label, and the
+    # cell itself has to carry the value.
     for figure in desc["figures"]:
         page = DEVELOPMENT_DOCS / f"{figure['source']}.rst"
         check(f"figure {figure['id']} cites a committed page", page.is_file(),
@@ -263,16 +330,37 @@ def main():
         if not page.is_file():
             continue
         page_text = read(page)
-        for value in (figure["charge_mib"], figure["committed_mib"]):
-            found = re.search(rf"\b{value}\b", page_text) is not None
-            check(f"figure {figure['id']} value {value} MiB appears on {figure['source']}",
-                  found)
-        # the page has to speak the figure's language: a "measured" row
-        # next to the word measured, a "derived" row next to the word
-        # derived - the labelling #1613's reading rule depends on.
+        for column, value in zip(figure["columns"],
+                                 (figure["charge_mib"], figure["committed_mib"])):
+            cell, err = table_cell(page_text, figure["key_column"],
+                                   figure["columns"], figure["row"], column)
+            check(f"figure {figure['id']}: {figure['source']} row {figure['row']!r} "
+                  f"column {column!r} reads {value} MiB",
+                  cell is not None
+                  and re.search(rf"\*?{value}\*?\s*M\b", cell) is not None,
+                  err or cell)
+        # and the labelling the figure claims has to be the labelling the
+        # SOURCE gives this row. The basis column of compose-profiles says
+        # "derived: ..."; where a row carries no word of its own, the page's
+        # framing is the claim - but a row that says "derived" may never be
+        # quoted as measured, nor the other way round.
         word = "measured" if figure["kind"] == "measured" else "derived"
-        check(f"figure {figure['id']} kind {figure['kind']} is how the source page labels it",
-              re.search(word, page_text, re.IGNORECASE) is not None)
+        rows, err = list_table_rows(page_text, figure["key_column"],
+                                    figure["columns"])
+        row_cells = next((c for c in (rows or [])[1:]
+                          if c[0].strip() == figure["row"].strip()), None)
+        if row_cells is None:
+            check(f"figure {figure['id']} kind {figure['kind']} is how the source "
+                  f"page labels {figure['row']!r}", False, err)
+        else:
+            row_text = " ".join(row_cells).lower()
+            if "derived" in row_text or "measured" in row_text:
+                ok, detail = word in row_text, row_text[:90]
+            else:
+                ok = word == "measured" and "measured" in page_text.lower()
+                detail = "row carries no label of its own; page framing"
+            check(f"figure {figure['id']} kind {figure['kind']} is how the source "
+                  f"page labels {figure['row']!r}", ok, detail)
 
     # --- scenarios: measured vs not, and the admission constants --------------------
     scenarios = {s["id"]: s for s in desc["scenarios"]}
@@ -307,6 +395,89 @@ def main():
         if knob["name"] in ("GUNICORN_WS_WORKERS", "MRMAP_TEST_WORKERS"):
             continue
         check(f"the runbook covers knob {knob['name']}", knob["name"] in book_text)
+
+    # --- operator commands do what the page promises --------------------------------
+    # Three commands an operator copies out of this page were reviewed and were
+    # wrong as pasted; each check below pins the property that makes it work.
+
+    # (1) the core-only floor must pair the core-only charge with the core-only
+    # committed. 1379 M is committed of a DIFFERENT row (lightweight +
+    # observability) and may only appear where that row is named - the exact
+    # row-mixing slip the first draft carried, invisible to a page-level check.
+    core = next(f for f in desc["figures"] if f["id"] == "lightweight-core-warm-idle")
+    obs = next(f for f in desc["figures"]
+               if f["id"] == "lightweight-plus-observability-warm-idle")
+    pair = f'{core["charge_mib"]} M charge / {core["committed_mib"]} M committed'
+    check(f"the runbook quotes the core-only floor as one row ({pair})",
+          pair in book_text)
+    # 1379 M belongs to the observability-on row, so every mention of it in the
+    # runbook has to name that tier within the same sentence-ish window.
+    obs_windows = [book_text[max(0, m.start() - 200):m.end() + 60]
+                   for m in re.finditer(rf"\b{obs['committed_mib']} M\b", book_text)]
+    check(f"every mention of {obs['committed_mib']} M names the observability-on row",
+          all("observability" in w.lower() for w in obs_windows),
+          [w.replace("\n", " ")[:90] for w in obs_windows
+           if "observability" not in w.lower()])
+
+    # (2) psql runs inside the container. The postgis image has no role matching
+    # the exec user, so names have to come from the CONTAINER's environment:
+    # single quotes plus $POSTGRES_USER/$POSTGRES_DB, and no host-side $DB_USER
+    # that Compose's .env never exports into the operator's shell.
+    psql_block = book_text[book_text.find("pg_stat_activity") - 600:
+                           book_text.find("pg_stat_activity")]
+    check("the pg_stat_activity reading names its user inside the container",
+          "psql" in psql_block and "$POSTGRES_USER" in psql_block
+          and "$POSTGRES_DB" in psql_block
+          and "'" in psql_block)
+    check("the pg_stat_activity reading does not expand .env variables on the host",
+          "$DB_USER" not in psql_block and "${POSTGRES_DB" not in psql_block)
+
+    # (3) the bench invocation is complete: --endpoint is required=True, so an
+    # elided line exits 2. Parse the pasted line with the tool's own parser.
+    bench = importlib.util.spec_from_file_location(
+        "http_process_bench", ROOT / "scripts" / "http_process_bench.py")
+    bench_module = importlib.util.module_from_spec(bench)
+    bench.loader.exec_module(bench_module)
+    start = book_text.find("http_process_bench.py load")
+    lines, i = [], start
+    while i < len(book_text):
+        line = book_text[i:].split("\n", 1)[0].strip().lstrip("#").strip()
+        lines.append(line)
+        if not line.endswith("\\"):
+            break
+        i += book_text[i:].index("\n") + 1
+    command = " ".join(l.rstrip("\\").strip() for l in lines)
+    command = command.split("http_process_bench.py", 1)[1].strip()
+    try:
+        parsed = bench_module.build_parser().parse_args(shlex.split(command))
+        ok, detail = parsed.command == "load" and bool(parsed.endpoint), ""
+    except SystemExit as exc:
+        ok, detail = False, f"argparse exited {exc.code}"
+    check("the bench load invocation of the runbook parses as written", ok, detail)
+
+    # (4) the one destructive command names its project. `down` re-reads .env on
+    # every call, so an inherited COMPOSE_PROJECT_NAME can tear down somebody
+    # else's stack - the hazard AGENTS.md requires a -p for.
+    book_lines = book_text.splitlines()
+    removal = []
+    for index, line in enumerate(book_lines):
+        stripped = line.strip()
+        if not stripped.startswith("docker compose") or stripped.startswith("#"):
+            continue
+        # join backslash continuations so the whole command is one unit
+        cursor = index
+        while stripped.endswith("\\") and cursor + 1 < len(book_lines):
+            cursor += 1
+            stripped = stripped[:-1].strip() + " " + book_lines[cursor].strip()
+        if re.search(r"\bdown\b", stripped):
+            removal.append(stripped)
+    check("the down command pins the project and the files it operates on",
+          len(removal) == 1 and '-p "$COMPOSE_PROJECT_NAME"' in removal[0]
+          and " -f " in removal[0], removal)
+    check("the runbook looks at the project before removing it",
+          "com.docker.compose.project" in book_text)
+    check("the repo rule the down command follows is the one it cites",
+          "AGENTS.md" in book_text and "COMPOSE_PROJECT_NAME" in read(ROOT / "AGENTS.md"))
 
     print(f"\n{len(failures)} failed of the checks above" if failures
           else "\nall checks passed")

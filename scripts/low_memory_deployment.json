@@ -29,7 +29,9 @@
   "modes": [
     {
       "id": "full",
-      "compose_files": ["docker-compose.yml"],
+      "compose_files": [
+        "docker-compose.yml"
+      ],
       "profiles": [],
       "web_shape": "4 workers x 4 threads HTTP, 1 ASGI websocket worker, preload off",
       "pool_bounds": "4 reserved / 20 open per pooled process",
@@ -38,8 +40,15 @@
     },
     {
       "id": "lightweight",
-      "compose_files": ["docker-compose.yml", "docker-compose.lightweight.yml"],
-      "profiles": ["observability", "admin", "testing"],
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.lightweight.yml"
+      ],
+      "profiles": [
+        "observability",
+        "admin",
+        "testing"
+      ],
       "web_shape": "same as full unless the mode below is set",
       "pool_bounds": "same as full unless the mode below is set",
       "is_contract": false,
@@ -47,9 +56,14 @@
     },
     {
       "id": "low-memory-web-tier",
-      "compose_files": ["docker-compose.yml", "docker-compose.lightweight.yml"],
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.lightweight.yml"
+      ],
       "profiles": [],
-      "env": {"MRMAP_LOW_MEMORY": "1"},
+      "env": {
+        "MRMAP_LOW_MEMORY": "1"
+      },
       "web_shape": "1 worker x 2 threads HTTP, 1 ASGI websocket worker, preload off",
       "pool_bounds": "1 reserved / 4 open per pooled process",
       "is_contract": false,
@@ -57,9 +71,19 @@
     },
     {
       "id": "test-concurrency",
-      "compose_files": ["docker-compose.yml", "docker-compose.dev.yml", "docker-compose.prebuilt.yml", "docker-compose.lightweight.yml", "docker-compose.test-low-memory.yml"],
-      "profiles": ["testing"],
-      "env": {"MRMAP_TEST_WORKERS": "1"},
+      "compose_files": [
+        "docker-compose.yml",
+        "docker-compose.dev.yml",
+        "docker-compose.prebuilt.yml",
+        "docker-compose.lightweight.yml",
+        "docker-compose.test-low-memory.yml"
+      ],
+      "profiles": [
+        "testing"
+      ],
+      "env": {
+        "MRMAP_TEST_WORKERS": "1"
+      },
       "web_shape": "not a deployment mode - test containers only",
       "pool_bounds": "not a deployment mode - test containers only",
       "is_contract": false,
@@ -67,11 +91,30 @@
     }
   ],
   "tiers": {
-    "observability": ["victoria-logs", "grafana"],
-    "admin": ["pgadmin", "flower"],
-    "testing": ["pre-commit-check", "behave", "django-tests", "frontend-tests"]
+    "observability": [
+      "victoria-logs",
+      "grafana"
+    ],
+    "admin": [
+      "pgadmin",
+      "flower"
+    ],
+    "testing": [
+      "pre-commit-check",
+      "behave",
+      "django-tests",
+      "frontend-tests"
+    ]
   },
-  "core_services": ["postgis", "redis", "docker-api", "backend", "celery-worker", "celery-beat", "frontend"],
+  "core_services": [
+    "postgis",
+    "redis",
+    "docker-api",
+    "backend",
+    "celery-worker",
+    "celery-beat",
+    "frontend"
+  ],
   "knobs": [
     {
       "name": "CELERY_WORKER_CONCURRENCY",
@@ -168,22 +211,37 @@
   "health_checks": [
     {
       "service": "postgis",
-      "test": ["CMD-SHELL", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""],
+      "test": [
+        "CMD-SHELL",
+        "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""
+      ],
       "interval": "10s"
     },
     {
       "service": "redis",
-      "test": ["CMD", "redis-cli", "ping"],
+      "test": [
+        "CMD",
+        "redis-cli",
+        "ping"
+      ],
       "interval": "5s"
     },
     {
       "service": "celery-worker",
-      "test": ["CMD-SHELL", "python -m system.worker_healthcheck"],
+      "test": [
+        "CMD-SHELL",
+        "python -m system.worker_healthcheck"
+      ],
       "interval": "15s"
     },
     {
       "service": "celery-beat",
-      "test": ["CMD", "python", "-c", "import pathlib,time; p=pathlib.Path('/var/mrmap/run/beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"],
+      "test": [
+        "CMD",
+        "python",
+        "-c",
+        "import pathlib,time; p=pathlib.Path('/var/mrmap/run/beat-heartbeat'); raise SystemExit(0 if p.exists() and 0 <= time.time()-p.stat().st_mtime < 30 else 1)"
+      ],
       "interval": "10s"
     }
   ],
@@ -193,49 +251,133 @@
       "kind": "measured",
       "source": "runtime-memory-baselines",
       "charge_mib": 3949,
-      "committed_mib": 2005
+      "committed_mib": 2005,
+      "row": "**stack sum**",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "container"
     },
     {
       "id": "lightweight-core-warm-idle",
       "kind": "derived",
       "source": "compose-profiles",
       "charge_mib": 1558,
-      "committed_mib": 1340
+      "committed_mib": 1340,
+      "row": "**lightweight default (core only)**",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "combination"
     },
     {
       "id": "lightweight-plus-observability-warm-idle",
       "kind": "derived",
       "source": "compose-profiles",
       "charge_mib": 1613,
-      "committed_mib": 1379
+      "committed_mib": 1379,
+      "row": "lightweight + ``observability``",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "combination"
     },
     {
       "id": "web-tier-production-idle",
       "kind": "measured",
       "source": "http-process-profiles",
       "charge_mib": 641,
-      "committed_mib": 632
+      "committed_mib": 632,
+      "row": "production 4 x 4",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
     },
     {
       "id": "web-tier-low-memory-idle",
       "kind": "measured",
       "source": "http-process-profiles",
       "charge_mib": 290,
-      "committed_mib": 283
+      "committed_mib": 283,
+      "row": "low-memory 1 x 2",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
     },
     {
       "id": "web-tier-production-preload-idle",
       "kind": "measured",
       "source": "http-process-profiles",
       "charge_mib": 324,
-      "committed_mib": 315
+      "committed_mib": 315,
+      "row": "production 4 x 4, preload",
+      "columns": [
+        "idle charge p50",
+        "idle committed"
+      ],
+      "key_column": "arm"
     },
     {
       "id": "redis-warm-idle",
       "kind": "measured",
       "source": "runtime-memory-baselines",
       "charge_mib": 12,
-      "committed_mib": 10
+      "committed_mib": 10,
+      "row": "redis",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "key_column": "container"
+    },
+    {
+      "id": "suite-full-transient",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "row": "suite-full",
+      "columns": [
+        "stack charge peak",
+        "committed peak"
+      ],
+      "charge_mib": 7350,
+      "committed_mib": 4973,
+      "note": "the development stack of twelve services with the check containers booting; scenario B of the runbook carries its +3.3 GiB / +2.9 GiB delta over the 4002/2063 idle row as an UPPER BOUND for a core-only host, never as an expectation",
+      "key_column": "phase"
+    },
+    {
+      "id": "lightweight-plus-admin-warm-idle",
+      "kind": "derived",
+      "source": "compose-profiles",
+      "key_column": "combination",
+      "row": "lightweight + ``admin``",
+      "columns": [
+        "charge p50",
+        "committed p50"
+      ],
+      "charge_mib": 1936,
+      "committed_mib": 1621,
+      "note": "the row Rollout step 3 gates an admin-on stack on"
+    },
+    {
+      "id": "full-stack-warm-idle-phase",
+      "kind": "measured",
+      "source": "runtime-memory-baselines",
+      "key_column": "phase",
+      "row": "warm-idle",
+      "columns": [
+        "stack charge peak",
+        "committed peak"
+      ],
+      "charge_mib": 4002,
+      "committed_mib": 2063,
+      "note": "the idle row the suite-full transient is measured against"
     }
   ],
   "scenarios": [

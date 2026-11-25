@@ -180,19 +180,26 @@ never constrained.
 The read is now ``.values_list('pk', flat=True).iterator()``: django's
 chunked fetch opens a named server-side cursor (verified against
 ``pg_cursors`` on the stack below), so the ids are consumed as far as the
-chunker needs them and the building worker holds one fetch and one chunk
-(250 ids by default) plus the group. The statement is unchanged and still
-answered by the ``["job_id", "has_import_error"]`` index of #886 which
-``tests_task_sql_harvesting`` pins as index-backed. Because an iterator has
-no ``len()``, the build counts the ids of the chunks it creates, which is
-the same total the process name and the reconciliation of #958 compare
-against.
+chunker needs them instead of arriving as one list. The statement is
+unchanged and still answered by the ``["job_id", "has_import_error"]`` index
+of #886 which ``tests_task_sql_harvesting`` pins as index-backed. Because an
+iterator has no ``len()``, the build counts the ids of the chunks it creates,
+which is the same total the process name and the reconciliation of #958
+compare against.
 
-Measured at the size the fix is for. The build is measured around
-``iter_md_metadata_file_chunks``; peaks are traced bytes, and the wall
-clock is the build's own loop.
+What this bounds is the **read**. It does not bound the building worker: a
+chord needs its whole header up front, so the signatures accumulate and hold
+the backlog back. The two are measured separately, because they have
+different answers. Peaks are traced bytes; the wall clock is the build's own
+loop; both arms ran in the stack's own dev image with the shipped task
+decorator and signature class, and the build arm feeds plain ids so it
+isolates what the worker *keeps* - the fetch of the cursor is the read arm's
+subject, not this one's.
 
-.. list-table:: the chord build over a 100 000 row backlog
+The **read** - the chunker over the backlog, measured around
+``iter_md_metadata_file_chunks`` alone:
+
+.. list-table:: the backlog read over a 100 000 row backlog
    :header-rows: 1
 
    * - arm
@@ -205,14 +212,45 @@ clock is the build's own loop.
      - 272 186 B
      - 0.083 s
 
-The peak is 36x smaller and no longer scales with the backlog - 272 kB is
+The read is 36x smaller and no longer scales with the backlog - 272 kB is
 the fetch size of the cursor and one chunk, so a backlog ten times as large
 costs the same here where the list cost ten times as much. The build gets
 ~16 ms slower per 100 000 rows (0.067 -> 0.083 s) because the server-side
 cursor fetches in batches instead of one result set: that is the price of
-the bounded peak, and 16 ms per 100 000 records is not what the import
+the bounded read, and 16 ms per 100 000 records is not what the import
 chord is timed by - each of its tasks opens its own transaction and reads
 its own batch of files.
+
+The **build as shipped** - the same loop with the signatures it keeps,
+because a chord needs its whole header up front and ``to_db_tasks`` is
+fully populated before the single ``chord(...).apply_async()``:
+
+.. list-table:: the chord build, signatures included
+   :header-rows: 1
+
+   * - arm
+     - peak at 100 000 ids
+     - peak at 1 000 000 ids
+   * - before: ``list(values_list)`` plus signatures
+     - 5 202 380 B
+     - 52 382 096 B
+   * - after: cursor plus signatures
+     - 4 402 208 B
+     - 44 381 924 B
+
+This is the number a reader should plan against, and it says the build is
+**not** bounded: the signature set is ~44 B per backlog id in both arms, so
+the peak of the building worker still grows linearly with the backlog. What
+the change removes is the id list the old build held *on top* of that - the
+~8 B per id of the second materialisation, 52 MB down to 44 MB at a million
+rows. Bounding the remaining linear term means dispatching the chord in
+bounded groups instead of one header, which this change deliberately does
+not do: it changes how many messages are in flight at build time and
+therefore the reconciliation of #958, and belongs in its own issue with its
+own measurement.
+
+So the honest summary of this path is: the id read is bounded, the double
+materialisation is gone, and the chord header is the remaining linear term.
 
 The same arm at 2 000 rows (the size a normal harvest actually has) leaves
 67 kB against 57 kB: the cursor is never *worse* by a meaningful amount,

@@ -1737,10 +1737,15 @@ def call_chord_md_metadata_file_to_db(*args, **kwargs):
         http_request = kwargs.get("http_request") or harvesting_job._http_request()
         # the backlog walks past the worker as a server-side cursor instead of
         # arriving as a list (#1620): django's chunked fetch opens a named
-        # cursor, so the build holds the ids of one fetch and one chunk - not
-        # the whole catalogue. The statement is the same values-list read of
-        # #886, answered by its ``["job_id", "has_import_error"]`` index,
-        # which the guard in ``tests_task_sql_harvesting`` pins.
+        # cursor, so the ids arrive bounded by the fetch size instead of all at
+        # once. The statement is the same values-list read of #886, answered by
+        # its ``["job_id", "has_import_error"]`` index, which the guard in
+        # ``tests_task_sql_harvesting`` pins.
+        #
+        # The READ is what this bounds. A chord needs its whole header up front,
+        # so the signatures below hold the backlog back as they accumulate -
+        # ~44 B per id measured (#1620). Bounding that means dispatching the
+        # chord in bounded groups, which is a follow-up, not this change.
         ids = TemporaryMdMetadataFile.objects.filter(
             job_id=harvesting_job_id, has_import_error=False).values_list(
                 "pk", flat=True).iterator()

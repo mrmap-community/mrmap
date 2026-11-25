@@ -67,8 +67,10 @@ class MetadataFileChunkTest(TestCase):
         The chord build hands this a server-side cursor over the backlog: a
         chunker which took the whole iterable into a list first would put the
         peak of the old per-record fan-out back into the building worker. The
-        ids of a large backlog are pulled batch by batch here, so the working
-        set of the build is one chunk and never the whole backlog.
+        ids of a large backlog are pulled batch by batch here, so the READ is
+        bounded by the fetch size. What it does not bound is the build itself:
+        the signatures of the single chord header hold the ids back, which
+        ``test_the_chord_header_is_the_remaining_linear_term`` pins.
         """
         pulled = []
 
@@ -129,6 +131,39 @@ class HarvestImportFanOutTest(StoredFilesTestCaseMixin, TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             call_chord_md_metadata_file_to_db.run(harvesting_job_id=job.pk,
                                                   http_request=HTTP_REQUEST)
+
+    @patch('registry.tasks.harvest.chord')
+    def test_the_chord_header_is_the_remaining_linear_term(self, mocked_chord):
+        """The build holds the whole backlog back as one chord header (#1620).
+
+        The cursor bounds the read of the ids; it does not bound the build. A
+        chord needs its whole header up front, so the single ``chord(...)``
+        call is handed a signature per chunk with the ids of the backlog
+        spread across them, and the building worker keeps all of them until
+        the dispatch. This is the fact behind the measured linearity of the
+        section in ``task-memory-shapes.rst`` (~44 B per backlog id in both
+        arms), and the reason bounding the worker means dispatching the chord
+        in bounded groups - which this task does not do.
+
+        Pinned rather than assumed: a reader of the docs should not have to
+        trust a peak figure, and a future bounded-dispatch change should
+        arrive with an update to that docs table rather than drift from it.
+        """
+        job = self._job(1200)
+        stored = self._store_many(job, 1200)
+        with override_settings(HARVEST_IMPORT_BATCH_SIZE=100):
+            self._fan_out(job)
+
+        header, _ = mocked_chord.call_args.args
+        self.assertEqual(1, mocked_chord.call_count,
+                         'one chord means one header held in full by the build')
+        self.assertEqual(12, len(header), 'ceil(1200 / 100) signatures')
+        self.assertEqual(1200, sum(len(t.kwargs['md_metadata_file_ids']) for t in header),
+                         'the header carries every id at once, so the peak of the '
+                         'building worker grows with the backlog')
+        self.assertEqual(sorted(file.pk for file in stored),
+                         sorted(pk for t in header
+                                for pk in t.kwargs['md_metadata_file_ids']))
 
     @patch('registry.tasks.harvest.chord')
     def test_stored_files_publish_one_task_per_chunk(self, mocked_chord):

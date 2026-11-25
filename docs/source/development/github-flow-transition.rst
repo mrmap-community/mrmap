@@ -336,9 +336,10 @@ was created as a Draft by mrmap-agent-bot from the native linked branch.
 <https://github.com/mrmap-community/workflow-sandbox/actions/runs/45646305831>`_
 left it BLOCKED with REVIEW_REQUIRED. The bot restored the valid greeting,
 added only a synthetic note, removed the manual blocked label while retaining
-assignment, and marked the PR ready. Independent human review/merge and native
-issue closing are pending; jokiefer received the PR URL. This evidence does not
-claim the merge/closing acceptance criterion has passed yet.
+assignment, and marked the PR ready. Independent human approval by jokiefer was recorded at 15:34:49 UTC.
+The PR is mergeable with a green required check; human merge and native issue
+closing are pending. This evidence does not claim the merge/closing acceptance
+criterion has passed yet.
 
 The full tooling run passed 39 of 40 suites. The unrelated XML parse guard scans
 the local untracked ``backend/.venv`` and reports lxml's own text serialization;
@@ -346,3 +347,12 @@ no application XML code changed here. Socket-based fixture tests require running
 the suite outside the restricted execution sandbox. Full Sphinx was not run
 because no host Sphinx environment is available; the targeted portal structural
 suite passed. No application Compose stack was started.
+
+The main PR's `strict portal build passed in GitHub Actions
+<https://github.com/mrmap-community/mrmap/actions/runs/45646651293>`_, including
+the Sphinx build that was unavailable on the host. The compatibility target
+context also passed without invoking epic enforcement.
+
+The main PR's `complete repository-tooling suite passed in GitHub Actions
+<https://github.com/mrmap-community/mrmap/actions/runs/45646650928>`_. This isolates
+the one local XML-guard failure to the development workspace's untracked virtualenv.

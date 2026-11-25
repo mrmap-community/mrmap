@@ -510,7 +510,8 @@ Where the tool runs
 * ``develop`` stays the integration branch it is, with the protection rules
   ``branch-policy.yml`` and the merge queue already enforce. Promotion
   ``develop`` -> ``master`` stays a human act on a permanent branch: no agent
-  merges it, and the same merge-gate rules of ``scripts/wip`` apply.
+  merges it, and the ordinary merge gates apply: required checks, Sonar and a
+  human review on the exact head.
 * The release itself is an ordinary PR from the tool's branch into
   ``master``, reviewed and merged by a person. Its merge commit is the object
   the tag points at, so the tag identity is a commit a human approved.

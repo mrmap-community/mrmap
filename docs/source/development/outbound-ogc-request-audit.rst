@@ -489,8 +489,9 @@ counts requests or parser invocations, not broker messages or rows.
      - per request today: 1 wasted upstream request + a denial. Repaired
        naively: 3 upstream requests per ``GetFeatureInfo``
      - confirmed → not a child of #1408: **proposed
-       new issue** (proxy correctness), asked with
-       ``scripts/wip ask``
+       new issue** (proxy correctness), asked at audit time with the
+       then-current ``scripts/wip ask`` (retired 2026-11-25 under #1794;
+       today an ordinary issue comment does this)
      - 1 request per such call, and the removal of a guaranteed denial. Risk:
        the answer must stay permission-checked — the second variant exists only
        to read ``gml:boundedBy`` for the area test (``:471-484``). Fixture:
@@ -839,8 +840,10 @@ Proposed issues for confirmed uncovered cases
 #############################################
 
 These are confirmed findings with **no** child of #1408 to own them. Filing
-issues is a human act, so they are listed here and handed over with
-``scripts/wip ask`` rather than created from this session:
+issues is a human act, so they are listed here and were handed over at
+audit time with the then-current ``scripts/wip ask`` rather than created
+from this session (the tool was retired 2026-11-25 under #1794; today an
+ordinary issue comment does this):
 
 - **P-1 (from R7)** — spatially secured WMS ``GetFeatureInfo``: one upstream
   request is sent and its answer discarded through an ``AttributeError`` on a

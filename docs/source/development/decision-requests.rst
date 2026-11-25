@@ -153,7 +153,7 @@ without any local file to reconcile, and a half-answered request resumes
 exactly where the humans left it.
 
 The issue number may be left out only when the branch really names one.
-``scripts/decisions`` reads it with the same rule as ``scripts/wip``: a
+``scripts/decisions`` reads it with the rule the retired ``scripts/wip`` used (git history): a
 convention-shaped segment — ``issue-<N>`` (or ``#<N>``) at the start of a path
 segment, as the repository's ``issue-<N>-<topic>`` branches are made. A slug
 which merely contains digits declares nothing, because AO names worktree
@@ -175,6 +175,6 @@ all get a check. They need neither ``gh`` nor network:
 
     python3 scripts/test_decisions.py
 
-Exit code ``0`` means every check passed. Like ``scripts/wip``, the tool only
+Exit code ``0`` means every check passed. The tool only
 reads and writes issue content — there is no code path that labels, reviews,
 approves, merges or closes anything.

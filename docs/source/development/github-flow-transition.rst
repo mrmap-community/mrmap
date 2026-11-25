@@ -56,6 +56,16 @@ script performs or supervises this work.
 Explicit temporary legacy exception
 ------------------------------------
 
+.. note::
+   **Resolved 2026-11-25 (#1794).** The maintainer confirmed the #1391
+   implementation as finished and PR #1732 as merged (merge commit ``9bd7cbb3e``);
+   the temporary exception documented below is no longer required. Its five reserved
+   files (``scripts/wip``, ``scripts/next_eligible.py`` and their three test suites)
+   were removed under #1794, the legacy claim was reconciled by a follow-up comment
+   on #1391, the stale ``status: wip`` labels on #1391, #1592 and #1753 were dropped,
+   and Agent Work Board #917 was closed. Everything below records the cutover-time
+   state and stays as historical evidence.
+
 The maintainer confirmed that the owner of #1391 has **not** completed the
 assignment handoff. Preserve PR #1732, branch ``agent/issue-1391``, its worktrees
 ``/srv/openhands/projects/mrmap-agent`` and
@@ -66,7 +76,7 @@ interrupt the worker, edit its claim or force a migration. Existing work may
 finish using its legacy workflow; new work follows :doc:`github-flow`.
 
 Accordingly ``scripts/wip``, ``scripts/next_eligible.py`` and their three suites
-remain solely for that exception. They are not prerequisites or merge gates
+remained solely for that exception until #1794 removed them on 2026-11-25. They were never prerequisites or merge gates
 for new work. Retirement condition: #1391's owner confirms the handoff/finish,
 reconciles its claim, and confirms no remaining legacy consumer; then a reviewed
 cleanup removes those five files. Maintainer sign-off on #1753/#1588 remains
@@ -95,7 +105,9 @@ and **one** ``epic/*`` branch, rather than the historical 153 AO branches.
 
 The open PRs remain #1774, #1772, #1738, #1732 and #1681, all based on develop;
 none uses those three legacy heads. The only live claim found is #1391; board
-#917 also reports a stale WIP label on closed #1592. Both remain untouched.
+#917 also reports a stale WIP label on closed #1592. Both remained untouched at
+cutover time; both were reconciled on 2026-11-25 under #1794 (claim answered by a
+follow-up comment, labels dropped, #917 closed with a pointer to this workflow).
 Remote AO/OpenHands services, external launchers and credentials are outside
 this checkout's visibility; their state is **unknown**, not certified stopped.
 The maintainer's instruction that AO is retired supersedes old AO operating

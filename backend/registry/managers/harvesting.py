@@ -317,11 +317,12 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
         counts = {}
         if "importErrorCount" in want:
             counts.update({
-                "import_error_count": Count("id", filter=Q(has_import_error=True))
+                "live_import_error_count": Count(
+                    "id", filter=Q(has_import_error=True))
             })
         if "unhandledRecordsCount" in want:
             counts.update({
-                "unhandled_records_count": Count(
+                "live_unhandled_records_count": Count(
                     "id", filter=Q(has_import_error=False))
             })
         if files_counted:
@@ -330,6 +331,18 @@ class HarvestingJobManager(DefaultHistoryManager, CTEManager):
             qs = self.with_temporary_file_counts(qs, **counts)
 
         annotations = {}
+        if "importErrorCount" in want:
+            annotations["import_error_count"] = Case(
+                When(phase__gte=HarvestingPhaseEnum.COMPLETED.value,
+                     then=Value(None, output_field=IntegerField())),
+                default=F("live_import_error_count"),
+                output_field=IntegerField())
+        if "unhandledRecordsCount" in want:
+            annotations["unhandled_records_count"] = Case(
+                When(phase__gte=HarvestingPhaseEnum.COMPLETED.value,
+                     then=Value(None, output_field=IntegerField())),
+                default=F("live_unhandled_records_count"),
+                output_field=IntegerField())
 
         def round_trips(records):
             """The whole round trips it takes to fetch `records` of the row.

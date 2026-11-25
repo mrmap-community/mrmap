@@ -113,7 +113,7 @@ class RegistrationPollingTests(WorkerRunMixin, TransactionTestCase):
     def downloads(self, content):
         """Serves the document the task of the registration fetches."""
         return patch(
-            "registry.tasks.service.Session.send",
+            "registry.tasks.service.GuardedSession.send",
             side_effect=lambda request, *args, **kwargs: MockResponse(
                 status_code=status.HTTP_200_OK, content=content))
 

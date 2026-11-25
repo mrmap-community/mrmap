@@ -162,8 +162,8 @@ def manifest_checks(manifest):
 
 def workflow_checks(workflow):
     check('the planner is pinned to a release of the action',
-          re.search(r'release-please-action@v4\.4\.1', workflow) is not None,
-          'v4.4.1 pins release-please ^17.3.0; the ADR of #1578 measured 17.11.2')
+          re.search(r'release-please-action@v5\.0\.0', workflow) is not None,
+          'v5.0.0 pins release-please ^17.6.0; the ADR of #1578 measured 17.11.2')
     check('it only plans against develop', 'target-branch: develop' in workflow)
     check('the workflow repeats the config gate, not the config',
           'skip-github-release: true' in workflow,

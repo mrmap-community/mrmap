@@ -33,9 +33,13 @@ name: PR Classification
 
 on:
   pull_request:
+    # epic/** too: a child PR merged into an epic branch produces the merge commit the
+    # release planner of #1581 reads for that child, so its title class is enforced on the
+    # epic branch exactly as it is on develop (#1594, epic #1588).
     branches:
       - master
       - develop
+      - 'epic/**'
     types:
       - opened
       - reopened

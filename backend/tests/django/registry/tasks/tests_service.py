@@ -82,7 +82,7 @@ class BuildOgcServiceTaskTest(TransactionTestCase):
     @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch("registry.tasks.service.Session.send", side_effect=side_effect)
+    @patch("registry.tasks.service.GuardedSession.send", side_effect=side_effect)
     def test_success_without_service_auth(self, mock_send):
         """Test that the ``build_ogc_service`` task runs with no errors,
         and returns the correct result."""

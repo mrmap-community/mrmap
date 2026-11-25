@@ -66,7 +66,13 @@ asked of the CLI. Then, per combination:
   * the always-on core keeps `restart: unless-stopped` everywhere, so no mode
     quietly makes a deployment non-persistent across a host reboot;
   * no active service lacks both an image and a build - the shape a service
-    reference into a combination that does not define it produces.
+    reference into a combination that does not define it produces;
+  * the four observers of the observability and admin tier carry the memory
+    ceiling of #1622 in every lightweight combination, each inside its
+    documented band, and carry none of them in the full mode - which keeps the
+    uncapped contract of `docker-compose.yml` and fails a ceiling which drifted
+    so far down that a healthy container of the #1613 measurement would be
+    OOM-killed by it.
 
 The same checks run offline against synthetic configurations in
 `scripts/test_compose_profiles_smoke.py`, which CI does run
@@ -76,6 +82,7 @@ runs against the real files before starting a stack.
 
 import json
 import os
+import re
 import subprocess  # nosec B404 - the point of this script is to call the docker CLI
 import sys
 from pathlib import Path
@@ -100,6 +107,23 @@ TIERS = {
     "testing": ("pre-commit-check", "behave", "django-tests", "frontend-tests"),
 }
 TIER_SERVICES = frozenset(name for members in TIERS.values() for name in members)
+
+# The memory ceilings of #1622, and the band each has to stay inside. Only the
+# four observers of the two optional tier are capped, and only in the
+# lightweight overlay: the full deployment keeps its uncapped contract, so the
+# upper half of every band is what a ceiling must not exceed there either (an
+# uncapped service is answered by `None`, which is out of no band). The lower
+# bound is the shipping default - below it a healthy container of the #1613
+# measurement starts getting OOM-killed, which is a loud degradation of the
+# observability this tier exists to provide.
+CEILINGS = {
+    "victoria-logs": ("256m", "512m"),
+    "grafana": ("1g", "2g"),
+    "pgadmin": ("512m", "1g"),
+    "flower": ("256m", "512m"),
+}
+MEMORY_SUFFIXES = {"": 1, "b": 1, "k": 1024, "kb": 1024, "m": 1024 ** 2,
+                   "mb": 1024 ** 2, "g": 1024 ** 3, "gb": 1024 ** 3}
 
 # The services a deployment must come back with after a host reboot on its own
 # (#901). The one-off check containers are deliberately not in this list: a
@@ -283,6 +307,70 @@ def homeless(config, profiles=()):
         and not config["services"][name].get("build"))
 
 
+def memory_bytes(value):
+    """Bytes of a docker memory value - `1g`, `512m`, `256mb`, a plain byte
+    count, or the un-interpolated `${VAR:-1g}` of `config --no-interpolate`.
+    None for anything this check cannot read, which is never a pass: a ceiling
+    nobody can parse is not a ceiling an operator can rely on."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    default = re.fullmatch(r"\$\{[A-Z_][A-Z0-9_]*:-(.+)}", text)
+    if default:
+        text = default.group(1)
+    number = re.fullmatch(r"(\d+)\s*([a-zA-Z]*)", text)
+    if not number:
+        return None
+    factor = MEMORY_SUFFIXES.get(number.group(2).lower())
+    if factor is None:
+        return None
+    return int(number.group(1)) * factor
+
+
+def stray_ceilings(config, profiles=()):
+    """Ceilings on a service which is not one of the four observers of #1622.
+
+    The four observers are the only services this repository bounds anywhere;
+    a `mem_limit` on anything else - the core in particular - is an unrelated
+    cap nobody decided, and the same failure in both modes.
+    """
+    capped = {
+        name for name in active_services(config, profiles)
+        if config["services"][name].get("mem_limit") is not None}
+    return sorted(capped - frozenset(CEILINGS))
+
+
+def ceiling_problems(config, profiles=(), capped=True):
+    """Ceilings of #1622 which contradict the mode they are resolved in.
+
+    With `capped`, every active observer must carry a readable ceiling inside
+    its band; without it - the full deployment of `docker-compose.yml` - every
+    observer must carry none at all, because the uncapped full mode is the
+    contract of that file and a `mem_limit` leaking into it is the silent
+    OOM-restart of an operator UI on a loaded production host.
+    """
+    found = []
+    running = active_services(config, profiles)
+    for name in sorted(CEILINGS):
+        if name not in running:
+            continue
+        declared = config["services"][name].get("mem_limit")
+        if not capped:
+            if declared is not None:
+                found.append((name, declared, None, "capped in the full mode"))
+            continue
+        if declared is None:
+            found.append((name, None, None, "uncapped"))
+            continue
+        size = memory_bytes(declared)
+        low, high = (memory_bytes(value) for value in CEILINGS[name])
+        if size is None:
+            found.append((name, declared, None, "unreadable"))
+        elif not low <= size <= high:
+            found.append((name, declared, CEILINGS[name], "out of band"))
+    return found
+
+
 def check_combination(combo, config):
     """Every assertion about one resolved combination, as failure strings."""
     profiles = combo["profiles"]
@@ -320,6 +408,33 @@ def check_combination(combo, config):
 
     for name in homeless(config, profiles):
         failures.append(f"active service {name} has neither image nor build")
+
+    for name in stray_ceilings(config, profiles):
+        failures.append(
+            f"active service {name} carries a mem_limit which belongs to no "
+            f"tier of #1622; only {', '.join(sorted(CEILINGS))} are bounded "
+            f"anywhere in this repository")
+
+    for name, declared, band, why in ceiling_problems(
+            config, profiles, capped=LITE in combo["files"]):
+        if why == "uncapped":
+            failures.append(
+                f"active service {name} runs without a memory ceiling in the "
+                f"lightweight mode; #1622 bounds every service of the "
+                f"observability and admin tier")
+        elif why == "capped in the full mode":
+            failures.append(
+                f"service {name} carries `mem_limit: {declared}` in the full "
+                f"mode; the full deployment of {BASE} stays uncapped - the "
+                f"ceiling belongs to {LITE}")
+        elif why == "unreadable":
+            failures.append(
+                f"the mem_limit of {name} is {declared!r}, which is no docker "
+                f"memory value this check can verify")
+        else:
+            failures.append(
+                f"the mem_limit of {name} is {declared!r}, outside the "
+                f"documented band {band[0]}..{band[1]}")
 
     # The two halves of the seam #1614 exists for: the full deployment keeps
     # waiting for the log store, the lightweight mode may start without it.

@@ -21,6 +21,7 @@ promises of the issue:
 """
 
 import http.server
+import io
 import threading
 import time
 import uuid
@@ -649,3 +650,233 @@ class LifecycleJoinTest(TestCase):
         report = profiling.drain_reports(profiling.lifecycle_map(
             CeleryTaskAttempt.objects.all()))[0]
         self.assertNotIn("active_seconds", report)
+
+
+@ENABLED
+class MemoryProfilingTest(TestCase):
+    """The memory half of #1620: what an attempt did to its worker.
+
+    The absolute figures belong to the reused prefork worker, not to the
+    attempt, so the assertions are about the *movement* between the two reads
+    of the attempt's span - and about what the report must say when procfs
+    cannot answer at all.
+    """
+
+    def setUp(self):
+        profiling.reset_profiling_state()
+        #: holds what a body allocated, so it is still resident when the
+        #: end of the span is sampled in postrun
+        self.held = []
+        self.addCleanup(self.held.clear)
+
+    MIB = 1024 * 1024
+
+    def _report_of(self, body=None):
+        run_attempt(body=body)
+        return profiling.drain_reports()[0]
+
+    def _allocate(self, mib):
+        """Real, *touched* bytes: untouched zero pages are not resident."""
+        self.held.append(bytearray(b"\x01" * (mib * self.MIB)))
+
+    def test_an_attempt_reports_the_memory_it_held(self):
+        """Real procfs, real allocation: the retained delta is the claim."""
+        report = self._report_of(lambda: self._allocate(150))
+        self.assertIn("memory_retained_mib", report)
+        self.assertIn("memory_peak_rise_mib", report)
+        self.assertGreaterEqual(report["memory_retained_mib"], 100)
+        self.assertGreaterEqual(report["memory_peak_rise_mib"], 100)
+        self.assertGreater(report["memory_peak_mib"], 0)
+
+    def test_without_procfs_the_report_makes_no_memory_claim(self):
+        """No procfs is silence about memory, never a zero."""
+        with patch("system.task_profiling._read_first_value",
+                   return_value=None):
+            report = self._report_of(lambda: None)
+        self.assertNotIn("memory_retained_mib", report)
+        self.assertNotIn("memory_peak_mib", report)
+        self.assertNotIn("memory_limit_mib", report)
+
+    def test_a_broken_memory_read_costs_the_profile_not_the_attempt(self):
+        """The fail-open rule of #1330 applies to the new seam as well."""
+        with patch("system.task_profiling.memory_snapshot",
+                   side_effect=RuntimeError("no procfs here")):
+            opened = run_attempt(body=lambda: None)
+        self.assertTrue(opened.closed)
+        # the attempt was not harmed by the broken seam: no failure noted
+        self.assertEqual(profiling.drain_reports()[0].get("outcome"), None)
+
+    def test_a_key_without_its_reading_is_absent_never_null(self):
+        """A partially readable procfs costs its own key, not the report.
+
+        ``smaps_rollup`` is the one read of a memory sample a hardened
+        procfs may refuse while ``status`` stays readable (#1620 review):
+        the report must then carry its peak claims without
+        ``memory_private_dirty_mib`` - the key absent, never present as
+        ``null`` a reader could mistake for a measured zero.
+        """
+        start = {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+                 "private_dirty": None}
+        end = {"high_water": 500 * self.MIB, "resident": 320 * self.MIB,
+               "private_dirty": None}
+        with patch("system.task_profiling.cgroup_limit_bytes",
+                   return_value=1024 * self.MIB):
+            report, _ = self._shaped(start, end)
+        self.assertNotIn("memory_private_dirty_mib", report)
+        # the supported half keeps its claim, ceiling included
+        self.assertAlmostEqual(report["memory_peak_rise_mib"], 200.0,
+                               delta=1.0)
+        self.assertEqual(report["memory_limit_mib"], 1024.0)
+        self.assertIn("memory_of_limit", report)
+
+    def test_a_sample_without_a_status_line_costs_only_its_own_keys(self):
+        """The same contract per key: resident missing -> no retained claim."""
+        start = {"high_water": None, "resident": None,
+                 "private_dirty": 100 * self.MIB}
+        end = {"high_water": None, "resident": None,
+               "private_dirty": 140 * self.MIB}
+        report, _ = self._shaped(start, end)
+        self.assertNotIn("memory_peak_rise_mib", report)
+        self.assertNotIn("memory_peak_mib", report)
+        self.assertNotIn("memory_retained_mib", report)
+        self.assertNotIn("memory_limit_mib", report)
+        self.assertAlmostEqual(report["memory_private_dirty_mib"], 140.0,
+                               delta=1.0)
+
+    def _shaped(self, start, end, **settings):
+        """One attempt whose two span reads are the given snapshots.
+
+        Reported the way ``ShapeFixtureTest._report_of`` does: the profile of
+        the attempt just run, against its own measured wall clock. The shape
+        of a report only exists once an active time is supplied, and the
+        memory claim is read off the two span samples taken inside the run.
+        """
+        snapshots = [start, end] + [end] * 4
+        options = dict(TASK_PROFILING_SLOW_SECONDS=SLOW,
+                       TASK_PROFILING_SHAPE_THRESHOLD=0.5,
+                       TASK_PROFILING_MEMORY_MIB=128)
+        options.update(settings)
+        with override_settings(TASK_PROFILING_ENABLED=True,
+                               TASK_PROFILING_TASKS=[TASK_NAME],
+                               TASK_PROFILING_SAMPLE_RATE=1.0, **options), \
+                patch("system.task_profiling.memory_snapshot",
+                      side_effect=snapshots):
+            started = time.monotonic()
+            opened = run_attempt(body=lambda: time.sleep(SLOW + 0.05))
+            elapsed = time.monotonic() - started
+            return opened.report(active_seconds=elapsed), elapsed
+
+    def test_a_big_peak_with_nothing_accounted_reads_as_memory_bound(self):
+        """The reading #1620 exists for: not CPU, the objects it held."""
+        report, elapsed = self._shaped(
+            {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+             "private_dirty": 200 * self.MIB},
+            {"high_water": 520 * self.MIB, "resident": 480 * self.MIB,
+             "private_dirty": 400 * self.MIB})
+        self.assertEqual(report["shape"], "memory_bound")
+        self.assertAlmostEqual(report["memory_peak_rise_mib"], 220.0,
+                               delta=1.0)
+        self.assertAlmostEqual(report["memory_retained_mib"], 180.0,
+                               delta=1.0)
+        self.assertGreater(report["unaccounted_seconds"], 0.0)
+
+    def test_a_small_peak_leaves_the_shapes_of_1389_alone(self):
+        """Threshold discipline: a modest rise must not read as memory."""
+        report, _ = self._shaped(
+            {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+             "private_dirty": 200 * self.MIB},
+            {"high_water": 320 * self.MIB, "resident": 305 * self.MIB,
+             "private_dirty": 205 * self.MIB},
+            TASK_PROFILING_MEMORY_MIB=128)
+        self.assertEqual(report["shape"], "cpu_or_unaccounted")
+
+    def test_the_threshold_switches_the_reading_off_entirely(self):
+        """Zero disables it, so a deployment can drop the claim, not the run."""
+        report, _ = self._shaped(
+            {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+             "private_dirty": 200 * self.MIB},
+            {"high_water": 520 * self.MIB, "resident": 480 * self.MIB,
+             "private_dirty": 400 * self.MIB},
+            TASK_PROFILING_MEMORY_MIB=0)
+        self.assertEqual(report["shape"], "cpu_or_unaccounted")
+
+    def test_a_peak_is_read_against_the_ceiling_that_makes_it_a_risk(self):
+        """Without the limit a peak is a number nobody can act on."""
+        with patch("system.task_profiling.cgroup_limit_bytes",
+                   return_value=1024 * self.MIB):
+            report, _ = self._shaped(
+                {"high_water": 300 * self.MIB, "resident": 300 * self.MIB,
+                 "private_dirty": 200 * self.MIB},
+                {"high_water": 900 * self.MIB, "resident": 800 * self.MIB,
+                 "private_dirty": 700 * self.MIB})
+        self.assertEqual(report["memory_limit_mib"], 1024.0)
+        self.assertAlmostEqual(report["memory_of_limit"], 0.8789, delta=0.01)
+
+    def test_a_fast_statement_does_not_pay_for_the_rollup(self):
+        """Only a seam over the budget reads memory: cost discipline."""
+        opened = None
+        with patch("system.task_profiling.memory_snapshot",
+                   return_value={"high_water": 1, "resident": 1,
+                                 "private_dirty": 1}) as read:
+            with override_settings(TASK_PROFILING_ENABLED=True,
+                                   TASK_PROFILING_TASKS=[TASK_NAME],
+                                   TASK_PROFILING_SAMPLE_RATE=1.0,
+                                   TASK_PROFILING_MEMORY_SAMPLE_SECONDS=0.5):
+                def many_fast_queries():
+                    for _ in range(200):
+                        profiling._record_sql(0.001, sql="SELECT 1")
+                    profiling._record_http(0.4)
+
+                opened = run_attempt(body=many_fast_queries)
+        # the two reads of the span itself, and nothing from 201 fast seams
+        self.assertEqual(read.call_count, 2,
+                         [c.args for c in read.call_args_list])
+        self.assertEqual(opened.sql_queries, 200)
+
+    def test_a_slow_statement_is_where_the_peak_is_sampled(self):
+        def slow_seams():
+            profiling._record_sql(2.0)
+            profiling._record_http(1.0)
+
+        with patch("system.task_profiling.memory_snapshot",
+                   return_value={"high_water": 1, "resident": 1,
+                                 "private_dirty": 1}) as read:
+            with override_settings(TASK_PROFILING_ENABLED=True,
+                                   TASK_PROFILING_TASKS=[TASK_NAME],
+                                   TASK_PROFILING_SAMPLE_RATE=1.0,
+                                   TASK_PROFILING_MEMORY_SAMPLE_SECONDS=0.5):
+                run_attempt(body=slow_seams)
+        # span start, span end, plus one read per slow seam
+        self.assertEqual(read.call_count, 4,
+                         [c.args for c in read.call_args_list])
+
+    def test_an_unlimited_cgroup_is_not_reported_as_a_ceiling(self):
+        """v2's ``max`` and v1's page-aligned giant are both "no ceiling"."""
+        for payload in (b"max\n", str(2 ** 63).encode(), b"\n"):
+            with patch("builtins.open",
+                       side_effect=lambda *a, **k: io.BytesIO(payload)):
+                self.assertIsNone(profiling.cgroup_limit_bytes(), payload)
+
+    def test_the_ceiling_is_re_read_so_a_resize_is_noticed(self):
+        """A worker must judge its peaks against today's ceiling (#1620 review).
+
+        ``docker update --memory`` during the incident - exactly when an
+        operator changes a ceiling - moves the cgroup's value under the
+        running prefork worker. A cached reading keeps reporting the old
+        ceiling for the lifetime of the process and stays self-consistent
+        enough to look trustworthy, so nothing here caches: every call asks
+        the file again, and a ceiling which appears after a ceiling-less
+        start (or vanishes again) reads through within the same process.
+        """
+        ceilings = iter([b"max\n", b"536870912\n", b"268435456\n"])
+
+        def answering(path, *args, **kwargs):
+            # only the v2 file answers, so one read per call to the ceiling
+            if path == profiling._CGROUP_LIMIT_V2:
+                return io.BytesIO(next(ceilings))
+            raise OSError("no cgroup v1 here")
+
+        with patch("builtins.open", side_effect=answering):
+            self.assertIsNone(profiling.cgroup_limit_bytes())
+            self.assertEqual(profiling.cgroup_limit_bytes(), 512 * self.MIB)
+            self.assertEqual(profiling.cgroup_limit_bytes(), 256 * self.MIB)

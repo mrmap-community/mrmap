@@ -75,7 +75,7 @@ jobs:
       # That is GitHub's rule for token-created pull requests, not a setting
       # of this workflow.
       - name: plan the next release of develop
-        uses: googleapis/release-please-action@v4.4.1
+        uses: googleapis/release-please-action@v5.0.0
         with:
           target-branch: develop
           config-file: release-please-config.json

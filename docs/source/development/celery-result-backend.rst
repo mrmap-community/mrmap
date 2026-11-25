@@ -22,7 +22,7 @@ The deployment has one Redis. Its tables (Celery says *db*) are assigned exactly
    * - ``1``
      - The Django application cache (``django-redis``, zlib-compressed). Celery results have no part in it any more.
 
-The URL is assembled from ``REDIS_HOST``/``REDIS_PORT`` like the broker URL it derives from; no separate credentials exist for it and none are introduced.
+The URL is assembled from ``REDIS_HOST``/``REDIS_PORT`` and the ``REDIS_PASSWORD`` of the instance (#1473) like the broker URL it derives from; there are no separate result-backend credentials, and the password of the shared instance is the only credential there is. An instance which does answer unauthenticated (an empty value, the development stack) is reached by the same plain URL.
 
 Retry budget
 ############

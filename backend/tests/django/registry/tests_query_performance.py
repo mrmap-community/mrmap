@@ -603,8 +603,8 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         self.assertNotIn('FILTER (WHERE', sql,
                          'a count aggregates all files of the job and picks the '
                          'ones it is about out of the aggregation')
-        for name, negated in [('unhandled_records_count', True),
-                              ('import_error_count', False)]:
+        for name, negated in [('live_unhandled_records_count', True),
+                              ('live_import_error_count', False)]:
             where = self.countSubquery(sql, name)
             self.assertIn('"has_import_error"', where, name)
             self.assertEqual('NOT' in where, negated, where)
@@ -697,7 +697,9 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
         ]:
             HarvestingJob.objects.filter(pk=self.job.pk).update(
                 phase=phase, done_at=now() if phase >= Phase.COMPLETED else None)
-            expected = dict(zip(fields, [9, done_steps, progress, 1, 1]))
+            expected = dict(zip(fields, [9, done_steps, progress,
+                                         None if phase >= Phase.COMPLETED else 1,
+                                         None if phase >= Phase.COMPLETED else 1]))
             job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
             self.assertEqual(job.done_steps, done_steps)
             self.assertEqual(job.progress, progress)
@@ -711,25 +713,30 @@ class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
                         self.assertFalse(any('registry_temporarymdmetadatafile' in q['sql']
                                              for q in queries))
 
-    def test_job_without_files_answers_zero_counts(self):
+    def test_job_without_files_answers_counts_for_its_phase(self):
         TemporaryMdMetadataFile.objects.filter(job=self.job).delete()
         path = f'/api/registry/harvesting/harvesting-jobs/{self.job.pk}'
-        for total_records, phase, progress in [
-            (None, Phase.PENDING, 0.0), (0, Phase.COMPLETED, 100.0),
+        for total_records, phase, progress, expected_count in [
+            (None, Phase.PENDING, 0.0, 0),
+            (4, Phase.RECORDS_TO_DB, 100.0, 0),
+            (0, Phase.COMPLETED, 100.0, None),
+            (4, Phase.COMPLETED, 100.0, None),
+            (4, Phase.ABORTED, 100.0, None),
         ]:
-            with self.subTest(total_records=total_records):
+            with self.subTest(total_records=total_records, phase=phase):
                 HarvestingJob.objects.filter(pk=self.job.pk).update(
                     total_records=total_records, phase=phase)
                 job = HarvestingJob.objects.with_process_info().get(pk=self.job.pk)
                 self.assertEqual(job.records_count, 0)
-                self.assertEqual(job.unhandled_records_count, 0)
-                self.assertEqual(job.import_error_count, 0)
+                self.assertEqual(job.unhandled_records_count, expected_count)
+                self.assertEqual(job.import_error_count, expected_count)
                 self.assertEqual(job.progress, progress)
                 status, body, _queries = self.request(path, **{
                     'fields[HarvestingJob]': 'progress,unhandledRecordsCount,importErrorCount'})
                 self.assertEqual(status, 200, body)
                 self.assertEqual(body['data']['attributes'], {
-                    'progress': progress, 'unhandledRecordsCount': 0, 'importErrorCount': 0})
+                    'progress': progress, 'unhandledRecordsCount': expected_count,
+                    'importErrorCount': expected_count})
 
     def test_a_count_whose_files_are_all_of_the_other_kind_answers_zero(self):
         """The empty range of a filtered count is the 0 its FILTER had counted.

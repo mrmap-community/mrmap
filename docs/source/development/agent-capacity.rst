@@ -72,8 +72,15 @@ What the gate measures
      - ``/proc/<pid>/cmdline`` of the agent executable (``opencode`` by default)
      - how many workers are already running
    * - disk
-     - free bytes on ``/``
+     - free bytes on ``/``, or on ``AGENT_DISK_PATH`` when set
      - is there room for another database cluster and build cache
+
+When the gate runs in a sandbox whose ``/`` is a temporary filesystem, set
+``AGENT_DISK_PATH`` to an accessible path on the filesystem holding Docker's
+data. Verify Docker's data root on the host first; the checkout and Docker data
+may be on different filesystems. The gate still measures the available space
+and applies the same threshold. Run the gate on the host when its Docker data
+filesystem or cgroup limits are not visible inside the sandbox.
 
 Two decisions are baked into the memory metric and worth stating:
 

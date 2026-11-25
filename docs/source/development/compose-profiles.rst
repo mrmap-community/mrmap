@@ -4,13 +4,16 @@
 Compose profiles: full and lightweight
 =======================================
 
-.. sidebar:: Issue #1614
+.. sidebar:: Issue #1614 / #1622
 
    Part of epic #1612 (runtime memory), phase V1. The measured before-picture
    this split is designed against is
    :ref:`runtime-memory-baselines`; the admission gate which decides whether a
    host fits another stack stays ``scripts/agent_capacity``
-   (#1053/#1054/#1055) - nothing on this page overrides it.
+   (#1053/#1054/#1055) - nothing on this page overrides it. #1614 made the
+   optional services a tier each; #1622 bounded the tier which a lightweight
+   host switches back on and made the missing log sink loud. See
+   `The memory ceiling of the tier`_.
 
 .. sidebar:: This is not the new default
 
@@ -24,7 +27,10 @@ are 61 % of the charged idle memory of a development stack, while the part an
 OOM cannot take back barely moves when they are dropped. #1614 turned that
 measurement into a supported choice: the services which only observe or
 administer MrMap, and the containers which run its test suites, are now a tier
-each, and the core runs without them.
+each, and the core runs without them. #1622 closed the other half: on a host
+which switches a tier back on inside the lightweight mode, those four observers
+run under a memory ceiling, and the application says out loud when the log sink
+of the tier it did not start is missing.
 
 The service matrix
 ==================
@@ -59,11 +65,12 @@ new service in no tier fails it.
    * - ``victoria-logs``, ``grafana``
      - ``observability``
      - the log store and its UI. Optional for the application, required for
-       central log search
+       central log search. Bounded by #1622 when the tier runs in lightweight
+       mode: see `The memory ceiling of the tier`_
    * - ``pgadmin``, ``flower``
      - ``admin``
      - two operator UIs over data the application's own API and status pages
-       already expose
+       already expose. Also bounded by #1622
    * - ``pre-commit-check``, ``behave``, ``django-tests``, ``frontend-tests``
      - ``testing``
      - the one-off check containers of ``docker-compose.dev.yml``. They carry
@@ -167,6 +174,15 @@ exactly as in the full mode. With it off, the wait is skipped and
 setup." and logs to the console - the fallback #1614 relies on, which the
 application already had.
 
+That line is not the whole answer any more (#1622). The same missing receiver
+is what a *broken* full deployment looks like, and a process which silently
+loses its structured sink for its whole lifetime is exactly the kind of warning
+a lightweight mode must not swallow: since #1622 the fallback of
+``system/logging/fallback.py`` prints the documented line **and** raises a
+``RuntimeWarning`` naming the address it could not resolve, so the warning
+survives into the test runner's output and any warnings filter, and the reader
+can tell "asked for no store" from "wanted one and lost it".
+
 Container logs of ``postgis`` and ``frontend``
 ----------------------------------------------
 
@@ -200,6 +216,75 @@ names. Without the tier those three paths answer 502, and nothing else changes:
 no page, API or configuration inside MrMap links to them (checked over the
 frontend sources and the backend apps). The task history of the application's
 own job drawer, and the Celery state it is built from, do not need Flower.
+
+The memory ceiling of the tier
+------------------------------
+
+Switching a tier off is the big saving, and #1614 shipped it. #1622 covers the
+other half of the same question: **a tier which is switched back on in
+lightweight mode runs bounded**, because the point of layering the file was a
+host which cannot afford the uncapped fleet of the full deployment. The four
+observers carry a ``mem_limit`` in ``docker-compose.lightweight.yml`` and
+nowhere else:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 14 20 44
+
+   * - service
+     - ceiling
+     - measured committed p50 (#1613)
+     - override
+   * - ``grafana``
+     - ``1g``
+     - 345 M (1958 M charged, ~82 % reclaimable cache)
+     - ``GRAFANA_MEM_LIMIT``
+   * - ``pgadmin``
+     - ``512m``
+     - 231 M
+     - ``PGADMIN_MEM_LIMIT``
+   * - ``flower``
+     - ``256m``
+     - 50 M
+     - ``FLOWER_MEM_LIMIT``
+   * - ``victoria-logs``
+     - ``256m``
+     - 39 M
+     - ``VICTORIA_LOGS_MEM_LIMIT``
+
+Four things about that table, each of which the smoke check asserts:
+
+* **The full mode stays uncapped.** ``docker-compose.yml`` gains no ``mem_limit``
+  at all, so the deployment of the installation document is byte for byte the
+  contract it was - the acceptance line "Full logging, diagnostic links and
+  dashboard auth preserved" is kept by *not* touching the full mode. A ceiling
+  leaking into the base file fails ``scripts/compose_profiles_smoke.py``.
+* **The numbers are the committed p50 with headroom, not the charge.** A cgroup
+  counts page cache against the limit too, but cgroup v2 *reclaims* it before it
+  kills: grafana's measured 1958 M charge is why its ceiling is 1 G and not
+  2 G - the 345 M of anonymous memory are what has to fit. A container which
+  really crosses the bound is OOM-killed and, with its ``restart:
+  unless-stopped``, comes back; ``docker events`` and the restart count in
+  ``docker inspect`` name it. That is loud, and it is the intended signal of a
+  leak - not a silent degradation, and never a loss of application data: this
+  tier only ever observes.
+* **Each ceiling is a deployment knob**, read from ``.env`` exactly like
+  ``REDIS_MAXMEMORY`` of #1618. The shipped value is the recommendation, not a
+  ceiling the operator cannot lift; the smoke check accepts any value inside
+  the documented band (default .. double the default) and fails one outside it,
+  so a typo like ``64m`` for grafana - which would OOM-kill a *healthy*
+  dashboard - is caught before a stack starts.
+* **No ``mem_reservation``.** A soft reservation would keep charging the host
+  for an observer which may idle for days; bounding the peak is the whole
+  point, reserving the baseline is the opposite.
+
+This is also the answer to "cache tuning/caps only where retention, search and
+alerts remain safe" (#1622, acceptance): the caps above sit on services whose
+*own* retention is not affected by being bounded (a restarted victoria-logs
+re-reads ``/vlogs-data``; a restarted pgadmin re-reads ``servers.json``), while
+the shared caches and queues which carry application state - Redis, the Celery
+result backend, the Postgres shared buffers - keep the bounds their own issues
+gave them (#1618, #1615, #1621) and are not touched here.
 
 The check containers
 --------------------
@@ -296,6 +381,17 @@ short of *addressable* memory and least on one which is merely short of free
 cache, and it does not touch the reservation which dominates: the Celery prefork
 pool and the server shape, which epic #1612 takes up in #1615 and #1617.
 
+The ceilings of #1622 change the worst case, not the average. The rows above are
+warm idle, where no bound is near - grafana's 345 M committed sits under a 1 G
+limit with room nobody uses. What they buy is that a leak or a heavy log search
+cannot take the host with it: the tier's charge is now bounded by 2 G instead of
+by nothing, at the price that a workload which would have made uncapped grafana
+*grow into its cache* instead gets a loud restart of the dashboard. That is the
+visibility tradeoff of this issue in one sentence: **memory the tier can no
+longer take, and a dashboard which can now visibly fail where it used to
+silently swell** - which is the direction a lightweight host should be tuned in,
+and why every bound is one ``.env`` value away from being lifted.
+
 Startup was **not** measured for the core-only set. What supports saying
 something about it without a measurement: #1613's boot to all-containers-up was
 124 s for the 12-service stack, no service ``depends_on`` the admin tier, and
@@ -326,7 +422,8 @@ Upgrade behaviour
 Nothing to migrate, and that is the point of the shape:
 
 * **The full deployment contract is unchanged.** ``docker-compose.yml`` carries
-  no profile, no ``required: false`` and no ``logging`` change. An existing
+  no profile, no ``required: false``, no ``logging`` change and no ``mem_limit``.
+  An existing
   deployment which pulls a new version and runs the command of the installation
   document gets what it got before, including the cold-start wait for the log
   store and the syslog shipping. The versioned migration path #1614 was asked to
@@ -334,7 +431,9 @@ Nothing to migrate, and that is the point of the shape:
 * **The new file is additive.** It changes the service set of an invocation that
   names it and of no other. A deployment that wants the low-memory mode adopts
   it by adding it to its ``COMPOSE_FILE`` / ``-f`` list, last, and takes the
-  tiering decisions - which of the three tiers it wants - at that moment.
+  tiering decisions - which of the three tiers it wants - at that moment. Since
+  #1622 the file decides one more thing for that invocation only: a tier it
+  switches on runs under the ceilings above.
 * **Rolling a mix of the two over the same volumes is safe.** The tiers share no
   state with the core except the log store's own volume (``vlogs-data``,
   ``grafana-data``), and both keep theirs when the tier is off; nothing prunes
@@ -359,6 +458,8 @@ it, so it runs on a bare runner - and checks the active service set, the
 classification of every service, that no running service depends on one no
 profile activates, that no running service ships its container log to a log store
 which is not running, that the always-on core keeps ``restart: unless-stopped``,
+that the four observers of the optional tier carry their ``mem_limit`` of #1622
+inside the documented band while the full mode carries none,
 and that both halves of the ``depends_on`` seam are where they belong. It starts
 nothing. Its rules are tested offline against synthetic configurations by
 ``scripts/test_compose_profiles_smoke.py``, which CI runs through

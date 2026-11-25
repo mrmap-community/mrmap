@@ -55,10 +55,22 @@ const buildRevision = () => (process.env.MRMAP_BUILD_REVISION ?? '').trim() || '
 
 export const MRMAP_APP_VERSION = readCanonicalVersion();
 
+// The optional test-only Compose layer supplies the same limit to Django
+// and Vitest. Unset keeps Vitest's normal throughput defaults. Keep the pool,
+// isolation, test selection and coverage configuration shared by both modes.
+export const testWorkerOptions = (raw) => {
+    if (raw === undefined) return {};
+    if (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw))) {
+        throw new Error('MRMAP_TEST_WORKERS must be a positive integer');
+    }
+    return { maxWorkers: Number(raw) };
+};
+
 // https://vitejs.dev/config/
 export default defineConfig({
     plugins: [react()],
     test: {
+        ...testWorkerOptions(process.env.MRMAP_TEST_WORKERS),
         globals: true,
         environment: 'jsdom',
         setupFiles: './tests/setup.js',

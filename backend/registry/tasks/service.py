@@ -28,6 +28,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.timezone import now
+from extras.ssrf import GuardedSession
 from extras.tasks import SingletonTask
 from MrMap import celery_queues
 from notify.enums import LogTypeEnum, ProcessStatusEnum
@@ -58,7 +59,7 @@ from registry.settings import (REGISTRATION_ORPHAN_FILE_GRACE_SECONDS,
                                REGISTRATION_RECOVERY_BATCH_SIZE,
                                REGISTRATION_REFERENCE_LEASE_SECONDS,
                                REGISTRATION_REQUEST_TIMEOUT_SECONDS)
-from requests import Request, Session
+from requests import Request
 from requests.exceptions import ConnectionError, Timeout
 from rest_framework.reverse import reverse
 
@@ -102,7 +103,9 @@ def build_ogc_service(
 
         auth = _capabilities_auth(service_auth_pk, get_capabilities_url)
 
-        session = Session()
+        # the url is user input from registration or from an upstream document: its
+        # connections pass the host policy of `extras.ssrf` (#1474, SEC-16)
+        session = GuardedSession()
         session.proxies = settings.PROXIES
         request = Request(method="GET",
                           url=get_capabilities_url,
@@ -322,6 +325,15 @@ def advertised_references(service):
     to collect are exactly the references which describe what the update
     published.
 
+    The read leaves the stored ``remote_content`` text behind (#1620): the
+    planning only ever reads the described element and the advertised url,
+    while one element which shares its advertised document with thousands of
+    layers pays the document text into the collecting worker once per
+    reference - the copy the #1263 work rows deliberately replaced with one
+    stored document per acquisition. A deferred column costs nothing when the
+    planning never touches it, and the rows the collection hands on are the
+    same rows the callers of this function always answered.
+
     Args:
         service: the built or published service to read the references of
 
@@ -331,16 +343,16 @@ def advertised_references(service):
     if isinstance(service, WebMapService):
         return list(chain(
             WebMapServiceRemoteMetadata.objects.filter(
-                describes__pk=service.pk),
+                describes__pk=service.pk).defer("remote_content"),
             LayerRemoteMetadata.objects.filter(
-                describes__service__pk=service.pk)
+                describes__service__pk=service.pk).defer("remote_content")
         ))
     if isinstance(service, WebFeatureService):
         return list(chain(
             WebFeatureServiceRemoteMetadata.objects.filter(
-                describes__pk=service.pk),
+                describes__pk=service.pk).defer("remote_content"),
             FeatureTypeRemoteMetadata.objects.filter(
-                describes__service__pk=service.pk)
+                describes__service__pk=service.pk).defer("remote_content")
         ))
     return []
 

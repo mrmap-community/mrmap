@@ -54,6 +54,7 @@ class OgcClient(ABC):
 
     _capabilities = None
     _capabilities_etree = None
+    _session = None
 
     def __init__(
             self,
@@ -63,11 +64,8 @@ class OgcClient(ABC):
             **kwargs):
         super().__init__(*args, **kwargs)
 
-        # a client asked without a session of its own gets one of its own: a shared default
-        # instance would hand the connection pool of one service to every other client built
-        # in the same process. `GuardedSession` is the default because a client built from a
-        # URL fetches that URL from here (#1474, SEC-16)
-        self.session = session if session is not None else GuardedSession()
+        # None means "ask through a session of your own, when you ask at all", see `session`
+        self._session = session
 
         if isinstance(capabilities, str) and "?" in capabilities:
             # client was initialized with an url
@@ -85,6 +83,25 @@ class OgcClient(ABC):
                 f"capabilities has to be GetCapabilities URL or parsed capabilites of type str or bytes not {type(capabilities)}")
 
         self._capabilities_etree = parse_untrusted(self._capabilities)
+
+    @property
+    def session(self):
+        """The session this client asks through, built with its first request
+
+        A client asked without a session of its own gets one of its own - a shared default
+        instance would hand the connection pool of one service to every other client built in
+        the same process - and it gets it lazily, because a client which only maps an already
+        loaded capabilities document never asks and would keep a pool for nothing. It is a
+        `GuardedSession` because a client built from a URL fetches that URL from here (#1474,
+        SEC-16).
+        """
+        if self._session is None:
+            self._session = GuardedSession()
+        return self._session
+
+    @session.setter
+    def session(self, session):
+        self._session = session
 
     @property
     def service_type(self):

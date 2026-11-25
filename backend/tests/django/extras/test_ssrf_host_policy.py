@@ -7,6 +7,7 @@ refused address must never be connected to at all, so the loopback case carries 
 assertion that the policy opens when it is told to and the assertion that it stays closed.
 """
 import ipaddress
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest.mock import patch
@@ -15,13 +16,24 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import SimpleTestCase, override_settings
 from extras import ssrf
 from extras.ssrf import (GuardedHTTPAdapter, GuardedSession, address_is_allowed,
-                         check_targets, host_is_allowed, url_is_fetchable)
+                         host_is_allowed, judge_targets, url_is_fetchable)
 from registry.models.metadata import fetch_metadata_document
 from registry.models.service import WebMapService
+from registry.ows_lib.wms.wms import WebMapServiceClient
+from requests import Session
 from requests.exceptions import ConnectionError
 
 #: a public address, as the address of a service which is meant to be registered
 PUBLIC = '93.184.216.34'
+
+
+def _literal_of(host):
+    """The address a host string spells out, None for a name"""
+    try:
+        return ipaddress.ip_address((host or '').strip().strip('[]'))
+    except ValueError:
+        return None
+
 
 #: the closed default: production, with neither list configured
 CLOSED = override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='',
@@ -135,30 +147,31 @@ class DevelopmentAllowanceTest(SimpleTestCase):
 
 @CLOSED
 class TargetCheckTest(SimpleTestCase):
-    """`check_targets`, the judgment one connection undergoes"""
+    """`judge_targets`, the judgment one connection undergoes"""
 
     def test_an_unresolvable_host_is_refused_rather_than_allowed(self):
         with self.assertRaises(ConnectionError):
-            check_targets('does-not-exist.invalid', 80)
+            judge_targets('does-not-exist.invalid', 80)
 
     def test_every_answer_of_a_name_is_judged(self):
         # one public, one internal: the rebinding setup the policy exists for
         answers = [(2, 1, 6, '', (PUBLIC, 80)), (2, 1, 6, '', ('10.1.1.1', 80))]
         with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
             with self.assertRaises(ConnectionError):
-                check_targets('rebind.example', 80)
+                judge_targets('rebind.example', 80)
 
     def test_a_name_which_only_answers_publicly_is_judged_through(self):
+        # the addresses of the very lookup which was judged are what the caller connects to
         answers = [(2, 1, 6, '', (PUBLIC, 80))]
         with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
-            self.assertIsNone(check_targets('services.example', 80))
+            self.assertEqual(judge_targets('services.example', 80), [PUBLIC])
 
     def test_a_tunneling_proxy_target_is_judged(self):
         answers = [(2, 1, 6, '', (PUBLIC, 3128))]
         with patch('extras.ssrf.socket.getaddrinfo', side_effect=lambda host, *a: answers
                    if host == 'proxy.example' else [(2, 1, 6, '', ('10.0.0.9', 80))]):
             with self.assertRaises(ConnectionError):
-                check_targets('proxy.example', 3128, tunnel=('internal.example', 80))
+                judge_targets('proxy.example', 3128, tunnel=('internal.example', 80))
 
 
 class ListeningServerTest(SimpleTestCase):
@@ -185,7 +198,8 @@ class ListeningServerTest(SimpleTestCase):
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(self._stop, server, thread)
-        self.origin = f'http://127.0.0.1:{server.server_port}'
+        self.port = server.server_port
+        self.origin = f'http://127.0.0.1:{self.port}'
 
     @staticmethod
     def _stop(server, thread):
@@ -236,10 +250,152 @@ class GuardedSessionFetchingTest(ListeningServerTest):
     @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
                        MRMAP_FETCH_DENY_NETWORKS='')
     def test_a_plain_session_of_the_same_process_is_unaffected(self):
-        from requests import Session
         with Session() as session:
             response = session.get(f'{self.origin}/capabilities', timeout=5)
         self.assertEqual(response.status_code, 200)
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='127.0.0.2/32')
+    def test_a_name_which_answers_differently_to_the_guard_and_the_socket_is_never_connected_to(
+            self):
+        """the rebinding setup: judged and connected must be the answer of one lookup
+
+        The name answers the granted loopback address to the first lookup and the refused
+        decoy address to the next. Whoever resolved the name a second time for the socket
+        would reach the decoy, which is what this asserts cannot happen: the decoy is never
+        connected to, the judged address answers, and the name is asked exactly once.
+        """
+        asked = []
+        real_getaddrinfo = socket.getaddrinfo
+
+        def resolving(host, port, *args):
+            if _literal_of(host) is not None:
+                # a literal is resolved by the resolver it would really have
+                return real_getaddrinfo(host, port, *args)
+            asked.append(host)
+            address = '127.0.0.1' if asked.count(host) == 1 else '127.0.0.2'
+            return [(socket.AF_INET, 1, 6, '', (address, port))]
+
+        decoy, decoy_hits = self._listener('127.0.0.2', self.port)
+        with patch.object(ssrf.socket, 'getaddrinfo', side_effect=resolving):
+            with GuardedSession() as session:
+                response = session.get(
+                    f'http://rebind.example:{self.port}/capabilities', timeout=5)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.requested, ['/capabilities'])
+        self.assertEqual(decoy_hits, [],
+                         'the refused decoy answered: the socket went where the guard never '
+                         'looked')
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_name_whose_first_answer_times_out_falls_through_to_the_next(self):
+        """the fallback `create_connection` gave per answer has to survive the single lookup
+
+        Both answers are granted, so both may be dialed. The first black-holes the handshake
+        and the second is the live listener: a guard which resolves the name itself has to
+        keep walking the answer instead of giving up on the address which timed out, or a
+        multi-homed service whose first record is dead fails probes it used to pass.
+        """
+        self._blackhole('127.0.0.2')
+        answers = [(socket.AF_INET, 1, 6, '', ('127.0.0.2', self.port)),
+                   (socket.AF_INET, 1, 6, '', ('127.0.0.1', self.port))]
+        with patch.object(ssrf.socket, 'getaddrinfo',
+                          side_effect=self._resolve({'multi.example': answers})):
+            with GuardedSession() as session:
+                response = session.get(
+                    f'http://multi.example:{self.port}/capabilities', timeout=1)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.requested, ['/capabilities'])
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_name_whose_answers_all_fail_is_still_reported_as_unreachable(self):
+        # falling through every answer must not turn a dead endpoint into a silent success
+        self._blackhole('127.0.0.2')
+        self._blackhole('127.0.0.3')
+        answers = [(socket.AF_INET, 1, 6, '', ('127.0.0.2', self.port)),
+                   (socket.AF_INET, 1, 6, '', ('127.0.0.3', self.port))]
+        with patch.object(ssrf.socket, 'getaddrinfo',
+                          side_effect=self._resolve({'dead.example': answers})):
+            with GuardedSession() as session:
+                with self.assertRaises(ConnectionError):
+                    session.get(f'http://dead.example:{self.port}/capabilities', timeout=1)
+        self.assertEqual(self.requested, [])
+
+    @staticmethod
+    def _resolve(by_name):
+        """a resolver answering ``by_name`` for names and the real one for literals
+
+        Handing `return_value` to the resolver would answer a *literal* with the address list
+        too, and `create_connection` would then walk that list itself: the test would pass no
+        matter what the guard does, which is the trap a rebinding test has to avoid.
+        """
+        real_getaddrinfo = socket.getaddrinfo
+
+        def resolving(host, port, *args):
+            if _literal_of(host) is None and host in by_name:
+                return by_name[host]
+            return real_getaddrinfo(host, port, *args)
+
+        return resolving
+
+    def _blackhole(self, address):
+        """a listening socket on ``address`` whose accept queue is full, so connects stall
+
+        An address which is unreachable without refusing answers by dropping the handshake
+        rather than by refusing it, and that is the difference a fallback has to tell apart:
+        a refused address is a closed port, a dropped one is the timeout this simulates. The
+        fill sockets get a timeout of their own so filling costs nothing when they stall.
+        """
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind((address, self.port))
+        listener.listen(1)
+        # fill the queue so the connect under test is the one which has to wait
+        queued = [socket.socket() for _ in range(4)]
+        for one in queued:
+            one.settimeout(0.05)
+            try:
+                one.connect((address, self.port))
+            except OSError:
+                pass
+
+        def release():
+            for one in queued:
+                one.close()
+            listener.close()
+
+        self.addCleanup(release)
+        return listener
+
+    def _listener(self, address, port=0):
+        """another listener which counts what it answered, stopped with the test
+
+        ``port`` lets a decoy sit on the very port of the fetched service, so a socket which
+        re-resolved the name reaches an endpoint which really answers instead of a closed one.
+        """
+        hits = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.path)
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.send_header('Content-Length', '5')
+                self.end_headers()
+                self.wfile.write(b'SECRE')
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer((address, port), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(self._stop, server, thread)
+        return server, hits
 
 
 @CLOSED
@@ -282,6 +438,56 @@ class FetchPathPolicyTest(SimpleTestCase):
                 # the mocked answer is no document; what is asserted is who opened it
                 fetch_metadata_document('http://10.0.0.9/md.xml')
         self.assertTrue(guarded.called)
+
+
+class ClientSessionTest(SimpleTestCase):
+    """the session an `OgcClient` asks through
+
+    A client which only maps an already loaded capabilities document answers without ever
+    asking anyone, which is what the serializer of a service list does for every WMS of the
+    page. It must not pay for a session and its connection pool, and the client which does
+    ask must get a session which carries the policy.
+    """
+
+    CAPABILITIES = (
+        b'<WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms"'
+        b' xmlns:xlink="http://www.w3.org/1999/xlink">'
+        b'<Service><Name>WMS</Name></Service>'
+        b'<Capability><Request>'
+        b'<GetCapabilities><Format>text/xml</Format><DCPType><HTTP><Get>'
+        b'<OnlineResource xlink:href="https://example.test/wms?"/>'
+        b'</Get></HTTP></DCPType></GetCapabilities>'
+        b'<GetMap><Format>image/png</Format><DCPType><HTTP><Get>'
+        b'<OnlineResource xlink:href="https://example.test/wms?"/>'
+        b'</Get></HTTP></DCPType></GetMap></Request></Capability></WMS_Capabilities>')
+
+    def test_a_client_which_never_asks_never_builds_a_session(self):
+        # patched where it is looked up: core.py holds the name it imports itself
+        with patch('registry.ows_lib.client.core.GuardedSession') as guarded:
+            client = WebMapServiceClient(self.CAPABILITIES)
+            # mapping the document and building a request out of it asks nobody anything -
+            # this is the path of the service list serializer (#1774 review)
+            self.assertEqual(client.service_type, 'WMS')
+            self.assertIn('SERVICE=WMS', client.get_capabilities_request().url)
+        guarded.assert_not_called()
+
+    def test_the_session_of_a_client_is_guarded_and_its_own(self):
+        first = WebMapServiceClient(self.CAPABILITIES)
+        second = WebMapServiceClient(self.CAPABILITIES)
+        self.addCleanup(first.session.close)
+        self.addCleanup(second.session.close)
+        self.assertIsInstance(first.session, GuardedSession)
+        self.assertIsNot(first.session, second.session,
+                         'two clients share one session and therefore one connection pool')
+        for prefix in ('http://', 'https://'):
+            with self.subTest(prefix=prefix):
+                self.assertIsInstance(first.session.get_adapter(f'{prefix}example/x'),
+                                      GuardedHTTPAdapter)
+
+    def test_the_session_of_the_caller_is_the_session_of_the_client(self):
+        given = Session()
+        client = WebMapServiceClient(self.CAPABILITIES, session=given)
+        self.assertIs(client.session, given)
 
 
 class ConfiguredNetworksTest(SimpleTestCase):

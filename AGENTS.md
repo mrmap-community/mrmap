@@ -16,6 +16,10 @@ Before implementing changes, inspect the surrounding code and existing project p
 
 ## GitHub Native First and agent independence
 
+MrMap is a geospatial management application, not an agent orchestration or
+development-management platform. Adapt the development workflow to native GitHub
+capabilities and avoid custom development-management software; when a desired workflow
+is unsupported, simplify or change the process before introducing custom automation.
 Use native issues, parent/sub-issues, dependencies, assignees, Draft PRs and Projects.
 A person or external coordinator assigns one worker after checking blockers and
 conflicting work. Assignment is not a lock; dependencies are not enforced merge gates.
@@ -44,11 +48,11 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
-  application; `scripts/wip` is the legacy work claim board described under "Assigning work and legacy claims", and
-  `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
-  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
-  The claim/eligibility tools remain only for the owner-confirmed #1391 exception;
-  they are not prerequisites for new development. See the retirement conditions in
+  application; their offline suites are `scripts/test_*.py`, run together by
+  `scripts/check_repo_tooling.sh` (needs neither `gh` nor the network). The retired claim
+  board and eligibility checker (`scripts/wip`, `scripts/next_eligible.py`) were removed on
+  2026-11-25 once the #1391 exception that had kept them alive finished (#1794); their
+  history and retirement conditions stay readable in git and in
   `docs/source/development/github-flow-transition.rst`.
   Development execution and resource management belong to the external environment.
   AO is retired. Optional clients do not authorize reviews, merges, thread resolution,
@@ -403,7 +407,7 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
-- Changes under `scripts/` — the claim board and issue identity in `wip`, the human decision protocol in `decisions` — are verified with
+- Changes under `scripts/` — for example the human decision protocol in `decisions` — are verified with
   `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
   the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
   reach these files at all. Redirect its stdin (`scripts/check_repo_tooling.sh </dev/null`):
@@ -491,25 +495,20 @@ identifier itself is not an option — it breaks document matching against upstr
   <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
   link and prefix disagree, fix the prefix.
 
-### Assigning work and legacy claims
+### Assigning work
 
-A person or external coordinator explicitly assigns one worker. Before starting, inspect
-native blockers, assignees, linked branches and open Draft PRs, and reconcile any legacy
-claim with its owner. Assignees and dependencies are planning signals, not atomic locks
-or automatic merge gates. Keep the single-worker model; do not start conflicting work.
-Approval and pause labels remain human-owned during transition.
+A person or external coordinator explicitly assigns one worker per issue. Before
+starting, check native GitHub issue dependencies, assignees, linked branches and open
+Draft PRs; skip work that is already assigned or actively developed, and ask the owners
+on the issue when ownership conflicts. Assignees and dependencies are planning signals,
+not atomic locks or automatic merge gates. Keep the single-worker model per issue.
+Approval and pause labels (`agent: approved`, `agent: paused`) remain human-owned.
 
-The maintainer recorded #1391 / PR #1732 as an explicit temporary legacy exception.
-Preserve its claim, branches, worktrees and worker. Its owner must confirm the handoff
-before the legacy claim and eligibility files can be removed. New work uses native
-assignment and does not invoke those tools.
-
-New work requires no agent-specific claim, eligibility checker, heartbeat or epic resolver.
-The legacy `scripts/wip` board and existing claims remain evidence until their owners
-reconcile them under #1753. Never automatically remove a foreign claim, take over stale
-work or interrupt an agent. A worker that already holds a claim may finish its own
-`wait`/`ask`/`done` lifecycle. Human-only requests may still use `scripts/wip ask` during
-transition; ordinary contributors can ask directly on the issue.
+No claim board, eligibility checker, heartbeat comment or epic resolver exists or is
+required; `docs/source/development/github-flow.rst` is canonical. The retired tools,
+their claims and the Agent Work Board remain read-only history in git and in
+`docs/source/development/github-flow-transition.rst`. Never take over another worker's
+assignment and never interrupt another agent; reconciling stale work stays with people.
 
 ## Working with uncertainty
 

@@ -6,7 +6,7 @@ description: "Doing MrMap development work on GitHub — branch/worktree setup, 
 # MrMap GitHub Workflow
 
 Task skill for the contribution loop around the code. The authorities are root `AGENTS.md`
-("Git conventions", "Assigning work and legacy claims", "Asking for human decisions"), `CONTRIBUTING.md`,
+("Git conventions", "Assigning work", "Asking for human decisions"), `CONTRIBUTING.md`,
 `docs/source/development/definition_of_done.rst` and `docs/source/development/decision-requests.rst`.
 This skill sequences them; it does not restate every rule — read the named files.
 
@@ -20,9 +20,9 @@ whether an action needs a human.
 - Follow `docs/source/development/github-flow.rst`: explicit assignment by a human or
   external coordinator, one worker, verify blockers and conflicting work, link a branch,
   open a Draft PR. Native assignees/dependencies are planning signals, not atomic locks.
-  No new claim, heartbeat or eligibility checker is required. Preserve foreign legacy
-  claims until their owners reconcile them. #1391 / PR #1732 is the explicit
-  legacy exception; no agent may force its handoff.
+  No claim, heartbeat or eligibility checker exists or is required; the retired ones
+  became history when #1391's exception ended with PR #1732's merge. Never take over
+  another worker's assignment and never interrupt another agent.
 - Branches: `<type>/<short-topic>`; worktrees `git worktree add <dir> -b <type>/issue-<N>-<topic>
   origin/develop` after `git fetch origin`; **no merging `origin/develop` into a branch** before the
   PR (the merge queue tests integration); never force-push/rebase a branch open for review;
@@ -71,8 +71,8 @@ whether an action needs a human.
 ## MCP dependencies
 
 None — the loop runs on `git` and `gh` (authenticated host account) and the offline
-`scripts/test_*.py` suites. `gh` usage here stays read/write within the issue/PR flow the claim
-native contribution loop defines. **Optional:** the
+`scripts/test_*.py` suites. `gh` usage here stays read/write within the issue/PR flow the native
+contribution loop defines. **Optional:** the
 `sonarqube` MCP (remote, `api.sonarcloud.io`; a person must place a SonarQube Cloud user
 token in `~/.config/opencode/sonar-token` once per host — see
 `docs/development/mcp-servers.md`) gives the findings SonarCloud posts on your PR — read
@@ -81,8 +81,8 @@ them through it instead of scraping the check output, and fix them where reporte
 
 ## Anti-patterns
 
-- Hand-editing machine-managed artifacts: claim comments (`<!-- agent-claim … -->`),
-  `status: wip`, the Agent Work Board issue (#917), decision markers.
+- Hand-editing historical machine-managed artifacts (retired claim and heartbeat
+  comments, the closed Agent Work Board #917, `status: wip` labels) or decision markers.
 - Sleep/wait loops around CI or docker (root `AGENTS.md` "Running shell commands").
 - Mixing unrelated formatting/refactoring, changelog entries, or labels into a PR
   (`CONTRIBUTING.md`, root `AGENTS.md`).
@@ -93,8 +93,7 @@ them through it instead of scraping the check output, and fix them where reporte
 
 ## Verification of this skill's own steps
 
-- Offline checks for the tooling itself: `python3 scripts/test_wip_board_sync.py`,
-  `python3 scripts/test_decisions.py` (no `gh`, no
+- Offline checks for the tooling itself: `python3 scripts/test_decisions.py` (no `gh`, no
   network; CI runs them via `scripts/check_repo_tooling.sh`).
 - Before hand-back: `git status` clean of unintended files, zero leftover containers/networks/
   volumes of the job's project (names reported per root `AGENTS.md`).
@@ -112,5 +111,3 @@ them through it instead of scraping the check output, and fix them where reporte
   `.opencode/skills/`) is not an issue-claimed code change: no claim is possible without an
   `issue-<N>` branch; note the situation once and proceed locally — do **not** invent an issue,
   branch or PR for it.
-- #1391 keeps its existing claim and workflow until its owner confirms the handoff.
-  Do not take over its claim or interrupt its worker.

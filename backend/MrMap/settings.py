@@ -1185,6 +1185,16 @@ TASK_PROFILING_SAMPLE_RATE = float(
 # buffered profiles per worker process; an overflow marks the dropped
 # profile partial and counts the drop, never blocks the task
 TASK_PROFILING_BUFFER_LIMIT = 200
+# a peak this far above where the attempt started is its own diagnosis
+# (#1620): an attempt which spent neither SQL nor HTTP time but pushed the
+# worker's resident set this far is memory-bound, not "cpu_or_unaccounted"
+TASK_PROFILING_MEMORY_MIB = int(
+    os.environ.get("MRMAP_TASK_PROFILING_MEMORY_MIB", "128") or 0)
+# a seam of at least this many seconds is worth a memory read: the procfs
+# rollup behind it costs more than a count, so only the slow statements and
+# requests - where a peak is expected - pay for it (#1620)
+TASK_PROFILING_MEMORY_SAMPLE_SECONDS = float(
+    os.environ.get("MRMAP_TASK_PROFILING_MEMORY_SAMPLE_SECONDS", "0.5") or 0)
 # the broker round trip of the topology inspect and how long its answer is
 # shared, so a snapshot request never pays for a broadcast
 CAPACITY_TOPOLOGY_CACHE_SECONDS = 60

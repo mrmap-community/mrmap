@@ -41,6 +41,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    celery-healthcheck-overhead
    http-process-profiles
    db-pool-memory
+   task-memory-shapes
    compose-profiles
    decision-requests
    epic-integration-contract

@@ -37,12 +37,11 @@ curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1
 `EXTERNAL_*` is what the bundle is built against and what the `frontend`
 service publishes — port 18085 here, so the browser and the API share one
 origin behind nginx. Pick a free host port if 18085 is taken. The backend
-runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack;
-wait for the API probe after starting nginx: its health check alone does not
-prove the backend has finished starting.
-the acceptance surface is the nginx edge and the built bundle, identical to
-production for everything this suite measures (compression, routing, cache,
-assets, SPA behaviour).
+runs the dev overlay (`DJANGO_DEBUG=1`) of the standard development stack.
+Wait for the API probe after starting nginx: nginx's health check alone does
+not prove the backend has finished starting. The acceptance surface is the
+nginx edge and the built bundle, identical to production for everything this
+suite measures (compression, routing, cache, assets, SPA behaviour).
 
 ## 2. The fixtures
 

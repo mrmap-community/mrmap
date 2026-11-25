@@ -15,10 +15,11 @@ cumulative), the cpu.stat usage and throttle counters (same delta rule), and
 on a coarser cadence the per-process view of /proc/<pid>/status: RSS with its
 anon/file/shmem split per command name, which is how PostgreSQL's shared
 buffers are told apart from private memory (#1613). Proportional Set Size is
-not part of stack samples: it needs /proc/<pid>/smaps_rollup, which an
-unprivileged agent container may not read. The command subcommand samples
-PSS of its own child when readable, leaving missing readings null. And
-the same numbers for the SAMPLER's own cgroup, because a profile taken inside
+opt-in for stack samples via `--pss`: each process is read from
+/proc/<pid>/smaps_rollup, and a command row is null when any process in that
+row is unreadable. The command subcommand has always sampled PSS of its own
+child when readable, leaving missing readings null. And the same numbers for
+the SAMPLER's own cgroup, because a profile taken inside
 the agent container is a measurement of the agent cgroup, not of the machine
 (#1054). Phases (cold start, warmed idle, load, suite) are separate runs with
 a phase name; `report` prints them side by side.

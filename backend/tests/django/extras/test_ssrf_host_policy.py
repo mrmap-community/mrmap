@@ -288,6 +288,89 @@ class GuardedSessionFetchingTest(ListeningServerTest):
                          'the refused decoy answered: the socket went where the guard never '
                          'looked')
 
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_name_whose_first_answer_times_out_falls_through_to_the_next(self):
+        """the fallback `create_connection` gave per answer has to survive the single lookup
+
+        Both answers are granted, so both may be dialed. The first black-holes the handshake
+        and the second is the live listener: a guard which resolves the name itself has to
+        keep walking the answer instead of giving up on the address which timed out, or a
+        multi-homed service whose first record is dead fails probes it used to pass.
+        """
+        self._blackhole('127.0.0.2')
+        answers = [(socket.AF_INET, 1, 6, '', ('127.0.0.2', self.port)),
+                   (socket.AF_INET, 1, 6, '', ('127.0.0.1', self.port))]
+        with patch.object(ssrf.socket, 'getaddrinfo',
+                          side_effect=self._resolve({'multi.example': answers})):
+            with GuardedSession() as session:
+                response = session.get(
+                    f'http://multi.example:{self.port}/capabilities', timeout=1)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.requested, ['/capabilities'])
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='')
+    def test_a_name_whose_answers_all_fail_is_still_reported_as_unreachable(self):
+        # falling through every answer must not turn a dead endpoint into a silent success
+        self._blackhole('127.0.0.2')
+        self._blackhole('127.0.0.3')
+        answers = [(socket.AF_INET, 1, 6, '', ('127.0.0.2', self.port)),
+                   (socket.AF_INET, 1, 6, '', ('127.0.0.3', self.port))]
+        with patch.object(ssrf.socket, 'getaddrinfo',
+                          side_effect=self._resolve({'dead.example': answers})):
+            with GuardedSession() as session:
+                with self.assertRaises(ConnectionError):
+                    session.get(f'http://dead.example:{self.port}/capabilities', timeout=1)
+        self.assertEqual(self.requested, [])
+
+    @staticmethod
+    def _resolve(by_name):
+        """a resolver answering ``by_name`` for names and the real one for literals
+
+        Handing `return_value` to the resolver would answer a *literal* with the address list
+        too, and `create_connection` would then walk that list itself: the test would pass no
+        matter what the guard does, which is the trap a rebinding test has to avoid.
+        """
+        real_getaddrinfo = socket.getaddrinfo
+
+        def resolving(host, port, *args):
+            if _literal_of(host) is None and host in by_name:
+                return by_name[host]
+            return real_getaddrinfo(host, port, *args)
+
+        return resolving
+
+    def _blackhole(self, address):
+        """a listening socket on ``address`` whose accept queue is full, so connects stall
+
+        An address which is unreachable without refusing answers by dropping the handshake
+        rather than by refusing it, and that is the difference a fallback has to tell apart:
+        a refused address is a closed port, a dropped one is the timeout this simulates. The
+        fill sockets get a timeout of their own so filling costs nothing when they stall.
+        """
+        listener = socket.socket()
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind((address, self.port))
+        listener.listen(1)
+        # fill the queue so the connect under test is the one which has to wait
+        queued = [socket.socket() for _ in range(4)]
+        for one in queued:
+            one.settimeout(0.05)
+            try:
+                one.connect((address, self.port))
+            except OSError:
+                pass
+
+        def release():
+            for one in queued:
+                one.close()
+            listener.close()
+
+        self.addCleanup(release)
+        return listener
+
     def _listener(self, address, port=0):
         """another listener which counts what it answered, stopped with the test
 

@@ -33,10 +33,10 @@ the same question for **every** address the name resolves to, at the moment the 
 it is created. That is the only place a DNS rebinding answer is still caught: a pooled socket
 may be older than any check, and the answer of a name at connect time is the only one which
 means anything. Judged and connected are the **same** answer: `judge_targets` resolves the
-name once, refuses it unless every address of that answer passes, and hands an address of the
-very same answer to the socket, so the connect layer resolves nothing a second time and a name
-cannot answer publicly to the guard and internally to the socket. A refused address is
-therefore never connected to at all.
+name once, refuses it unless every address of that answer passes, and hands the addresses of
+the very same answer to the socket one after another, so the connect layer resolves nothing a
+second time and a name cannot answer publicly to the guard and internally to the socket. A
+refused address is therefore never connected to at all.
 
 Through a proxy both ends are judged: the proxy as the peer, and - for a tunneling proxy -
 the tunnel target as the endpoint. A *forwarding* proxy is judged as the peer only; it is the
@@ -58,7 +58,7 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from urllib3 import connectionpool
-from urllib3.exceptions import NewConnectionError
+from urllib3.exceptions import ConnectTimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -339,8 +339,11 @@ class HostPolicyMixin:
                 self._dns_host = judged
                 try:
                     return super()._new_conn()
-                except NewConnectionError as error:
-                    failure = failure or error
+                except ConnectTimeoutError as error:
+                    # `NewConnectionError` and `NameResolutionError` are subclasses of this
+                    # one, so any way of not reaching this address moves on to the next -
+                    # which is what `create_connection` does per answer of its own lookup.
+                    failure = error
             # `judge_targets` refused an empty answer already, so there is one to report
             raise failure
         finally:

@@ -171,6 +171,13 @@ html_logo = "images/mr_map.png"
 # blocks and the diagrams readable at narrow widths.
 language = "en"
 
+# ``_static`` and the stylesheet below are part of the build, not decoration: a
+# static path that is not there is a warning, and a warning is a failure.
+# ``scripts/test_docs_build.py`` asserts both exist, because a directory holding
+# nothing is not committed by git and an empty checkout therefore builds without
+# the theme's one customisation - which is exactly what CI caught and a local
+# tree with the directory already present did not.
+#
 # Sphinx 4.5 needs the builder's image list ordered with vector first, so that
 # the SVG diagrams in the corpus are not downgraded to a raster fallback that is
 # listed ahead of them.

@@ -257,6 +257,29 @@ def test_title_adornments_are_long_enough() -> None:
           "; ".join(short))
 
 
+def test_theme_assets_exist() -> None:
+    """Every static asset the config names is a file git carries.
+
+    Two faults hide here, and CI found the first one after a local tree that
+    already had both had passed. A ``html_css_files`` entry naming a sheet that
+    was never written is not checked by Sphinx at all, so the portal publishes
+    without its styling and nothing is reported. And a ``html_static_path``
+    entry that names an empty directory is a warning - which -W turns into a
+    failure - while git itself never commits an empty directory, so the checkout
+    has no such path at all.
+    """
+    conf = read(CONF)
+    source = SOURCE
+    for name in re.findall(r'"([^"]+\.css)"', conf):
+        check(f"the stylesheet {name} the config names exists",
+              (source / "_static" / name).is_file())
+    paths = re.search(r"html_static_path\s*=\s*\[([^\]]*)\]", conf)
+    for entry in re.findall(r'"([^"]+)"', paths.group(1)) if paths else []:
+        directory = source / entry
+        check(f"the static path {entry} exists and is committed",
+              directory.is_dir() and any(p.is_file() for p in directory.rglob("*")))
+
+
 # ------------------------------------------------------------ cross-references ---
 def test_doc_references_resolve() -> None:
     """Every ``:doc:`` and ``{doc}`` target names a document that exists."""
@@ -394,6 +417,7 @@ def main() -> int:
     test_no_directive_is_written_in_the_wrong_dialect()
     test_markdown_toctree_entries_are_flush_left()
     test_title_adornments_are_long_enough()
+    test_theme_assets_exist()
     test_doc_references_resolve()
     test_ref_targets_have_a_label()
     test_local_links_of_the_authored_corpus_resolve()

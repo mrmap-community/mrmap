@@ -54,10 +54,15 @@ read the *login*, not the scenario's label for it: an actor equal to
 the scenario lists it among ``humans``, and a login that is neither allow-listed
 nor agent-shaped is refused rather than guessed. The ``no-direct-push``
 exemptions are verified against the commit topology instead of trusted from
-flags. The CI-coverage set is *derived* from the contract - every workflow that
+flags - and the rule-3 exemption asks the discriminating question: a claimed cut
+must reach ``cut_from`` only past a merge commit, which is how an epic line
+legitimately enters develop (through the sync or the integration merge), so a
+single-parent commit pushed onto develop's tip is reported whatever its
+``cut_from`` says. The CI-coverage set is *derived* from the contract - every workflow that
 triggers for ``master``/``develop`` owes the epic base the same coverage - so an
 empty ``required`` in a scenario opts nothing out. Three of these properties are
-asserted in the suite with the exact worlds the review demonstrated.
+asserted in the suite with the exact worlds the reviews demonstrated, each
+one pinned so that relaxing its guard turns the suite red.
 
 .. _epic-integration-validation-ci-contract:
 
@@ -180,7 +185,9 @@ between two revisions of this page.
        exemptions (pre-existing history, the rule-3 cut, the rule-12 sync of the
        integration target) are *verified against the topology*, not taken on the
        scenario's word - a commit that merely declares ``"sync": true`` without
-       being a two-parent merge of develop is reported like any smuggled commit.
+       being a two-parent merge of develop, or ``"cut": true`` without being the
+       single-parent start of an epic line that reaches ``cut_from`` only past a
+       merge, is reported like any smuggled commit.
    * - ``production-untouched``
      - epic objective
      - ``master`` did not move; a scenario cannot green-wash a move by
@@ -361,11 +368,21 @@ Not validated here
 
 Named rather than glossed, each with the issue that owns it:
 
-* **The enforcement itself.** #1591's base check, #1592's scheduling and claims
-  and #1593's readiness gate do not exist yet. This issue validates the
-  *contract* — that its rows are executable and that following them produces the
-  behaviour the epic objective promises — and its check ids are the assertions
-  those three tools will have to satisfy, which is the point of naming them here.
+* **The enforcement itself, with one of its three now landed.** The state at
+  this head, stated per tool: #1591 has **landed** — ``scripts/epic_branch.py``
+  resolves an issue's epic branch and polices PR targets
+  (``resolve``/``check-pr``/``check-branch``/``audit``, with the human-gated
+  ``create-branch``/``retarget``), runs on every PR into ``develop`` through
+  ``pr-target-policy.yml``, and is **advisory until #1594's ``STRICT_FROM``
+  date** — exactly as this page predicted the rollout would work. What still
+  does *not* exist is #1592's scheduling and claims (the ``epic/**`` entries
+  the claim board still lacks, ``grep -c epic scripts/wip`` → 0) and #1593's
+  readiness gate. This issue validates the *contract* — that its rows are
+  executable and that following them produces the behaviour the epic objective
+  promises — and its check ids are the assertions the remaining two tools will
+  have to satisfy; #1591's landed tool is now the first of them measured
+  against. The two statements are consistent: "#1591 enforces the base rule"
+  names what shipped, and this bullet names what #1592/#1593 still owe.
 * **A live branch pair on this repository.** The issue asks for an *isolated* dry
   run; creating ``epic/<slug>`` branches, child PRs or check runs on the real
   repository to prove a fixture works would be the production disruption the
@@ -404,7 +421,7 @@ nothing but the file ``--evidence-out`` names.
 .. code-block:: text
 
    # the suite: every world above, and the refusals
-   python3 scripts/test_epic_integration_dryrun.py          # 59/59 checks passed
+   python3 scripts/test_epic_integration_dryrun.py          # 65/65 checks passed
 
    # the contract's acceptance lines, as the tool itself lists them
    python3 scripts/epic_integration_dryrun.py --list-checks

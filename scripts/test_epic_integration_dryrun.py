@@ -864,6 +864,48 @@ check("a smuggled commit marked cut is still reported by no-direct-push",
 check("the genuine rule-12 sync and rule-3 cut stay exempt",
       run(happy())[0] == 0, "the happy world stopped validating")
 
+# 27c-2. The shape the rule exists to catch: `git push origin <sha>:develop` puts a
+# single-parent commit on develop's tip. Flagging it as the rule-3 cut must not
+# exempt it for ANY cut_from value (re-review finding A) - a genuine cut reaches
+# develop only through a merge, a pushed tip does not.
+for cut_from in ("develop", "master", EPIC_BRANCH, "nope/branch"):
+    scn = happy()
+    scn["name"] = "pushed-tip-claimed-cut-" + cut_from.replace("/", "-")
+    stray = "e" * 40
+    scn["commits"][stray] = {"parents": [DEP], "cut": True, "cut_from": cut_from}
+    scn["branches"]["develop"] = stray
+    scn["expectations"]["no-direct-push"] = {"permanent_commits": [stray]}
+    code, report, _ = run(scn)
+    check("a commit pushed onto develop's tip is reported despite claiming cut_from=%s"
+          % cut_from,
+          code == 1 and stray in observed(report, "no-direct-push")["permanent_commits"],
+          "code=%s obs=%s" % (code, observed(report, "no-direct-push")
+                              if report else None))
+
+# one commit deeper (tip Z over the claimed cut Y) is still a pushed chain: neither
+# owes nothing, because develop carries both without ever passing a merge below them.
+scn = happy()
+scn["name"] = "pushed-chain-claimed-cut"
+y, z = "b" * 40, "c" * 39 + "1"
+scn["commits"][y] = {"parents": [DEP], "cut": True, "cut_from": "develop"}
+scn["commits"][z] = {"parents": [y]}
+scn["branches"]["develop"] = z
+scn["expectations"]["no-direct-push"] = {"permanent_commits": [y, z]}
+code, report, _ = run(scn)
+check("a claimed cut one commit below a pushed tip is reported too",
+      code == 1 and set(observed(report, "no-direct-push")["permanent_commits"]) == {y, z},
+      "code=%s obs=%s" % (code, observed(report, "no-direct-push") if report else None))
+
+# and the honest exemption is still load-bearing in the other direction: removing
+# the merge-path requirement would report the happy world's genuine cut, so a
+# scenario asserting none over the happy world must fail (the cut IS exempt).
+scn = happy()
+scn["expectations"]["no-direct-push"] = {"permanent_commits": ["3" * 40]}
+code, report, _ = run(scn)
+check("the genuine rule-3 cut is exempt - claiming it as a direct push fails",
+      code == 1 and "no-direct-push" in failed_ids(report),
+      "code=%s failed=%s" % (code, failed_ids(report)))
+
 # 27d. production-untouched cannot be green-washed by declaring the move (finding 5).
 scn = happy()
 scn["name"] = "master-moved-declared"

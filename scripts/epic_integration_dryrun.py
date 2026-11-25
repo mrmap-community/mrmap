@@ -216,14 +216,53 @@ class Scenario:
             return False              # a ref the world does not have has no ancestors
 
     def _is_valid_cut(self, sha, node):
-        """A claimed rule-3 cut must be a branch tip cut from a branch that exists.
+        """A claimed rule-3 cut must be the commit that begins an epic line, and
+        must reach the permanent branch only through a merge.
 
-        A commit may call itself the epic branch's cut only when the branch it names
-        as its base is a branch of this world and the commit is where such a cut
-        legitimately sits: on the permanent branch it was cut from.
+        Rule 3 cuts an epic branch from the head of a permanent branch, so the
+        commit that begins that line is the one commit on an epic line that owes
+        no PR. Each condition here is what separates it from a direct push:
+
+        * a single parent - a cut has nothing to merge;
+        * ``cut_from`` is one of the permanent branches the contract cuts from,
+          and the commit's parent is reachable from it - it was really cut there;
+        * the commit is reachable from an ``epic/**`` head - it begins an epic
+          line rather than sitting on the permanent branch for its own sake;
+        * every path from ``cut_from``'s head down to it passes a merge commit.
+          This is the discriminating one: the epic's history enters develop only
+          through merges (the rule-12 sync, the integration merge), so a genuine
+          cut is reachable only past one, while a commit ``git push origin
+          <sha>:develop`` puts on develop's tip is reachable without passing any
+          merge - it owes a merged PR like any other commit on a permanent branch.
         """
         base = node.get("cut_from")
-        return bool(base) and base in self.branches and not (node.get("parents") or [None])[1:]
+        if base not in PERMANENT or (node.get("parents") or [None])[1:]:
+            return False
+        parent = (node.get("parents") or [None])[0]
+        if not any(name.startswith(EPIC_PREFIX) and sha in self.ancestors(name)
+                   for name in self.branches):
+            return False
+        head = self.sha(base)
+        if sha == head or parent not in self.ancestors(base):
+            return False
+        carried, queue, budget = set(), [(head, False)], 4 * (len(self.commits) + 1)
+        while queue:
+            current, past_merge = queue.pop()
+            if current in carried:
+                continue
+            if budget < 0:
+                raise HarnessError("the scenario's commit graph cycles below %s" % base)
+            budget -= 1
+            if current == sha:
+                if past_merge:
+                    return True
+                continue
+            parents = (self.commits.get(current) or {}).get("parents", [])
+            if len(parents) > 1:
+                carried.add(current)      # a merge is where epic history enters
+            past_merge = past_merge or len(parents) > 1
+            queue.extend((p, past_merge) for p in parents)
+        return False
 
     def _is_valid_sync(self, sha, node, branch):
         """A claimed rule-12 sync must be a two-parent merge whose other side is develop."""

@@ -49,8 +49,8 @@ whether an action needs a human.
 - Always explicitly specify `--base develop`, including for native epic sub-issues.
   Epics are parent issues only. Existing arrangements need an owner-approved temporary
   exception recorded in `docs/source/development/github-flow-transition.rst`.
-  The epic branch contract and its dated rollout are superseded by #1592; retained
-  diagnostics are not prerequisites. Retargeting and branch cleanup remain human acts.
+  The epic branch contract and its dated rollout are superseded by #1592; #1593
+  removes their tools. Retargeting and branch cleanup remain human acts.
 - Only the same repository's `develop` branch may target
   `master`. Never delete, force-push or directly push to either permanent branch.
 - Use merge commits when synchronizing permanent branches.
@@ -95,7 +95,7 @@ them through it instead of scraping the check output, and fix them where reporte
 
 - `scripts/wip ls` reflects your claim after claiming; `scripts/wip answers` after a human reply.
 - Offline checks for the tooling itself: `python3 scripts/test_wip_board_sync.py`,
-  `python3 scripts/test_decisions.py`, `python3 scripts/test_epic_rollout.py` (no `gh`, no
+  `python3 scripts/test_decisions.py` (no `gh`, no
   network; CI runs them via `scripts/check_repo_tooling.sh`).
 - Before hand-back: `git status` clean of unintended files, zero leftover containers/networks/
   volumes of the job's project (names reported per root `AGENTS.md`).

@@ -154,7 +154,7 @@ Measured triggers of all seven workflow files (``awk`` over the ``on:`` block):
      - enforces the permanent-branch rules a release promotion has to respect
    * - ``project-overview-sync.yml``
      - schedule, issue events
-     - board maintenance
+     - historical board maintenance; removed by #1593 in favor of native/manual Projects
 
 And nowhere in ``.github/workflows`` does a ``release:`` trigger, a ``tags:``
 filter or a ``gh release`` call exist (measured by grepping for them): there is

@@ -1746,6 +1746,9 @@ class CliContractTest(unittest.TestCase):
         with open(os.path.join(shim_dir, "docker"), "w", encoding="utf-8") as h:
             h.write(
                 "#!/bin/sh\n"
+                "if [ -n \"$MRMAP_TASK_PERF_DOCKER_LOG\" ]; then\n"
+                "  printf '%%s\\n' \"$*\" >> \"$MRMAP_TASK_PERF_DOCKER_LOG\"\n"
+                "fi\n"
                 "hit=0; want=0\n"
                 "for a in \"$@\"; do\n"
                 "  if [ \"$want\" = 1 ]; then export \"$a\"; want=0; continue; fi\n"
@@ -1844,6 +1847,40 @@ class CliContractTest(unittest.TestCase):
             arms = {json.loads(line)["arm"] for line in h if line.strip()}
         self.assertEqual({"baseline", "sql-n-plus-one", "duplicate-remote-call"},
                          arms)
+
+    def test_the_runner_refuses_an_unmeasured_family_before_the_stack_boots(self):
+        """`--family harvesting.finish` dies at the guard, not two minutes later.
+
+        The guard is the analyzer's, not a character class: `harvesting.finish`
+        is well-formed and is in the registry, so only the check against the
+        bench classes can see that a run of it boots PostGIS, skips every class
+        and writes no workload file. The shim's invocation log is the proof that
+        `docker` was never asked for anything - the point of checking pre-boot.
+        """
+        repo, shim = self._runner_repo()
+        log = os.path.join(tempfile.mkdtemp(prefix="dockerlog-"), "calls.log")
+        open(log, "w").close()
+        run = self._run_runner(repo, shim, "harvesting.finish", 1,
+                               "backend/task-perf",
+                               extra={"MRMAP_TASK_PERF_DOCKER_LOG": log})
+        self.assertEqual(2, run.returncode, run.stdout + run.stderr)
+        self.assertIn("--family harvesting.finish refused", run.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual("", handle.read().strip(),
+                             "the guard ran after docker was already asked")
+
+    def test_the_runner_refuses_a_typoed_family_before_the_stack_boots(self):
+        """Same guard, the case the old character class let through."""
+        repo, shim = self._runner_repo()
+        log = os.path.join(tempfile.mkdtemp(prefix="dockerlog-"), "calls.log")
+        open(log, "w").close()
+        run = self._run_runner(repo, shim, "harvesting.import_chunx", 1,
+                               "backend/task-perf",
+                               extra={"MRMAP_TASK_PERF_DOCKER_LOG": log})
+        self.assertEqual(2, run.returncode, run.stdout + run.stderr)
+        self.assertIn("--family harvesting.import_chunx refused", run.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual("", handle.read().strip())
 
     def test_end_to_end_through_subprocesses(self):
         """load -> report -> compare -> gate as CI calls them."""

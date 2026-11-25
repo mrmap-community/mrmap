@@ -7,6 +7,7 @@ refused address must never be connected to at all, so the loopback case carries 
 assertion that the policy opens when it is told to and the assertion that it stays closed.
 """
 import ipaddress
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest.mock import patch
@@ -15,13 +16,23 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import SimpleTestCase, override_settings
 from extras import ssrf
 from extras.ssrf import (GuardedHTTPAdapter, GuardedSession, address_is_allowed,
-                         check_targets, host_is_allowed, url_is_fetchable)
+                         host_is_allowed, judge_targets, url_is_fetchable)
 from registry.models.metadata import fetch_metadata_document
 from registry.models.service import WebMapService
+from requests import Session
 from requests.exceptions import ConnectionError
 
 #: a public address, as the address of a service which is meant to be registered
 PUBLIC = '93.184.216.34'
+
+
+def _literal_of(host):
+    """The address a host string spells out, None for a name"""
+    try:
+        return ipaddress.ip_address((host or '').strip().strip('[]'))
+    except ValueError:
+        return None
+
 
 #: the closed default: production, with neither list configured
 CLOSED = override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='',
@@ -135,30 +146,31 @@ class DevelopmentAllowanceTest(SimpleTestCase):
 
 @CLOSED
 class TargetCheckTest(SimpleTestCase):
-    """`check_targets`, the judgment one connection undergoes"""
+    """`judge_targets`, the judgment one connection undergoes"""
 
     def test_an_unresolvable_host_is_refused_rather_than_allowed(self):
         with self.assertRaises(ConnectionError):
-            check_targets('does-not-exist.invalid', 80)
+            judge_targets('does-not-exist.invalid', 80)
 
     def test_every_answer_of_a_name_is_judged(self):
         # one public, one internal: the rebinding setup the policy exists for
         answers = [(2, 1, 6, '', (PUBLIC, 80)), (2, 1, 6, '', ('10.1.1.1', 80))]
         with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
             with self.assertRaises(ConnectionError):
-                check_targets('rebind.example', 80)
+                judge_targets('rebind.example', 80)
 
     def test_a_name_which_only_answers_publicly_is_judged_through(self):
+        # the addresses of the very lookup which was judged are what the caller connects to
         answers = [(2, 1, 6, '', (PUBLIC, 80))]
         with patch('extras.ssrf.socket.getaddrinfo', return_value=answers):
-            self.assertIsNone(check_targets('services.example', 80))
+            self.assertEqual(judge_targets('services.example', 80), [PUBLIC])
 
     def test_a_tunneling_proxy_target_is_judged(self):
         answers = [(2, 1, 6, '', (PUBLIC, 3128))]
         with patch('extras.ssrf.socket.getaddrinfo', side_effect=lambda host, *a: answers
                    if host == 'proxy.example' else [(2, 1, 6, '', ('10.0.0.9', 80))]):
             with self.assertRaises(ConnectionError):
-                check_targets('proxy.example', 3128, tunnel=('internal.example', 80))
+                judge_targets('proxy.example', 3128, tunnel=('internal.example', 80))
 
 
 class ListeningServerTest(SimpleTestCase):
@@ -185,7 +197,8 @@ class ListeningServerTest(SimpleTestCase):
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(self._stop, server, thread)
-        self.origin = f'http://127.0.0.1:{server.server_port}'
+        self.port = server.server_port
+        self.origin = f'http://127.0.0.1:{self.port}'
 
     @staticmethod
     def _stop(server, thread):
@@ -236,10 +249,69 @@ class GuardedSessionFetchingTest(ListeningServerTest):
     @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
                        MRMAP_FETCH_DENY_NETWORKS='')
     def test_a_plain_session_of_the_same_process_is_unaffected(self):
-        from requests import Session
         with Session() as session:
             response = session.get(f'{self.origin}/capabilities', timeout=5)
         self.assertEqual(response.status_code, 200)
+
+    @override_settings(MRMAP_PRODUCTION=True, MRMAP_FETCH_ALLOW_NETWORKS='127.0.0.0/8',
+                       MRMAP_FETCH_DENY_NETWORKS='127.0.0.2/32')
+    def test_a_name_which_answers_differently_to_the_guard_and_the_socket_is_never_connected_to(
+            self):
+        """the rebinding setup: judged and connected must be the answer of one lookup
+
+        The name answers the granted loopback address to the first lookup and the refused
+        decoy address to the next. Whoever resolved the name a second time for the socket
+        would reach the decoy, which is what this asserts cannot happen: the decoy is never
+        connected to, the judged address answers, and the name is asked exactly once.
+        """
+        asked = []
+        real_getaddrinfo = socket.getaddrinfo
+
+        def resolving(host, port, *args):
+            if _literal_of(host) is not None:
+                # a literal is resolved by the resolver it would really have
+                return real_getaddrinfo(host, port, *args)
+            asked.append(host)
+            address = '127.0.0.1' if asked.count(host) == 1 else '127.0.0.2'
+            return [(socket.AF_INET, 1, 6, '', (address, port))]
+
+        decoy, decoy_hits = self._listener('127.0.0.2', self.port)
+        with patch.object(ssrf.socket, 'getaddrinfo', side_effect=resolving):
+            with GuardedSession() as session:
+                response = session.get(
+                    f'http://rebind.example:{self.port}/capabilities', timeout=5)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.requested, ['/capabilities'])
+        self.assertEqual(decoy_hits, [],
+                         'the refused decoy answered: the socket went where the guard never '
+                         'looked')
+
+    def _listener(self, address, port=0):
+        """another listener which counts what it answered, stopped with the test
+
+        ``port`` lets a decoy sit on the very port of the fetched service, so a socket which
+        re-resolved the name reaches an endpoint which really answers instead of a closed one.
+        """
+        hits = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                hits.append(self.path)
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.send_header('Content-Length', '5')
+                self.end_headers()
+                self.wfile.write(b'SECRE')
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer((address, port), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(self._stop, server, thread)
+        return server, hits
 
 
 @CLOSED

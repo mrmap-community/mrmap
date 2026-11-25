@@ -54,7 +54,9 @@ refused address stays refused in every spelling which encodes it.
 Nothing is resolved for the sake of the judgment alone: the answer of a name is judged at the
 moment the connection is created, before a socket exists, and that stays true for every hop of a
 redirect. A name which answers more than one address is granted only when **every** answer is
-granted.
+granted. The address which is judged is also the address the socket is opened to - the name is
+resolved once for both - so a name which answers publicly to one lookup and internally to the
+next cannot talk its way past the policy.
 
 ## Opening it for internally hosted services
 

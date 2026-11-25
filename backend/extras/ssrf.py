@@ -30,10 +30,13 @@ For a URL carrying an IP literal that verdict is final and `host_is_allowed` ans
 without touching DNS. For a host name `host_is_allowed` answers True - a name is not an
 address, and what it means is decided at the moment of connecting - and the transport answers
 the same question for **every** address the name resolves to, at the moment the connection to
-it is created. That is the only place a DNS rebinding answer is still caught: the second
-lookup may answer differently from the first, and a pooled socket may be older than any
-check. It also means a refused address is never connected to at all: the lookup is judged
-before the socket is created.
+it is created. That is the only place a DNS rebinding answer is still caught: a pooled socket
+may be older than any check, and the answer of a name at connect time is the only one which
+means anything. Judged and connected are the **same** answer: `judge_targets` resolves the
+name once, refuses it unless every address of that answer passes, and hands an address of the
+very same answer to the socket, so the connect layer resolves nothing a second time and a name
+cannot answer publicly to the guard and internally to the socket. A refused address is
+therefore never connected to at all.
 
 Through a proxy both ends are judged: the proxy as the peer, and - for a tunneling proxy -
 the tunnel target as the endpoint. A *forwarding* proxy is judged as the peer only; it is the
@@ -55,6 +58,7 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ConnectionError
 from urllib3 import connectionpool
+from urllib3.exceptions import NewConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -219,7 +223,7 @@ def host_is_allowed(host):
     """Whether the policy lets a fetch be aimed at the given host name or IP literal
 
     A host *name* is answered with True: what the policy judges are the addresses of a name,
-    and those are judged by the transport once the lookup is answered (see `check_targets`).
+    and those are judged by the transport once the lookup is answered (see `judge_targets`).
     Only a literal can be judged without a lookup, and that is what makes this usable as a
     serializer validator: a name is never refused here, so no screen becomes slower or
     noisier than the endpoint it validates, and a rebinding answer is still caught.
@@ -254,46 +258,55 @@ def _refusal(host, address):
         f'MRMAP_FETCH_ALLOW_NETWORKS, see {POLICY_DOC}.')
 
 
-def _addresses_of(host, port):
-    """Every address of a host or literal, as the connect layer sees it
+def _answers_of(host, port):
+    """Every address a host or literal resolves to, in lookup order
 
-    A host which resolves to nothing yields ``(None,)`` and not ``()``: what cannot be judged
-    is not let through by accident, and an unresolvable host is unreachable for the caller
-    either way.
+    A host which resolves to nothing yields ``[]``: what cannot be judged is not let through
+    by accident, and an unresolvable host is unreachable for the caller either way.
     """
     literal = _literal(host)
     if literal is not None:
-        return (str(literal),)
+        return [str(literal)]
     try:
         infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
     except (socket.gaierror, UnicodeError, OverflowError):
-        return (None,)
-    return tuple(dict.fromkeys(info[4][0] for info in infos))
+        return []
+    return list(dict.fromkeys(info[4][0] for info in infos))
 
 
-def check_targets(host, port, tunnel=None):
-    """Refuse the first target address of a connection which the policy does not allow
+def _judge(host, addresses):
+    """Refuse the first address of one host which the policy does not allow"""
+    if not addresses:
+        raise ConnectionError(f'{host}: the host does not resolve to any address.')
+    for address in addresses:
+        if not address_is_allowed(ipaddress.ip_address(address)):
+            raise _refusal(host, address)
 
-    Every address the name resolves to is judged and not only the first: an endpoint which
+
+def judge_targets(host, port, tunnel=None):
+    """Judge the targets of one connection and return the judged addresses of its own host
+
+    Every address the host resolves to is judged and not only the first: an endpoint which
     answers with one public and one internal address is exactly the rebinding setup this
-    guards.
+    guards. The addresses are returned so that the caller connects to one of **this** lookup's
+    answers instead of letting the connect layer ask a second question about the same name.
 
     Args:
         host (str): the host the request names
         port (int): the port the request names
         tunnel (tuple): ``(host, port)`` a tunneling proxy is asked to reach, when it tunnels
 
+    Returns:
+        list: the non-empty addresses of ``host``, every one of them allowed
+
     Raises:
         requests.exceptions.ConnectionError: on the first refused target
     """
-    targets = _addresses_of(host, port)
+    answers = _answers_of(host, port)
+    _judge(host, answers)
     if tunnel:
-        targets = targets + _addresses_of(tunnel[0], tunnel[1])
-    for address in dict.fromkeys(targets):
-        if address is None:
-            raise ConnectionError(f'{host}: the host does not resolve to any address.')
-        if not address_is_allowed(ipaddress.ip_address(address)):
-            raise _refusal(host, address)
+        _judge(tunnel[0], _answers_of(tunnel[0], tunnel[1]))
+    return answers
 
 
 class HostPolicyMixin:
@@ -303,11 +316,35 @@ class HostPolicyMixin:
     response hook runs after the request was written, and an adapter only ever sees the name
     of the prepared request. Both would judge the *intent* of a fetch instead of the
     connection it actually opens, which is the whole point: a name is not an address.
+
+    The judged address is also the connected one. ``create_connection`` resolves the host it
+    is given, so a second lookup of the same name would let an attacker-controlled answer
+    differ between guard and socket - the rebinding this module exists for. The name is
+    therefore resolved once here, every address of that answer is judged, and an address of
+    that very answer is spelled as a literal to the connect layer: the lookup it performs
+    there is the lookup of a literal and can no longer answer differently. Each judged address
+    is tried in turn, so a name which answers with both a dead and a live address still gets
+    the fallback the connect layer would have given it.
     """
 
     def _new_conn(self):
-        check_targets(self.host, self.port, **self._tunnel_target())
-        return super()._new_conn()
+        answers = judge_targets(self.host, self.port, **self._tunnel_target())
+        # urllib3 keeps the name it looks up in ``_dns_host`` (the ``host`` property strips
+        # the trailing dot of an FQDN for TLS only). Pinning it to a judged literal for the
+        # duration of the connect is what makes the lookup below this line the lookup above it.
+        unpin = self._dns_host
+        failure = None
+        try:
+            for judged in answers:
+                self._dns_host = judged
+                try:
+                    return super()._new_conn()
+                except NewConnectionError as error:
+                    failure = failure or error
+            # `judge_targets` refused an empty answer already, so there is one to report
+            raise failure
+        finally:
+            self._dns_host = unpin
 
     def _tunnel_target(self):
         """The endpoint of a tunneling proxy, as ``set_tunnel`` stored it"""

@@ -1,6 +1,6 @@
 ---
 name: MrMap GitHub Workflow
-description: "Doing MrMap development work on GitHub — claiming an issue, branch/worktree setup, commits, pushes, pull-request readiness, definition of done, asking humans for decisions, the wip claim board, labels/epics, or respecting human-only actions (approve/merge/resolve)."
+description: "Doing MrMap development work on GitHub — claiming an issue, branch/worktree setup, the epic branch base rule (scripts/epic_rollout.py), commits, pushes, pull-request readiness, definition of done, asking humans for decisions, the wip claim board, labels/epics, or respecting human-only actions (approve/merge/resolve)."
 ---
 
 # MrMap GitHub Workflow
@@ -47,8 +47,19 @@ whether an action needs a human.
   watcher — do not reintroduce one (root `AGENTS.md`).
 
 
-- Always explicitly specify the PR base: `develop` or the designated epic
-  integration branch. Only the same repository's `develop` branch may target
+- Always explicitly specify the PR base: `develop`, or — for a child of an open epic that
+  declares a `slug:` first body line — `epic/<slug>` of its own epic and nothing else. An epic
+  branch is cut by a **person** from the tip of `origin/develop` and never created, deleted,
+  retargeted or pushed to directly by an agent; the epic's single integration PR (`epic/<slug>`
+  → `develop`) is human-approved and human-merged (`AGENTS.md` "Git conventions",
+  `docs/source/development/epic-integration-contract.rst`). Before starting work on an epic
+  child, or before opening any PR whose base is not `develop`, run
+  `python3 scripts/epic_rollout.py --epic <epic number>` (or without `--epic` for every open
+  epic at once): it prints the decision row, the lawful base and the actor owed every
+  outstanding step. `scripts/epic_rollout.json` is the reviewed rollout
+  policy (dates, bootstrap exemption, time-limited legacy exceptions); an epic exempt from the
+  contract targets `develop` only while that file says so with a reason and an expiry.
+- Only the same repository's `develop` branch may target
   `master`. Never delete, force-push or directly push to either permanent branch.
 - Use merge commits when synchronizing permanent branches.
 
@@ -85,6 +96,13 @@ them through it instead of scraping the check output, and fix them where reporte
 - Sleep/wait loops around CI or docker (root `AGENTS.md` "Running shell commands").
 - Mixing unrelated formatting/refactoring, changelog entries, or labels into a PR
   (`CONTRIBUTING.md`, root `AGENTS.md`).
+- Basing an epic child PR on `develop`, or opening one into another epic's branch or a
+  sibling child branch (R2/R5 of the contract); creating, deleting or force-pushing an
+  `epic/*` branch, or retargeting a PR to "fix" its base — those are person-owned acts
+  (`epic_rollout.py` names the actor).
+- Starting work on an epic child without reading its row: `python3 scripts/epic_rollout.py
+  --epic <N>` says the lawful base, and `scripts/epic_rollout.json` says whether the epic is
+  exempt — an exemption that is not in that file is not an exemption.
 - Inventing conventions for missing pieces (e.g. inventing a "ready for review" label): check
   `gh label list` / templates, ask via `scripts/decisions` or `scripts/wip ask`.
 
@@ -92,8 +110,11 @@ them through it instead of scraping the check output, and fix them where reporte
 
 - `scripts/wip ls` reflects your claim after claiming; `scripts/wip answers` after a human reply.
 - Offline checks for the tooling itself: `python3 scripts/test_wip_board_sync.py`,
-  `python3 scripts/test_decisions.py` (no `gh`, no network; CI runs them via
-  `scripts/check_repo_tooling.sh`).
+  `python3 scripts/test_decisions.py`, `python3 scripts/test_epic_rollout.py` (no `gh`, no
+  network; CI runs them via `scripts/check_repo_tooling.sh`).
+- Before an epic child's PR: `python3 scripts/epic_rollout.py --epic <epic number>` names the
+  row, the base and the actor; the same tool's readiness findings are what says the rollout is
+  on, and `--json` is the shape for a machine to read.
 - Before hand-back: `git status` clean of unintended files, zero leftover containers/networks/
   volumes of the job's project (names reported per root `AGENTS.md`).
 

@@ -37,9 +37,11 @@ The four files that carry this
 How a plan is computed, measured on 17.11.2
 --------------------------------------------
 
-All of it was measured against the exact library the action of the pin
-(``release-please-action@v4.4.1``, which pins ``release-please@^17.3.0``)
-ships, on synthetic histories that replay the shapes #1578 counted on
+All of it was measured against ``release-please@17.11.2``, supplied to the
+synthetic replay through ``MRMAP_RELEASE_PLEASE_JS``. The workflow pins
+``release-please-action@v5.0.0``, which declares ``release-please@^17.6.0``;
+the replay's measured version is independent of the action's bundled version.
+The synthetic histories replay the shapes #1578 counted on
 ``develop``: 7585 commits of which 53 parse, 833 GitHub merge commits whose
 whole body is the pull request title, and zero tags and zero releases ever
 cut. The replay itself is ``scripts/test_release_planning_synthetic.py``; the
@@ -105,22 +107,18 @@ The parsing
 The bump
     ``DefaultVersioningStrategy``, measured from the parse above:
 
-    ====================== ============== ================== ==================
-    window                 default        this config        why
-    ====================== ============== ================== ==================
-    ``feat``               0.1.0 → 0.2.0  0.2.0              minor
-    ``fix`` / ``perf`` /   0.1.1          0.1.1              patch
-    ``refactor`` / hidden-
-    but-parsed types
-    ``feat`` + ``fix``     0.2.0          0.2.0              highest wins
-    ``feat!`` or a         1.0.0          0.2.0              ``bump-minor-pre-major``:
-    ``BREAKING CHANGE``                                     below 1.0.0 a
-                                                            breaking change is
-                                                            the minor this
-                                                            project promised
-    ``docs``/``chore``/…   0.1.1          -                  notes empty →
-    only                                                    no PR at all
-    ====================== ============== ================== ==================
+    ======================================  =============  ===========  ======================================
+    window                                  default        this config  why
+    ======================================  =============  ===========  ======================================
+    ``feat``                                0.1.0 → 0.2.0  0.2.0        minor
+    ``fix`` / ``perf`` / ``refactor`` /     0.1.1          0.1.1        patch
+    hidden-but-parsed types
+    ``feat`` + ``fix``                      0.2.0          0.2.0        highest wins
+    ``feat!`` or a ``BREAKING CHANGE``      1.0.0          0.2.0        ``bump-minor-pre-major``: below 1.0.0
+                                                                        a breaking change is the minor this
+                                                                        project promised
+    ``docs``/``chore``/… only               0.1.1          -            notes empty → no PR at all
+    ======================================  =============  ===========  ======================================
 
     ``bump-minor-pre-major`` is the ADR recommendation of #1578 (Q2) kept as a
     one-key reversible choice while Q2 stays Pending: without it, the first

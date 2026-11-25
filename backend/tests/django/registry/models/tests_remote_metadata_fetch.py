@@ -64,7 +64,7 @@ class RemoteMetadataFetchTest(TestCase):
         value is what the capabilities request of the very same registration
         waits for (#1260).
         """
-        with patch('registry.models.metadata.Session') as session:
+        with patch('registry.models.metadata.GuardedSession') as session:
             session.return_value.send.return_value = MockResponse(
                 status_code=200, content='<metadata/>')
             self.remote_metadata.fetch_remote_content()
@@ -105,7 +105,7 @@ class RemoteMetadataFetchTest(TestCase):
         'nothing listens there' and 'it went silent' are fixed by different
         people (#1260).
         """
-        with patch('registry.models.metadata.Session') as session:
+        with patch('registry.models.metadata.GuardedSession') as session:
             session.return_value.send.side_effect = ConnectionError(
                 'connection refused')
             with self.assertRaises(MetadataFetchUnreachable) as captured:
@@ -125,7 +125,7 @@ class RemoteMetadataFetchTest(TestCase):
         which moved reads differently from a host which is down, and neither
         one is fetched by trying again (#1260).
         """
-        with patch('registry.models.metadata.Session') as session:
+        with patch('registry.models.metadata.GuardedSession') as session:
             session.return_value.send.return_value = MockResponse(
                 status_code=404, content='')
             with self.assertRaises(NoContent) as captured:
@@ -135,7 +135,7 @@ class RemoteMetadataFetchTest(TestCase):
 
     def test_an_empty_answer_says_the_server_sent_nothing(self):
         """A 200 without a document is its own sentence, too."""
-        with patch('registry.models.metadata.Session') as session:
+        with patch('registry.models.metadata.GuardedSession') as session:
             session.return_value.send.return_value = MockResponse(
                 status_code=200, content='')
             with self.assertRaises(NoContent) as captured:
@@ -148,7 +148,7 @@ class RemoteMetadataFetchTest(TestCase):
         self.remote_metadata.remote_content = '<metadata>kept</metadata>'
         self.remote_metadata.save()
 
-        with patch('registry.models.metadata.Session') as session:
+        with patch('registry.models.metadata.GuardedSession') as session:
             session.return_value.send.side_effect = ReadTimeout('too slow')
             with self.assertRaises(MetadataFetchTimeout):
                 self.remote_metadata.fetch_remote_content()

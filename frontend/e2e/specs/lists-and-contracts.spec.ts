@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { DATASET_TITLE_ABSENT, DATASET_TITLE_VALID } from '../helpers/fixtures';
 import { expectNoForbiddenAlert } from '../helpers/session';
+import { UiAdapter } from '../support/adapters/ui';
 
 // Issues #943, #944, #945 and #1035 - the sort contract of the lists, the
 // schema documentation of the `sort` parameter, and the filter labels.
@@ -28,8 +29,11 @@ test.describe('lists and their sort contract (#943, #1035)', () => {
     const calls = collectApi(page);
     await page.goto('/Language');
     // #943's symptom was an empty page without any error: rows prove the
-    // list request the page sends is answered
-    await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 30_000 });
+    // list request the page sends is answered. Through the adapter, so this
+    // cannot pass on the loading skeleton of DatagridLoading (#1689 review,
+    // finding 5): a pending request renders five unclassed <tbody><tr>s.
+    await expect(new UiAdapter(page).datagridRows().first())
+      .toBeVisible({ timeout: 30_000 });
     await expect
       .poll(() => sawCall(calls, /\/api\/registry\/languages\?.*sort=/),
         { message: 'a sorted language list request' })

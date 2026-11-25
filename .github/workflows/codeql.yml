@@ -8,7 +8,9 @@ on:
     types: [checks_requested]
     branches: [master, develop]
   pull_request:
-    branches: [master, develop]
+    # epic/** too: a child PR into an epic branch gets the same security
+    # analysis as one into develop (#1594, epic #1588).
+    branches: [master, develop, 'epic/**']
   schedule:
     - cron: '30 5 * * 1'
 

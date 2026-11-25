@@ -15,6 +15,7 @@ XPATH_MAP = {
         },
         "_schema": "http://www.opengis.net/wfs/2.0",
         "_pre_save": [
+            "registry.mappers.extensions.validate_required_service_contact",
             "registry.mappers.extensions.clean_up_operation_urls"
         ],
         "service": {
@@ -27,6 +28,7 @@ XPATH_MAP = {
                     "_reverse_parser": "registry.mappers.parsers.value.int_to_version"
                 },
                 "title": "./ows:ServiceIdentification/ows:Title",
+                "service_url": "./ows:OperationsMetadata/ows:Operation[@name='GetCapabilities']/ows:DCP/ows:HTTP/ows:Get[1]/@xlink:href",
                 "abstract": "./ows:ServiceIdentification/ows:Abstract",
                 "fees": "./ows:ServiceIdentification/ows:Fees",
                 "access_constraints": "./ows:ServiceIdentification/ows:AccessConstraints",

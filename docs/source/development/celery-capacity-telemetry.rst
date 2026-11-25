@@ -53,23 +53,23 @@ The attempt table
 One row per observed attempt, written by the worker process that observed it:
 ``system.models.CeleryTaskAttempt`` (migration ``system.0002_celery_attempt_samples``).
 
-===========================  ==========================================================
-column                       meaning
-===========================  ==========================================================
-``task_id`` / ``attempt_no``  the attempt's identity: celery's task uuid and ``request.retries``
-``task_name``                 the celery task name, truncated to 255
-``queue``                     routing key the message was consumed from
-``worker``                    ``hostname`` of the executing process
-``root_id`` / ``parent_id``   celery's own correlation ids (chain / fan-out parent)
-``periodic_name``             beat's ``periodic_task_name`` header, when the fire came from beat
-``published_at``              parseable publish stamp, else ``None``
+================================  ===========================================================================
+column                            meaning
+================================  ===========================================================================
+``task_id`` / ``attempt_no``      the attempt's identity: celery's task uuid and ``request.retries``
+``task_name``                     the celery task name, truncated to 255
+``queue``                         routing key the message was consumed from
+``worker``                        ``hostname`` of the executing process
+``root_id`` / ``parent_id``       celery's own correlation ids (chain / fan-out parent)
+``periodic_name``                 beat's ``periodic_task_name`` header, when the fire came from beat
+``published_at``                  parseable publish stamp, else ``None``
 ``started_at`` / ``finished_at``  wall times of prerun and of the terminal signal
-``active_seconds``            measured slot occupancy, ``None`` while open
-``wait_seconds``              measured broker wait, ``None`` when unstamped
-``outcome``                   ``""`` while open; else ``success`` / ``failure`` / ``retry`` / ``revoked``
-``quality``                   list of quality flags, see below
-``recorded_at``               when this row was written
-===========================  ==========================================================
+``active_seconds``                measured slot occupancy, ``None`` while open
+``wait_seconds``                  measured broker wait, ``None`` when unstamped
+``outcome``                       ``""`` while open; else ``success`` / ``failure`` / ``retry`` / ``revoked``
+``quality``                       list of quality flags, see below
+``recorded_at``                   when this row was written
+================================  ===========================================================================
 
 ``(task_id, attempt_no)`` is the identity because celery's ``Task.retry`` keeps
 the same task uuid across retries — verified against the celery 5.7 source —
@@ -196,17 +196,17 @@ measured sample.
 Settings
 ========
 
-=================================  ============================================================
-``MRMAP_CAPACITY_TELEMETRY``        environment kill-switch; any of ``off``/``0``/``false``
-                                    disables stamping and collecting everywhere
+==========================================  ==========================================================================
+``MRMAP_CAPACITY_TELEMETRY``                environment kill-switch; any of ``off``/``0``/``false`` disables stamping
+                                            and collecting everywhere
 ``CAPACITY_TELEMETRY_COLLECT_ANY_PROCESS``  test seam only — deployments leave it False
-``CAPACITY_TELEMETRY_BUFFER_LIMIT`` / ``..._FLUSH_THRESHOLD`` / ``..._FLUSH_SECONDS`` / ``..._RETRY_COOLDOWN_SECONDS``
-                                    the per-worker bounds above
-``CAPACITY_TELEMETRY_RETENTION_DAYS`` / ``..._MAX_ATTEMPTS`` / ``..._ABANDON_GRACE_HOURS``
-                                    the sweep's bounds
-``CAPACITY_TOPOLOGY_CACHE_SECONDS`` / ``..._TIMEOUT_SECONDS``
-                                    the broker observation bounds
-=================================  ============================================================
+                                            ``CAPACITY_TELEMETRY_BUFFER_LIMIT`` / ``..._FLUSH_THRESHOLD`` /
+                                            ``..._FLUSH_SECONDS`` / ``..._RETRY_COOLDOWN_SECONDS`` the per-worker
+                                            bounds above ``CAPACITY_TELEMETRY_RETENTION_DAYS`` / ``..._MAX_ATTEMPTS``
+                                            / ``..._ABANDON_GRACE_HOURS`` the sweep's bounds
+                                            ``CAPACITY_TOPOLOGY_CACHE_SECONDS`` / ``..._TIMEOUT_SECONDS`` the broker
+                                            observation bounds
+==========================================  ==========================================================================
 
 What belongs to #1326 and not here
 ==================================

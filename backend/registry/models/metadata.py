@@ -42,8 +42,8 @@ from registry.mappers.persistence.handler import PersistenceHandler
 from registry.models.document import MetadataDocumentModelMixin
 from registry.models.metadata_query import VALID_RELATIONS
 from registry.settings import REGISTRATION_REQUEST_TIMEOUT_SECONDS
-from requests import Request, Session
-from requests.adapters import HTTPAdapter
+from extras.ssrf import GuardedHTTPAdapter, GuardedSession
+from requests import Request
 from requests.exceptions import ConnectionError, Timeout
 from simple_history.models import HistoricalRecords
 from urllib3 import Retry
@@ -528,13 +528,19 @@ def fetch_metadata_document(link, reference="the reference"):
         MetadataFetchUnreachable: the server could not be reached at all
         NoContent: an answer which is no document (status or empty body)
     """
-    session = Session()
+    # the link is the onlineResource of an external metadata document: the host policy judges
+    # where it may connect (#1474, SEC-16)
+    session = GuardedSession()
     retries = Retry(
         total=3,
         read=False,
         backoff_factor=0.1
     )
-    session.mount(link, HTTPAdapter(max_retries=retries))
+    # the retry adapter is mounted on the prefix of the link so that only this download
+    # retries, and it has to be a `GuardedHTTPAdapter`: `Session.mount` *replaces* the
+    # adapter of the scheme, so mounting the plain one here would drop the host policy again
+    # for exactly the path which fetches a link an upstream document advertised (#1474)
+    session.mount(link, GuardedHTTPAdapter(max_retries=retries))
     # FUTURE: Re add authentication
     request = Request(method="GET",
                       url=link,

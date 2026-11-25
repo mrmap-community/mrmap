@@ -1,7 +1,10 @@
 from collections import Counter
 
+from lxml import etree
 from mptt2.models import Node, Tree
-from registry.exceptions.service import DuplicateLayerIdentifiers
+from registry.exceptions.service import (DuplicateLayerIdentifiers,
+                                         MissingCapabilitiesContact)
+from registry.models.metadata import MetadataContact
 from registry.models.service import Layer, OperationUrl
 
 
@@ -94,3 +97,48 @@ def clean_up_operation_urls(mapper):
     for key, inst in cache.items():
         if inst is None or isinstance(inst, OperationUrl) and is_invalid_operation_url(inst):
             mapper.cache.delete(key)
+
+
+def validate_required_service_contact(mapper):
+    """Refuses a capabilities document from which no contact row can be derived.
+
+    The service metadata model requires both service and metadata contacts.  OGC
+    documents vary in namespace, but the element names remain identifiable; map
+    the document's usable contact once and report the missing document element
+    before persistence reaches PostgreSQL.
+    """
+    root = mapper.xml_root
+    local_names = {
+        etree.QName(node).localname
+        for node in root.iter()
+        if isinstance(node.tag, str)
+    }
+
+    contact_elements = {
+        "WMS": "ContactInformation",
+        "WFS": "ServiceContact",
+    }
+    if "WMS_Capabilities" in {etree.QName(node).localname for node in root.iter() if isinstance(node.tag, str)}:
+        element = contact_elements["WMS"]
+    elif "WFS_Capabilities" in {etree.QName(node).localname for node in root.iter() if isinstance(node.tag, str)}:
+        element = contact_elements["WFS"]
+    else:
+        return
+
+    contacts = [
+        inst for inst in mapper.read_all_from_cache().values()
+        if isinstance(inst, MetadataContact)
+    ]
+    usable = any(any(getattr(contact, field, None) not in (None, "") for field in
+                     ("name", "person_name", "email", "phone", "facsimile",
+                      "city", "postal_code", "address", "state_or_province",
+                      "country"))
+                 for contact in contacts)
+
+    if not usable:
+        # A WFS ProviderName is an allowed fallback for a missing person contact.
+        if element == "ServiceContact" and "ProviderName" in local_names:
+            provider_names = root.xpath("//*[local-name()='ProviderName']")
+            if provider_names and "".join(provider_names[0].itertext()).strip():
+                return
+        raise MissingCapabilitiesContact(element)

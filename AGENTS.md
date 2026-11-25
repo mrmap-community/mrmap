@@ -14,6 +14,17 @@ The `AGENTS.md` nearest to the files you edit is the most specific one and wins 
 
 Before implementing changes, inspect the surrounding code and existing project patterns. Prefer extending existing abstractions over introducing new ones.
 
+## GitHub Native First and agent independence
+
+Use native issues, parent/sub-issues, dependencies, assignees, Draft PRs and Projects.
+A person or external coordinator assigns one worker after checking blockers and
+conflicting work. Assignment is not a lock; dependencies are not enforced merge gates.
+Core runtime, build, deployment, migrations, CI, monitoring, backup/recovery, tests
+and releases must work without an agent platform, MCP client or LLM credentials.
+OpenHands, OpenCode, Codex and other clients are optional. AI-specific features use
+replaceable providers, isolated credentials and validated outputs. Optional model-written
+documentation narrative must not make a coding-agent platform a build dependency.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
@@ -35,21 +46,14 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
   application; `scripts/wip` is the legacy work claim board described under "Assigning work and legacy claims", and
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
-  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
-  the host capacity gate described under "Check host capacity before starting another stack".
-  An orchestrator that already tracks its own jobs asks the gate with `--stacks` and
-  `--processes`, so the count that decides is the count of jobs it actually runs.
-  Nothing in this repository starts, schedules or supervises an agent: development
-  orchestration is external, done by Agent Orchestrator (AO), whose worker sessions run
-  against a checkout of this repository the way a human's session does. The in-repository
-  supervisor that did this before the migration is retired and removed (#1052 retired by
-  #1102); do not bring back a scheduler, a daemon, a systemd unit or a CI watcher here.
-  What the migration leaves untouched is who holds the authority: only a person applies
-  `agent: approved` to an issue, only a person reviews a pull request and decides its
-  merge, and a thread a human raised stays open until that human resolves it. An agent
-  asked for an act it may not do (approve, merge, resolve threads, rewrite an open branch,
-  change branch protection or CI, grant access, commit a secret) hands that ask to a
-  person as a question on the issue through `scripts/wip ask` instead of trying it.
+  scripts/test_wip_board_sync.py`, needs neither `gh` nor the network).
+  The claim/eligibility tools remain only for the owner-confirmed #1391 exception;
+  they are not prerequisites for new development. See the retirement conditions in
+  `docs/source/development/github-flow-transition.rst`.
+  Development execution and resource management belong to the external environment.
+  AO is retired. Optional clients do not authorize reviews, merges, thread resolution,
+  access changes or permanent-branch writes. Ask a person on the issue for actions
+  outside the worker's authority. Do not add a scheduler, daemon or CI watcher here.
   `scripts/nginx_routing_smoke.py` asserts which URLs the nginx of the frontend answers with the
   SPA and which it proxies to the backend (`python3 scripts/nginx_routing_smoke.py`; two containers
   of the nginx the frontend image is built on, no stack). A new frontend route whose name starts
@@ -324,50 +328,16 @@ semantics, troubleshooting and measured startup timings: `docs/source/developmen
   global `docker system prune`, `docker container prune`, `docker volume prune`, or bulk removal of
   other jobs' resources as task cleanup.
 
-#### Check host capacity before starting another stack
+#### Resource ownership before starting another stack
 
-Isolation keeps jobs from corrupting each other, but it does not make the host
-bigger — and on an agent host the jobs do not own the machine either: the
-OpenCode session and the dockerd that starts its test stacks share one container
-cgroup, so the room that matters is the cgroup's, not the machine's. Before
-starting a new agent Compose stack — as a nightly runner deciding whether to
-launch one more job, or before any `docker compose up` in a fresh worktree — run
-`scripts/agent_capacity`. It is host-only Python with no network and no
-application dependency: it reports the 15-minute load per core, the **effective**
-memory (the smaller of `MemAvailable` and the headroom of this cgroup and every
-parent, counting what cannot be reclaimed), free disk on `/`, the running
-`mrmap-agent-*` stacks and agent processes and the memory pressure, prints a
-single verdict line and exits `0` when the job still fits or `1` when it does
-not. It refuses newcomers; it never pauses, renices or kills a running job.
-
-Ask for the class of work you are about to start: `scripts/agent_capacity`
-decides about a heavy Compose test stack (the default), `--need suite` about a
-stack that runs the full unit suite (measured heavier than a targeted check),
-`--need process` about one more agent worker without a stack, `--json` answers
-for a program, and `--stacks`/`--processes` pass counts a caller already keeps.
-`--wait N` queues up to N seconds for a refusal to clear instead of exiting
-busy; it never displaces a running job. The counts are
-prospective — the job being asked about is included, so `stacks 2 (max 3)` fits
-and `stacks 3 (max 3)` does not. The thresholds are environment overrides so a
-job can tune the gate without editing the file: `AGENT_MAX_CPU_PRESSURE` (10,
-the container cgroup's own CPU stall — the outer host's load average decides
-only where no `cpu.pressure` is readable, because it counts tenants this
-container does not control), `AGENT_MAX_LOAD_PER_CORE` (1.5),
-`AGENT_STACK_MIN_MEM_GB` (6), `AGENT_SUITE_MIN_MEM_GB` (8),
-`AGENT_PROCESS_MIN_MEM_GB` (2), `AGENT_MIN_MEM_GB`
-(16, the floor when no memory limit of this cgroup is visible),
-`AGENT_MEM_RESERVE_GB` (2), `AGENT_MEM_NEAR_CEILING_PCT` (90),
-`AGENT_MAX_MEM_PRESSURE` (10), `AGENT_MIN_DISK_GB` (100), `AGENT_MAX_STACKS` (3)
-and `AGENT_MAX_PROCESSES` (6); inside a 16 GiB agent container `AGENT_MAX_STACKS=1`
-is the honest setting. It never opens a socket and caps its `docker ps` call with
-a timeout, so a host that is merely offline or whose docker daemon is stuck still
-gets a verdict instead of hanging. What each metric means, why page cache is not
-charged against a cgroup, how to read the same numbers by hand, the measured
-before/after, and the operator runbook for the ceiling itself — raise the agent
-container's limit or move the docker daemon out of it, and what to measure either
-way (#1054): `docs/source/development/agent-capacity.rst`. The admission rules
-have offline checks — `python3 scripts/test_agent_capacity.py`, which needs
-neither docker nor the network.
+The operator/external execution environment owns host/container resource limits,
+admission and concurrency. Confirm that it can carry the selected workload before
+starting Docker; full suites need more headroom than targeted checks. Account for
+parent cgroup limits, other running jobs and disk, rather than host RAM alone.
+If that environment has not admitted the work, do not start another stack.
+MrMap provides no capacity or agent scheduling system. Keep each job's isolated
+Compose state and ownership/cleanup rules above; do not change limits, interrupt
+workers or remove another job's resources to make room.
 
 ## Development guidelines
 
@@ -433,8 +403,7 @@ After modifications:
   warrants it.
 - Run the checks CI enforces for the area you changed: type checking and tests on the frontend;
   flake8, pending migrations and translation checks on the backend (see `backend/AGENTS.md`).
-- Changes under `scripts/` — the claim board and issue identity in `wip`, the host admission gate
-  in `agent_capacity`, the human decision protocol in `decisions` — are verified with
+- Changes under `scripts/` — the claim board and issue identity in `wip`, the human decision protocol in `decisions` — are verified with
   `scripts/check_repo_tooling.sh`. It runs every suite of that tooling offline, in seconds, and is
   the same command CI runs in its own job: the QA container binds only `./backend`, so it cannot
   reach these files at all. Redirect its stdin (`scripts/check_repo_tooling.sh </dev/null`):
@@ -529,6 +498,11 @@ native blockers, assignees, linked branches and open Draft PRs, and reconcile an
 claim with its owner. Assignees and dependencies are planning signals, not atomic locks
 or automatic merge gates. Keep the single-worker model; do not start conflicting work.
 Approval and pause labels remain human-owned during transition.
+
+The maintainer recorded #1391 / PR #1732 as an explicit temporary legacy exception.
+Preserve its claim, branches, worktrees and worker. Its owner must confirm the handoff
+before the legacy claim and eligibility files can be removed. New work uses native
+assignment and does not invoke those tools.
 
 New work requires no agent-specific claim, eligibility checker, heartbeat or epic resolver.
 The legacy `scripts/wip` board and existing claims remain evidence until their owners

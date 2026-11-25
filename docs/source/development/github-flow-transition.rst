@@ -10,6 +10,104 @@ remain below as historical measurements. The canonical workflow is
 :doc:`github-flow`. The following retirement patch is prepared for review under
 #1593; its removal takes effect only when a person merges it into develop.
 
+Agent-independent handoff under #1753
+=====================================
+
+The maintainer explicitly authorized full retirement of the repository capacity
+script and its tests on 2026-11-25, without a compatibility tool or replacement
+script. Resource management, concurrency and workspace isolation belong to the
+operator/external execution environment. Unknown external consumers do not keep
+that script alive indefinitely. This patch changes source and documentation;
+it does not stop workers, change host limits, revoke credentials or delete work.
+
+Known consumers and transition before removal
+---------------------------------------------
+
+* ``scripts/git_checks.py`` called the capacity script before optional Docker
+  checks. Remove that call and its obsolete test fixture/assertion while retaining
+  stack isolation, cleanup and failure propagation. The visible checkout has no
+  executable pre-commit/pre-push hook. External hook users must put admission and
+  concurrency controls in their executor before starting further Docker checks
+  on the new revision. Do not update a running job's checkout or limits.
+* ``scripts/low_memory_deployment.json`` and its documentation consistency suite
+  pointed at the script as admission authority. Update them to name the operator/
+  external execution environment; keep all application memory modes, measurements
+  and Compose ceilings unchanged. Historical thresholds are measurements, not
+  current repository admission rules.
+* Root/backend instructions, four optional skills, the low-memory runbook,
+  Compose/test-memory guides and CI/tooling comments invoked or described the
+  script. Replace active commands with the external ownership boundary. The
+  historical capacity report remains evidence, explicitly retired.
+* The earlier AO integrations and nightly runners described in the historical
+  capacity report are external consumers, not services installed by this
+  repository. AO is retired. Their owners must remove the old command from any
+  remaining launcher configuration at a job boundary and configure ordinary
+  process/container limits and concurrency externally first. This session cannot
+  inspect or certify the remote hosts or their installed limits. No running
+  protection is disabled here; source retirement is not a remote-host migration.
+
+Before adopting this revision, an executor owner checks effective host/container
+limits, memory/disk headroom and concurrent jobs, records the selected limits and
+single-worker policy in that environment, and changes any launcher/hook command
+at a safe job boundary. If that handoff is not ready, finish the running job on
+its existing checkout; do not start new jobs on the new revision. No new MrMap
+script performs or supervises this work.
+
+Explicit temporary legacy exception
+------------------------------------
+
+The maintainer confirmed that the owner of #1391 has **not** completed the
+assignment handoff. Preserve PR #1732, branch ``agent/issue-1391``, its worktrees
+``/srv/openhands/projects/mrmap-agent`` and
+``/home/openhands/projects/mrmap-canvas-1391``, and claim
+`7163745678 <https://github.com/mrmap-community/mrmap/issues/1391#issuecomment-7163745678>`_
+(client ``canvas-42a37bd494fd``, branch marker ``tmp-claim-origin``). Do not
+interrupt the worker, edit its claim or force a migration. Existing work may
+finish using its legacy workflow; new work follows :doc:`github-flow`.
+
+Accordingly ``scripts/wip``, ``scripts/next_eligible.py`` and their three suites
+remain solely for that exception. They are not prerequisites or merge gates
+for new work. Retirement condition: #1391's owner confirms the handoff/finish,
+reconciles its claim, and confirms no remaining legacy consumer; then a reviewed
+cleanup removes those five files. Maintainer sign-off on #1753/#1588 remains
+explicit; this exception must not be described as completed claim retirement.
+Board #917, heartbeat comments and WIP/approval/pause labels are preserved as
+history and existing human decisions. No label, board, claim or PR is cleaned
+up automatically. The decision-request tool is made independent of the claim
+module while continuing to ignore historical machine comments as answers.
+
+Remote branch and external-service inventory
+---------------------------------------------
+
+The live branch audit at develop ``1de96ed08`` found **two** ``ao/*`` branches
+and **one** ``epic/*`` branch, rather than the historical 153 AO branches.
+:download:`Per-branch SHAs, ancestry and patch-equivalence evidence
+<evidence/github-native-legacy-branches.csv>` records the current snapshot:
+
+* ``ao/mrmap-1445/issue-1445-admin-only-system-api``: six commits ahead, 308
+  behind. Of the non-merge patches, three are patch-equivalent and one is unique.
+  Preserve for owner review; ancestry alone cannot declare it superseded.
+* ``ao/mrmap-1848/issue-1530-etf-retirement``: three commits ahead, 308 behind,
+  all three non-merge patches unique. Preserve the rescued work and request an
+  owner comparison before proposing any cleanup.
+* ``epic/epic-integration``: zero ahead, 90 behind; merged by ancestry. Preserve
+  it until a person separately authorizes deletion after rechecking.
+
+The open PRs remain #1774, #1772, #1738, #1732 and #1681, all based on develop;
+none uses those three legacy heads. The only live claim found is #1391; board
+#917 also reports a stale WIP label on closed #1592. Both remain untouched.
+Remote AO/OpenHands services, external launchers and credentials are outside
+this checkout's visibility; their state is **unknown**, not certified stopped.
+The maintainer's instruction that AO is retired supersedes old AO operating
+instructions. Re-read branch heads, open PRs and owner decisions before any
+manual cleanup. Do not delete branches, revoke credentials or interrupt agents
+without separate explicit authorization.
+
+Reproduce the branch evidence with ordinary Git: ``git ls-remote --heads origin
+'refs/heads/ao/*' 'refs/heads/epic/*'``, fetch those heads, then use ``git rev-list
+--left-right --count <develop-sha>...<branch-sha>`` and ``git cherry
+<develop-sha> <branch-sha>``. Patch equivalence does not authorize deletion.
+
 Tool retirement under #1593
 ===========================
 

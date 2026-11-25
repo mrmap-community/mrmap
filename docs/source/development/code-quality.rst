@@ -63,7 +63,7 @@ changes, using the resolver described in :doc:`prebuilt-images`:
    python3 scripts/dev_image_id.py --resolve --image frontend --build
 
 Hooks reuse or pull matching images; they never build an image or install host Node/GDAL.
-Every invocation asks ``scripts/agent_capacity`` before starting Docker, creates a separate
+Every invocation requires external admission before starting Docker, creates a separate
 Compose project with no published dependency ports, and removes its containers, networks and
 volumes afterwards, including on failure or interruption. Cached images remain available.
 The frontend image seeds its disposable dependency volume, so no ``npm ci`` is needed for each

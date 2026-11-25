@@ -93,7 +93,7 @@ flavour only, so this measurement built its own):
 
 .. code:: console
 
-    scripts/agent_capacity                       # admission gate first, as always
+    # confirm external host/container admission before starting Docker
     export COMPOSE_PROJECT_NAME=mrmap-agent-<issue>-<run-id>
     export COMPOSE_FILE="docker-compose.yml:<job-local override>"
     # one arm = recreate the backend for one shape, then per phase:

@@ -7,10 +7,9 @@ Runtime memory baselines of the dev stack
 .. sidebar:: Issue #1613
 
    Part of epic #1612 (runtime memory), phase V1 · measurement. The
-   admission gate that consumes these
-   numbers stays ``scripts/agent_capacity`` (#1053/#1054/#1055) - this page
-   never overrides it, it only tells what the stack actually costs so the
-   budgets have a measured floor.
+   operator/external execution environment consumes these numbers for
+   admission - this page never overrides that decision, it only tells what
+   the stack actually costs so the budgets have a measured floor.
 
 This page is the measured before-picture of #1613: what one MrMap dev stack
 of ``develop`` costs in memory, per container and per workload phase, and
@@ -80,9 +79,9 @@ Environment (one run, one tree, no invented values):
    * - measurement host
      - kernel 6.12.107+deb13-amd64, docker 29.8.2, cgroup v2 (cgroupfs);
        the agent container's own limit is not visible through its cgroup
-       mount here (``limit -``) - host ceiling numbers stay owned by
-       ``scripts/agent_capacity``, which reads them through the parent
-       chain (#1054)
+       mount here (``limit -``) - host ceiling numbers were owned by the
+       historical capacity gate, which read them through the parent chain
+       (#1054); #1753 moved admission ownership externally
    * - NOT measured here
      - a 32-GiB local developer host, and the production gunicorn/daphne
        backend shape (``docker-compose.dev.yml`` runs ``runserver`` +
@@ -412,9 +411,8 @@ agent session, dockerd and whatever else shares the container). During the
 full-suite phase it read p50 8.2 GiB / peak 10.7 GiB, because the suite's own
 memory is inside the same cgroup. That is the concrete shape of the #1054
 argument: a stack which costs 3.9 GiB of charge can still be the reason a
-16 GiB agent cgroup has no room for a second one, and it is why admission is
-decided by ``scripts/agent_capacity`` reading the whole tree, never by the
-stack sums above.
+16 GiB agent cgroup has no room for a second one, and it is why the external
+executor must account for the whole cgroup tree, never by the stack sums above.
 
 Measured and projected, kept apart
 ==================================
@@ -479,9 +477,8 @@ What the measured picture allows to say, and what it does not:
   postgis doubling to 1595 M charge / 432 M committed. Against the idle
   numbers the suite costs **+3.3 GiB charge / +2.9 GiB committed**, and this
   happened with zero OOM events.
-* that delta is why ``scripts/agent_capacity`` asks for a separate
-  ``--need suite`` class at 8 GiB effective memory instead of reusing the
-  6 GiB of ``--need stack``: the stack's own committed peak under the suite
+* that delta is why the retired capacity gate used separate stack and suite
+  admission classes: the stack's own committed peak under the suite
   is 4.9 GiB and the agent container's committed charge around it was 2.1-2.4
   GiB during these phases, so ~7 GiB of the 16 GiB cgroup was unreclaimable
   while the suite ran. The gate's constants are not generous for this shape,
@@ -507,10 +504,8 @@ while #1614 was implemented, and the page says so where it quotes them.
 Admission authority
 ===================
 
-``scripts/agent_capacity`` remains the admission gate and the owner of the
-host-cgroup reading rules (#1053/#1054/#1055): the classes
-(``--need stack`` / ``--need suite``) and the effective-memory formula stay
-there, and nothing on this page licenses starting a stack the gate refuses.
-The budget rows above are the measured floor the gate's constants may be
-REVIEWED against - changing them is a change to ``agent_capacity`` and its
-suite, not to this page.
+The historical ``scripts/agent_capacity`` gate owned host/cgroup admission
+for #1053/#1054/#1055 and was retired by #1753. The operator or external
+execution environment now owns that decision. The budget rows above remain
+measured floors for an external admission policy; changing the repository
+policy is out of scope and requires no replacement helper.

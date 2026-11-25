@@ -10,9 +10,8 @@ Low-Memory Operator Runbook
     Every number quoted here is a **measurement** carried by a linked page
     (#1613, #1614, #1615, #1616, #1617, #1618, #1621) or is explicitly
     labelled **derived** or **not measured**; this page adds no new
-    measurement of its own. The admission gate which decides whether a host
-    fits a stack stays ``scripts/agent_capacity`` (#1053/#1054/#1055) -
-    nothing here overrides it.
+    measurement of its own. Admission is owned by the operator or external
+    execution environment; nothing here overrides or replaces that check.
 
 A runbook for the human who runs MrMap on a host that is short of memory:
 which modes exist, what each one is worth, what it costs, how to bring a
@@ -104,8 +103,8 @@ rules of ``AGENTS.md``.
 
 .. code:: text
 
-    # 0. admission first, always - it decides, this page does not
-    scripts/agent_capacity                      # --need stack / --need suite
+    # 0. Admit the work externally first; this page does not decide it.
+    # Confirm effective memory, disk, concurrency and isolation in the executor.
     export COMPOSE_PROJECT_NAME=mrmap-operator-<name>
 
     # full deployment - the documented contract, unchanged
@@ -440,7 +439,7 @@ shell, which never holds these variables (``.env`` is read by Compose and not
 exported), from substituting empty ones - the same escape
 ``docker-compose.yml`` uses in the ``pg_isready`` test.
 
-Re-measuring means starting a stack: ``scripts/agent_capacity`` first, in a
+Re-measuring means starting a stack only after external admission in a
 project you own, torn down afterwards. The repeatable regression reporting
 that owns doing this on a schedule is #1623 (open) - until it lands, a
 re-run is a deliberate act, and the pages above take the new phase names so
@@ -500,9 +499,10 @@ The order below is the validation an operator runs once per host, in a
 job-owned project. Each step's gate is observable, and "stopped" means
 observed failure at that gate, not a feeling.
 
-1. **Admit.** ``scripts/agent_capacity`` (``--need stack`` for a stack,
-   ``--need suite`` for suite runs). A refused admission is the end of the
-   rollout, not a speed bump.
+1. **Admit.** Confirm with the operator or external execution environment
+   that the host/container has enough memory and disk and that concurrent
+   work is permitted. Refused admission is the end of the rollout, not a
+   speed bump.
 2. **Bring up the mode you intend to run** (Startup and shutdown above);
    wait for the four healthchecks and ``/api/system/info``.
 3. **Sample the idle floor** for 10 minutes (``lite-warm-idle`` above) and
@@ -557,9 +557,8 @@ the shape; the release-side migration mechanics live in the
   rescues an unreversible migration, and a low-memory configuration never
   changes what migrations a version applies.
 * **Capacity is never a rollback argument**: if the full mode does not fit
-  after an upgrade, that is an admission finding - take it to
-  ``scripts/agent_capacity`` and the budget pages, not to a knob nobody
-  measured.
+  after an upgrade, that is an admission finding - take it to the external
+  execution environment and the budget pages, not to a knob nobody measured.
 
 Evidence and open risks
 =======================

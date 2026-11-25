@@ -10,7 +10,7 @@ every fact in the file against the committed reality it names - the Compose
 files, the two resolvers which actually decode the knobs
 (``backend/.bash_scripts/process_defaults.sh`` and the pool-bounds resolver of
 ``MrMap/settings.py``), the tier matrix of ``compose_profiles_smoke.py``, the
-admission gate and the measurement pages whose figures are quoted - and fails
+resource ownership boundary and the measurement pages whose figures are quoted - and fails
 the moment description and tooling drift apart. It is the #1615 rule applied
 to documentation: a number an operator reads and the software reads
 differently is worse than no number.
@@ -41,7 +41,6 @@ COMPOSE_LIGHT = ROOT / "docker-compose.lightweight.yml"
 COMPOSE_TEST_LOW = ROOT / "docker-compose.test-low-memory.yml"
 PROCESS_DEFAULTS = ROOT / "backend" / ".bash_scripts" / "process_defaults.sh"
 SETTINGS = ROOT / "backend" / "MrMap" / "settings.py"
-AGENT_CAPACITY = ROOT / "scripts" / "agent_capacity"
 SMOKE = ROOT / "scripts" / "compose_profiles_smoke.py"
 DEVELOPMENT_DOCS = ROOT / "docs" / "source" / "development"
 
@@ -373,13 +372,9 @@ def main():
     baselines = read(DEVELOPMENT_DOCS / "runtime-memory-baselines.rst")
     check("the baseline page itself keeps the 32-GiB host a projection",
           "32-GiB" in baselines and "projection" in baselines)
-    capacity = read(AGENT_CAPACITY)
-    check("the admission gate still owns the constants the scenario quotes",
-          'threshold("AGENT_STACK_MIN_MEM_GB", 6)' in capacity
-          and 'threshold("AGENT_SUITE_MIN_MEM_GB", 8)' in capacity)
-    check("the runbook defers admission to agent_capacity",
-          "scripts/agent_capacity" in book_text
-          and "agent_capacity" in desc["authority"]["admission"])
+    check("resource admission belongs to the external execution environment",
+          desc.get("authority", {}).get("admission") == "operator/external execution environment"
+          and "external execution environment" in book_text)
 
     # --- the runbook's own honesty rules ---------------------------------------------
     check("the runbook names the sampler and the bench as the instruments",

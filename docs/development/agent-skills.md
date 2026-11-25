@@ -56,16 +56,19 @@ area skills); OpenCode lists all skills each step, so agents can load several.
 All eight skills were validated end-to-end at introduction: discovery in the live session, load via
 the `skill` tool, and a read-only fact-check of every referenced path/command against the checkout.
 
-## Interaction with the external orchestrator (AO)
+## Optional external clients
 
-* Orchestration stays external to the repository (root `AGENTS.md`); skills add no scheduler, hook
-  or watcher and change no claim/branch/PR behaviour.
+* AO is retired. OpenHands, OpenCode, Codex and other clients are optional;
+  ordinary Git/GitHub CLI and the area test commands remain sufficient.
+* Skills add no scheduler, claim authority or mandatory execution path. Core runtime,
+  build, deployment, CI and releases require no MCP client or LLM credentials.
 * A worker session gets the skills automatically because they live in the checkout: discovery is
   from the project root, so any worktree of this repo exposes them.
 * Skills are read-mostly guidance; they never authorize an action. The human-only acts
   (approve/merge/resolve/`agent: approved`) remain human-only regardless of which skills are loaded
   (`mrmap-github-workflow` encodes the deferral path).
-* Capacity: skills point at `scripts/agent_capacity` before any stack; they add no new stack starts.
+* Resource management, concurrency and workspace isolation belong to the operator/external
+  execution environment. Skills do not start workers, change limits or replace those controls.
 
 ## Adding or changing a skill
 

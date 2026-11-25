@@ -229,7 +229,6 @@ class Containers:
         self.started = False
 
     def prepare(self, backend, frontend):
-        run([sys.executable, self.root / "scripts/agent_capacity"], cwd=self.root)
         for relative in (".env", "docker/backend/.mrmap.env"):
             source = self.root / relative
             if not source.is_file():

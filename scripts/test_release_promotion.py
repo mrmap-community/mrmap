@@ -419,8 +419,8 @@ def test_finalize_before_and_after_the_merge(tmp):
           and "unmerged" in proc.stderr, proc.stderr)
 
     proc = w.promo("finalize", "--alias", "latest", *ARTIFACTS)
-    check("finalize: rolling aliases stay refused while Q1 of #1578 is "
-          "Pending", proc.returncode == 1 and "alias" in proc.stderr.lower(),
+    check("finalize: rolling aliases stay refused while no reviewed alias "
+          "ledger exists", proc.returncode == 1 and "alias" in proc.stderr.lower(),
           proc.stderr)
 
     tip = human_merge_release_pr(w)

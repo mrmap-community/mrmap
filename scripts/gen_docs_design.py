@@ -87,6 +87,14 @@ DECISIONS = [
      " over generated prose, evidence as the unit of trust, the audience"
      " taxonomy the sections above follow, the artifact schema, and the"
      " validation gates #1597 through #1610 are measured against."),
+    ("ADR-0002-semantic-versioning-and-release-baseline-policy",
+     "architecture/decisions/"
+     "ADR-0002-semantic-versioning-and-release-baseline-policy.md",
+     "The accepted release policy of epic #1577: the first published tag and"
+     " the tag shape, what each change class does to the version, the"
+     " docs-chore suppression, the supported upgrade window and its two-MINOR"
+     " deprecation unit, and the single application version as the external"
+     " contract."),
     ("ADR-README", "architecture/decisions/README.md",
      "The conventions the records are written under: numbering, what each status"
      " commits the project to, and how a record is superseded rather than edited."

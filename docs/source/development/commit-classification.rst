@@ -13,9 +13,11 @@ Pull request and commit classification
 
    The tool reads. It approves nothing, merges nothing, resolves nothing and
    bypasses no branch rule — those acts belong to a person. The normative calls
-   of #1578 (``Q1``..``Q6``) are still **Pending** in that page's decision
-   register, and nothing here pre-empts them: this page enforces *that a change
-   is classifiable*, never *which version a change consumes*.
+   of #1578 (``Q1``..``Q6``) were answered by a maintainer on 2026-11-25 and are
+   policy in ``docs/architecture/decisions/``
+   ``ADR-0002-semantic-versioning-and-release-baseline-policy.md``, and nothing
+   here pre-empts them: this page enforces *that a change is classifiable*, never
+   *which version a change consumes* — that arithmetic is #1581's planner.
 
 Status of this page
 ===================
@@ -131,10 +133,12 @@ what happens. What it does *not* do is arithmetic:
   which heading? That is decidable from the title alone, and it is what fails
   the check.
 * ``consumes_version`` — **reported, never gated.** The tool prints whether the
-  class consumes a version, but no check fails or passes on it, because #1578's
-  ``Q1``..``Q6`` (what counts as a breaking change, how pre-release versions are
-  handled) are still Pending and the version rule itself is #1581's. Gating on
-  an unanswered normative question would be a decision by a bot.
+  class consumes a version, but no check fails or passes on it: the answer is
+  recorded policy (#1578 ``Q4``, option A, in ADR-0002) and the rule that turns
+  it into a number is #1581's planner, driven by ``release-please-config.json``.
+  Two places deciding the bump is how a release note and a version start
+  disagreeing, so the classifier reports and the planner decides — and
+  ``scripts/test_release_planning.py`` holds the two tables equal.
 * **diff-aware dependency detection** — not attempted. ``build(deps)`` is
   trusted as written. Nothing here inspects a lock file.
 * **changelog generation, version calculation, tags, releases** — #1581 and
@@ -377,8 +381,8 @@ class, and a breaking change carries a marker that survived the merge. It leaves
 for others, deliberately:
 
 * **#1581** — read the classes and compute a version. The ``--json`` payload and
-  the ``consumes_version`` field are its input; the Pending ``Q1``..``Q6`` are
-  its blockers, not this page's to answer.
+  the ``consumes_version`` field are its input; ``Q1``..``Q6`` are answered
+  policy (ADR-0002) and are its input too, never this page's to reinterpret.
 * **#1579** — the canonical version string: landed as :ref:`canonical-version`,
   one root ``VERSION`` file that everything else projects from. It and this page
   are orthogonal by design — the class of a change says what a release note

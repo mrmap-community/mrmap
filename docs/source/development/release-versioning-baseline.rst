@@ -8,13 +8,26 @@ Release and versioning baseline (ADR)
 
    Part of epic #1577 (release management), issue #1578: the audit of what the
    repository does today about versions, plus the policy proposal that
-   #1579..#1586 build on. The normative calls are asked of a human through
-   ``scripts/decisions`` (Q1..Q6 below) and the register is **Pending** while
-   they are unanswered. Nothing on this page is approved, and no tag, release
-   or workflow was created to write it.
+   #1579..#1586 build on. The normative calls were asked of a human through
+   ``scripts/decisions`` (Q1..Q6 below); on **2026-11-25** a maintainer
+   confirmed all six recommended answers (Q5 with a qualification), so the
+   register below reads **Accepted (A)** against ``issue #1578 comment
+   7171857760``. The binding policy those answers form is
+   ``docs/architecture/decisions/ADR-0002-semantic-versioning-and-release-baseline-policy.md``.
+   Nothing on this page created a tag, release or workflow, and confirming a
+   design decision is not the ``agent: approved`` label and not a pull request
+   review.
 
 Status of this page
 ===================
+
+The page was written while every normative question was open; it stayed that
+way until 2026-11-25, when the maintainer answers landed (see the sidebar and
+the `Decision register`_). What follows keeps its original tense on purpose:
+the measurements are anchored at the commit named below, the recommendations
+are what was proposed at that moment, and the register records which of them
+became policy. Where a later issue has since changed a measured fact, the fact
+is kept with its date and the current state is named next to it.
 
 Three kinds of statements are kept apart on purpose:
 
@@ -114,13 +127,17 @@ Docs, changelog, and the tag trap
   releases before the first version heading. The unreleased section is long and
   contains breaking changes, which is the material the first real release has
   to curate rather than generate blindly.
-* ``docs/source/conf.py:108`` sets ``smv_tag_whitelist = r'^v\d+\.\d+$'``,
-  i.e. ``sphinx_multiversion`` would pick up tags shaped like ``v2.1`` and
-  **silently ignore** ``v0.2.0``. ``smv_branch_whitelist`` is ``^develop$``
-  at ``:109``. Any tag shape with a patch part therefore needs the whitelist
-  widened in the same change that publishes the first tag, or the release
-  exists in GitHub and in the images and not in the docs. This is Q1's
-  option A wording.
+* ``docs/source/conf.py:108`` set ``smv_tag_whitelist = r'^v\d+\.\d+$'`` at the
+  audit anchor, i.e. ``sphinx_multiversion`` would have picked up tags shaped
+  like ``v2.1`` and **silently ignored** ``v0.2.0``. ``smv_branch_whitelist``
+  is ``^develop$`` at ``:109``. Any tag shape with a patch part therefore needs
+  the whitelist widened in the same change that publishes the first tag, or the
+  release exists in GitHub and in the images and not in the docs. This was Q1's
+  option A wording. **Current state:** the whitelist is
+  ``r'^v\d+(\.\d+){1,2}$'`` since #1585, which admits the historical two-part
+  shape and the accepted three-part shape; ``scripts/test_release_lifecycle.py``
+  holds it against ``scripts/release_lifecycle.json`` so the drift that would
+  have dropped ``v0.2.0`` cannot come back silently.
 
 Workflows
 ---------
@@ -368,8 +385,12 @@ The classification matrix
 =========================
 
 What #1580 has to enforce and #1581 has to compute, per class of change the
-acceptance names. "Consumes a version" is the proposal of Q4 option A, not
-today's behaviour.
+acceptance names. "Consumes a version" is the recorded Q4 answer A, not
+today's behaviour of an unconfigured tool: the rows are reproduced verbatim by
+``scripts/pr_classify`` (``TYPES``, reported and never gated) and by the
+``changelog-sections`` of ``release-please-config.json`` (hidden exactly where
+"consumes a version" reads *no*), and
+``scripts/test_release_planning.py`` fails when the two drift apart.
 
 .. list-table::
    :header-rows: 1
@@ -446,53 +467,87 @@ today's behaviour.
      - -
      - -
 
-The proposed policy
-===================
+The policy as decided
+=====================
 
-Each row is the agent recommendation; the last column names what a human has to
-answer for it to become policy. The row is not policy while it reads Pending.
+Each row was the agent recommendation of this page; the last column is what a
+person answered. All six questions were confirmed on **2026-11-25** by a
+maintainer account on #1578 (comment ``7171857760``, after the recommendation
+list of comment ``7171521112``); the binding wording of the answers is
+``docs/architecture/decisions/ADR-0002-semantic-versioning-and-release-baseline-policy.md``.
+A confirmed design decision is not implementation approval and not a pull
+request review, and none of these answers authorises a tag, a release or a
+registry write - the readiness gates of #1798, #1799, #1800, #1801 and #1610
+stay in front of the first publication.
 
 .. list-table::
    :header-rows: 1
    :widths: auto
 
    * - topic
-     - proposal
+     - what was proposed here
      - decision
    * - start version and tag shape
      - stay 0.x, first real tag ``v0.2.0``, tags ``vMAJOR.MINOR.PATCH``, widen
        ``smv_tag_whitelist`` in the same change; no retro-tagging of 2023
-     - Q1, Pending
+     - Q1, **Accepted: A** - ``v0.2.0`` is the first published tag, no
+       retrospective tag, ``vMAJOR.MINOR.PATCH``; the whitelist widening
+       landed with #1585
    * - 0.x breaking knob
      - ``bumpMinorPreMajor=true``: breaking and feature both bump MINOR below
        1.0.0, breaking is read from the mandatory Breaking Changes section
-     - Q2, Pending
+     - Q2, **Accepted: A** - features and breaking changes bump MINOR while
+       below 1.0.0, with documented breaking changes and migration
+       requirements; the config key is in force
    * - classification source
      - Conventional header on the PR title, checked in CI; commit messages
        keep the lowercase summary style ``AGENTS.md`` requires
-     - Q3, Pending
+     - Q3, **Accepted: A** - the Conventional Commit PR title is
+       authoritative. The verification the answer asked for is done:
+       ``scripts/pr_classify`` reads the title through the carrier and
+       ``scripts/test_release_planning_synthetic.py`` measures which markers
+       Release Please really reads, including the bang-in-title gap that
+       ``release-planning.rst`` documents as not fixable from the config
    * - version churn
      - a release is cut only for ``fix``/``perf``/``feat``/breaking; docs,
        tests, CI, chores do not consume a number
-     - Q4, Pending
+     - Q4, **Accepted: A** - docs/chore/CI/style-only history consumes no
+       version. Reconciled with the implemented matrix: ``scripts/pr_classify``
+       ``TYPES`` and the hidden ``changelog-sections`` agree class by class,
+       with ``build(deps)``/``chore(deps)`` the reviewed dependency exception
+       that does consume one
    * - upgrade window
      - single hop from any earlier release, migrations never squashed,
        deprecations removed two MINORs after they appear
-     - Q5, Pending
+     - Q5, **Accepted: A, qualified** - single-hop upgrade from
+       **explicitly supported and tested** released baselines only, two MINORs
+       of deprecation notice, the staged intermediate boundaries of #1180
+       honoured, and **no** promise of a direct upgrade from every historical
+       checkout. The oldest supported baseline is verified before the first
+       stable publication (#1800); ``scripts/release_upgrade_baseline.json``
+       carries the ledger
    * - contract version
      - no second version axis while 0.x; the application version plus the OGC
        version negotiation are the contract
-     - Q6, Pending
+     - Q6, **Accepted: A** - one application version, no separate application
+       API version while 0.x; standard protocol versions (CSW
+       ``SUPPORTED_CSW_VERSIONS``) stay as they are and the contract surfaces
+       are documented
    * - channels
      - one channel (stable) for the first releases; RC tags only once the
        upgrade window of Q5 exists, because an RC is only useful to somebody
        who can test an upgrade
-     - proposed here, asked when Q1 and Q5 are answered
+     - unchanged by the answers: one stable channel for the first releases;
+       an RC channel needs the tested baseline of Q5 under it, so it stays
+       unopened until #1800 has verified one
    * - #1180 Release A/B sequencing
      - depends on the window: "the accepted compatibility period" of #1180
        needs the unit Q5 defines before A (transition release) and B
        (removal release) can be dated
-     - deferred to #1180 with Q5's answer as input
+     - Q5 gives the unit (two MINORs of deprecation notice). Sequencing stays
+       with #1180 and with the ledger of
+       ``scripts/release_upgrade_baseline.json``, which already names the
+       intermediate release and its marker migration
 
 Release promotion design
 ========================
@@ -583,7 +638,13 @@ substituted by an assumption.
   not probed, and assuming a key that turns out not to suppress the
   fallthrough would ship the churn anyway. #1581 measures it and reports the
   config it verified, or selects an alternative tool - which its scope already
-  allows ("select alternative if incompatible").
+  allows ("select alternative if incompatible"). **Closed by #1581:** the
+  mechanism is not a dedicated suppression key but the hidden section table -
+  a window whose only parsed classes are hidden produces empty notes, and
+  empty notes mean no candidate and no pull request (``strategies/base.js``
+  returns nothing). The synthetic scenario
+  ``docs and chore windows prepare nothing`` of
+  ``scripts/test_release_planning_synthetic.py`` pins it.
 * **The double-count effect on real release notes.** Feeding one commit twice
   does not raise the version (measured); what it does to the notes of a real
   release PR was not.
@@ -600,8 +661,13 @@ Deliberately not done
   contributes nothing but a fallthrough patch bump, which Q4 is about.
 * No workflow, tag, release, registry artifact or branch protection change.
 * No change to ``backend/MrMap/__init__.py``. Choosing one canonical version
-  source is #1579's own scope and it has to move the constant, not this page.
-* No claim that any option below was accepted. The register is the record.
+  source is #1579's own scope and it has to move the constant, not this page
+  (it landed as :ref:`canonical-version`, one root ``VERSION`` file).
+* No claim of acceptance while the answers were outstanding; the answers are
+  in the register below and the record of acceptance is ADR-0002. Confirming
+  them is a design decision, not implementation approval, and it authorises no
+  publication: no tag, release, image or workflow exists as a consequence of
+  any answer on this page.
 
 Decision register
 =================
@@ -609,7 +675,13 @@ Decision register
 Asked on #1578 through ``scripts/decisions``; answers come from an OWNER,
 MEMBER or COLLABORATOR account and are verified by the tool. Answering is a
 design decision, not the ``agent: approved`` label and not a pull request
-review.
+review. All six rows below were confirmed by the maintainer account
+``jokiefer`` (MEMBER) on 2026-11-25 in comment ``7171857760`` of #1578, after
+the recommendation list of comment ``7171521112``; Q5 was confirmed with the
+qualification recorded in its row. The register stays a view of that trail -
+``scripts/decisions record`` and ``register`` remain the writers of the
+machine-readable audit on the issue, and a recorded answer never presents
+itself as permission to publish.
 
 .. list-table::
    :header-rows: 1
@@ -622,27 +694,41 @@ review.
    * - Q1
      - initial release version and tag shape
      - 0 tags, 0 releases, ``smv_tag_whitelist`` trap
-     - Pending
+     - **Accepted: A** (2026-11-25, #1578 comment 7171857760) - first
+       published tag ``v0.2.0``, no retrospective tag, ``vMAJOR.MINOR.PATCH``
    * - Q2
      - the breaking-change knob below 1.0.0
      - measured matrix: defaults jump to 1.0.0, the knob gives 0.2.0
-     - Pending
+     - **Accepted: A** (2026-11-25) - breaking and feature both bump MINOR
+       below 1.0.0, with documented breaking changes and migration
+       requirements
    * - Q3
      - where the change type comes from
      - 53 of 7585 commits parse; ``ao`` 170 and ``housekeeping`` 87 prefixes
-     - Pending
+     - **Accepted: A** (2026-11-25) - Conventional Commit PR titles are
+       authoritative; the reading of the classification and of the breaking
+       marker is verified by ``scripts/pr_classify`` and the synthetic
+       scenarios of #1581
    * - Q4
      - may docs/chore-only history consume a version
      - measured fallthrough: every class bumps PATCH unconfigured
-     - Pending
+     - **Accepted: A** (2026-11-25) - docs/chore/CI/style-only history
+       consumes no version; the remaining classes are reconciled with the
+       implemented matrix above
    * - Q5
      - supported upgrade window
      - #1530's reverse-path failure, the no-squash migration rule
-     - Pending
+     - **Accepted: A, qualified** (2026-11-25) - single hop from explicitly
+       supported **and tested** baselines, two MINORs of deprecation notice,
+       the staged #1180 boundaries honoured, no unverified promise from every
+       historical checkout; the oldest supported baseline is verified before
+       the first stable publication (#1800)
    * - Q6
      - a separate external contract version
      - four version consumers, ``SUPPORTED_CSW_VERSIONS`` already negotiates
-     - Pending
+     - **Accepted: A** (2026-11-25) - one application version while 0.x,
+       standard protocol versions retained, public API compatibility
+       documented
 
 Reproducing the measurements
 ============================
@@ -692,17 +778,28 @@ Follow-up map
        that merge subjects never parse (so squash or body override, decided by
        a person)
    * - #1581 version calculation
-     - the measured matrix, the two open mechanism questions in
-       `What could not be measured`_, the fallthrough behaviour
+     - the measured matrix, the fallthrough behaviour, and the two open
+       mechanism questions of `What could not be measured`_ (the docs/chore
+       suppression is closed, the hosted-Action interaction is not)
    * - #1582 versioned artifacts
      - the ``build:`` services with no image reference, the ``dev-images``
        publish pattern
    * - #1583 compatibility gates
-     - Q5's window once answered, and the migration-authoring constraint
+     - Q5's window as answered (supported and tested baselines, two MINORs of
+       deprecation notice), and the migration-authoring constraint
    * - #1584 promotion and publication
      - `Release promotion design`_ and the frozen candidate tuple
    * - #1585 docs and runbook
      - the ``smv_tag_whitelist`` fix, the tag-triggered docs build, the gate
        contract
    * - #1586 lifecycle dry run
-     - everything under `What could not be measured`_ as its work list
+     - what is left under `What could not be measured`_ as its work list
+   * - #1798..#1801 and #1610 first-release readiness
+     - the answers as gates, not as a green light: the promotion shape against
+       the develop-first policy (#1798), the reproducible candidate image and
+       digest publication (#1799), the compatibility verification including
+       the oldest supported baseline of Q5 and the complete promotion
+       evidence (#1800), the end-to-end validation of the first ``v0.2.0``
+       candidate (#1801), and the release documentation gate (#1610). None of
+       them is satisfied by a recorded answer; the first stable publication
+       waits for all of them.

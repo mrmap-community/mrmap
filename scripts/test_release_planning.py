@@ -86,8 +86,9 @@ def config_checks(config, pr_classify):
     check('the bump knob is the recorded reversible choice',
           config.get('bump-minor-pre-major') is True and
           'bump-patch-for-minor-pre-major' not in config,
-          'Q2 of #1578 is Pending; the config keeps the recommendation of the '
-          'ADR, and the alternative stays one key away (docs: release-planning)')
+          'Q2 of #1578 is Accepted: A (ADR-0002) - below 1.0.0 a breaking '
+          'change is the MINOR this project promised; the alternative stays '
+          'one key away (docs: release-planning)')
 
     check('the canonical VERSION is the planner version file',
           config.get('version-file') == cv.VERSION_FILE,

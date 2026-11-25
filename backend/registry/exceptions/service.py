@@ -100,3 +100,18 @@ class CapabilitiesPersistenceError(Exception):
                   or str(integrity_error).splitlines()[0])
         super().__init__(
             f"The capabilities document could not be persisted: {detail}")
+
+
+class MissingCapabilitiesContact(Exception):
+    """A capabilities document has no usable contact data to persist.
+
+    WMS and WFS use a non-null metadata contact on their service metadata.  A
+    missing or empty mapped contact must fail while the document is being
+    mapped, not as a raw PostgreSQL not-null violation during persistence.
+    """
+
+    def __init__(self, element):
+        self.element = element
+        super().__init__(
+            "The capabilities document could not be registered: missing or "
+            f"empty <{element}> means no service contact can be derived.")

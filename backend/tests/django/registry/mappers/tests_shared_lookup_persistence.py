@@ -22,6 +22,9 @@ from registry.mappers.configs import XPATH_MAP
 from registry.mappers.persistence.handler import PersistenceHandler
 from registry.mappers.xml_mapper import XmlMapper
 from registry.models.metadata import Keyword, MetadataContact
+from registry.exceptions.service import MissingCapabilitiesContact
+from registry.mappers.extensions import validate_required_service_contact
+from registry.mappers.factory import OGCServiceXmlMapper
 
 
 def keyword_specs(mapping):
@@ -203,3 +206,42 @@ class ConcurrentLookupImportTest(TransactionTestCase):
             sorted(Keyword.objects.filter(
                 keyword__in=self.KEYWORDS).values_list('keyword', flat=True)),
             sorted(self.KEYWORDS))
+
+
+class CapabilitiesContactValidationTest(TestCase):
+    def test_wms_without_contact_information_is_refused_cleanly(self):
+        xml = b'''<?xml version="1.0"?>
+<WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms">
+  <Service><Name>WMS</Name><Title>no-contact</Title></Service>
+  <Capability><Request/><Layer/></Capability>
+</WMS_Capabilities>'''
+        mapper = OGCServiceXmlMapper.from_xml(xml)
+        mapper.xml_to_django()
+
+        with self.assertRaises(MissingCapabilitiesContact) as ctx:
+            validate_required_service_contact(mapper)
+
+        self.assertIn("ContactInformation", str(ctx.exception))
+
+    def test_wfs_ows_2_namespace_maps_provider_as_contact(self):
+        xml = b'''<?xml version="1.0"?>
+<wfs:WFS_Capabilities version="2.0.0"
+  xmlns:wfs="http://www.opengis.net/wfs/2.0"
+  xmlns:ows="http://www.opengis.net/ows/2.0">
+  <ows:ServiceIdentification><ows:Title>namespace-fixture</ows:Title></ows:ServiceIdentification>
+  <ows:ServiceProvider><ows:ProviderName>Provider Office</ows:ProviderName></ows:ServiceProvider>
+  <ows:OperationsMetadata/>
+  <wfs:FeatureTypeList/>
+</wfs:WFS_Capabilities>'''
+        mapper = OGCServiceXmlMapper.from_xml(xml)
+        data = mapper.xml_to_django()
+
+        service = data[0]
+        self.assertEqual(service.title, "namespace-fixture")
+        validate_required_service_contact(mapper)
+
+        contacts = [
+            inst for inst in mapper.read_all_from_cache().values()
+            if isinstance(inst, MetadataContact)
+        ]
+        self.assertTrue(any(contact.name == "Provider Office" for contact in contacts))

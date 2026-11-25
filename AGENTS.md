@@ -29,6 +29,44 @@ OpenHands, OpenCode, Codex and other clients are optional. AI-specific features 
 replaceable providers, isolated credentials and validated outputs. Optional model-written
 documentation narrative must not make a coding-agent platform a build dependency.
 
+## Standard First — reuse before reinventing
+
+MrMap owns geospatial management, domain workflows, resource relationships,
+domain authorization policies and their user-facing representation. It is not
+a general-purpose backup, observability, authentication, testing,
+documentation or infrastructure-management platform.
+
+Before designing an epic, introducing an architectural component or adding
+generic functionality, evaluate these options in order:
+
+1. Existing MrMap implementations and installed dependencies.
+2. Native framework, database, browser and infrastructure capabilities.
+3. Applicable open standards (especially OGC, ISO, JSON:API and OpenAPI).
+4. Maintained open-source libraries or standalone upstream software.
+
+Prefer configuration, composition and small integration adapters. Do not
+introduce a parallel engine, duplicate source of truth, general-purpose
+framework or service when an existing solution meets the requirement.
+Use domain-local code for genuinely MrMap-specific behavior; upstream generic
+fixes to shared libraries where practical. Do not replace working code or
+add dependencies merely because alternatives exist.
+
+For a new dependency or nontrivial architectural component, record a concise
+comparison in the issue or PR: existing reuse points, relevant upstream
+documentation, selected approach, remaining custom code and why it is needed.
+Evaluate license, maintenance, security, compatibility with pinned versions,
+resource and operational overhead, migration/rollback and testability.
+Validate material uncertainty with a small representative proof of concept.
+Prefer fewer dependencies and optional infrastructure; no mandatory external
+service or agent runtime without explicit maintainer approval.
+
+Keep existing security, data integrity, authorization, compatibility and
+review guarantees. Standard software is not a reason to weaken domain
+semantics or replace authoritative application state with sampled telemetry.
+Apply this rule proportionately: routine fixes need no separate ADR or
+approval workflow; material unresolved trade-offs follow the existing human
+decision process.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.

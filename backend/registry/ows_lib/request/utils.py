@@ -205,6 +205,25 @@ def get_requested_layers(params: dict) -> list[str]:
     return list(filter(None, params.get("LAYERS", params.get("layers", "")).split(",")))
 
 
+def get_requested_query_layers(params: dict) -> list[str]:
+    """The layers a GetFeatureInfo asks the information of.
+
+    ``QUERY_LAYERS`` is a required parameter of the operation (OGC 05-008,
+    7.4.2) and names the layers the answer is about, while ``LAYERS`` only names
+    the layers which were drawn. A caller fills both lists itself, so the drawn
+    ones are never the permission for the queried ones and the queried ones have
+    to be read out of their own parameter.
+
+    :param params: all query parameters
+    :type params: dict
+    :return: the queried layers from the query params, without duplicates
+    :rtype: list[str]
+    """
+    named = next((value for name, value in params.items()
+                  if name.upper() == "QUERY_LAYERS"), "")
+    return list(dict.fromkeys(filter(None, named.split(","))))
+
+
 def get_requested_feature_types(params: dict[str, str] | etree._Element) -> list[str]:
     """
     Extract requested feature types from query parameters or an XML element.

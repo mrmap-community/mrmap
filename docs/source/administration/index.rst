@@ -26,6 +26,11 @@ its policy document, and ``backend/accounts/views/auth.py`` points a reader at
 repository path, because that is the path the code quotes; the build reads them
 where they are.
 
+The low-memory runbook beside it follows the same convention for the
+deployment-shape side of operations: its machine-readable form is
+``scripts/low_memory_deployment.json``, held against the committed Compose
+files and resolvers by ``scripts/test_low_memory_deployment.py``.
+
 .. toctree::
    :maxdepth: 2
 
@@ -33,3 +38,4 @@ where they are.
    authentication
    permissions
    fetch-host-policy
+   low-memory-operator-runbook

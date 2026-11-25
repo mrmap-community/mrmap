@@ -15,10 +15,16 @@ step. The release lifecycle itself is described in machine-readable form in
 tooling drift apart, so what is written here is what the tooling actually
 does.
 
+The low-memory runbook beside it follows the same convention for the
+deployment-shape side of operations: its machine-readable form is
+``scripts/low_memory_deployment.json``, held against the committed Compose
+files and resolvers by ``scripts/test_low_memory_deployment.py``.
+
 .. toctree::
    :maxdepth: 2
 
    release-operator-runbook
+   low-memory-operator-runbook
 
 Authentication and permissions
 ------------------------------

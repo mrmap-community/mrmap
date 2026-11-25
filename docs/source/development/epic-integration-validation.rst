@@ -118,7 +118,7 @@ between two revisions of this page.
      - Children start from the epic head; an open branch that moved did it by
        merging, never by rebasing.
    * - ``child-pr-checks``
-     - `The CI contract, as validated <epic-integration-validation-ci-contract>`_
+     - :ref:`The CI contract, as validated <epic-integration-validation-ci-contract>`
      - A child PR carries exactly the required job set of its base; a base that
        triggers no workflow is refused rather than read as green.
    * - ``blocker-satisfied-by-ancestry``
@@ -152,7 +152,7 @@ between two revisions of this page.
      - R10, R11
      - A closed epic takes no child work and leaves no child PR open.
    * - ``migration-conflict``
-     - `The CI contract, as validated <epic-integration-validation-ci-contract>`_
+     - :ref:`The CI contract, as validated <epic-integration-validation-ci-contract>`
      - Two children claiming one migration slot collide on the epic head and
        refuse readiness until the later side renumbers.
    * - ``release-semantic-history``
@@ -173,7 +173,7 @@ between two revisions of this page.
      - No documentation build sits behind any ``pull_request`` trigger of the
        everyday epic path.
    * - ``epic-ci-coverage``
-     - `The CI contract, as validated <epic-integration-validation-ci-contract>`_
+     - :ref:`The CI contract, as validated <epic-integration-validation-ci-contract>`
      - The workflows the contract requires do trigger for the epic base.
    * - ``no-self-approval``
      - rule 15
@@ -346,7 +346,7 @@ PR's head). All commands are read-only.
   standing, the contract's ordinary rows apply to the epic's children, and the
   epic's own integration PR stays its last act.
 * **The rollout gap #1594 owns is still open, and this validation says so.** All
-  four workflows of `The CI contract, as validated <epic-integration-validation-ci-contract>`_ still restrict their ``pull_request``
+  four workflows of :ref:`The CI contract, as validated <epic-integration-validation-ci-contract>` still restrict their ``pull_request``
   trigger to ``[master, develop]`` — verified with the block below. A child PR
   into ``epic/epic-integration`` today therefore runs **no** required check, and
   the tool refuses to read such a PR as green: the committed world
@@ -388,7 +388,7 @@ Named rather than glossed, each with the issue that owns it:
   repository to prove a fixture works would be the production disruption the
   same sentence rules out. The topology is replayed instead, from committed
   scenario files, and the engine cannot push even if asked.
-* **The CI-cost budget of `The CI contract, as validated <epic-integration-validation-ci-contract>`_.** Six children costing six child
+* **The CI-cost budget of :ref:`The CI contract, as validated <epic-integration-validation-ci-contract>`.** Six children costing six child
   runs plus one integration run is a statement about runners and minutes, which
   only a real epic's real runs can measure. The tool counts the required job set
   per base (``child-pr-checks`` reports it) so the number can be read from a real

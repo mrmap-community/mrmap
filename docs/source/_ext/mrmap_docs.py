@@ -78,6 +78,8 @@ TOOLCHAIN = (
 
 AUTODOC_MODES = ("auto", "on", "off")
 DIAGRAM_MODES = ("static", "render")
+MERMAID_RENDERER_FILENAME = "mrmap-mermaid-vendored.mjs"
+
 
 def source_digest(root: Path, suffixes=(".rst", ".md", ".py")) -> str:
     """Content digest of the documented sources, ordered by path.
@@ -273,12 +275,23 @@ def _configure_autodoc(app) -> str:
         # Fail closed: leave the real directives in place, so a module that
         # cannot be imported is an error the docs image sees rather than a
         # placeholder it ships.
+        app.setup_extension("sphinx.ext.autodoc")
         return "autodoc:forced-on"
 
     if backend_is_importable():
+        app.setup_extension("sphinx.ext.autodoc")
         return "autodoc:application"
     _override_directives(app, placeholders)
     return "placeholders:django-not-installed"
+
+
+def _copy_vendored_mermaid(app, exception) -> None:
+    if exception is not None or app.builder.format != "html":
+        return
+    source = Path(app.config.mrmap_mermaid_js).resolve()
+    target = Path(app.outdir) / "_static" / MERMAID_RENDERER_FILENAME
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, target)
 
 
 def _configure_diagrams(app) -> str:
@@ -306,6 +319,8 @@ def _configure_diagrams(app) -> str:
                 "documentation build that phones home to draw a picture is the "
                 "failure this mode exists to prevent.")
         app.setup_extension("sphinxcontrib.mermaid")
+        app.config.mermaid_use_local = MERMAID_RENDERER_FILENAME
+        app.connect("build-finished", _copy_vendored_mermaid)
         if shutil.which("dot"):
             app.setup_extension("sphinx.ext.graphviz")
         else:

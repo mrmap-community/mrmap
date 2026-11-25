@@ -105,11 +105,12 @@ extensions = [
 # the build's provenance beside the output. Its module docstring holds the
 # reasoning; the two settings below are the only knobs.
 #
-# The defaults are the offline-safe ones a contributor gets on a laptop. The
-# docs image sets the strict pair - ``MRMAP_DOCS_AUTODOC=on`` turns a module
-# that cannot be imported into a build error rather than a placeholder, and
-# ``MRMAP_DOCS_DIAGRAMS=render`` asks for real diagram rendering against the
-# vendored renderer named by ``MRMAP_DOCS_MERMAID_JS``.
+# The defaults are the offline-safe ones used by contributors and the current
+# docs builds. ``MRMAP_DOCS_AUTODOC=on`` is an opt-in strict mode for an
+# environment where the application can be imported; the docs image and
+# Read the Docs do not set it. ``MRMAP_DOCS_DIAGRAMS=render`` asks for real
+# diagram rendering against the vendored renderer named by
+# ``MRMAP_DOCS_MERMAID_JS``.
 mrmap_autodoc = os.environ.get("MRMAP_DOCS_AUTODOC", "auto")
 mrmap_diagrams = os.environ.get("MRMAP_DOCS_DIAGRAMS", "static")
 mrmap_mermaid_js = os.environ.get("MRMAP_DOCS_MERMAID_JS", "")
@@ -198,6 +199,17 @@ linkcheck_ignore = [
     r"http://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
     r"https://127.0.0.1\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
     r"http://YOUR-IP-ADDRESS\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)",
+    # Historical links whose targets are client-rendered GitHub fragments or
+    # whose host currently fails TLS validation. Keep all other links gated.
+    r"https://github\.com/mrmap-community/mrmap/issues/1256#issuecomment-6796247548",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4538304447",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541842215",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541817433",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541861570",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541851548",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541888319",
+    r"https://github\.com/mrmap-community/mrmap/pull/1255#discussion_r4541870176",
+    r"https://masteringdjango\.com/django-tutorials/mastering-django-structure/?",
 ]
 
 linkcheck_request_headers = {

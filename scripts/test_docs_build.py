@@ -28,6 +28,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "docs" / "source"
@@ -320,6 +321,31 @@ def test_ref_targets_have_a_label() -> None:
           "; ".join(sorted(set(broken))))
 
 
+def test_rst_explicit_links_resolve() -> None:
+    """RST inline links name a real target, document, or absolute URL."""
+    labels: set[str] = set()
+    pages = [page for page in documents() if page.suffix == ".rst"]
+    for page in pages:
+        labels |= set(re.findall(r"^\.\.\s+_([^:\s]+):", read(page), re.MULTILINE))
+        labels |= set(re.findall(r"^\(([^)\s]+)\)=$", read(page), re.MULTILINE))
+
+    broken = []
+    pattern = re.compile(r"(?<!`)`[^`<>]+<([^<>]+)>`_(?!`)")
+    for page in pages:
+        for target in pattern.findall(read(page)):
+            target = target.strip()
+            if urlsplit(target).scheme or target.startswith("//"):
+                continue
+            if target.endswith("_") and target[:-1] in labels:
+                continue
+            local_target = target[:-1] if target.endswith("_") else target
+            local_target = local_target.split("#", 1)[0]
+            if local_target and resolve(page, local_target) is None:
+                broken.append(f"{page.relative_to(ROOT)} -> {target}")
+    check("every RST inline target resolves", not broken,
+          "; ".join(sorted(set(broken))))
+
+
 def test_local_links_of_the_authored_corpus_resolve() -> None:
     """Every relative Markdown link under ``docs/`` points at a real file.
 
@@ -360,9 +386,14 @@ def test_configuration_holds_the_contracts_the_pages_depend_on() -> None:
     check("autodoc failure is a decision and not a surprise",
           "MRMAP_DOCS_AUTODOC" in conf)
     extension = read(EXTENSION)
+    check("real autodoc directives are registered before being reported effective",
+          'app.setup_extension("sphinx.ext.autodoc")' in extension)
     check("diagram blocks degrade to their source rather than to nothing",
           "MermaidSourceDiagram" in extension
           and "GraphvizSourceDiagram" in extension)
+    check("rendered Mermaid uses and includes the vendored local renderer",
+          "mermaid_use_local = MERMAID_RENDERER_FILENAME" in extension
+          and "_copy_vendored_mermaid" in extension)
     check("no diagram renderer is ever fetched over the network",
           "requests.get" not in extension and "urlopen" not in extension)
     check("every build writes its provenance beside its output",
@@ -420,6 +451,7 @@ def main() -> int:
     test_theme_assets_exist()
     test_doc_references_resolve()
     test_ref_targets_have_a_label()
+    test_rst_explicit_links_resolve()
     test_local_links_of_the_authored_corpus_resolve()
     test_configuration_holds_the_contracts_the_pages_depend_on()
     test_requirements_are_pinned_and_isolated()

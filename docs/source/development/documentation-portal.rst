@@ -231,9 +231,10 @@ reference was not generated, instead of an empty section a reader might mistake 
 
     MRMAP_DOCS_AUTODOC=on  # a module that cannot be imported is a build error
 
-That is the setting the docs image runs with, and it is what keeps the extraction
-honest: a green build under ``on`` is evidence the reference really was generated.
-The page itself tells the reader which of the two it is looking at.
+This strict mode is available for a build environment that can import the
+application; the docs image and Read the Docs currently use the default
+``auto`` mode. A green build under ``on`` is evidence the reference really was
+generated. The page itself tells the reader which of the two it is looking at.
 
 .. _docs-portal-identity:
 

@@ -15,9 +15,9 @@ trusting one:
   **extracted from the application** by autodoc. A portal build runs without the
   backend environment - no database, no GDAL, no application imports - so those
   sections name the module and state that its reference was not generated,
-  instead of leaving an empty space where one should be. Setting
-  ``MRMAP_DOCS_AUTODOC=on`` turns a module that cannot be imported into a build
-  error instead, which is how the docs image keeps the extraction honest. See
+  instead of leaving an empty space where one should be. The optional
+  ``MRMAP_DOCS_AUTODOC=on`` mode makes an unavailable module fail the build; the
+  docs image and Read the Docs currently use the default ``auto`` mode. See
   :ref:`api-generated-vs-authored`.
 
 .. _api-generated-vs-authored:

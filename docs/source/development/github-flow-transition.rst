@@ -337,9 +337,11 @@ was created as a Draft by mrmap-agent-bot from the native linked branch.
 left it BLOCKED with REVIEW_REQUIRED. The bot restored the valid greeting,
 added only a synthetic note, removed the manual blocked label while retaining
 assignment, and marked the PR ready. Independent human approval by jokiefer was recorded at 15:34:49 UTC.
-The PR is mergeable with a green required check; human merge and native issue
-closing are pending. This evidence does not claim the merge/closing acceptance
-criterion has passed yet.
+jokiefer then merged the PR at 15:36:16 UTC (16:36:16 Europe/Berlin), merge commit
+``72481bb9b749bb0db706db6fa4beb09ce8421d90``. GitHub reports linked
+`issue #1 <https://github.com/mrmap-community/workflow-sandbox/issues/1>`_ closed
+at 15:36:18 UTC. The default-branch native issue-closing demonstration passed.
+No agent approved or merged the PR; no sandbox protection bypass was configured.
 
 The full tooling run passed 39 of 40 suites. The unrelated XML parse guard scans
 the local untracked ``backend/.venv`` and reports lxml's own text serialization;

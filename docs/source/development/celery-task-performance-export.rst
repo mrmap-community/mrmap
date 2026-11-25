@@ -1,8 +1,8 @@
 .. _celery-task-performance-export:
 
-==========================================
+============================================
 Celery task-performance series and dashboard
-==========================================
+============================================
 
 :ref:`celery-capacity-telemetry` measures one execution at a time. Issue #1391
 publishes the same measurement as a **series**: once per export window, the
@@ -69,20 +69,27 @@ source layer survive into the series.
 
 ``fleet`` - exactly one per window, the whole deployment:
 
-    ``executions``          attempts of the window
-    ``slot_seconds``        sum of measured worker occupancy - the occupancy of #1330
-    ``succeeded`` / ``failed`` / ``retried`` / ``revoked``
-                            outcomes of the window
-    ``uncertain_open``      open rows this window flushed - a crash shows up
-                            here only if the row was *written* in the window
-    ``uncertain_abandoned`` of those, the ones the sweep had already flagged
-    ``active_p50`` / ``active_p95`` / ``active_p99`` / ``active_max``
-                            wall time of a single run
-    ``wait_p50`` / ``wait_p95`` / ``wait_max`` / ``wait_samples``
-                            broker wait, and how many runs had one measured
-    ``wait_coverage``       share of attempts with a measured wait
-    ``buckets``             how many (class, queue) records this window has
-    ``truncated``           "true" when the (class, queue) cap was reached
+``executions``
+    attempts of the window
+``slot_seconds``
+    sum of measured worker occupancy - the occupancy of #1330
+``succeeded`` / ``failed`` / ``retried`` / ``revoked``
+    outcomes of the window
+``uncertain_open``
+    open rows this window flushed - a crash shows up here only if the row was
+    *written* in the window
+``uncertain_abandoned``
+    of those, the ones the sweep had already flagged
+``active_p50`` / ``active_p95`` / ``active_p99`` / ``active_max``
+    wall time of a single run
+``wait_p50`` / ``wait_p95`` / ``wait_max`` / ``wait_samples``
+    broker wait, and how many runs had one measured
+``wait_coverage``
+    share of attempts with a measured wait
+``buckets``
+    how many (class, queue) records this window has
+``truncated``
+    "true" when the (class, queue) cap was reached
 
 ``class_bucket`` - one per ``(task_class, queue)`` seen in the window,
 heaviest first, up to ``MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS`` of them:
@@ -102,16 +109,20 @@ not a series.
 
 ``coverage`` - exactly one per fire, the standing state of the attempt table:
 
-    ``open_running``        open attempts without a terminal row, young
-                            enough to still be running - an expected state
-    ``open_abandoned``      open attempts without a terminal row which are
-                            past ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` -
-                            the crash residue, the number a coverage panel
-                            must move
-    ``open_total``          both together
-    ``grace_seconds``       the grace the partition was made at, so a reader
-                            can tell what "past the grace" meant at read time
-    ``measured_at``         when the read ran, not a window edge
+``open_running``
+    open attempts without a terminal row, young enough to still be running -
+    an expected state
+``open_abandoned``
+    open attempts without a terminal row which are past
+    ``CAPACITY_TELEMETRY_ABANDON_GRACE_HOURS`` - the crash residue, the
+    number a coverage panel must move
+``open_total``
+    both together
+``grace_seconds``
+    the grace the partition was made at, so a reader can tell what "past the
+    grace" meant at read time
+``measured_at``
+    when the read ran, not a window edge
 
 ``class_coverage`` - one per task class which is holding open attempts, with
 ``task_class`` and the same count fields.

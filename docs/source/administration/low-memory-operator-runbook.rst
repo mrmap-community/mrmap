@@ -159,7 +159,10 @@ repository root before trusting a matrix that changed).
 
 * **core** - ``postgis``, ``redis`` (data and broker), ``backend``,
   ``celery-worker``, ``celery-beat``, ``frontend`` (the application) and
-  ``docker-api``. The socket proxy is *not* a dashboard: the status UI of
+  ``docker-api``. The ``redis`` of #1473 answers an authenticated client
+  only, so ``REDIS_PASSWORD`` is required in **every** mode - Compose refuses
+  the stack without it (``${REDIS_PASSWORD:?...}``) - and every redis reading
+  passes it, read inside the container as the healthcheck does. The socket proxy is *not* a dashboard: the status UI of
   the ``system`` app reads container health through it, so dropping it
   trades memory for a broken status page. ``mapserver`` is a runtime
   dependency of the development stack and the exact dependency of the
@@ -302,8 +305,9 @@ non-reclaimable part an OOM cannot take back); budgets must cover
   the pair for the total it can serve against PostgreSQL's
   ``max_connections`` (100 by image default).
 * **Redis ceiling**: the trade is a rising charge for a plateau. The
-  reading that says the bound is wrong: ``redis-cli INFO stats`` ->
-  ``evicted_keys`` non-zero under a workload you consider normal means
+  reading that says the bound is wrong: the credentialed ``INFO stats``
+  reading below -> ``evicted_keys`` non-zero under a workload you consider
+  normal means
   raise ``REDIS_MAXMEMORY``; do **not** relax ``volatile-lru`` - it is the
   only policy that cannot drop broker queues. A lost result under pressure
   is loud by design (``NotFound`` at the consumer), a lost queue is
@@ -333,7 +337,10 @@ what gated before (``docker-compose.yml``):
      - 10s
      - 20s
    * - ``redis``
-     - ``redis-cli ping``
+     - ``redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping`` - the
+       credential of the service itself: since #1473 the instance only
+       answers an authenticated client, so an unauthenticated ``ping`` would
+       make a healthy redis read as unhealthy
      - 5s
      - 2s
    * - ``celery-worker``
@@ -400,9 +407,15 @@ Routine operator readings, one per knob that bounds something:
     # what is charged right now, per container
     docker stats --no-stream
 
-    # Redis: a non-zero delta under normal load = raise REDIS_MAXMEMORY
-    docker compose exec redis redis-cli INFO stats | grep -E 'evicted_keys|evicted'
-    docker compose exec redis redis-cli CONFIG GET maxmemory
+    # Redis: a non-zero delta under normal load = raise REDIS_MAXMEMORY.
+    # Since #1473 the instance requires a password, so the credential is read
+    # INSIDE the container (single quotes, as in the healthcheck) - an
+    # unauthenticated client is refused and the reading prints nothing.
+    docker compose exec redis sh -c \
+      'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning INFO stats' \
+      | grep -E 'evicted_keys|evicted'
+    docker compose exec redis sh -c \
+      'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning CONFIG GET maxmemory'
 
     # PostgreSQL: who holds connections (pool totals, not per process). The
     # names are read INSIDE the container - single quotes keep the host shell

@@ -128,9 +128,12 @@ event environments: same-repository develop succeeds; same-repository task branc
 and fork develop both fail. The workflow is unchanged. The native issue-to-develop
 review/check/merge/closing demonstration remains the completed #1592 sandbox
 record below; #1593 does not reuse or delete that sandbox. Targeted portal
-structural validation passes. The remaining full tooling run is recorded in the
-PR once complete. No application, schema or migration changed and no Compose
-stack was started.
+structural validation passes. ``scripts/check_repo_tooling.sh </dev/null``
+passed 35 of the remaining 36 suites. The unchanged XML parse guard also scans
+the local untracked ``backend/.venv`` and flags lxml's own text serialization,
+the same workspace-only failure recorded under #1592. Validator retirement
+passes with 93 checks (Docker skips are reported by that suite). No application,
+schema or migration changed and no Compose stack was started.
 
 Historical #1592 audit and transition plan
 ==========================================

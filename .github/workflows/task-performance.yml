@@ -1,0 +1,142 @@
+name: Task performance
+
+# WHY THIS JOB EXISTS, AND WHY IT IS NIGHTLY RATHER THAN PER PULL REQUEST.
+#
+# Issue #1396 asks for runtime benchmarks of the Celery task families of epic
+# #1387 and for a performance regression report that a reviewer can read without
+# re-running anything. The report is the artifact; the verdict is not a gate.
+#
+# The measurements come from a shared runner, and a shared runner is exactly why
+# this does not run per pull request. Four of these jobs on one host measure the
+# neighbour, not the task, and a threshold tuned on a quiet machine reddens on a
+# busy one - which is the flakiness the issue names, arriving as a red check
+# nobody can act on. A nightly on an otherwise idle runner produces the spread a
+# baseline is allowed to be derived from; a pull request that wants its own
+# number runs the same workflow by hand.
+#
+# The gate therefore runs in `warn` mode, always. `scripts/task_perf_baseline.json`
+# carries no reviewed entry, so no cell can block, and epic #1387's standing
+# decision - no mandatory performance gate until a human approves one - holds
+# whatever this job prints. Making a family block is a change to that file in a
+# pull request that shows the run it is based on, not a change here.
+#
+# WHAT MAKES A RUN HERE TRUSTWORTHY RATHER THAN A COIN FLIP
+#
+#   - One test process, `--keepdb`, no `--parallel`: `task_perf_runner.sh` owns
+#     that, and owns it identically to the documented local invocation, so a CI
+#     number and a laptop number describe the same thing.
+#   - A pinned seed and repeat count, so two runs of the same revision differ by
+#     the noise of the runner and nothing else.
+#   - `if-no-files-found: error`: a nightly that measured nothing is red, not an
+#     empty artifact nobody notices. A green that measured nothing is the failure
+#     mode this issue exists to remove.
+#   - The heavy backlog arm is not run here. It needs a dedicated runner and
+#     hours; a bounded nightly is the wrong place for an unbounded workload.
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Family to benchmark (one family keeps a nightly short)
+        required: false
+        default: harvesting.import_chunk
+        type: choice
+        options:
+          - harvesting.import_chunk
+          - harvesting.fan_out
+          - housekeeping.system
+          - monitoring.wms
+      repeats:
+        description: Repeats per workload cell
+        required: false
+        default: "7"
+      seed:
+        description: Seed the workload is generated from
+        required: false
+        default: "20261121"
+  schedule:
+    # 02:15 UTC, away from the 16:00 QA schedule whose containers would share
+    # the runner's cores and inflate every median in the report
+    - cron: 15 2 * * *
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Disposable test credentials; no deployment secret is needed. Compose
+# interpolates every service, so these also cover the services the run does not
+# start. Same values as the Quality Assurance job, for the same reason.
+env:
+  COMPOSE_PROJECT_NAME: mrmap-task-perf-ci
+  EXTERNAL_BASE_URL: localhost
+  EXTERNAL_PORT: 8000
+  EXTERNAL_SCHEME: http
+  DB_USER: mrmap
+  DB_PASSWORD: mrmap-ci-password
+  DJANGO_ADMIN_USER: mrmap
+  DJANGO_ADMIN_PASSWORD: mrmap
+  DJANGO_SECRET_KEY: mrmap-ci-secret-key-for-disposable-test-containers
+  GRAFANA_ADMIN_USER: admin
+  GRAFANA_ADMIN_PASSWORD: mrmap-ci-password
+  PGADMIN_USER: admin@example.com
+  PGADMIN_PASSWORD: mrmap-ci-password
+
+jobs:
+  runtime-benchmark:
+    name: runtime benchmark (${{ inputs.family || 'harvesting.import_chunk' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.15'
+
+      # The runner owns the flow - compose project, database healthcheck, one
+      # test process, then load / report / summary / detect / gate - because the
+      # invocation a developer can reproduce is worth more than the same five
+      # steps written twice, once here and once in the docs.
+      - name: Run the runtime benchmark
+        run: |
+          scripts/task_perf_runner.sh \
+            --family "${{ inputs.family || 'harvesting.import_chunk' }}" \
+            --repeats "${{ inputs.repeats || '7' }}" \
+            --seed "${{ inputs.seed || '20261121' }}" \
+            --mode warn \
+            --out backend/task-perf
+
+      # warn mode means a detected regression exits 0: the artifact is the point,
+      # and a regression a reviewer has not agreed to block on cannot be allowed
+      # to redden a nightly nobody is watching. The step below makes the finding
+      # readable anyway.
+      - name: Say what the detectors found
+        if: always()
+        run: |
+          for file in backend/task-perf/detect-*.txt; do
+            [ -f "$file" ] || continue
+            echo "::notice title=task-perf($(basename "$file" .txt | sed 's/^detect-//'))::$(cat "$file")"
+          done
+          test -f backend/task-perf/gate.txt && cat backend/task-perf/gate.txt
+
+      - name: upload the benchmark report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: task-perf-report
+          # error rather than warn: an artifact published from an empty directory
+          # is a nightly that looks like it ran
+          if-no-files-found: error
+          path: |
+            backend/task-perf/task-perf.jsonl
+            backend/task-perf/report.txt
+            backend/task-perf/summary.txt
+            backend/task-perf/summary.log
+            backend/task-perf/gate.json
+            backend/task-perf/gate.txt
+            backend/task-perf/detect-*.json
+            backend/task-perf/detect-*.txt
+            backend/task-perf/*__*.json

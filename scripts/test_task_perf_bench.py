@@ -1,0 +1,1919 @@
+#!/usr/bin/env python3
+"""Offline tests for task_perf_bench, the Celery runtime benchmark reporter (#1396).
+
+Host-side tests of the host-side tool, like ``scripts/test_http_process_bench.py``
+for its web-tier sibling: plain unittest, no imports from the application and
+nothing from the network, so they run in pre-commit and in CI as fast as an
+import costs. The heavy half of #1396 - actually executing a task family - lives
+in the Django opt-in suite
+``backend/tests/django/system/test_task_runtime_bench.py``; what is tested here
+is the reading and the verdict built on top of it.
+
+The subject is the tool's honesty, not its arithmetic:
+
+*   the three durations stay three measurements - an arm which quietly reports
+    worker occupancy as broker wait is rejected (#1330's conflation mistake);
+*   a percentile nobody sampled is not reported, and an unmeasured thing is
+    ``null`` rather than ``0``;
+*   two arms of different workloads cannot be compared at all;
+*   an unstable arm may not produce a blocking verdict, whatever it measured;
+*   and a blocking verdict additionally needs a reviewed baseline entry plus an
+    explicit ``--mode block``, which is what keeps the shipped default a warning.
+
+Run from the repository root:
+    python3 -m unittest discover -s scripts -p 'test_task_perf_bench.py' -v
+"""
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import task_perf_bench  # noqa: E402  (host-side tool of this repository)
+
+SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      "task_perf_bench.py")
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BENCH_SUPPORT = os.path.join(
+    REPO_ROOT, "backend", "tests", "django", "system",
+    "_task_runtime_bench_support.py")
+
+
+def unit(active=0.5, wait=0.02, elapsed=None, outcome="success", index=0):
+    return {"id": "unit-%d" % index,
+            "elapsed_seconds": active + 0.01 if elapsed is None else elapsed,
+            "attempts": [{"task_id": "t%d" % index, "attempt_no": 0,
+                          "active_seconds": active, "wait_seconds": wait,
+                          "outcome": outcome}]}
+
+
+def workload(units=None, **spec):
+    """A workload fixture in the shape the Django bench suite writes."""
+    payload = {
+        "family": "harvesting.import_chunk",
+        "fixture": "typical",
+        "scale": "typical",
+        "records": 100,
+        "chunks": 1,
+        "chunk_size": 1000,
+        "attempts_per_unit": 1,
+        "queue": "harvest-import",
+        "mock_responses": "in-process-lxml-200",
+        "units": units if units is not None else [unit() for _ in range(30)],
+    }
+    payload.update(spec)
+    return payload
+
+
+def argv(**overrides):
+    """The canonical load invocation, overridable per test."""
+    args = {"arm": "baseline", "seed": 20261121, "repeats": "7", "repeat": "1",
+            "revision": "abc1234", "now": "2026-11-21T12:00:00+00:00"}
+    args.update({key: str(value) for key, value in overrides.items()})
+    return args
+
+
+def write_fixture(directory, payload, name="wl.json"):
+    path = os.path.join(directory, name)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle)
+    return path
+
+
+def write_records(path, records):
+    with open(path, "w", encoding="utf-8") as handle:
+        for record in records:
+            handle.write(task_perf_bench.canonical(record) + "\n")
+    return path
+
+
+def build_record(tmpdir, arm="baseline", repeat=1, repeats="7", units=None,
+                 **spec):
+    """One record, built by the real CLI path (load without --out)."""
+    fixture = write_fixture(tmpdir, workload(units=units, **spec),
+                            "wl-%s-%s.json" % (arm, repeat))
+    out = io.StringIO()
+    with redirect_stdout(out):
+        rc = task_perf_bench.main([
+            "load", "--arm", arm, "--seed", "20261121", "--repeats", str(repeats),
+            "--repeat", str(repeat), "--fixture", fixture, "--revision", "abc1234",
+            "--now", "2026-11-21T12:00:00+00:00"])
+    assert rc == 0, "load failed"
+    return json.loads(out.getvalue())
+
+
+# --------------------------------------------------------------- sample honesty
+
+
+class StatisticDefinitionTest(unittest.TestCase):
+    """The statistics the report promises, exactly - and not more."""
+
+    def test_percentile_is_nearest_rank(self):
+        self.assertEqual(25, task_perf_bench.percentile(
+            list(range(1, 101)), 0.25))
+        self.assertEqual(50, task_perf_bench.percentile(
+            list(range(1, 101)), 0.50))
+        self.assertEqual(95, task_perf_bench.percentile(
+            list(range(1, 101)), 0.95))
+        # nearest rank, the same definition scripts/http_process_bench.py
+        # documents: the 99th percentile of 1..100 is 99, not 100
+        self.assertEqual(99, task_perf_bench.percentile(
+            list(range(1, 101)), 0.99))
+        self.assertEqual(1, task_perf_bench.percentile([1], 0.99))
+
+    def test_percentile_of_nothing_is_none_not_zero(self):
+        self.assertIsNone(task_perf_bench.percentile([], 0.95))
+        self.assertIsNone(task_perf_bench.mean([]))
+
+    def test_coefficient_of_variation_needs_two_samples(self):
+        self.assertIsNone(task_perf_bench.coefficient_of_variation([1.0]))
+        self.assertIsNone(task_perf_bench.coefficient_of_variation([]))
+        self.assertAlmostEqual(0.0, task_perf_bench.coefficient_of_variation(
+            [2.0, 2.0, 2.0]), places=9)
+        self.assertAlmostEqual(2 ** 0.5 / 2,
+                               task_perf_bench.coefficient_of_variation(
+                                   [1.0, 3.0]), places=6,
+                               msg="the sample stdev (n-1) over the mean")
+
+    def test_thin_sample_reports_median_and_never_a_percentile(self):
+        """The acceptance bullet: p50/p95/p99 when adequately sampled."""
+        block = task_perf_bench.duration_stats([0.5] * 5, "active")
+        self.assertEqual(5, block["n"])
+        self.assertEqual(0.5, block["p50"])
+        self.assertIsNone(block["p95"], "5 samples are not a p95")
+        self.assertIsNone(block["p99"])
+        self.assertEqual(["p50", "mean", "min", "max"], block["reported"])
+
+    def test_p95_appears_at_its_own_floor(self):
+        block = task_perf_bench.duration_stats([0.5] * 20, "active")
+        self.assertIsNotNone(block["p95"])
+        self.assertIsNone(block["p99"], "20 samples are still not a p99")
+
+    def test_p99_appears_at_its_own_floor(self):
+        block = task_perf_bench.duration_stats([0.5] * 100, "active")
+        self.assertIsNotNone(block["p99"])
+
+    def test_an_empty_sample_list_is_a_block_of_none(self):
+        block = task_perf_bench.duration_stats([], "queue")
+        self.assertEqual(0, block["n"])
+        for key in ("min", "mean", "p50", "p95", "p99", "max"):
+            self.assertIsNone(block[key], "%s must stay unknown, not 0" % key)
+
+
+class WorkloadIdentityTest(unittest.TestCase):
+    """Reproducibility: same seed and same workload, or no comparison."""
+
+    def test_same_workload_same_digest(self):
+        first = task_perf_bench.workload_digest(workload())
+        second = task_perf_bench.workload_digest(workload(ts="ignored"))
+        self.assertEqual(first, second)
+
+    def test_every_identity_field_changes_the_digest(self):
+        base = task_perf_bench.workload_digest(workload())
+        for key, value in (("scale", "large"), ("records", 200),
+                           ("chunk_size", 500), ("seed", 7),
+                           ("mock_responses", "real-remote"),
+                           ("queue", "default")):
+            changed = task_perf_bench.workload_digest(
+                workload(**{key: value}))
+            self.assertNotEqual(base, changed,
+                                "%s is part of the workload identity" % key)
+
+    def test_timings_do_not_change_the_digest(self):
+        """Two arms of one workload differ in duration and nothing else."""
+        slow = task_perf_bench.workload_digest(
+            workload(units=[unit(active=9.0) for _ in range(30)]))
+        fast = task_perf_bench.workload_digest(
+            workload(units=[unit(active=0.1) for _ in range(30)]))
+        self.assertEqual(slow, fast)
+
+    def test_auto_repeats_and_the_cap(self):
+        self.assertEqual((7, None), task_perf_bench.resolve_repeats("7"))
+        self.assertEqual((0, "auto"), task_perf_bench.resolve_repeats("auto"))
+        self.assertEqual((1, None), task_perf_bench.resolve_repeats(0))
+        with self.assertRaises(SystemExit):
+            task_perf_bench.resolve_repeats("seven")
+
+
+class ValidationHonestyTest(unittest.TestCase):
+    """A record which lies about itself is refused on read and on write."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.record = build_record(self.tmp.name)
+
+    def test_a_valid_record_validates(self):
+        self.assertIs(task_perf_bench.validate_record(self.record),
+                      self.record)
+
+    def test_missing_seed_is_refused(self):
+        broken = dict(self.record)
+        broken.pop("seed")
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("seed", str(caught.exception))
+
+    def test_unknown_family_is_refused(self):
+        broken = dict(self.record)
+        broken["family"] = "harvesting.whatever"
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("harvesting.import_chunk", str(caught.exception))
+
+    def test_a_percentile_from_too_few_samples_is_refused(self):
+        """The floor is enforced on read, not only produced on write."""
+        broken = json.loads(json.dumps(self.record))
+        broken["durations"]["active"]["p99"] = 1.0
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("p99", str(caught.exception))
+
+    def test_an_unknown_evidence_label_is_refused(self):
+        broken = json.loads(json.dumps(self.record))
+        broken["durations"]["active"]["evidence"] = "vibes"
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("vibes", str(caught.exception))
+
+    def test_a_runner_clock_attempt_is_labelled_measured_local(self):
+        """The #1330 distinction, on the only CI path that exists.
+
+        Without ``MRMAP_TASK_PERF_EAGER=1`` the suite has no broker, so its
+        attempt rows are the workload runner's own stopwatch, and the suite says
+        so on the row (``quality: ['no_collector_row']``) and on the record
+        (``quality.evidence: measured_local``). An analyzer which hardcodes
+        ``measured`` publishes a worker-signal claim no worker made, and no
+        artifact would ever contain the word ``measured_local``.
+        """
+        attempt = {"task_id": "runner-typical-0", "attempt_no": 0,
+                   "active_seconds": 0.5, "wait_seconds": None,
+                   "outcome": "success", "quality": ["no_collector_row"]}
+        units = [dict(unit(), attempts=[dict(attempt, task_id="runner-typical-%d" % i)])
+                 for i in range(30)]
+        record = build_record(self.tmp.name, units=units)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
+        self.assertEqual(record["durations"]["active"]["p95_evidence"],
+                         "measured_local")
+        # the count says which and how many of the samples are the runner's clock
+        self.assertEqual(record["durations"]["active"]["runner_clock_samples"], 30)
+
+    def test_a_collector_row_keeps_the_measured_label(self):
+        """The fix must not demote a real #1330 sample to a stopwatch reading."""
+        record = build_record(self.tmp.name)
+        self.assertEqual(record["durations"]["active"]["evidence"], "measured")
+        self.assertNotIn("runner_clock_samples", record["durations"]["active"])
+
+    def test_a_mixed_sample_is_never_promoted_to_measured(self):
+        """One stopwatch row among collector rows labels the block as the clock.
+
+        The tempting reading - most samples are real, so claim the better label -
+        is the one which lets a partial measurement speak as a full one. The
+        reader sees the split in ``runner_clock_samples`` instead.
+        """
+        units = []
+        for index in range(30):
+            rows = [{"task_id": "t%d" % index, "attempt_no": 0,
+                     "active_seconds": 0.5, "wait_seconds": 0.02,
+                     "outcome": "success"}]
+            if index == 0:
+                rows.append({"task_id": "runner-typical-%d" % index, "attempt_no": 0,
+                             "active_seconds": 0.6, "wait_seconds": None,
+                             "outcome": "success",
+                             "quality": ["no_collector_row"]})
+            units.append(dict(unit(index=index), attempts=rows))
+        record = build_record(self.tmp.name, units=units)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
+        self.assertEqual(record["durations"]["active"]["runner_clock_samples"], 1)
+
+    def test_a_record_labelled_measured_local_is_not_relabelled(self):
+        """A fixture which names its own evidence is honoured, rows or no rows."""
+        units = [dict(unit(index=index),
+                      attempts=[{"task_id": "t%d" % index, "attempt_no": 0,
+                                 "active_seconds": 0.5, "wait_seconds": 0.02,
+                                 "outcome": "success"}])
+                 for index in range(30)]
+        record = build_record(self.tmp.name, units=units)
+        # the rows look like collector rows; only the fixture knows better
+        record["quality"]["evidence"] = "measured_local"
+        task_perf_bench.finalize_record(record)
+        self.assertEqual(record["durations"]["active"]["evidence"],
+                         "measured_local")
+
+    def test_truncated_window_without_a_note_is_refused(self):
+        broken = json.loads(json.dumps(self.record))
+        broken["quality"]["retention_truncated"] = True
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("retention", str(caught.exception))
+
+    def test_worker_occupancy_may_not_be_reported_as_broker_wait(self):
+        """#1330's conflation mistake, caught structurally."""
+        broken = json.loads(json.dumps(self.record))
+        broken["durations"]["queue"] = dict(broken["durations"]["active"])
+        broken["durations"]["queue"]["label"] = "queue"
+        broken["durations"]["queue"]["evidence"] = "derived"
+        broken["durations"]["active"]["evidence"] = "derived"
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.validate_record(broken)
+        self.assertIn("broker wait", str(caught.exception))
+
+    def test_a_record_without_its_revision_is_refused(self):
+        broken = dict(self.record)
+        broken["revision"] = ""
+        with self.assertRaises(SystemExit):
+            task_perf_bench.validate_record(broken)
+        broken["revision"] = None          # git cannot answer: that is honest
+        task_perf_bench.validate_record(broken)
+
+    def test_a_malformed_line_is_a_hard_error_not_a_skip(self):
+        """A silently dropped line is how a flaky gate is born."""
+        path = os.path.join(self.tmp.name, "broken.jsonl")
+        write_records(path, [self.record])
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write("{not json}\n")
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.load_records(path)
+        self.assertIn("not JSON", str(caught.exception))
+
+
+# ------------------------------------------------------------------- the report
+
+
+class ReportTest(unittest.TestCase):
+    """The report shows the sample size beside every number it prints."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _jsonl(self, records, name="perf.jsonl"):
+        return write_records(os.path.join(self.tmp.name, name), records)
+
+    def test_report_prints_sample_counts_and_labels_missing_coverage(self):
+        records = [build_record(self.tmp.name, arm="baseline", repeat=index)
+                   for index in range(1, 8)]
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = task_perf_bench.main(["report", "--in", self._jsonl(records)])
+        self.assertEqual(0, rc)
+        printed = out.getvalue()
+        self.assertIn("(30)", printed, "the sample count travels with the cell")
+        self.assertIn("cov", printed)
+        self.assertIn("broker_pressure_unmeasured", printed)
+        self.assertIn("instrumentation_overhead_unmeasured", printed)
+        self.assertIn("digest=", printed, "a report names the workload it read")
+
+    def test_the_repeatability_column_reads_the_whole_arm(self):
+        """CV is a property of an arm's repeats together, not of one row."""
+        varying = [build_record(self.tmp.name, arm="noisy", repeat=index,
+                                units=[unit(active=0.5 + 0.1 * index)] * 30)
+                   for index in range(1, 8)]
+        out = io.StringIO()
+        with redirect_stdout(out):
+            task_perf_bench.main(["report", "--in", self._jsonl(varying)])
+        rows = [line for line in out.getvalue().splitlines()
+                if line.startswith("harvesting.import_chunk")]
+        self.assertTrue(rows)
+        covs = {line.split()[-1] for line in rows}
+        self.assertEqual(1, len(covs), "every repeat shows the arm's CV")
+        self.assertNotEqual("-", covs.pop())
+
+    def test_report_filters_by_family_arm_and_scale(self):
+        records = ([build_record(self.tmp.name, arm="baseline", repeat=index)
+                    for index in range(1, 3)]
+                   + [build_record(self.tmp.name, arm="candidate", repeat=index,
+                                   scale="large", records=1000)
+                      for index in range(1, 3)])
+        out = io.StringIO()
+        with redirect_stdout(out):
+            task_perf_bench.main(["report", "--in", self._jsonl(records),
+                                  "--arm", "candidate"])
+        printed = out.getvalue()
+        self.assertIn("candidate", printed)
+        self.assertNotIn(" baseline ", printed)
+
+    def test_an_empty_selection_is_a_clear_error(self):
+        records = [build_record(self.tmp.name)]
+        with self.assertRaises(SystemExit):
+            task_perf_bench.main(["report", "--in",
+                                  self._jsonl(records), "--arm", "nothing"])
+
+
+# ---------------------------------------------------------------- compare/verdict
+
+
+class CompareTest(unittest.TestCase):
+    """Before/after for two arms - or no verdict at all."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _jsonl(self, records, name="perf.jsonl"):
+        return write_records(os.path.join(self.tmp.name, name), records)
+
+    def _pair(self, slow_factor=2.2):
+        baseline = [build_record(self.tmp.name, arm="baseline", repeat=index)
+                    for index in range(1, 8)]
+        candidate = [build_record(
+            self.tmp.name, arm="sql-n-plus-one", repeat=index,
+            units=[unit(active=0.5 * slow_factor)] * 30)
+            for index in range(1, 8)]
+        return self._jsonl(baseline + candidate)
+
+    def _verdict(self, path, baseline="baseline", candidate="sql-n-plus-one"):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = task_perf_bench.main([
+                "compare", "--in", path, "--baseline", baseline,
+                "--candidate", candidate,
+                "--now", "2026-11-21T12:00:00+00:00"])
+        self.assertEqual(0, rc)
+        return json.loads(out.getvalue())
+
+    def test_a_regression_is_a_number_a_human_can_read(self):
+        verdict = self._verdict(self._pair())
+        metrics = verdict["metrics"]["active_p50"]
+        self.assertAlmostEqual(2.2, metrics["ratio"], places=2)
+        self.assertIsNotNone(metrics["baseline"])
+        self.assertEqual("baseline", verdict["baseline"])
+        self.assertEqual(7, verdict["repeats"]["candidate"])
+        self.assertIsNotNone(verdict["repeatability"]["cv_active_candidate"])
+
+    def test_queue_wait_and_end_to_end_are_their_own_rows(self):
+        verdict = self._verdict(self._pair())
+        self.assertIn("queue_p50", verdict["metrics"])
+        self.assertIn("end_to_end_p50", verdict["metrics"])
+        self.assertIsNotNone(verdict["metrics"]["queue_p50"]["baseline"])
+
+    def test_comparing_different_workloads_is_refused(self):
+        path = self._jsonl(
+            [build_record(self.tmp.name, arm="baseline", repeat=1)]
+            + [build_record(self.tmp.name, arm="sql-n-plus-one", repeat=1,
+                            records=1000, scale="large")])
+        with self.assertRaises(SystemExit) as caught:
+            self._verdict(path)
+        self.assertIn("different workloads", str(caught.exception))
+
+    def test_a_missing_arm_says_which_one(self):
+        path = self._jsonl([build_record(self.tmp.name, arm="baseline")])
+        with self.assertRaises(SystemExit) as caught:
+            self._verdict(path)
+        self.assertIn("candidate", str(caught.exception))
+
+    def test_verdict_carries_its_coverage_labels(self):
+        verdict = self._verdict(self._pair())
+        self.assertIn("broker_pressure_unmeasured",
+                      verdict["coverage"]["candidate"])
+        self.assertNotIn("repeatability_unmeasured",
+                         verdict["coverage"]["candidate"],
+                         "seven repeats do answer repeatability")
+
+
+# --------------------------------------------------------------------------- gate
+
+
+def baseline_file(entries, stability=None):
+    payload = {"schema": task_perf_bench.SCHEMA_VERSION,
+               "kind": "baseline",
+               "stability": stability or {"max_cv": 0.03},
+               "entries": entries}
+    tmp = tempfile.mkdtemp()
+    path = os.path.join(tmp, "baseline.json")
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle)
+    return path
+
+
+def entry_for(record, metrics=None, **spec):
+    """A reviewed baseline entry for one arm, defaulting to the arm's own numbers.
+
+    The defaults are what an approving human signs off on: the arm's measured
+    p50 and p95 as the reviewed baseline. A test of a regression passes its own
+    ``metrics`` to say "the review happened against something else".
+    """
+    durations = record.get("durations") or {}
+    active = durations.get("active") or {}
+    metrics = metrics or {"active_p50": active.get("p50", 0.5),
+                          "active_p95": active.get("p95") or active.get("p50", 0.55)}
+    entry = {"family": record["family"], "arm": record["arm"],
+             "scale": record.get("scale"),
+             "workload_digest": record["digest"],
+             "metrics": metrics,
+             "ratio": 1.25, "block": False,
+             "approved_by": "performance maintainer",
+             "reviewed_at": "2026-11-21"}
+    entry.update(spec)
+    return entry
+
+
+def reviewed_entry(rows, reviewed_for=None, **spec):
+    """A baseline entry whose reviewed numbers come from a real run.
+
+    ``reviewed_for`` is the arm the entry belongs to, when that is not the arm
+    ``rows`` came from - which is exactly what a regression report is: the
+    candidate's entry holding the numbers a human reviewed against some other
+    (usually earlier, usually faster) run. Without it the entry reviews the arm's
+    own pooled p50/p95, which is what an approving maintainer signs off on after
+    looking at a run of that arm.
+    """
+    summary = task_perf_bench.arm_summary(rows)
+    active = summary["active"]
+    entry = entry_for(reviewed_for or rows[0],
+                      metrics={"active_p50": active["p50"],
+                               "active_p95": active["p95"] or active["p50"]},
+                      **spec)
+    entry.setdefault("reviewed", True)
+    return entry
+
+
+class GateTest(unittest.TestCase):
+    """The nonflaky half: what may block, and what may only warn."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _jsonl(self, records):
+        path = os.path.join(self.tmp.name, "perf.jsonl")
+        return write_records(path, records)
+
+    def _gate(self, path, baseline, mode="warn", extra=()):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main(
+                ["gate", "--in", path, "--baseline", baseline, "--mode", mode,
+                 "--now", "2026-11-21T12:00:00+00:00", *extra])
+        return rc, json.loads(out.getvalue())
+
+    def _stable_arm(self, arm="baseline", active=0.5, repeats=7):
+        return [build_record(self.tmp.name, arm=arm, repeat=index,
+                             repeats=repeats,
+                             units=[unit(active=active)] * 30)
+                for index in range(1, repeats + 1)]
+
+    def test_no_baseline_entry_can_never_block(self):
+        records = self._stable_arm()
+        path = self._jsonl(records)
+        baseline = baseline_file([])
+        rc, report = self._gate(path, baseline, mode="block")
+        self.assertEqual(0, rc, "an unreviewed benchmark may not gate")
+        self.assertEqual(["skip"], [check["verdict"] for check in
+                                    report["checks"]])
+        self.assertIn("no baseline entry", report["checks"][0]["reason"])
+
+    def test_a_stable_arm_inside_the_budget_passes(self):
+        records = self._stable_arm()
+        baseline = baseline_file([reviewed_entry(records)])
+        rc, report = self._gate(self._jsonl(records), baseline, mode="block")
+        self.assertEqual(0, rc)
+        self.assertEqual("pass", report["checks"][0]["verdict"])
+
+    def test_a_regression_in_warn_mode_warns_and_exits_zero(self):
+        records = self._stable_arm(arm="baseline") + self._stable_arm(
+            arm="sql-n-plus-one", active=1.6)
+        baseline = baseline_file([
+            reviewed_entry(records[:7]),
+            reviewed_entry(records[:7], reviewed_for=records[-1], block=True)])
+        rc, report = self._gate(self._jsonl(records), baseline, mode="warn")
+        self.assertEqual(0, rc, "warn never fails a job")
+        candidate = [check for check in report["checks"]
+                     if check["arm"] == "sql-n-plus-one"][0]
+        self.assertEqual("warn", candidate["verdict"])
+        self.assertIn("grew", candidate["reason"])
+
+    def test_a_regression_blocks_only_when_approved_and_asked(self):
+        records = self._stable_arm(arm="baseline") + self._stable_arm(
+            arm="sql-n-plus-one", active=1.6)
+        # the candidate's thresholds were reviewed against the fast baseline
+        # run - which is what a regression report is
+        baseline = baseline_file([
+            reviewed_entry(records[:7]),
+            reviewed_entry(records[:7], reviewed_for=records[-1], block=True)])
+        rc, report = self._gate(self._jsonl(records), baseline, mode="block")
+        self.assertEqual(1, rc)
+        candidate = [check for check in report["checks"]
+                     if check["arm"] == "sql-n-plus-one"][0]
+        self.assertEqual("block", candidate["verdict"])
+        self.assertIn("sql-n-plus-one", str(report["approval_required"]))
+
+    def test_an_unstable_arm_may_not_block_however_slow(self):
+        """A noisy machine gets a warning, never a red check."""
+        slow_noisy = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                                   units=[unit(active=2.0 * (1 + index))] * 30)
+                      for index in range(1, 8)]
+        # the thresholds would block: reviewed against a fast baseline, and
+        # only the noise of the arm keeps the check from being red
+        fast = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                             units=[unit(active=0.5)] * 30)
+                for index in range(1, 8)]
+        baseline = baseline_file([reviewed_entry(fast, block=True)])
+        rc, report = self._gate(self._jsonl(slow_noisy), baseline, mode="block")
+        self.assertEqual(0, rc)
+        self.assertEqual("unstable", report["checks"][0]["verdict"])
+        self.assertIn("CV", report["checks"][0]["reason"])
+        self.assertGreater(report["checks"][0]["stability"]["cv"], 0.0,
+                           "the arm really was noisy, and it stayed a warning")
+
+    def test_an_incomplete_arm_is_unstable_not_a_verdict(self):
+        # seven repeats were planned, three were delivered: no verdict
+        records = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                                repeats=7, units=[unit(active=0.5)] * 30)
+                   for index in range(1, 4)]
+        baseline = baseline_file([reviewed_entry(records, block=True)])
+        rc, report = self._gate(self._jsonl(records), baseline, mode="block")
+        self.assertEqual(0, rc)
+        self.assertEqual("unstable", report["checks"][0]["verdict"])
+        self.assertIn("incomplete", report["checks"][0]["reason"])
+
+    def test_a_single_repeat_cannot_state_repeatability(self):
+        records = self._stable_arm(repeats=1)
+        baseline = baseline_file([reviewed_entry(records, block=True)])
+        rc, report = self._gate(self._jsonl(records), baseline, mode="block")
+        self.assertEqual(0, rc)
+        self.assertEqual("unstable", report["checks"][0]["verdict"])
+        self.assertIn("repeatability", report["checks"][0]["reason"])
+
+    def test_a_stale_workload_digest_skips_the_comparison(self):
+        records = self._stable_arm()
+        stale = entry_for(records[0], workload_digest="0" * 16)
+        rc, report = self._gate(self._jsonl(records), baseline_file([stale]))
+        self.assertEqual(0, rc)
+        self.assertEqual("skip", report["checks"][0]["verdict"])
+        self.assertIn("digest", report["checks"][0]["reason"])
+
+    def test_a_per_family_floor_from_the_baseline_file_is_used(self):
+        """A family whose own floor is loose cannot be gated at 3 %."""
+        noisy = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                              units=[unit(active=0.5 * (1 + 0.1 * index))] * 30)
+                 for index in range(1, 8)]
+        tight = baseline_file([reviewed_entry(noisy, block=True)],
+                              stability={"max_cv": 0.001})
+        loose = baseline_file([reviewed_entry(noisy, block=True, max_cv=0.50)],
+                              stability={"max_cv": 0.001})
+        path = self._jsonl(noisy)
+        _, strict = self._gate(path, tight)
+        self.assertEqual("unstable", strict["checks"][0]["verdict"])
+        _, allowed = self._gate(path, loose)
+        self.assertEqual("pass", allowed["checks"][0]["verdict"])
+
+    def test_worker_loss_downgrades_a_pass_to_a_warning(self):
+        records = self._stable_arm()
+        for record in records:
+            record["quality"]["worker_loss"] = 1
+            record["digest"] = task_perf_bench.workload_digest(record)
+        baseline = baseline_file([reviewed_entry(records)])
+        _, report = self._gate(self._jsonl(records), baseline)
+        self.assertEqual("warn", report["checks"][0]["verdict"])
+        self.assertIn("worker_loss", report["checks"][0]["reason"])
+
+    def test_the_baseline_file_must_be_a_baseline_file(self):
+        path = os.path.join(self.tmp.name, "not-a-baseline.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"entries": "nope"}, handle)
+        with self.assertRaises(SystemExit):
+            self._gate(self._jsonl(self._stable_arm()), path)
+
+    def test_an_unreviewed_entry_reports_and_does_not_gate(self):
+        records = self._stable_arm(active=3.0)
+        entry = reviewed_entry(records, reviewed=False)
+        rc, report = self._gate(self._jsonl(records), baseline_file([entry]),
+                                mode="block")
+        self.assertEqual(0, rc)
+        self.assertEqual("skip", report["checks"][0]["verdict"])
+        self.assertIn("reviewed", report["checks"][0]["reason"])
+
+    def test_the_committed_baseline_ships_unreviewed(self):
+        """No mandatory performance gate exists until a human approves one."""
+        shipped = os.path.join(REPO_ROOT, "scripts", "task_perf_baseline.json")
+        with open(shipped, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        self.assertIn("entries", payload)
+        self.assertTrue(payload["entries"],
+                        "the shipped file names what the runbook measures")
+        self.assertEqual([], [entry for entry in payload["entries"]
+                              if entry.get("block")],
+                         "a shipped baseline may not pre-approve a blocking gate")
+        self.assertEqual([], [entry for entry in payload["entries"]
+                              if entry.get("reviewed")],
+                         "thresholds need a human signature, which the shipped "
+                         "file must not fake")
+        for entry in payload["entries"]:
+            self.assertIn(entry["family"], task_perf_bench.FAMILIES)
+        self.assertTrue(payload.get("stability", {}).get("max_cv"))
+
+
+# --------------------------------------------------------------------- detectors
+
+
+class DetectTest(unittest.TestCase):
+    """The acceptance bullet: injected defects must actually be detected."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def _ladder(self, statements_for, arm="candidate"):
+        """Records at the 1 / 10 / 100 rungs, paying ``statements_for(size)``.
+
+        A constant cost per unit is the reviewed shape; a per-unit cost which
+        itself grows with the size of the workload is what an N+1 looks like from
+        outside the code - which is the level the epic asks the detection to work
+        at, since a statement guard already covers the inside (#1395).
+        """
+        records = []
+        for size in (1, 10, 100):
+            record = build_record(
+                self.tmp.name, arm=arm, repeat=1, records=size,
+                units=[unit()] * size,
+                sql={"statements": {"value": statements_for(size),
+                                    "evidence": "measured"}})
+            records.append(record)
+        return records
+
+    def _jsonl(self, records, name="perf.jsonl"):
+        return write_records(os.path.join(self.tmp.name, name), records)
+
+    def _detect(self, path, arm, extra=()):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main(
+                ["detect", "--in", path, "--arm", arm,
+                 "--now", "2026-11-21T12:00:00+00:00", *extra])
+        return rc, json.loads(out.getvalue())
+
+    def _finding(self, report, kind):
+        return [finding for finding in report["findings"]
+                if finding["kind"] == kind]
+
+    def test_a_flat_statement_shape_is_not_an_n_plus_one(self):
+        """The baseline of the detection: constant work per unit is green."""
+        _rc, report = self._detect(self._jsonl(self._ladder(lambda size: size)), "candidate")
+        n_plus_one = self._finding(report, "sql_n_plus_one")
+        self.assertTrue(n_plus_one, "the ladder answered, so the detector spoke")
+        self.assertFalse(n_plus_one[0]["detected"])
+        self.assertNotIn("sql_n_plus_one", report["detected"])
+
+    def test_an_injected_sql_n_plus_one_is_detected(self):
+        _rc, report = self._detect(
+            self._jsonl(self._ladder(lambda size: size * size)), "candidate")
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertTrue(finding["detected"])
+        self.assertGreater(finding["per_unit_at_max"], finding["per_unit_at_min"])
+        # a finding without its numbers is not a finding
+        self.assertEqual([1, 10, 100], finding["sizes"])
+        self.assertEqual("measured", finding["evidence"])
+        self.assertIn("sql_n_plus_one", report["detected"])
+
+    def _size_ladder(self, statements_for, arm="candidate", samples=1):
+        """The ladder the Django bench actually writes: sizes grow, samples do not.
+
+        One fire over a 1000-row backlog produces ONE timing and a thousand
+        statements, so a detector that keyed its ladder on the sample count would
+        see one rung and stay silent about a per-row cost - which is exactly the
+        shape the real bench suite produced for ``housekeeping.system``.
+        """
+        records = []
+        for size in (1, 100, 1000):
+            records.append(build_record(
+                self.tmp.name, arm=arm, repeat=1, records=size,
+                units=[unit()] * samples,
+                sql={"statements": {"value": statements_for(size),
+                                    "evidence": "measured"}}))
+        return records
+
+    def test_a_per_row_cost_shows_on_a_ladder_of_one_sample_per_rung(self):
+        """The regression the first real run found, kept as a test.
+
+        ``records`` is the size of the workload; the sample count is not. With an
+        expectation of one statement per row, a cost that grows faster than that
+        is named even though every rung carries a single timing.
+        """
+        _rc, report = self._detect(
+            self._jsonl(self._size_ladder(lambda size: 1 + size)), "candidate",
+            extra=["--expected-statements-per-unit", "1"])
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertEqual([1, 100, 1000], finding["sizes"],
+                         "the ladder is the workload size, not the sample count")
+        self.assertAlmostEqual(1.0, finding["slope"], places=3)
+        self.assertFalse(
+            finding["detected"],
+            "one statement per row is the reviewed contract, not a defect")
+
+    def test_a_second_statement_per_row_is_an_n_plus_one_at_any_sample_count(self):
+        _rc, report = self._detect(
+            self._jsonl(self._size_ladder(lambda size: 1 + 2 * size)),
+            "candidate", extra=["--expected-statements-per-unit", "1"])
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertTrue(finding["detected"])
+        self.assertAlmostEqual(1.0, finding["excess_per_unit"], places=3)
+
+    def test_a_per_row_cost_is_not_cleared_by_a_falling_per_unit_figure(self):
+        """The exact shape the first real run produced, kept as a test.
+
+        A fixed cost plus a per-row cost divided by a growing size *falls*: the
+        first real ``housekeeping.system`` ladder read 2.29 statements per row at
+        one row and 0.15 at a thousand, and a detector comparing those two
+        numbers called a genuine per-row injection flat. The totals say
+        otherwise - the slope is the reading, and the falling per-unit figure is
+        reported beside it rather than being the verdict.
+        """
+        _rc, report = self._detect(
+            self._jsonl(self._size_ladder(lambda size: 1000 + 2 * size)),
+            "candidate", extra=["--expected-statements-per-unit", "1"])
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertLess(finding["per_unit_at_max"], finding["per_unit_at_min"],
+                        "per-unit falls, which is what fooled the first version")
+        self.assertAlmostEqual(2.0, finding["slope"], places=3)
+        self.assertTrue(finding["detected"],
+                        "two statements per row over a contract of one is the N+1")
+
+    def test_super_linear_growth_is_named_without_an_expectation(self):
+        """Quadratic growth cannot be legitimate per-unit work, so it needs no input."""
+        _rc, report = self._detect(
+            self._jsonl(self._size_ladder(lambda size: 1 + size * size)),
+            "candidate")
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertTrue(finding["superlinear"])
+        self.assertIn("sql_n_plus_one", report["detected"])
+
+    def test_a_failing_repeat_does_not_average_a_per_row_cost_away(self):
+        """Five empty repeats of a rung do not make a per-row cost disappear.
+
+        A statement count is a property of the workload; the repeat which found
+        the backlog is the one that shows its shape. Averaging the runs which
+        found an empty table into the verdict is a false green.
+        """
+        records = []
+        for size in (1, 100, 1000):
+            for repeat in range(1, 5):
+                paid = 1 + 3 * size if repeat == 1 else 1
+                records.append(build_record(
+                    self.tmp.name, arm="candidate", repeat=repeat, records=size,
+                    units=[unit()],
+                    sql={"statements": {"value": paid, "evidence": "measured"}}))
+        _rc, report = self._detect(self._jsonl(records), "candidate",
+                                   extra=["--expected-statements-per-unit", "1"])
+        finding = self._finding(report, "sql_n_plus_one")[0]
+        self.assertTrue(finding["detected"],
+                        "the repeat which did the work decides the shape")
+        self.assertEqual(4, finding["repeats_at_max"])
+
+    def test_a_second_budget_is_applied_per_scale_cell(self):
+        """A budget names one workload; it may not be charged to a bigger one.
+
+        The 1000-record rung of a family legitimately costs more than its
+        1-record rung. Pooling the two and comparing the pool to a budget set for
+        the small cell reports the size of the workload as a defect.
+        """
+        small = build_record(self.tmp.name, arm="baseline", repeat=1,
+                             records=1, units=[unit(active=0.01)] * 25)
+        large = build_record(self.tmp.name, arm="baseline", repeat=1,
+                             records=1000, units=[unit(active=5.0)] * 25)
+        _rc, report = self._detect(self._jsonl([small, large]), "baseline",
+                                   extra=["--slow-body-seconds", "1"])
+        verdicts = {finding["records"]: finding["detected"]
+                    for finding in self._finding(report, "slow_task_body")}
+        self.assertEqual({1: False, 1000: True}, verdicts)
+
+    def _body_pair(self, baseline_active, arm_active, arm="candidate",
+                   budget="1000", records=1000, scale="large"):
+        """A cell and its baseline, timed, for a second budget far above both."""
+        base = build_record(self.tmp.name, arm="baseline", repeat=1,
+                            records=records, scale=scale,
+                            units=[unit(active=baseline_active)] * 25)
+        cand = build_record(self.tmp.name, arm=arm, repeat=1, records=records,
+                            scale=scale, units=[unit(active=arm_active)] * 25)
+        return self._jsonl([base, cand]), ["--slow-body-seconds", budget]
+
+    def test_a_body_doubled_below_its_budget_is_a_regression(self):
+        """What the fixed 0.05 s burn of the bench suite could never show.
+
+        An absolute budget is a ceiling a human set, so a burn below it passes
+        while having doubled the task's own runtime - the real run measured a
+        50 ms injection on a 4.2 s chunk at 1.03x and called it clean. The
+        regression a pull request introduces is RELATIVE to what the task cost
+        before, so the same cell's baseline arm decides alongside the budget.
+        """
+        path, extra = self._body_pair(0.020, 0.060)
+        _rc, report = self._detect(path, "candidate", extra=extra)
+        finding = self._finding(report, "slow_task_body")[0]
+        self.assertTrue(finding["detected"],
+                        "3x the same cell of the baseline is a regression")
+        self.assertAlmostEqual(3.0, finding["ratio_to_baseline"], places=1)
+        self.assertEqual(1000.0, finding["budget_seconds"],
+                         "the budget was nowhere near reached")
+        self.assertIn("slow_task_body", report["detected"])
+
+    def test_a_body_which_grew_within_noise_is_not_a_regression(self):
+        """1.1x of a chunk is a busy runner; 2x of a millisecond is the noise floor."""
+        path, extra = self._body_pair(4.2, 4.2 * 1.1)
+        _rc, report = self._detect(path, "candidate", extra=extra)
+        self.assertNotIn("slow_task_body", report["detected"])
+        path, extra = self._body_pair(0.0005, 0.0012)
+        _rc, report = self._detect(path, "candidate", extra=extra)
+        finding = self._finding(report, "slow_task_body")[0]
+        self.assertGreater(finding["ratio_to_baseline"], task_perf_bench.SLOW_BODY_RATIO)
+        self.assertFalse(finding["detected"],
+                         "doubling of a sub-millisecond body is below the floor")
+
+    def test_a_slow_body_of_one_family_is_not_measured_against_another(self):
+        """Why the arm is judged one family at a time.
+
+        A run without ``--family`` holds every family of the run. Fitting one
+        slope over all of them asks how the cost of a probe grows with the size
+        of an import chunk, and pooling the durations reads the slowest family
+        as the shape of all of them - which flagged four clean arms at once.
+        """
+        rows = []
+        for family, base, cand in (("harvesting.import_chunk", 4.2, 4.4),
+                                   ("monitoring.wms", 0.02, 0.09)):
+            for arm, active in (("baseline", base), ("candidate", cand)):
+                record = build_record(self.tmp.name, arm=arm, repeat=1,
+                                      records=100, scale="large", units=[
+                                          unit(active=active)] * 25)
+                record["family"] = family
+                record["digest"] = task_perf_bench.workload_digest(record)
+                rows.append(record)
+        path = self._jsonl(rows)
+        _rc, report = self._detect(path, "candidate",
+                                   extra=["--slow-body-seconds", "1000"])
+        slow = {finding["family"]: finding["detected"]
+                for finding in self._finding(report, "slow_task_body")}
+        self.assertEqual({"harvesting.import_chunk": False,
+                          "monitoring.wms": True}, slow,
+                         "each family is judged against its own baseline")
+        self.assertEqual(2, len(slow),
+                         "every family of the arm is reported, none pooled away")
+
+    def test_a_duplicate_which_duplicates_at_every_size_needs_the_baseline(self):
+        """The reading the real ``harvesting.fan_out`` run forced.
+
+        A call duplicated at every rung is LINEAR: 1 call at 50 records, 2 at
+        5000. No slope sees it and a per-unit expectation only sees it if the
+        caller happens to know the legitimate count. The workload's own baseline
+        arm knows it, because that arm is what the same task costs when it is
+        correct - so a doubling against it is the duplicate.
+        """
+        records = []
+        for arm, calls in (("baseline", 1), ("duplicate-remote-call", 2)):
+            for size in (50, 5000):
+                record = build_record(self.tmp.name, arm=arm, repeat=1,
+                                      records=size, units=[unit()] * 2)
+                record["http"] = {"calls": {"value": calls,
+                                            "evidence": "measured"}}
+                record["digest"] = task_perf_bench.workload_digest(record)
+                records.append(record)
+        path = self._jsonl(records)
+        _rc, clean = self._detect(path, "baseline")
+        _rc, dup = self._detect(path, "duplicate-remote-call")
+        finding = self._finding(dup, "duplicate_remote_call")[0]
+        self.assertFalse(any(f["detected"] for f in clean["findings"]),
+                         "the clean arm is clean")
+        self.assertTrue(finding["detected"])
+        self.assertEqual(1.0, finding["baseline_total_at_max"])
+        self.assertEqual(2.0, finding["total_at_max"])
+        self.assertIn("duplicate_remote_call", dup["detected"])
+
+    def test_more_calls_than_the_baseline_are_not_a_duplicate_when_not_doubled(self):
+        """A retry also makes more calls; only the doubling signature counts."""
+        records = []
+        for arm, calls in (("baseline", 10), ("candidate", 15)):
+            for size in (50, 5000):
+                record = build_record(self.tmp.name, arm=arm, repeat=1,
+                                      records=size, units=[unit()] * 2)
+                record["http"] = {"calls": {"value": calls,
+                                            "evidence": "measured"}}
+                record["digest"] = task_perf_bench.workload_digest(record)
+                records.append(record)
+        _rc, report = self._detect(self._jsonl(records), "candidate")
+        self.assertNotIn("duplicate_remote_call", report["detected"],
+                         "1.5x is a retry, 2x is a duplicate")
+
+    def test_a_duplicate_remote_call_is_detected_against_its_expectation(self):
+        records = []
+        for size in (1, 10, 100):
+            record = build_record(self.tmp.name, arm="candidate", repeat=1,
+                                  records=size, units=[unit()] * size)
+            record["http"] = {"calls": {"value": 2 * size,
+                                        "evidence": "measured"}}
+            record["digest"] = task_perf_bench.workload_digest(record)
+            records.append(record)
+        _rc, report = self._detect(self._jsonl(records), "candidate",
+                                   extra=["--expected-http-per-unit", "1"])
+        finding = self._finding(report, "duplicate_remote_call")[0]
+        self.assertTrue(finding["detected"])
+        self.assertEqual(1, finding["expected_per_unit"])
+        self.assertAlmostEqual(1.0, finding["excess_per_unit"], places=6)
+
+    def test_a_single_remote_call_per_unit_is_not_a_duplicate(self):
+        records = []
+        for size in (1, 10, 100):
+            record = build_record(self.tmp.name, arm="candidate", repeat=1,
+                                  records=size, units=[unit()] * size)
+            record["http"] = {"calls": {"value": size, "evidence": "measured"}}
+            record["digest"] = task_perf_bench.workload_digest(record)
+            records.append(record)
+        _rc, report = self._detect(self._jsonl(records), "candidate",
+                                   extra=["--expected-http-per-unit", "1"])
+        self.assertNotIn("duplicate_remote_call", report["detected"])
+
+    def test_a_slow_task_body_is_detected_against_a_budget(self):
+        slow = [build_record(self.tmp.name, arm="slow-body", repeat=index,
+                             units=[unit(active=5.0)] * 30)
+                for index in range(1, 4)]
+        fast = [build_record(self.tmp.name, arm="baseline", repeat=index)
+                for index in range(1, 4)]
+        path = self._jsonl(slow + fast)
+        _, slow_report = self._detect(path, "slow-body",
+                                      extra=["--slow-body-seconds", "1"])
+        _, fast_report = self._detect(path, "baseline",
+                                      extra=["--slow-body-seconds", "1"])
+        self.assertIn("slow_task_body", slow_report["detected"])
+        self.assertNotIn("slow_task_body", fast_report["detected"])
+        finding = self._finding(slow_report, "slow_task_body")[0]
+        self.assertEqual(3 * 30, finding["n"],
+                         "the sample size of the whole arm travels with it")
+        self.assertEqual("p95", finding["percentile"])
+
+    def test_queue_wait_is_reported_apart_from_the_body(self):
+        """A message which waited is not a slow task (#1330)."""
+        records = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                                units=[unit(active=0.05, wait=30.0)] * 30)
+                   for index in range(1, 4)]
+        _rc, report = self._detect(self._jsonl(records), "baseline",
+                                   extra=["--slow-body-seconds", "1"])
+        kinds = {finding["kind"] for finding in report["findings"]}
+        self.assertIn("queue_wait_inflation", kinds)
+        self.assertNotIn("slow_task_body", report["detected"],
+                         "the wait must not be blamed on the body")
+        wait = self._finding(report, "queue_wait_inflation")[0]
+        self.assertGreater(wait["queue_p50_seconds"],
+                           wait["active_p50_seconds"])
+        self.assertIn("apart", wait["note"])
+
+    def test_a_detector_without_its_input_says_nothing_instead_of_guessing(self):
+        """One rung of the ladder cannot state a slope; the arm stays silent."""
+        records = [build_record(self.tmp.name, arm="baseline", repeat=1)]
+        _rc, report = self._detect(self._jsonl(records), "baseline")
+        self.assertEqual([], self._finding(report, "sql_n_plus_one"))
+
+    def test_fail_on_is_the_opt_in_ci_seam(self):
+        path = self._jsonl(self._ladder(lambda size: size * size))
+        rc, _report = self._detect(path, "candidate", extra=["--fail-on"])
+        self.assertEqual(1, rc)
+        rc, _report = self._detect(path, "candidate")
+        self.assertEqual(0, rc,
+                         "detection is a report unless it is asked to fail")
+
+    def test_detect_can_write_its_finding_report(self):
+        path = self._jsonl(self._ladder(lambda size: size * size))
+        out = os.path.join(self.tmp.name, "findings.json")
+        self._detect(path, "candidate", extra=["--out", out])
+        with open(out, encoding="utf-8") as handle:
+            written = json.load(handle)
+        self.assertEqual("detect", written["kind"])
+        self.assertIn("sql_n_plus_one", written["detected"])
+
+
+# ------------------------------------------------------------------------ CLI I/O
+
+
+class CliContractTest(unittest.TestCase):
+    """The artifacts other tools read must stay exactly parseable."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.fixture = write_fixture(self.tmp.name, workload())
+
+    def test_load_writes_one_canonical_line_per_fixture(self):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main([
+                "load", "--arm", "baseline", "--seed", "20261121",
+                "--fixture", self.fixture, "--revision", "abc1234"])
+        self.assertEqual(0, rc)
+        lines = [line for line in out.getvalue().splitlines() if line.strip()]
+        self.assertEqual(1, len(lines),
+                         "a human summary in stdout would corrupt the artifact")
+        record = json.loads(lines[0])
+        self.assertEqual("mrmap.task-perf.v1", record["schema"])
+        self.assertEqual("abc1234", record["revision"])
+        self.assertIn("family=harvesting.import_chunk", err.getvalue())
+
+    def test_load_appends_every_fixture_of_a_directory_in_order(self):
+        directory = os.path.join(self.tmp.name, "fixtures")
+        os.makedirs(directory)
+        for name in ("b.json", "a.json"):
+            write_fixture(directory, workload(scale=name), name)
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            task_perf_bench.main(["load", "--arm", "baseline", "--seed", "1",
+                                  "--fixture-dir", directory])
+        scales = [json.loads(line)["scale"]
+                  for line in out.getvalue().splitlines() if line.strip()]
+        self.assertEqual(["a.json", "b.json"], scales)
+
+    def test_record_revalidates_what_a_runner_produced(self):
+        record = build_record(self.tmp.name)
+        path = os.path.join(self.tmp.name, "one.json")
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(record, handle)
+        broken = dict(record)
+        broken.pop("seed")
+        broken_path = os.path.join(self.tmp.name, "broken.json")
+        with open(broken_path, "w", encoding="utf-8") as handle:
+            json.dump(broken, handle)
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main(["record", "--in", path, "--out",
+                                       os.path.join(self.tmp.name, "all.jsonl")])
+        self.assertEqual(0, rc)
+        with self.assertRaises(SystemExit):
+            task_perf_bench.main(["record", "--in", broken_path])
+
+    def test_load_needs_a_workload_to_read(self):
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.main(["load", "--arm", "baseline", "--seed", "1"])
+        self.assertIn("--fixture", str(caught.exception))
+
+    def test_an_unknown_family_on_the_command_line_is_refused(self):
+        with self.assertRaises(SystemExit) as caught:
+            task_perf_bench.main(["load", "--arm", "baseline", "--seed", "1",
+                                  "--family", "harvesting.nope",
+                                  "--fixture", self.fixture])
+        self.assertIn("harvesting.nope", str(caught.exception))
+
+    def test_the_aggregate_knobs_land_in_the_right_block(self):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            task_perf_bench.main([
+                "load", "--arm", "baseline", "--seed", "1",
+                "--fixture", self.fixture, "--sql-ms", "120.5",
+                "--sql-count", "42", "--http-calls", "3",
+                "--outliers", '{"import_backlog_stall": 1}', "--retry", "2",
+                "--abandoned", "1", "--retained-truncated", "--worker-loss", "1"])
+        record = json.loads(out.getvalue())
+        self.assertEqual(120.5, record["sql"]["total_ms"]["value"])
+        self.assertEqual(42, record["sql"]["statements"]["value"])
+        self.assertEqual(3, record["http"]["calls"]["value"])
+        self.assertEqual({"import_backlog_stall": 1},
+                         record["pressure"]["outliers"])
+        self.assertEqual(2, record["outcomes"]["retry"]["count"])
+        self.assertEqual(1, record["uncertain"]["abandoned"]["count"])
+        self.assertTrue(record["quality"]["retention_truncated"])
+        self.assertIn("retention_note", record["quality"])
+        task_perf_bench.validate_record(record, source="test")
+
+    def test_an_outlier_blob_must_be_a_json_object(self):
+        with self.assertRaises(SystemExit):
+            task_perf_bench.main(["load", "--arm", "baseline", "--seed", "1",
+                                  "--fixture", self.fixture,
+                                  "--outliers", "[1,2]"])
+
+    def test_the_environment_is_documented_not_invented(self):
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            task_perf_bench.main(["load", "--arm", "baseline", "--seed", "1",
+                                  "--fixture", self.fixture, "--postgis",
+                                  "18-3.6", "--cpu", "EPYC", "--cores", "8",
+                                  "--cgroup-limit", str(4 * 1024 ** 3)])
+        environment = json.loads(out.getvalue())["environment"]
+        self.assertEqual("18-3.6", environment["postgis"])
+        self.assertEqual("EPYC", environment["cpu"])
+        self.assertEqual(8, environment["cores"])
+        self.assertEqual(4 * 1024 ** 3, environment["cgroup_limit_bytes"])
+        self.assertIn("platform", environment)
+
+    def test_the_cgroup_limit_reader_prefers_v2_and_ignores_the_v1_sentinel(self):
+        def fake_open(target, *args, **kwargs):
+            class Handle:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_exc):
+                    return False
+
+                def read(self):
+                    if target.endswith("memory.max"):
+                        return "max\n"
+                    return "9223372036854771712\n"
+            return Handle()
+
+        with mock.patch("builtins.open", side_effect=fake_open):
+            self.assertIsNone(task_perf_bench.read_first_cgroup_limit())
+
+        def fake_open_real(target, *args, **kwargs):
+            class Handle:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *_exc):
+                    return False
+
+                def read(self):
+                    return "4294967296" if target.endswith("memory.max") else "0"
+            return Handle()
+
+        with mock.patch("builtins.open", side_effect=fake_open_real):
+            self.assertEqual(4294967296,
+                             task_perf_bench.read_first_cgroup_limit())
+
+    def _jsonl(self, records, name="perf.jsonl"):
+        return write_records(os.path.join(self.tmp.name, name), records)
+
+    def test_summary_prints_one_line_per_cell_with_its_ratio(self):
+        records = ([build_record(self.tmp.name, arm="baseline", repeat=index)
+                    for index in range(1, 4)]
+                   + [build_record(self.tmp.name, arm="sql-n-plus-one",
+                                   repeat=index,
+                                   units=[unit(active=1.5)] * 30)
+                      for index in range(1, 4)])
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main(["summary", "--in",
+                                       self._jsonl(records)])
+        self.assertEqual(0, rc)
+        lines = [line for line in out.getvalue().splitlines() if line.strip()]
+        self.assertEqual(2, len(lines),
+                         "one line per (family, scale, arm), not per repeat")
+        candidate = [line for line in lines if "sql-n-plus-one" in line][0]
+        self.assertIn("x3.0 over baseline", candidate)
+        baseline = [line for line in lines if "baseline " in line][0]
+        self.assertIn("against no baseline arm", baseline,
+                      "the baseline is not compared against itself")
+
+    def test_summary_marks_a_detection_on_its_cell(self):
+        records = []
+        for size in (1, 10, 100):
+            records.append(build_record(
+                self.tmp.name, arm="candidate", repeat=1, records=size,
+                units=[unit()] * size,
+                sql={"statements": {"value": size * size,
+                                    "evidence": "measured"}}))
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            task_perf_bench.main(["summary", "--in", self._jsonl(records)])
+        printed = out.getvalue() + err.getvalue()
+        self.assertIn("DETECTED: sql_n_plus_one", printed)
+
+    def test_summary_can_write_its_artifact_and_fail_on_a_detection(self):
+        records = [build_record(self.tmp.name, arm="baseline", repeat=index,
+                                units=[unit(active=5.0)] * 30)
+                   for index in range(1, 4)]
+        path = os.path.join(self.tmp.name, "summary.txt")
+        out = io.StringIO()
+        err = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            rc = task_perf_bench.main(["summary", "--in",
+                                       self._jsonl(records), "--out", path,
+                                       "--fail-on", "--slow-body-seconds", "1"])
+        self.assertEqual(1, rc, "--fail-on is the opt-in CI seam here too")
+        with open(path, encoding="utf-8") as handle:
+            self.assertIn("slow_task_body", handle.read())
+
+    def test_summary_refuses_an_unmatched_selection(self):
+        records = [build_record(self.tmp.name)]
+        with self.assertRaises(SystemExit):
+            task_perf_bench.main(["summary", "--in", self._jsonl(records),
+                                  "--family", "monitoring.wms"])
+
+    def test_families_lists_the_first_party_workloads(self):
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = task_perf_bench.main(["families"])
+        printed = out.getvalue()
+        self.assertEqual(0, rc)
+        for family in ("harvesting.import_chunk", "harvesting.fan_out",
+                       "monitoring.wms", "monitoring.wfs", "monitoring.csw",
+                       "monitoring.artifact_purge", "update.wms", "update.wfs",
+                       "update.csw", "update.sweep", "housekeeping.system",
+                       "housekeeping.notify", "security.log_analysis"):
+            self.assertIn(family, printed)
+        for retired in ("conformity", "etf", "inspire_atlas", "validation"):
+            self.assertNotIn(retired, printed,
+                             "the retired legacy conformity tasks (#1527/#1458/"
+                             "#1530) have no task left to benchmark")
+
+    def test_families_check_refuses_what_a_run_cannot_measure(self):
+        """`--family` is a run of two minutes; the check answers in a second.
+
+        The three refusals are the three ways a name can fail, and the third is
+        the one no character class can see: a family the registry declares which
+        no bench class measures would boot PostGIS, skip every class, write no
+        workload file and fail its own "holds no workload file" guard.
+        """
+        for name, code in (
+                ("harvesting.import_chunk", 0),      # declared and measured
+                ("harvesting.import_chunx", 2),      # a well-formed typo
+                ("registry.tasks.harvest", 2),       # a task path, not a family
+                ("1bad", 2),                         # not a name at all
+                ("harvesting.finish", 3)):           # declared, nobody measures it
+            err = io.StringIO()
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                rc = task_perf_bench.main(["families", "--check", name])
+            self.assertEqual(code, rc, "%s: %s" % (name, err.getvalue()))
+            if code:
+                self.assertIn(name, err.getvalue())
+        # the listing shows the same gap, so it is visible before a name is chosen
+        out = io.StringIO()
+        with redirect_stdout(out):
+            task_perf_bench.main(["families"])
+        printed = out.getvalue()
+        self.assertIn("measured=yes", printed)
+        self.assertIn("harvesting.finish", printed)
+        self.assertRegex(printed,
+                         r"harvesting\.finish[\s\S]{0,700}?measured=no bench class")
+
+    def test_a_bench_module_names_only_declared_families(self):
+        """The generator and the analyzer agree on the family vocabulary."""
+        with open(BENCH_SUPPORT, encoding="utf-8") as handle:
+            support = handle.read()
+        bench_file = os.path.join(
+            REPO_ROOT, "backend", "tests", "django", "system",
+            "test_task_runtime_bench.py")
+        with open(bench_file, encoding="utf-8") as handle:
+            bench = handle.read()
+        import ast
+        tree = ast.parse(bench)
+        families = {node.value.value for node in ast.walk(tree)
+                    if isinstance(node, ast.Assign)
+                    for target in node.targets
+                    if isinstance(target, ast.Name) and target.id == "family"
+                    and isinstance(node.value, ast.Constant)
+                    and node.value.value is not None}
+        self.assertTrue(families)
+        self.assertTrue(families.issubset(set(task_perf_bench.FAMILIES)),
+                        "a bench family the analyzer does not know would be "
+                        "refused by validate_record")
+        self.assertIn("WORKLOAD_KEYS", support)
+
+    def test_workload_keys_match_the_generator(self):
+        """The digest is computed on both sides; both must hash the same keys."""
+        import ast
+        with open(BENCH_SUPPORT, encoding="utf-8") as handle:
+            tree = ast.parse(handle.read())
+        keys = None
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and any(
+                    isinstance(target, ast.Name)
+                    and target.id == "WORKLOAD_KEYS" for target in node.targets):
+                keys = tuple(node.value.elts)
+        self.assertIsNotNone(keys, "the generator must name its workload keys")
+        self.assertEqual(list(task_perf_bench.WORKLOAD_KEYS),
+                         [key.value for key in keys])
+
+    def test_the_nightly_workflow_reports_and_never_gates(self):
+        """The other half of "nonflaky CI performance regression reports".
+
+        The report is the product of the nightly; a verdict is not. Two properties
+        keep it nonflaky, and both are worth a red test rather than a review note:
+
+        * it never triggers on ``pull_request`` - medians measured on a shared
+          runner belong to the neighbour, and a threshold tuned on a quiet machine
+          reddens on a busy one, which is the flakiness #1396 is about;
+        * the artifact upload says ``if-no-files-found: error`` - an empty artifact
+          is a nightly that measured nothing and looked like it did.
+        """
+        path = os.path.join(REPO_ROOT, ".github", "workflows",
+                            "task-performance.yml")
+        with open(path, encoding="utf-8") as handle:
+            workflow = handle.read()
+        self.assertNotIn("pull_request:", workflow,
+                         "a per-PR performance check on a shared runner is the "
+                         "flaky red the issue asks to avoid")
+        self.assertIn("schedule:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("if-no-files-found: error", workflow)
+        self.assertIn("--mode warn", workflow)
+        self.assertNotIn("--mode block", workflow,
+                         "no mandatory gate exists until a human approves one "
+                         "in the baseline file, not in a workflow")
+        self.assertIn("contents: read", workflow)
+        for artifact in ("task-perf.jsonl", "report.txt", "summary.txt"):
+            self.assertIn(artifact, workflow,
+                          "the report a reviewer reads without re-running is "
+                          "the artifact")
+
+    def test_runner_and_workflow_name_one_output_directory(self):
+        """The container writes where the host reads, or the nightly has no artifact.
+
+        ``django-tests`` bind-mounts only ./backend at /opt/mrmap
+        (docker-compose.dev.yml), so a record written anywhere else inside the
+        container is invisible on the host: the sweep finds nothing, the runner
+        fails its "no workload file" guard and ``if-no-files-found: error`` fails
+        the upload too. Both halves of that agreement are pinned here, because the
+        two path literals differing by a prefix is exactly the failure that reads
+        as "the benchmark is broken" while only the paths are.
+        """
+        path = os.path.join(REPO_ROOT, "scripts", "task_perf_runner.sh")
+        with open(path, encoding="utf-8") as handle:
+            runner = handle.read()
+        path = os.path.join(REPO_ROOT, ".github", "workflows",
+                            "task-performance.yml")
+        with open(path, encoding="utf-8") as handle:
+            workflow = handle.read()
+        out_default = re.search(r"OUT=\$\{MRMAP_TASK_PERF_OUT:-([^}]*)\}", runner)
+        self.assertIsNotNone(out_default, "the runner must default its output dir")
+        out_dir = out_default.group(1)
+        self.assertTrue(out_dir.startswith("backend/"),
+                        "the only host-visible directory of the test container is "
+                        "the ./backend bind mount; %r is not it" % out_dir)
+        # the container-side path is DERIVED from the host-side one, so the two
+        # cannot drift into two different measurements
+        self.assertIn('MRMAP_TASK_PERF_OUT="$CONTAINER_OUT"', runner)
+        self.assertIn("CONTAINER_OUT=${OUT#backend/}", runner)
+        self.assertIn("--out %s" % out_dir, workflow,
+                      "the nightly must ask for the directory the runner writes")
+        for artifact in ("task-perf.jsonl", "report.txt", "summary.txt",
+                         "gate.json", "detect-*.txt"):
+            self.assertIn("%s/%s" % (out_dir, artifact), workflow,
+                          "artifact %s is not under the directory the runner "
+                          "writes" % artifact)
+        # and the ignore covers that path, so a local run leaves no dirty tree
+        ignored = subprocess.run(  # nosec B603 - repository's own tool
+            ["git", "check-ignore", "-q", "%s/probe.json" % out_dir],
+            cwd=REPO_ROOT, capture_output=True).returncode
+        self.assertEqual(ignored, 0,
+                         "%s/ is not ignored: a local benchmark run would show up "
+                         "in git status" % out_dir)
+
+    def test_family_selection_reaches_the_test_process(self):
+        """``--family`` selects the workload; a log line about it does not.
+
+        Without this the nightly measures every family x four arms whatever it was
+        asked for - contradicting its own "one family keeps a nightly short", the
+        timeout budget and the job name - and a single family whose record the
+        analyzer refuses aborts the run before any report is written.
+        """
+        path = os.path.join(REPO_ROOT, "scripts", "task_perf_runner.sh")
+        with open(path, encoding="utf-8") as handle:
+            runner = handle.read()
+        self.assertIn("-e MRMAP_TASK_PERF_FAMILY=$FAMILY", runner,
+                      "--family has to be passed into the container")
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "_task_runtime_bench_support.py")
+        with open(path, encoding="utf-8") as handle:
+            support = handle.read()
+        self.assertIn("MRMAP_TASK_PERF_FAMILY", support)
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "test_task_runtime_bench.py")
+        with open(path, encoding="utf-8") as handle:
+            bench = handle.read()
+        self.assertIn("BENCH_FAMILY", bench)
+        self.assertIn("self.skipTest(", bench)
+        self.assertIn("self.family != BENCH_FAMILY", bench,
+                      "the selected family must be the one the classes compare "
+                      "themselves against")
+
+    def test_every_dispatch_choice_is_a_measured_family(self):
+        """Now that ``--family`` selects, a choice with no workload is a red night.
+
+        The menu used to be decorative, so a choice naming a family nobody
+        measured was harmless. It is not any more: such a run skips every class,
+        writes no workload file, and fails its own "holds no workload file" guard.
+        The choices and the bench classes are one list, checked against the other.
+        """
+        path = os.path.join(REPO_ROOT, ".github", "workflows",
+                            "task-performance.yml")
+        with open(path, encoding="utf-8") as handle:
+            workflow = handle.read()
+        block = workflow.split("inputs:", 1)[1].split("schedule:", 1)[0]
+        choices = re.findall(r"^\s{10}- (\S+)$", block, re.M)
+        self.assertTrue(choices, "the dispatch menu names no family")
+        path = os.path.join(REPO_ROOT, "backend", "tests", "django",
+                            "system", "test_task_runtime_bench.py")
+        with open(path, encoding="utf-8") as handle:
+            bench = handle.read()
+        measured = set(re.findall(r"^    family = '([^']+)'", bench, re.M))
+        self.assertTrue(measured, "the bench suite names no family")
+        for choice in choices:
+            self.assertIn(choice, measured,
+                          "%s can be chosen but no bench class measures it"
+                          % choice)
+            self.assertIn(choice, task_perf_bench.FAMILIES,
+                          "%s is not a registry family" % choice)
+
+    def test_the_documented_commands_parse(self):
+        """The runbook is the reason the runner exists; it has to run.
+
+        Every ``task_perf_bench.py`` line of the docs page is parsed against the
+        analyzer's real argument surface. A documented command which argparse
+        refuses is worse than no command: it is the block an operator follows to
+        reproduce a CI number without the runner.
+        """
+        path = os.path.join(REPO_ROOT, "docs", "source", "development",
+                            "celery-task-runtime-benchmarks.rst")
+        with open(path, encoding="utf-8") as handle:
+            doc = handle.read()
+        parser = task_perf_bench.build_parser()
+        lines = doc.replace("\\\n", " ").splitlines()
+        commands = []
+        for index, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped.startswith("python3 scripts/task_perf_bench.py"):
+                continue
+            while stripped.endswith("\\"):
+                stripped = stripped[:-1].strip() + " " + lines[index + 1].strip()
+            commands.append(stripped)
+        self.assertGreaterEqual(len(commands), 5,
+                                "the page documents no analyzer commands to check")
+        for command in commands:
+            argv = command.split()[1:]          # drop the `python3`
+            argv = [part for part in argv if part != "scripts/task_perf_bench.py"]
+            try:
+                parser.parse_args(argv)
+            except SystemExit as error:
+                self.fail("documented command exits %s: %s" % (error, command))
+
+    def test_task_names_agree_across_the_three_artifacts(self):
+        """Registry, bench suite and baseline file name the same Celery tasks.
+
+        ``families`` is the command a reviewer is pointed at for "what is
+        declared", so a name it prints which no worker has ever registered makes
+        the whole table untrustworthy - the same class of defect as the #1199
+        "Received unregistered task" case, arriving from the reporting side.
+
+        A ``@shared_task`` without an explicit ``name=`` is registered by Celery
+        under its defining module plus its function, so the registry has to spell
+        those names that way; a name carrying ``name="..."`` is registered under
+        that literal and must be spelled as it. Both readings are checked against
+        the source of the task module, not against a second list.
+        """
+        task_files = {
+            "registry.tasks": "registry/tasks/__init__.py",
+            "registry.tasks.harvest": "registry/tasks/harvest.py",
+            "registry.tasks.monitoring": "registry/tasks/monitoring.py",
+            "registry.tasks.service": "registry/tasks/service.py",
+            "registry.tasks.update": "registry/tasks/update.py",
+            "registry.tasks.security": "registry/tasks/security.py",
+            "registry.tasks.alerts": "registry/tasks/alerts.py",
+            "system.tasks": "system/tasks.py",
+            "notify.tasks": "notify/tasks.py",
+        }
+        defined = {}     # module -> functions it defines
+        explicit = {}    # module -> names it registers with an explicit name=
+        for module, relative in task_files.items():
+            with open(os.path.join(REPO_ROOT, "backend", relative),
+                      encoding="utf-8") as handle:
+                source = handle.read()
+            defined[module] = set(re.findall(r"^def ([a-z_][a-z0-9_]*)\(", source,
+                                             re.M))
+            explicit[module] = set(
+                re.findall(r"name=[\x27\"]([a-zA-Z0-9_.]+)[\x27\"]", source))
+
+        def resolve(name):
+            """Whether a worker would answer this name, and from which module."""
+            module, _, function = name.rpartition(".")
+            if module in task_files:
+                if function in explicit[module]:
+                    return None          # registered under this literal name
+                return None if function in defined[module] else (
+                    "no task function %s() in %s" % (function, task_files[module]))
+            # a bare name is only a Celery name if a module asked for it
+            for candidate in task_files:
+                if name in explicit[candidate]:
+                    return None
+            return "no task module registers %r" % (name,)
+
+        for family, spec in task_perf_bench.FAMILIES.items():
+            self.assertTrue(spec["tasks"], "%s declares no task" % family)
+            for name in spec["tasks"]:
+                problem = resolve(name)
+                self.assertIsNone(problem, "%s: %s" % (family, problem))
+        with open(os.path.join(REPO_ROOT, "scripts", "task_perf_baseline.json"),
+                  encoding="utf-8") as handle:
+            baseline = json.load(handle)
+        with open(os.path.join(REPO_ROOT, "backend", "tests", "django", "system",
+                               "test_task_runtime_bench.py"),
+                  encoding="utf-8") as handle:
+            bench = handle.read()
+        declared = {name for spec in task_perf_bench.FAMILIES.values()
+                    for name in spec["tasks"]}
+        for entry in baseline["entries"]:
+            for name in entry.get("tasks", []):
+                self.assertIn(name, declared,
+                              "the baseline file names %s of %s, which the "
+                              "registry does not declare" % (name, entry["family"]))
+        measured = set(re.findall(
+            r"'([a-z_][a-z0-9_.]*)'",
+            "\n".join(line for line in bench.splitlines()
+                       if line.strip().startswith("tasks = "))))
+        for name in measured:
+            self.assertIn(name, declared,
+                          "the bench suite measures %s, which the registry does "
+                          "not declare" % name)
+
+    def test_the_runner_holds_the_detect_invocation_the_workflow_shares(self):
+        """CI holds a call and no logic, so the logic has to be in the script.
+
+        If the four arms were detected in YAML the documented local invocation and
+        the CI one would be two different measurements - and if the verdict line
+        were thrown away, `detected=none` would be readable only in a file after
+        the job was already green.
+        """
+        path = os.path.join(REPO_ROOT, "scripts", "task_perf_runner.sh")
+        with open(path, encoding="utf-8") as handle:
+            runner = handle.read()
+        for arm in ("baseline", "sql-n-plus-one", "duplicate-remote-call",
+                    "slow-body"):
+            self.assertIn(arm, runner)
+        self.assertIn("detect-$arm.json", runner)
+        self.assertIn("detect-$arm.txt", runner,
+                      "the verdict belongs on the console, not only in an artifact")
+        self.assertIn("--mode warn", runner)
+        # the flag has to be absent from the INVOCATION; the header explains at
+        # length why it is absent, and that prose is the reason it stays absent
+        invoked = [line for line in runner.splitlines()
+                   if not line.lstrip().startswith("#")]
+        self.assertTrue(any("--keepdb" in line for line in invoked))
+        self.assertFalse(any("--parallel" in line for line in invoked),
+                         "four Django workers on one PostGIS measure contention, "
+                         "not the task")
+
+    def test_every_declared_contract_is_measured(self):
+        """A contract is a claim about a workload, so a run must be able to check it.
+
+        A family the analyzer has expectations for but the bench suite never runs
+        would report `detected=none` for a defect nobody measured - the false
+        green the registry exists to prevent, arriving from the other side.
+        """
+        bench_file = os.path.join(
+            REPO_ROOT, "backend", "tests", "django", "system",
+            "test_task_runtime_bench.py")
+        with open(bench_file, encoding="utf-8") as handle:
+            bench = handle.read()
+        for family, spec in task_perf_bench.FAMILIES.items():
+            if spec.get("contract"):
+                self.assertIn(family, bench,
+                              "%s carries a detector contract no workload measures"
+                              % family)
+
+    SHELL = os.environ.get("RUNNER_SHELL", "sh")
+
+    def _runner_repo(self):
+        """A scratch copy of the files the runner needs, plus a `docker` shim.
+
+        The shim answers `docker compose run` by writing workloads through the
+        real support module - which is what the container does - so the steps
+        which are the script's own code (the guards, the clearing, the sweep and
+        the loads) run here on a host with no stack. It also maps the container's
+        bind mount, which is the only part of compose the shim has to imitate.
+        """
+        scratch = tempfile.mkdtemp(prefix="runner-")
+        repo = os.path.join(scratch, "repo")
+        for rel in ("scripts", "backend/tests/django/system"):
+            os.makedirs(os.path.join(repo, rel))
+        for name in ("task_perf_bench.py", "task_perf_runner.sh",
+                     "task_perf_baseline.json"):
+            shutil.copyfile(os.path.join(REPO_ROOT, "scripts", name),
+                            os.path.join(repo, "scripts", name))
+        for name in ("_task_runtime_bench_support.py",
+                     "test_task_runtime_bench.py"):
+            shutil.copyfile(
+                os.path.join(REPO_ROOT, "backend", "tests", "django", "system",
+                             name),
+                os.path.join(repo, "backend", "tests", "django", "system", name))
+        writer = os.path.join(scratch, "writer.py")
+        with open(writer, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import os, sys, types\n"
+                "os.chdir(sys.argv[1])\n"
+                "# the container writes under /opt/mrmap, i.e. backend/ on host\n"
+                "os.environ['MRMAP_TASK_PERF_OUT'] = os.path.join('backend',\n"
+                "                                                  sys.argv[2])\n"
+                "pkg = types.ModuleType('django'); pkg.__path__ = []\n"
+                "db = types.ModuleType('django.db'); db.connection = None\n"
+                "sys.modules['django'] = pkg; sys.modules['django.db'] = db\n"
+                "sys.path.insert(0, os.path.join('backend', 'tests', 'django',\n"
+                "                                 'system'))\n"
+                "import _task_runtime_bench_support as sup\n"
+                "family = os.environ['MRMAP_TASK_PERF_FAMILY']\n"
+                "repeats = int(os.environ['MRMAP_TASK_PERF_REPEATS'])\n"
+                "units = [{'id': 'u%d' % i, 'elapsed_seconds': 0.51, 'attempts':\n"
+                "          [{'task_id': 't%d' % i, 'attempt_no': 0,\n"
+                "            'active_seconds': 0.5, 'wait_seconds': 0.02,\n"
+                "            'outcome': 'success'}]} for i in range(30)]\n"
+                "for arm in ('baseline', 'sql-n-plus-one', 'duplicate-remote-call',\n"
+                "            'slow-body'):\n"
+                "    for repeat in range(1, repeats + 1):\n"
+                "        written = sup.write_workload(family, 'typical', arm,\n"
+                "                                     repeat, {\n"
+                "            'schema': 'mrmap.task-perf.v1', 'kind': 'load',\n"
+                "            'family': family, 'arm': arm, 'fixture': 'typical',\n"
+                "            'scale': 'typical', 'records': 100, 'chunks': 1,\n"
+                "            'chunk_size': 1000, 'attempts_per_unit': 1,\n"
+                "            'queue': 'harvest-import',\n"
+                "            'mock_responses': 'in-process-lxml-200',\n"
+                "            'tasks': ['registry.tasks.harvest.'\n"
+                "                      'call_md_metadata_files_to_db'],\n"
+                "            'seed': int(os.environ['MRMAP_TASK_PERF_SEED']),\n"
+                "            'repeat': repeat, 'repeats_planned': repeats,\n"
+                "            'ts': '2026-11-21T12:00:00+00:00',\n"
+                "            'revision': 'abc1234',\n"
+                "            'environment': {'database': 'postgis-shim',\n"
+                "                            'python': 'test'},\n"
+                "            'workload': {'units': 30, 'attempts': 30},\n"
+                "            'units': units,\n"
+                "            'quality': {'evidence': 'measured_local'}})\n"
+                "        if os.environ.get('MRMAP_TASK_PERF_DROP') == arm:\n"
+                "            # the cell was reported written and then vanished -\n"
+                "            # what a killed worker or a full disk leaves behind\n"
+                "            os.remove(written)\n")
+        shim_dir = os.path.join(scratch, "bin")
+        os.makedirs(shim_dir)
+        with open(os.path.join(shim_dir, "docker"), "w", encoding="utf-8") as h:
+            h.write(
+                "#!/bin/sh\n"
+                "if [ -n \"$MRMAP_TASK_PERF_DOCKER_LOG\" ]; then\n"
+                "  printf '%%s\\n' \"$*\" >> \"$MRMAP_TASK_PERF_DOCKER_LOG\"\n"
+                "fi\n"
+                "hit=0; want=0\n"
+                "for a in \"$@\"; do\n"
+                "  if [ \"$want\" = 1 ]; then export \"$a\"; want=0; continue; fi\n"
+                "  if [ \"$a\" = -e ]; then want=1; continue; fi\n"
+                "  if [ \"$a\" = django-tests ]; then hit=1; fi\n"
+                "done\n"
+                "if [ \"$hit\" = 1 ]; then\n"
+                "  exec %s %s \"$PWD\" \"$MRMAP_TASK_PERF_OUT\"\n"
+                "fi\n"
+                "exit 0\n" % (sys.executable, writer))
+        os.chmod(os.path.join(shim_dir, "docker"), 0o755)
+        return repo, shim_dir
+
+    def _run_runner(self, repo, shim_dir, family, repeats, out_rel, extra=None):
+        env = dict(os.environ)
+        env["PATH"] = shim_dir + os.pathsep + env["PATH"]
+        env["COMPOSE_PROJECT_NAME"] = "perf-test"
+        env.update(extra or {})
+        return subprocess.run(  # nosec B603 - the repository's own runner
+            [self.SHELL, "scripts/task_perf_runner.sh", "--family", family,
+             "--repeats", str(repeats), "--seed", "20261121", "--out", out_rel,
+             "--no-up"],
+            cwd=repo, env=env, capture_output=True, text=True, timeout=300)
+
+    def test_the_sweep_reports_the_run_and_only_the_run(self):
+        """A rerun into a used --out reports its own cells, not the directory's.
+
+        The review reproduced both failures on the glob sweep of this head: the
+        documented `--repeats 3` rerun into the heavy directory reported 7 cells
+        and `n=210, cv=0.0` - a stability figure assembled from more than double
+        the repeats the run performed, which is what the stability floor and the
+        gate read - and a previous run's `harvesting.fan_out` file landed in a
+        one-family report. Both need one thing to be true: the files which feed
+        `report` are the ones the workload process reported writing.
+        """
+        repo, shim = self._runner_repo()
+        out_rel = "backend/task-perf"
+        first = self._run_runner(repo, shim, "harvesting.import_chunk", 3, out_rel)
+        self.assertEqual(0, first.returncode, first.stderr)
+        out_dir = os.path.join(repo, out_rel)
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            self.assertEqual(12, len([line for line in h if line.strip()]))
+
+        # a previous run left this family and its manifest behind
+        stale = os.path.join(out_dir,
+                             "harvesting.fan_out__typical__baseline__r1.json")
+        with open(stale, "w", encoding="utf-8") as handle:
+            json.dump({"family": "harvesting.fan_out", "arm": "baseline"}, handle)
+        with open(os.path.join(out_dir, ".written-workloads"), "w",
+                  encoding="utf-8") as handle:
+            handle.write("harvesting.fan_out__typical__baseline__r1.json\n")
+
+        second = self._run_runner(repo, shim, "monitoring.wms", 2, out_rel)
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertFalse(os.path.exists(stale),
+                         "a workload file of the previous run survived into a "
+                         "directory this run owns")
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            rows = [json.loads(line) for line in h if line.strip()]
+        self.assertEqual(8, len(rows),
+                         "the report is not the run: %d rows for 4 arms x 2 repeats"
+                         % len(rows))
+        self.assertEqual({1, 2}, {r["repeat"] for r in rows},
+                         "repeats of an earlier run are in this report")
+        self.assertEqual({"monitoring.wms"}, {r["family"] for r in rows},
+                         "a family this run never selected is in this report")
+        self.assertEqual({"baseline", "sql-n-plus-one", "duplicate-remote-call",
+                          "slow-body"}, {r["arm"] for r in rows})
+        report = subprocess.run(  # nosec B603 - repository's own tool
+            [sys.executable, os.path.join(repo, "scripts", "task_perf_bench.py"),
+             "report", "--in", os.path.join(out_dir, "task-perf.jsonl")],
+            check=True, capture_output=True, text=True)
+        self.assertIn("monitoring.wms", report.stdout)
+        self.assertNotIn("harvesting.fan_out", report.stdout)
+        self.assertNotIn("harvesting.import_chunk", report.stdout)
+
+    def test_a_missing_written_file_is_reported_not_silently_skipped(self):
+        """A manifest naming a file which is gone is red, not a smaller report.
+
+        A workload process which died after announcing a cell - the case the
+        manifest exists for - must not end in a report which reads as complete.
+        The drop is done by the writer itself, since the runner clears the
+        directory before the run and an injected file would be cleared too.
+        """
+        repo, shim = self._runner_repo()
+        out_rel = "backend/task-perf"
+        run = self._run_runner(repo, shim, "harvesting.import_chunk", 1, out_rel,
+                               extra={"MRMAP_TASK_PERF_DROP": "slow-body"})
+        self.assertEqual(1, run.returncode, run.stdout + run.stderr)
+        self.assertIn("the run wrote it, it is not on disk", run.stderr)
+        self.assertIn("workload file(s) the run wrote are missing", run.stderr)
+        # the three cells which are there are still reported - a partial report
+        # which says it is partial, rather than no report at all
+        out_dir = os.path.join(repo, out_rel)
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            arms = {json.loads(line)["arm"] for line in h if line.strip()}
+        self.assertEqual({"baseline", "sql-n-plus-one", "duplicate-remote-call"},
+                         arms)
+
+    def test_the_runner_refuses_an_unmeasured_family_before_the_stack_boots(self):
+        """`--family harvesting.finish` dies at the guard, not two minutes later.
+
+        The guard is the analyzer's, not a character class: `harvesting.finish`
+        is well-formed and is in the registry, so only the check against the
+        bench classes can see that a run of it boots PostGIS, skips every class
+        and writes no workload file. The shim's invocation log is the proof that
+        `docker` was never asked for anything - the point of checking pre-boot.
+        """
+        repo, shim = self._runner_repo()
+        log = os.path.join(tempfile.mkdtemp(prefix="dockerlog-"), "calls.log")
+        open(log, "w").close()
+        run = self._run_runner(repo, shim, "harvesting.finish", 1,
+                               "backend/task-perf",
+                               extra={"MRMAP_TASK_PERF_DOCKER_LOG": log})
+        self.assertEqual(2, run.returncode, run.stdout + run.stderr)
+        self.assertIn("--family harvesting.finish refused", run.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual("", handle.read().strip(),
+                             "the guard ran after docker was already asked")
+
+    def test_the_runner_refuses_a_typoed_family_before_the_stack_boots(self):
+        """Same guard, the case the old character class let through."""
+        repo, shim = self._runner_repo()
+        log = os.path.join(tempfile.mkdtemp(prefix="dockerlog-"), "calls.log")
+        open(log, "w").close()
+        run = self._run_runner(repo, shim, "harvesting.import_chunx", 1,
+                               "backend/task-perf",
+                               extra={"MRMAP_TASK_PERF_DOCKER_LOG": log})
+        self.assertEqual(2, run.returncode, run.stdout + run.stderr)
+        self.assertIn("--family harvesting.import_chunx refused", run.stderr)
+        with open(log, encoding="utf-8") as handle:
+            self.assertEqual("", handle.read().strip())
+
+    def test_end_to_end_through_subprocesses(self):
+        """load -> report -> compare -> gate as CI calls them."""
+        out_dir = self.tmp.name
+        jsonl = os.path.join(out_dir, "perf.jsonl")
+        for arm, active in (("baseline", 0.5), ("sql-n-plus-one", 1.4)):
+            for repeat in range(1, 8):
+                fixture = write_fixture(
+                    out_dir,
+                    workload(units=[unit(active=active)] * 30),
+                    "wl-%s-%s.json" % (arm, repeat))
+                subprocess.run(  # nosec B603 B607 - this repository's own tool
+                    [sys.executable, SCRIPT, "load", "--arm", arm, "--seed",
+                     "20261121", "--repeat", str(repeat), "--fixture", fixture,
+                     "--out", jsonl, "--revision", "abc1234"],
+                    check=True, capture_output=True)
+        report = subprocess.run(  # nosec B603 - repository's own tool
+            [sys.executable, SCRIPT, "report", "--in", jsonl],
+            check=True, capture_output=True, text=True)
+        self.assertIn("sql-n-plus-one", report.stdout)
+        verdict = subprocess.run(  # nosec B603 - repository's own tool
+            [sys.executable, SCRIPT, "compare", "--in", jsonl, "--baseline",
+             "baseline", "--candidate", "sql-n-plus-one"],
+            check=True, capture_output=True, text=True)
+        parsed = json.loads(verdict.stdout)
+        self.assertAlmostEqual(2.8, parsed["metrics"]["active_p50"]["ratio"],
+                               delta=0.1)
+        gate = subprocess.run(  # nosec B603 - repository's own tool
+            [sys.executable, SCRIPT, "gate", "--in", jsonl, "--baseline",
+             os.path.join(REPO_ROOT, "scripts", "task_perf_baseline.json")],
+            check=True, capture_output=True, text=True)
+        self.assertIn("gate mode=warn", gate.stderr)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

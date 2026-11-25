@@ -1,3 +1,13 @@
+## Contribution workflow
+
+Use [GitHub Flow](docs/source/development/github-flow.rst): one small independently
+safe issue and PR against `develop`, also for native epic sub-issues. A human or
+external coordinator assigns one worker after checking blockers and conflicting work.
+Link a branch and open a Draft PR early; use `Closes #N` to close the issue when a
+human merges into the default branch. Required reviews, CI and Sonar still apply.
+See the [transition inventory](docs/source/development/github-flow-transition.rst)
+for existing work and operator-owned cutover actions.
+
 ## Getting Help
 
 If you encounter any issues installing or using MrMap, try one of the

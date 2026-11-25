@@ -1,5 +1,5 @@
 {
-  "_about": "Machine-readable rollout policy of the epic branch contract (#1594, epic #1588). docs/source/development/epic-integration-contract.rst (#1590) is the contract; THIS file is the deployment schedule of that contract: when the base rule starts advising, when it starts blocking, and which epics are exempt from it while it rolls out. scripts/test_epic_rollout.py holds every fact here against the contract page and the workflows it names, so the schedule cannot drift from the mechanism that enforces it. The policy is an input to scripts/epic_rollout.py, which turns it into the dry-run migration plan; nothing here is read by CI and nothing here grants an approval, a merge, a branch creation or a branch protection change.",
+  "_about": "Historical rollout policy retained for diagnostic compatibility until #1593. Issue #1592 supersedes mandatory epic targeting: the dates below are historical, auto mode is permanently advisory, and new work follows docs/source/development/github-flow.rst. No live setting is changed by this file.",
   "schema_version": 1,
   "contract": "docs/source/development/epic-integration-contract.rst",
   "branch_prefix": "epic/",
@@ -8,7 +8,7 @@
     "advisory_from": "2026-11-24",
     "strict_from": "2026-12-15",
     "strict_from_env": "MRMAP_EPIC_ROLLOUT_STRICT_FROM",
-    "note": "Same shape as the title enforcement of #1580 (scripts/pr_classify STRICT_FROM), for the same measured reason: every branch and pull request that predates the rule was written without it, and nobody should have a base changed under their feet. Advisory means scripts/epic_rollout.py reports the row and nothing fails; strict means #1591's check fails it. Moving either date is a maintainer's call through the environment variable below, or a policy change in a pull request that says so in its own title.",
+    "note": "Cancelled by #1592 before activation. Both this 2026-12-15 schedule and epic_branch.py's 2026-12-21 schedule are historical; automatic mode remains advisory regardless of dates or environment overrides. Explicit strict is retained only for historical diagnostics pending #1593.",
     "ci_coverage": [
       ".github/workflows/quality-assurance.yml",
       ".github/workflows/script-tests.yml",

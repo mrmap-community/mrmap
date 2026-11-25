@@ -28,6 +28,7 @@ import json
 import os
 import re
 import sys
+from unittest.mock import patch
 import tempfile
 from contextlib import redirect_stdout
 from datetime import date
@@ -289,6 +290,23 @@ print("the committed rollout state holds together")
 
 policy = json.load(open(POLICY, encoding="utf-8"))
 
+# Both former activation dates and a future date must stay advisory, even with
+# a deployed legacy override. Explicit strict remains available for reproductions.
+with patch.dict(os.environ, {policy["rollout"]["strict_from_env"]: "2020-01-01"}):
+    for day in ("2026-12-15", "2026-12-21", "2030-01-01"):
+        check("superseded rollout cannot automatically activate on %s" % day,
+              m.mode_for(day, policy) == "advisory")
+check("explicit legacy strict remains available", m.mode_for("2030-01-01", policy, "strict") == "strict")
+
+
+# Preserve a previously published context while removing its retired target gate.
+workflow = open(os.path.join(ROOT, ".github", "workflows", "pr-target-policy.yml"),
+                encoding="utf-8").read()
+check("target context remains available during required-check coordination",
+      "name: Validate PR target" in workflow)
+check("retired target workflow invokes no epic enforcement",
+      "epic_branch.py" not in workflow and "actions/checkout" not in workflow)
+
 # 1. The contract page the policy cites is the real ADR, and it is listed in the toctree.
 check("the policy cites the contract ADR that exists",
       os.path.exists(os.path.join(ROOT, policy["contract"])), policy["contract"])
@@ -346,25 +364,14 @@ def flatten(text):
 
 
 flat_agents = flatten(agents)
-check("AGENTS.md states the epic branch rule with its contract source",
-      "epic/<slug>" in flat_agents and "epic-integration-contract.rst" in flat_agents)
-check("AGENTS.md says a person creates the epic branch from current develop",
-      "created by a person from the tip of `origin/develop`" in flat_agents)
-check("AGENTS.md keeps retargeting and branch deletion with people",
-      "are human acts" in flat_agents and "never performs one" in flat_agents)
-check("AGENTS.md ties the exemption to the policy file and a date",
-      "scripts/epic_rollout.json" in flat_agents and "expiry" in flat_agents)
-
-# 8. The skill follows AGENTS.md instead of contradicting it (the hierarchy rule of
-#    docs/development/agent-skills.md: a skill that contradicts AGENTS.md is a bug).
+check("AGENTS.md names the canonical GitHub Flow workflow",
+      "github-flow.rst" in flat_agents and "single-worker" in flat_agents)
+check("AGENTS.md keeps legacy claims with their owners",
+      "Never automatically remove a foreign claim" in flat_agents)
 skill = flatten(open(os.path.join(ROOT, ".opencode", "skills", "mrmap-github-workflow",
                                   "SKILL.md"), encoding="utf-8").read())
-check("the workflow skill names the epic branch contract",
-      "epic-integration-contract" in skill and "epic_rollout" in skill)
-check("the skill keeps branch creation with a person",
-      "epic branch is cut by a person from the tip of `origin/develop`" in skill)
-check("the skill lists the epic base rows as anti-patterns",
-      "R2/R5" in skill and "person-owned acts" in skill)
+check("the workflow skill uses GitHub Flow without an epic prerequisite",
+      "--base develop" in skill and "diagnostics are not prerequisites" in skill)
 
 
 # ---------- the planner: rows and targets ------------------------------------
@@ -573,7 +580,7 @@ check("the plan itself writes nothing: no gh write call is made",
 f = Fixture().epic(10, slug="alpha", children=[11]).branch("epic/alpha") \
       .pr(500, base="develop", head="feature/issue-11-x")
 code_advisory, out_advisory = plan(f, today=date(2026, 12, 1))
-code_strict, out_strict = plan(f, today=date(2027, 1, 1))
+code_strict, out_strict = plan(f, "--mode", "strict", today=date(2027, 1, 1))
 check("a wrong base is reported in both halves of the rollout and blocks in neither",
       findings_of(json.loads(out_advisory), "child-pr-wrong-base", 10)
       and "child-pr-wrong-base" not in json.loads(out_strict)["blocking"]
@@ -581,7 +588,7 @@ check("a wrong base is reported in both halves of the rollout and blocks in neit
 
 f = Fixture().branch("epic/ghost")
 code_advisory, out_advisory = plan(f, today=date(2026, 12, 1))
-code_strict, out_strict = plan(f, today=date(2027, 1, 1))
+code_strict, out_strict = plan(f, "--mode", "strict", today=date(2027, 1, 1))
 check("an orphan epic branch blocks in both halves, because only a person can settle it",
       "orphan-epic-branch" in json.loads(out_advisory)["blocking"]
       and "orphan-epic-branch" in json.loads(out_strict)["blocking"])

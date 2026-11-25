@@ -33,7 +33,7 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
 - `i18n/` — frontend translations in `en.ts` and `de.ts`; both languages are updated together.
 - `docs/`, `docker-compose*.yml`, `.github/workflows/` — documentation, runtime stacks and CI.
 - `scripts/` — host-side maintenance tools run from the repository root, not part of the deployed
-  application; `scripts/wip` is the work claim board described under "Claiming work", and
+  application; `scripts/wip` is the legacy work claim board described under "Assigning work and legacy claims", and
   `scripts/test_wip_board_sync.py` checks its board writes offline (`python3
   scripts/test_wip_board_sync.py`, needs neither `gh` nor the network). `scripts/agent_capacity` is
   the host capacity gate described under "Check host capacity before starting another stack".
@@ -106,35 +106,11 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
   GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
   hand when touching either tool.
-  `scripts/epic_rollout.py` is the dry-run migration plan and rollout readiness report of the epic
-  branch contract (#1594, epic #1588): it reads the open epics, their native sub-issues, the open
-  PRs and the live claims, resolves each epic to a row of the contract's decision table, and prints
-  every owed action with the actor allowed to take it — a person for a branch cut, a retarget, a
-  protection change and an integration merge, never an agent. It also fails on the rollout's own
-  defects: a named workflow whose `pull_request` trigger dropped the epic namespace (a child PR
-  would merge unchecked), an expired legacy exemption, a bootstrap branch standing without its
-  integration PR, a slug reused across open epics. `scripts/epic_rollout.json` is its reviewed
-  policy — the advisory and strict dates, the bootstrap exemption and the time-limited legacy
-  exceptions; the suite `python3 scripts/test_epic_rollout.py` checks both the tool and that
-  committed state (no `gh`, no network). It writes nothing to GitHub.
-  `scripts/epic_branch.py` resolves an issue's epic integration branch and polices pull
-  request targets (#1591, epic #1588): `resolve --issue N` answers from the native
-  sub-issue parent which branch the work starts from and what its PR may base on,
-  `check-pr --pr N` reports a child PR based on anything but its own `epic/<slug>`, an
-  epic branch based on anything but `develop`, a child head that no longer descends from
-  the epic head, and a fork or non-develop branch targeting `master`; `audit` is the
-  rollout view. It reads GitHub through `gh` and heads through read-only `git ls-remote`
-  / `git merge-base`, and fails closed — an unlinked parent claim, a slug two epics share,
-  an `epic/*` branch nobody declares and any failing `gh`/`git` are exit 2, never a guess.
-  The two human-gated writes need `--write`: `create-branch` pushing one branch that does
-  not exist yet at `origin/develop`'s tip (an existing epic branch is only ever reused),
-  and `retarget` patching an open PR's base onto the target this tool resolved. It approves
-  nothing, merges nothing and bypasses nothing, and `branch-policy.yml` still guards the
-  `master` edge. Rules: `docs/source/development/epic-integration-contract.rst`, tooling:
-  `docs/source/development/epic-branch-resolution.rst`. Its offline checks are
-  `python3 scripts/test_epic_branch.py` (every `gh` and `git` call stubbed, the writes
-  recorded rather than run, no `gh`, no network, no real repository) and
-  `python3 scripts/epic_branch.py check`; both also run in `scripts/check_repo_tooling.sh`.
+  `scripts/epic_branch.py`, `scripts/epic_rollout.py` and `scripts/epic_rollout.json`
+  are retained legacy diagnostics of the superseded epic branch contract, pending #1593.
+  Their automatic modes remain advisory regardless of date; explicit strict mode is only
+  for reproducing historical diagnostics, never a new-work requirement. See
+  `docs/source/development/github-flow-transition.rst` for the measured cutover inventory.
   `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
   #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
   `docker/` surfaces for the validator's name and — where docker is present, probing for it
@@ -181,9 +157,8 @@ Link to these instead of copying them into an `AGENTS.md`:
 - `docs/architecture.md` — domain overview (services, update jobs, monitoring, security proxy).
 - `docs/source/development/project-structure.rst` — app layout rationale and project vocabulary.
 - `docs/source/development/definition_of_done.rst` — checklist to run before opening a pull request.
-- `docs/source/development/epic-integration-contract.rst` — the epic branch contract: the decision
-  table (R1-R13) and the sixteen rules that decide which branch starts from which and which PR may
-  target what; `scripts/epic_rollout.json` holds its rollout dates and exemptions.
+- `docs/source/development/github-flow.rst` — the canonical contribution workflow.
+- `docs/source/development/github-flow-transition.rst` — migration inventory and operator actions.
 - `.github/workflows/quality-assurance.yml` — what CI enforces: pre-commit checks, Behave scenarios and unit tests.
 - `.github/workflows/script-tests.yml` — the repository tooling in `scripts/`, via `scripts/check_repo_tooling.sh`. Separate job on a bare runner, because the QA container binds only `./backend` and cannot reach `scripts/` at all.
 - `CONTRIBUTING.md` — issue and pull request rules.
@@ -505,27 +480,17 @@ identifier itself is not an option — it breaks document matching against upstr
 - `develop` is the default development and integration branch.
 - `master` is reserved for stable releases.
 - Base new branches and worktrees on current `origin/develop`.
-- An epic's integration branch is `epic/<slug>`, where `<slug>` is the epic's first body
-  line (`slug: <kebab-name>`). One branch per epic, created by **a person** from the tip of
-  `origin/develop` — never by an agent, never pushed to directly (rule 1 and 3 of
-  `docs/source/development/epic-integration-contract.rst`).
-- A child of an open epic that declares a slug branches from the tip of its epic's
-  `epic/<slug>` and its PR bases on that branch **only**; it never bases on `develop`,
-  another epic's branch or a sibling child branch. Independent issues are unaffected: no
-  epic parent, no epic branch.
-- Epic integration PRs target `develop`: head `epic/<slug>`, base `develop`, merge commit,
-  human-approved and human-merged. That one PR is the epic's single release note entry, so
-  its title carries the epic's change class.
-- Retargeting a PR, creating or deleting an epic branch and its protection are human acts.
-  An agent reports what is owed — `python3 scripts/epic_rollout.py [--epic <N>]` prints the
-  plan with the actor of every action — and never performs one.
-- A bootstrap or in-flight epic runs under the pre-contract rule (children on `develop`)
-  only while `scripts/epic_rollout.json` records it as exempt, with a reason, a recording
-  issue and an expiry date. An exemption with no date is not an exemption.
-- Always explicitly specify the pull request base.
-- Feature, bugfix and housekeeping PRs target `develop`
-  or their designated epic integration branch.
-- Epic integration PRs target `develop`.
+- Use GitHub Flow: one small independently safe issue and PR, based on current
+  `origin/develop`, with an explicit `--base develop`. Epics are native parent issues;
+  a parent, title prefix or slug does not require an integration branch.
+- Follow `docs/source/development/github-flow.rst` for the canonical workflow and
+  `docs/source/development/github-flow-transition.rst` for the cutover inventory.
+- Existing branch arrangements may finish only as explicit temporary exceptions agreed
+  with their owners. Retargeting, branch deletion and live protection/access changes stay
+  with people; preserve unique commits, reviews and active work.
+- The mandatory epic branch contract and its automatic strict rollout are superseded
+  by #1592. The retained tools are legacy diagnostics pending removal in #1593, never
+  prerequisites for new work.
 - Only the same repository's `develop` branch may target
   `master` in a pull request.
 - Maintainer-directed synchronization from `master` back
@@ -562,57 +527,20 @@ identifier itself is not an option — it breaks document matching against upstr
   <child>` registers the native sub-issue link, the title prefix is only its readable echo. When
   link and prefix disagree, fix the prefix.
 
-### Claiming work
+### Assigning work and legacy claims
 
-Several agents and machines work on this repository in parallel; which client
-works on what lives in GitHub, not in chat sessions. `scripts/wip` (host
-Python + `gh`, no application dependency) maintains it: one claim comment per
-issue and client, the `status: wip` label, and the pinned "🤖 Agent Work
-Board" issue listing the active claims.
+A person or external coordinator explicitly assigns one worker. Before starting, inspect
+native blockers, assignees, linked branches and open Draft PRs, and reconcile any legacy
+claim with its owner. Assignees and dependencies are planning signals, not atomic locks
+or automatic merge gates. Keep the single-worker model; do not start conflicting work.
+Approval and pause labels remain human-owned during transition.
 
-- Run `scripts/wip claim` from the repository root before the first file edit
-  or commit of a session; the issue number comes from the `issue-<N>` part of
-  the branch name. Claiming is idempotent, so re-running is always safe.
-- Claiming refuses while another client holds a fresh claim on the issue; the
-  message names the holder and its heartbeat. Then pick a different issue —
-  never work two clients on one issue. A claim whose heartbeat went stale
-  passes with a warning; `scripts/wip claim --force` takes a foreign claim
-  over deliberately, e.g. after the holder was confirmed gone.
-- Run `scripts/wip claim` again after every `git push`; it refreshes the
-  heartbeat, and a claim without a heartbeat for three days is flagged stale
-  on the board.
-- When a step needs a human — before asking a question, requesting a
-  permission decision or waiting for credentials — run
-  `scripts/wip wait "<what you need>"`; the board lists the claim under
-  *Needs user* (first) until the next `scripts/wip claim` marks it running
-  again.
-- `scripts/wip ask "<question>"` hands the whole question to GitHub, not just
-  the one-line reason: it posts the full text as one machine-managed question
-  comment (`<!-- agent-question client=<tag> id=<id> -->`) on the issue, then
-  runs the `wait` flow with a one-line summary. It is idempotent per client —
-  re-`ask` while the question is still open refreshes that comment instead of
-  stacking another — so a blocked job can be re-run without spamming the issue.
-  Add `--issue N` to point at a specific issue; otherwise it uses the branch.
-- `scripts/wip answers` reads the answers back: it lists the current client's
-  open questions and the human replies to them (comments newer than the
-  question, ignoring the machine-managed claim/question/board comments), prints
-  the answer text, and stamps an answered question so it is never surfaced
-  twice. Read it after a `Needs user` claim, then `scripts/wip claim` to resume.
-- Run `scripts/wip done` when the pull request is ready for review or the
-  work is abandoned.
-- The claims are also a merge gate: do not merge a pull request whose issue
-  still shows a live claim — live means a client is working and not finished,
-  the board even names what it waits for. Run `scripts/wip ls` before
-  merging; when the merge finishes your own work, release your claim
-  (`scripts/wip done`) as part of being ready.
-- Check `scripts/wip ls` before picking up an issue; somebody may hold it.
-- The claim comments (`<!-- agent-claim ... -->`), the `status: wip` label and
-  the board issue are machine-managed; never edit them by hand. `claim`, `wait`
-  and `done` refresh the board as they run; regenerate it by hand with
-  `scripts/wip board` when a refresh warned.
-- If `gh` is not authenticated on the host, say so once and continue without
-  claiming; claiming must never block the actual work.
-
+New work requires no agent-specific claim, eligibility checker, heartbeat or epic resolver.
+The legacy `scripts/wip` board and existing claims remain evidence until their owners
+reconcile them under #1753. Never automatically remove a foreign claim, take over stale
+work or interrupt an agent. A worker that already holds a claim may finish its own
+`wait`/`ask`/`done` lifecycle. Human-only requests may still use `scripts/wip ask` during
+transition; ordinary contributors can ask directly on the issue.
 
 ## Working with uncertainty
 

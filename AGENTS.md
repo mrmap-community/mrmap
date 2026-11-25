@@ -117,6 +117,24 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   policy — the advisory and strict dates, the bootstrap exemption and the time-limited legacy
   exceptions; the suite `python3 scripts/test_epic_rollout.py` checks both the tool and that
   committed state (no `gh`, no network). It writes nothing to GitHub.
+  `scripts/epic_branch.py` resolves an issue's epic integration branch and polices pull
+  request targets (#1591, epic #1588): `resolve --issue N` answers from the native
+  sub-issue parent which branch the work starts from and what its PR may base on,
+  `check-pr --pr N` reports a child PR based on anything but its own `epic/<slug>`, an
+  epic branch based on anything but `develop`, a child head that no longer descends from
+  the epic head, and a fork or non-develop branch targeting `master`; `audit` is the
+  rollout view. It reads GitHub through `gh` and heads through read-only `git ls-remote`
+  / `git merge-base`, and fails closed — an unlinked parent claim, a slug two epics share,
+  an `epic/*` branch nobody declares and any failing `gh`/`git` are exit 2, never a guess.
+  The two human-gated writes need `--write`: `create-branch` pushing one branch that does
+  not exist yet at `origin/develop`'s tip (an existing epic branch is only ever reused),
+  and `retarget` patching an open PR's base onto the target this tool resolved. It approves
+  nothing, merges nothing and bypasses nothing, and `branch-policy.yml` still guards the
+  `master` edge. Rules: `docs/source/development/epic-integration-contract.rst`, tooling:
+  `docs/source/development/epic-branch-resolution.rst`. Its offline checks are
+  `python3 scripts/test_epic_branch.py` (every `gh` and `git` call stubbed, the writes
+  recorded rather than run, no `gh`, no network, no real repository) and
+  `python3 scripts/epic_branch.py check`; both also run in `scripts/check_repo_tooling.sh`.
   `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
   #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
   `docker/` surfaces for the validator's name and — where docker is present, probing for it

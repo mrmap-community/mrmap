@@ -9,6 +9,11 @@ long, by splitting the attempt's active time into coarse cost categories:
 *   ``http_seconds`` / ``http_calls`` - time inside an outgoing ``requests``
     send (remote OGC waiting included), attributed via the ``requests``
     signal, never by patching the transport;
+*   memory (#1620) - the movement of this process's resident set across the
+    span of the attempt: how far the attempt pushed the kernel's high water
+    mark, how many bytes it still held at the end, and what the worker alone
+    occupies against the cgroup's ceiling. Procfs is the only source read, so
+    a platform without it simply reports no memory numbers.
 *   everything else is *unaccounted* on purpose: the categories are what a
     reader can act on, and the difference to the attempt's active time is
     preserved instead of being smeared over a fake CPU bucket - wall-clock
@@ -125,6 +130,155 @@ def redact_sql(sql, limit=200):
     return signature[:limit]
 
 
+#: the two /proc reads of a memory sample, in the order they are worth
+#: paying for: the high water mark is one line of status, the private dirty
+#: set is the (heavier) rollup of every mapping of this process.
+_PROC_STATUS = "/proc/self/status"
+_PROC_SMAPS_ROLLUP = "/proc/self/smaps_rollup"
+_CGROUP_LIMIT_V2 = "/sys/fs/cgroup/memory.max"
+_CGROUP_LIMIT_V1 = "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+
+
+def _read_first_value(path, key):
+    """The integer of ``key`` from a ``key: value kB`` style proc file."""
+    try:
+        with open(path, "r") as handle:
+            for line in handle:
+                if line.startswith(key):
+                    return int(line.split()[1]) * 1024
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def memory_snapshot():
+    """The memory of this process right now, or None without procfs.
+
+    Three numbers, each answering a different question, read in one place so
+    a caller cannot mix a start sample with an end sample of another kind:
+
+    ``high_water``
+        ``VmHWM`` - the highest the resident set ever reached in this process.
+        The kernel keeps it monotonically, so an attempt which grew and shrank
+        between two samples cannot hide its peak; the price is that the number
+        belongs to the worker, which is why an attempt is judged by how far it
+        moved it rather than by its absolute value.
+    ``resident``
+        ``VmRSS`` - what is held right now, the difference of two of which is
+        the retained-object growth of the measured span.
+    ``private_dirty``
+        Resident pages private to this process, the closest procfs answers to
+        "what this worker alone occupies": shared and clean file-backed pages
+        belong to the machine, and charging them to an attempt would blame
+        every task for the interpreter's own mappings.
+    """
+    high_water = _read_first_value(_PROC_STATUS, "VmHWM:")
+    resident = _read_first_value(_PROC_STATUS, "VmRSS:")
+    private_dirty = private_dirty_bytes()
+    if high_water is None and resident is None and private_dirty is None:
+        return None
+    return {
+        "high_water": high_water,
+        "resident": resident,
+        "private_dirty": private_dirty,
+    }
+
+
+def private_dirty_bytes():
+    """Resident pages private to this process, in bytes (None if unknown)."""
+    return _read_first_value(_PROC_SMAPS_ROLLUP, "Private_Dirty:")
+
+
+def cgroup_limit_bytes():
+    """The memory ceiling of this container in bytes, or None.
+
+    A peak without its limit is a number nobody can act on, and inside a
+    container the ceiling is the cgroup's, never the host's ``MemTotal``.
+    Read on every call and never cached (#1620 review): a prefork worker
+    lives across deploys and operator actions, and ``docker update --memory``
+    - which is exactly what an operator reaches for during the incident an
+    OOM report is read in - moves the ceiling under the running process. A
+    cached reading would then keep judging every peak against the old
+    ceiling, self-consistent enough to look trustworthy. The read is one
+    small file, in the same class as the procfs reads of the samples.
+    """
+    return _first_cgroup_limit((_CGROUP_LIMIT_V2, _CGROUP_LIMIT_V1))
+
+
+def _first_cgroup_limit(paths):
+    """The first of ``paths`` which names a real ceiling, or None.
+
+    cgroup v1 answers "unlimited" with a page-aligned giant, which is no more
+    of a ceiling than v2's "max" and must not read as one.
+    """
+    for path in paths:
+        number = _read_cgroup_limit(path)
+        if number is not None and 0 < number <= 2 ** 62:
+            return number
+    return None
+
+
+def _read_cgroup_limit(path):
+    """The integer a cgroup limit file holds, or None if it cannot answer."""
+    try:
+        with open(path, "r") as handle:
+            value = handle.read().strip()
+    except OSError:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _mib(value):
+    """A byte count in MiB, the granularity a report is read at."""
+    if value is None:
+        return None
+    return round(value / 1024 / 1024, 2)
+
+
+def _max_span(start, end, key):
+    """How far a span moved a monotonic counter, never below zero."""
+    if not start or not end:
+        return None
+    first, last = start.get(key), end.get(key)
+    if first is None or last is None:
+        return None
+    return max(0, last - first)
+
+
+def _memory_sample_seconds():
+    """The seam duration from which a memory read is worth its cost."""
+    return float(_setting("TASK_PROFILING_MEMORY_SAMPLE_SECONDS", 0.5) or 0.0)
+
+
+def sample_memory(seconds=None):
+    """Note the memory of the active attempt, if one is being profiled.
+
+    Called when a profile closes, so the end of the attempt's span is read
+    while the profile is still the active one, and from a seam which just
+    spent ``seconds`` on one statement or one request. ``seconds`` is the
+    cheap gate on that second caller: ``smaps_rollup`` is a read over every
+    mapping of the process, so a task of ten thousand fast queries must not
+    pay it per query, while the one which held the cursor for seconds is
+    exactly where a peak is expected to appear. Fail-open like every other
+    seam here: a broken read costs the measurement, never the attempt.
+    """
+    profile = _active_profile()
+    if profile is None:
+        return
+    if seconds is not None and seconds < _memory_sample_seconds():
+        return
+    try:
+        snapshot = memory_snapshot()
+        if snapshot is None:
+            return
+        profile.memory_end = snapshot
+    except Exception as error:  # never break or fail the task (#1330 rule)
+        logger.debug("task profiling memory sample skipped: %s", error)
+
+
 class _Profile:
     """The category observations of one attempt, inside one process."""
 
@@ -132,7 +286,7 @@ class _Profile:
                  "queue", "sample_rate", "mono_start", "sql_seconds",
                  "sql_queries", "slow_sql_seconds", "slow_statements",
                  "http_seconds", "http_calls", "http_errors", "outcome",
-                 "closed", "partial")
+                 "closed", "partial", "memory_start", "memory_end")
 
     def __init__(self, task_id, attempt_no, task_name, root_id,
                  queue=None, sample_rate=0.0, parent_id=""):
@@ -167,6 +321,12 @@ class _Profile:
         #: never a number, only the reason a reader must not take the
         #: categories as the complete picture (#1389: partial stays visible)
         self.partial = []
+        #: memory at the start and at the last sample of this attempt (#1620).
+        #: Both are read off procfs, so either can be None where there is no
+        #: procfs; the report then says nothing about memory rather than
+        #: presenting the worker's own footprint as the attempt's.
+        self.memory_start = None
+        self.memory_end = None
 
     def note_sql(self, seconds, sql="", queries=1):
         self.sql_seconds += max(0.0, seconds)
@@ -239,6 +399,7 @@ class _Profile:
         }
         if self.outcome:
             report["outcome"] = self.outcome
+        report.update(self.memory_report())
         if active_seconds is not None:
             report["active_seconds"] = round(active_seconds, 6)
             report["unaccounted_seconds"] = round(
@@ -247,6 +408,58 @@ class _Profile:
                                          wait_seconds=wait_seconds)
             if wait_seconds is not None:
                 report["wait_seconds"] = round(wait_seconds, 6)
+        return report
+
+    def memory_report(self):
+        """What this attempt did to the memory of its worker, or nothing.
+
+        The absolute values belong to the process, not to the attempt: a
+        prefork worker is reused, so its resident set already holds whatever
+        earlier attempts left behind. What is attributable is therefore the
+        movement inside the span of this attempt:
+
+        ``peak_rise_mib``
+            how far the attempt pushed the process's high water mark - the
+            number a peak measurement is really about, because a worker's
+            peak is only ever reached during some attempt's work;
+        ``retained_mib``
+            resident bytes still held when the attempt ended, i.e. objects
+            that outlived it - the retained-object half of #1620;
+        ``private_dirty_mib``
+            what the process alone occupies at the last sample, against
+            ``limit_mib`` of the container, because a ceiling is what turns a
+            peak into a risk of an OOM kill.
+
+        Each key is present only when the reading behind it answered: a
+        hardened procfs without ``smaps_rollup`` costs
+        ``private_dirty_mib``, a ceiling-less container costs ``limit_mib``
+        and ``of_limit`` - and a key whose source could not answer is absent,
+        never present as ``null`` (#1620 review). A reader must never see a
+        memory claim the platform did not support, in the shape of a null it
+        could mistake for a measured zero.
+
+        With no procfs at all, or an attempt never sampled, this answers
+        ``{}`` and the report carries no memory claim at all.
+        """
+        start, end = self.memory_start, self.memory_end
+        if not start or not end:
+            return {}
+        report = {}
+        peak_rise = _max_span(start, end, "high_water")
+        if peak_rise is not None:
+            report["memory_peak_rise_mib"] = _mib(peak_rise)
+        if end.get("high_water") is not None:
+            report["memory_peak_mib"] = _mib(end["high_water"])
+        retained = _max_span(start, end, "resident")
+        if retained is not None:
+            report["memory_retained_mib"] = _mib(retained)
+        if end.get("private_dirty") is not None:
+            report["memory_private_dirty_mib"] = _mib(end["private_dirty"])
+        limit = cgroup_limit_bytes()
+        if limit and end.get("high_water"):
+            report["memory_limit_mib"] = _mib(limit)
+            report["memory_of_limit"] = round(
+                end["high_water"] / limit, 4)
         return report
 
     def shape(self, active_seconds, wait_seconds=None):
@@ -291,8 +504,32 @@ class _Profile:
         if self.http_seconds >= threshold:
             return "http_bound"
         if accounted <= active_seconds * 0.05:
-            return "cpu_or_unaccounted"
+            return self._unaccounted_shape()
         return "mixed"
+
+    def _unaccounted_shape(self):
+        """Which of the two readings of an unaccounted slow attempt holds."""
+        if self._memory_dominant():
+            return "memory_bound"
+        return "cpu_or_unaccounted"
+
+    def _memory_dominant(self):
+        """Whether this attempt's own peak rise explains an unaccounted run.
+
+        Without this the only reading a memory-hungry task can get is
+        ``cpu_or_unaccounted``, which sends a reader looking at CPU when the
+        actual cost is the objects the attempt held. The threshold is an
+        absolute MiB figure rather than a share of the attempt: a peak is
+        worth naming because of how close it comes to the container's ceiling,
+        not because of how long the attempt ran. Only ever consulted when
+        neither SQL nor HTTP was dominant, so the four shapes of #1389 keep
+        their meaning.
+        """
+        rise = _max_span(self.memory_start, self.memory_end, "high_water")
+        if not rise:
+            return False
+        at_mib = float(_setting("TASK_PROFILING_MEMORY_MIB", 128) or 0.0)
+        return at_mib > 0 and rise >= at_mib * 1024 * 1024
 
 
 #: the profile of the attempt this process is currently executing, or None.
@@ -310,6 +547,10 @@ def _record_sql(seconds, sql="", queries=1):
     if profile is None:
         return
     profile.note_sql(seconds, sql=sql, queries=queries)
+    # a statement which held the cursor for seconds is where a peak appears,
+    # so this is the seam worth reading memory at - gated on its duration
+    # inside sample_memory, so the fast majority pays nothing
+    sample_memory(seconds)
 
 
 def _record_http(seconds, error=False):
@@ -317,6 +558,9 @@ def _record_http(seconds, error=False):
     if profile is None:
         return
     profile.note_http(seconds, error=error)
+    # the same reading for the remote half: a catalogue response is held in
+    # memory by the caller, so a slow answer and a big answer move together
+    sample_memory(seconds)
 
 
 def _http_was_error(result):
@@ -472,9 +716,33 @@ def _begin_profile(sender=None, task_id=None, task=None, **kwargs):
         _profiles[key] = profile
         _stats["profiled"] += 1
         _current = profile
+        # the span begins with the attempt, not with its first chunk: an
+        # attempt's memory claim is the movement between these two reads, and
+        # reading it here (rather than lazily on the first sample) keeps a
+        # short attempt which allocates nothing measurable honest about it.
+        # Its own guard: a procfs which cannot answer must cost the memory
+        # claim of this attempt, not the categories it is about to measure.
+        _open_memory_span(profile)
     except Exception as error:  # never break or fail the task (#1330 rule)
         logger.debug("task profiling start skipped: %s", error)
         _current = None
+
+
+def _open_memory_span(profile):
+    """Read the memory span's start, or leave the attempt without one.
+
+    The span begins with the attempt, not with its first chunk: an attempt's
+    memory claim is the movement between these two reads, and reading it here
+    (rather than lazily on the first sample) keeps a short attempt which
+    allocates nothing measurable honest about it. Its own guard: a procfs
+    which cannot answer costs this attempt's memory claim, never the
+    categories the attempt is about to measure.
+    """
+    try:
+        profile.memory_start = memory_snapshot()
+        profile.memory_end = profile.memory_start
+    except Exception as error:  # fail open, as every seam here does
+        logger.debug("task profiling start sample skipped: %s", error)
 
 
 @task_postrun.connect
@@ -489,6 +757,9 @@ def _end_profile(sender=None, task=None, **kwargs):
     try:
         profile = _current
         if profile is not None:
+            # sampled while the profile is still the active one, so the end of
+            # the attempt's span is captured before the slot is cleared
+            sample_memory()
             profile.closed = True
         _current = None
     except Exception as error:  # never break the task (#1330 rule)

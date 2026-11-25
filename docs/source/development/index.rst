@@ -46,6 +46,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    decision-requests
    epic-integration-contract
    epic-branch-resolution
+   epic-integration-validation
    release-versioning-baseline
    canonical-version
    commit-classification

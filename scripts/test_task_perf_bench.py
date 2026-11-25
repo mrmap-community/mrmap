@@ -27,6 +27,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1638,6 +1639,181 @@ class CliContractTest(unittest.TestCase):
                 self.assertIn(family, bench,
                               "%s carries a detector contract no workload measures"
                               % family)
+
+    SHELL = os.environ.get("RUNNER_SHELL", "sh")
+
+    def _runner_repo(self):
+        """A scratch copy of the files the runner needs, plus a `docker` shim.
+
+        The shim answers `docker compose run` by writing workloads through the
+        real support module - which is what the container does - so the steps
+        which are the script's own code (the guards, the clearing, the sweep and
+        the loads) run here on a host with no stack. It also maps the container's
+        bind mount, which is the only part of compose the shim has to imitate.
+        """
+        scratch = tempfile.mkdtemp(prefix="runner-")
+        repo = os.path.join(scratch, "repo")
+        for rel in ("scripts", "backend/tests/django/system"):
+            os.makedirs(os.path.join(repo, rel))
+        for name in ("task_perf_bench.py", "task_perf_runner.sh",
+                     "task_perf_baseline.json"):
+            shutil.copyfile(os.path.join(REPO_ROOT, "scripts", name),
+                            os.path.join(repo, "scripts", name))
+        for name in ("_task_runtime_bench_support.py",
+                     "test_task_runtime_bench.py"):
+            shutil.copyfile(
+                os.path.join(REPO_ROOT, "backend", "tests", "django", "system",
+                             name),
+                os.path.join(repo, "backend", "tests", "django", "system", name))
+        writer = os.path.join(scratch, "writer.py")
+        with open(writer, "w", encoding="utf-8") as handle:
+            handle.write(
+                "import os, sys, types\n"
+                "os.chdir(sys.argv[1])\n"
+                "# the container writes under /opt/mrmap, i.e. backend/ on host\n"
+                "os.environ['MRMAP_TASK_PERF_OUT'] = os.path.join('backend',\n"
+                "                                                  sys.argv[2])\n"
+                "pkg = types.ModuleType('django'); pkg.__path__ = []\n"
+                "db = types.ModuleType('django.db'); db.connection = None\n"
+                "sys.modules['django'] = pkg; sys.modules['django.db'] = db\n"
+                "sys.path.insert(0, os.path.join('backend', 'tests', 'django',\n"
+                "                                 'system'))\n"
+                "import _task_runtime_bench_support as sup\n"
+                "family = os.environ['MRMAP_TASK_PERF_FAMILY']\n"
+                "repeats = int(os.environ['MRMAP_TASK_PERF_REPEATS'])\n"
+                "units = [{'id': 'u%d' % i, 'elapsed_seconds': 0.51, 'attempts':\n"
+                "          [{'task_id': 't%d' % i, 'attempt_no': 0,\n"
+                "            'active_seconds': 0.5, 'wait_seconds': 0.02,\n"
+                "            'outcome': 'success'}]} for i in range(30)]\n"
+                "for arm in ('baseline', 'sql-n-plus-one', 'duplicate-remote-call',\n"
+                "            'slow-body'):\n"
+                "    for repeat in range(1, repeats + 1):\n"
+                "        written = sup.write_workload(family, 'typical', arm,\n"
+                "                                     repeat, {\n"
+                "            'schema': 'mrmap.task-perf.v1', 'kind': 'load',\n"
+                "            'family': family, 'arm': arm, 'fixture': 'typical',\n"
+                "            'scale': 'typical', 'records': 100, 'chunks': 1,\n"
+                "            'chunk_size': 1000, 'attempts_per_unit': 1,\n"
+                "            'queue': 'harvest-import',\n"
+                "            'mock_responses': 'in-process-lxml-200',\n"
+                "            'tasks': ['registry.tasks.harvest.'\n"
+                "                      'call_md_metadata_files_to_db'],\n"
+                "            'seed': int(os.environ['MRMAP_TASK_PERF_SEED']),\n"
+                "            'repeat': repeat, 'repeats_planned': repeats,\n"
+                "            'ts': '2026-11-21T12:00:00+00:00',\n"
+                "            'revision': 'abc1234',\n"
+                "            'environment': {'database': 'postgis-shim',\n"
+                "                            'python': 'test'},\n"
+                "            'workload': {'units': 30, 'attempts': 30},\n"
+                "            'units': units,\n"
+                "            'quality': {'evidence': 'measured_local'}})\n"
+                "        if os.environ.get('MRMAP_TASK_PERF_DROP') == arm:\n"
+                "            # the cell was reported written and then vanished -\n"
+                "            # what a killed worker or a full disk leaves behind\n"
+                "            os.remove(written)\n")
+        shim_dir = os.path.join(scratch, "bin")
+        os.makedirs(shim_dir)
+        with open(os.path.join(shim_dir, "docker"), "w", encoding="utf-8") as h:
+            h.write(
+                "#!/bin/sh\n"
+                "hit=0; want=0\n"
+                "for a in \"$@\"; do\n"
+                "  if [ \"$want\" = 1 ]; then export \"$a\"; want=0; continue; fi\n"
+                "  if [ \"$a\" = -e ]; then want=1; continue; fi\n"
+                "  if [ \"$a\" = django-tests ]; then hit=1; fi\n"
+                "done\n"
+                "if [ \"$hit\" = 1 ]; then\n"
+                "  exec %s %s \"$PWD\" \"$MRMAP_TASK_PERF_OUT\"\n"
+                "fi\n"
+                "exit 0\n" % (sys.executable, writer))
+        os.chmod(os.path.join(shim_dir, "docker"), 0o755)
+        return repo, shim_dir
+
+    def _run_runner(self, repo, shim_dir, family, repeats, out_rel, extra=None):
+        env = dict(os.environ)
+        env["PATH"] = shim_dir + os.pathsep + env["PATH"]
+        env["COMPOSE_PROJECT_NAME"] = "perf-test"
+        env.update(extra or {})
+        return subprocess.run(  # nosec B603 - the repository's own runner
+            [self.SHELL, "scripts/task_perf_runner.sh", "--family", family,
+             "--repeats", str(repeats), "--seed", "20261121", "--out", out_rel,
+             "--no-up"],
+            cwd=repo, env=env, capture_output=True, text=True, timeout=300)
+
+    def test_the_sweep_reports_the_run_and_only_the_run(self):
+        """A rerun into a used --out reports its own cells, not the directory's.
+
+        The review reproduced both failures on the glob sweep of this head: the
+        documented `--repeats 3` rerun into the heavy directory reported 7 cells
+        and `n=210, cv=0.0` - a stability figure assembled from more than double
+        the repeats the run performed, which is what the stability floor and the
+        gate read - and a previous run's `harvesting.fan_out` file landed in a
+        one-family report. Both need one thing to be true: the files which feed
+        `report` are the ones the workload process reported writing.
+        """
+        repo, shim = self._runner_repo()
+        out_rel = "backend/task-perf"
+        first = self._run_runner(repo, shim, "harvesting.import_chunk", 3, out_rel)
+        self.assertEqual(0, first.returncode, first.stderr)
+        out_dir = os.path.join(repo, out_rel)
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            self.assertEqual(12, len([line for line in h if line.strip()]))
+
+        # a previous run left this family and its manifest behind
+        stale = os.path.join(out_dir,
+                             "harvesting.fan_out__typical__baseline__r1.json")
+        with open(stale, "w", encoding="utf-8") as handle:
+            json.dump({"family": "harvesting.fan_out", "arm": "baseline"}, handle)
+        with open(os.path.join(out_dir, ".written-workloads"), "w",
+                  encoding="utf-8") as handle:
+            handle.write("harvesting.fan_out__typical__baseline__r1.json\n")
+
+        second = self._run_runner(repo, shim, "monitoring.wms", 2, out_rel)
+        self.assertEqual(0, second.returncode, second.stderr)
+        self.assertFalse(os.path.exists(stale),
+                         "a workload file of the previous run survived into a "
+                         "directory this run owns")
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            rows = [json.loads(line) for line in h if line.strip()]
+        self.assertEqual(8, len(rows),
+                         "the report is not the run: %d rows for 4 arms x 2 repeats"
+                         % len(rows))
+        self.assertEqual({1, 2}, {r["repeat"] for r in rows},
+                         "repeats of an earlier run are in this report")
+        self.assertEqual({"monitoring.wms"}, {r["family"] for r in rows},
+                         "a family this run never selected is in this report")
+        self.assertEqual({"baseline", "sql-n-plus-one", "duplicate-remote-call",
+                          "slow-body"}, {r["arm"] for r in rows})
+        report = subprocess.run(  # nosec B603 - repository's own tool
+            [sys.executable, os.path.join(repo, "scripts", "task_perf_bench.py"),
+             "report", "--in", os.path.join(out_dir, "task-perf.jsonl")],
+            check=True, capture_output=True, text=True)
+        self.assertIn("monitoring.wms", report.stdout)
+        self.assertNotIn("harvesting.fan_out", report.stdout)
+        self.assertNotIn("harvesting.import_chunk", report.stdout)
+
+    def test_a_missing_written_file_is_reported_not_silently_skipped(self):
+        """A manifest naming a file which is gone is red, not a smaller report.
+
+        A workload process which died after announcing a cell - the case the
+        manifest exists for - must not end in a report which reads as complete.
+        The drop is done by the writer itself, since the runner clears the
+        directory before the run and an injected file would be cleared too.
+        """
+        repo, shim = self._runner_repo()
+        out_rel = "backend/task-perf"
+        run = self._run_runner(repo, shim, "harvesting.import_chunk", 1, out_rel,
+                               extra={"MRMAP_TASK_PERF_DROP": "slow-body"})
+        self.assertEqual(1, run.returncode, run.stdout + run.stderr)
+        self.assertIn("the run wrote it, it is not on disk", run.stderr)
+        self.assertIn("workload file(s) the run wrote are missing", run.stderr)
+        # the three cells which are there are still reported - a partial report
+        # which says it is partial, rather than no report at all
+        out_dir = os.path.join(repo, out_rel)
+        with open(os.path.join(out_dir, "task-perf.jsonl"), encoding="utf-8") as h:
+            arms = {json.loads(line)["arm"] for line in h if line.strip()}
+        self.assertEqual({"baseline", "sql-n-plus-one", "duplicate-remote-call"},
+                         arms)
 
     def test_end_to_end_through_subprocesses(self):
         """load -> report -> compare -> gate as CI calls them."""

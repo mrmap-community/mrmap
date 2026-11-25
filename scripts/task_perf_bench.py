@@ -92,6 +92,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import socket
 import sys
 from datetime import datetime, timezone
@@ -914,10 +915,19 @@ def cmd_load(args):
         record = build_record(args, fixture)
         record["source_fixture"] = path
         records.append(record)
-    for record in records:
-        append_record(args.out, record)
     digest = records[0]["digest"] if records else None
+    # Checked before anything is written, and against what the output already
+    # holds: the runner loads one file per invocation, so a workload file left by
+    # an earlier run would land in the same report a second time. `cv` is what
+    # the stability floor and the gate read, and it is assembled from these rows
+    # - a cell counted twice is not more evidence, it is one reading counted
+    # twice, and it manufactures the figure the epic says a reviewer can look up.
     seen = {}
+    if args.out and os.path.isfile(args.out) and os.path.getsize(args.out):
+        for prior in load_records(args.out):
+            seen.setdefault((prior.get("digest"), prior.get("arm"),
+                             prior.get("repeat")),
+                            prior.get("source_fixture") or args.out)
     for record in records:
         key = (record["digest"], record["arm"], record.get("repeat"))
         if key in seen:
@@ -927,6 +937,8 @@ def cmd_load(args):
                 % (record.get("source_fixture"), record.get("repeat"),
                    record["arm"], seen[key]))
         seen[key] = record.get("source_fixture")
+    for record in records:
+        append_record(args.out, record)
     first = records[0]
     print("family=%s arm=%s repeat=%s/%s fixtures=%d digest=%s" % (
         first["family"], first["arm"], first["repeat"],
@@ -1543,7 +1555,56 @@ def cmd_summary(args):
     return 0
 
 
+#: a family name is a registry path segment plus one identifier
+FAMILY_NAME = re.compile(r"^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$")
+
+
+def measured_families():
+    """The families the bench suite owns a class for, read from its source.
+
+    The runner needs this before the stack comes up: a name the registry knows
+    but no bench class measures pays a PostGIS boot for a run which cannot
+    produce a workload file. Reading the bench file rather than importing it is
+    deliberate - this module stays importable without Django, which is what lets
+    it run in CI on a machine with no test environment.
+    """
+    bench = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "backend", "tests", "django", "system",
+                         "test_task_runtime_bench.py")
+    try:
+        with open(bench, encoding="utf-8") as handle:
+            source = handle.read()
+    except OSError as exc:
+        raise SystemExit("%s: cannot read the bench suite (%s)" % (bench, exc))
+    return set(re.findall(r'^\s{4}family\s*=\s*["\']([^"\']+)["\']',
+                          source, re.MULTILINE))
+
+
+def check_family(name):
+    """(ok, reason) for a `--family` value, before anything is booted."""
+    if not FAMILY_NAME.match(name or ""):
+        return False, "not a family name (expected registry.things, see 'families')"
+    if name not in FAMILIES:
+        return False, ("not a first-party family (see 'families'); a name which "
+                       "cannot measure anything is refused before the stack boots")
+    if name not in measured_families():
+        return False, ("declared in the registry but no bench class measures it; "
+                       "a run would boot the stack, skip every class and write no "
+                       "workload file")
+    return True, ""
+
+
 def cmd_families(args):
+    if args.check:
+        ok, reason = check_family(args.check)
+        if not ok:
+            print("families: %s - %s" % (args.check, reason), file=sys.stderr)
+            # 2 for a name which is not a name at all, 3 for one which is a real
+            # family but measures nothing: both are refusals before the boot, and
+            # the caller's remedy differs (a typo versus a family to implement)
+            return 2 if reason.startswith("not a ") else 3
+        print("families: %s is declared and measured" % args.check)
+        return 0
     for entry in family_catalog():
         print("%-28s queue=%-14s fixtures=%-24s %s" % (
             entry["family"], entry["queue"], ",".join(entry["fixtures"]),
@@ -2138,6 +2199,10 @@ def build_parser():
     add_common(summary)
 
     families = sub.add_parser("families", help="list the first-party families")
+    families.add_argument("--check", default="", metavar="NAME",
+                          help="exit non-zero unless NAME is a family a run can "
+                               "actually measure (the runner asks this before "
+                               "booting the stack)")
     add_common(families)
     return parser
 

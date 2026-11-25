@@ -34,6 +34,11 @@
 #      directory is reported as what it is and exits non-zero. A report which
 #      silently contains no measurements is the flakiness this issue is about in
 #      its worst form - a green that measured nothing.
+#   6. The report covers the workload this run wrote, and only that. The run
+#      directory is cleared of the previous run's artifacts before the stack
+#      starts and the files are read from a manifest the workload process
+#      appended to as it wrote, so a rerun into the same --out cannot report a
+#      family it never selected or repeats it never performed.
 #
 # WHAT NEEDS TO BE PRESENT
 #
@@ -94,11 +99,16 @@ esac
 case "$SEED" in
         ''|*[!0-9]*) echo "task_perf_runner: --seed wants a number, got $SEED" >&2; exit 2 ;;
 esac
-# before the stack comes up: a typo in the family is a two-minute wait for
-# PostGIS and then a suite which skipped everything
-case "$FAMILY" in
-        ''|*[!a-zA-Z0-9._-]*) [ -z "$FAMILY" ] || { echo "task_perf_runner: --family $FAMILY is not a family name (see 'families')" >&2; exit 2; } ;;
-esac
+# before the stack comes up: a name which cannot measure anything is a two-minute
+# wait for PostGIS and then a suite which skipped everything, so ask the analyzer
+# rather than matching characters. It owns the registry and reads the bench
+# classes, so a well-formed typo (harvesting.import_chunx) and a registry family
+# no bench class measures both die here, at the cost of one stdlib import - the
+# only check which can tell those two apart from a family a run can measure.
+if [ -n "$FAMILY" ]; then
+        "$PYTHON" scripts/task_perf_bench.py families --check "$FAMILY" >/dev/null \
+                || { echo "task_perf_runner: --family $FAMILY refused (see 'scripts/task_perf_bench.py families')" >&2; exit 2; }
+fi
 
 fail() {
         echo "task_perf_runner: $*" >&2
@@ -124,6 +134,25 @@ docker compose version >/dev/null 2>&1 \
         || fail "docker compose is not available"
 
 mkdir -p "$OUT" || fail "cannot write to $OUT"
+
+# Emptying the run directory is the first thing done, before anything is written.
+# What feeds the report is the set of workload files the sweep reads, and after a
+# rerun into the same --out - the documented
+# `--repeats 3 --out backend/task-perf-heavy` of the heavy section, or any second
+# dispatch on a laptop - that set would be "everything ever written here": a
+# family the run never selected, and repeats it never performed. cv, the figure
+# the stability floor and the gate read, is assembled from those rows, so a stale
+# file does not add noise, it manufactures the number a reviewer is meant to trust.
+# The directory holds this run's artifacts and nothing else, so it is emptied of
+# them - by name, so a hand-written file beside them survives.
+for stale in "$OUT"/*.json "$OUT"/.written-workloads \
+             "$OUT"/slow-body-reference__* "$OUT"/report.txt \
+             "$OUT"/summary.txt "$OUT"/summary.log "$OUT"/detect-*.txt \
+             "$OUT"/gate.txt; do
+        [ -e "$stale" ] || continue
+        rm -f "$stale" || fail "cannot clear $stale from $OUT"
+done
+
 JSONL="$OUT/task-perf.jsonl"
 : > "$JSONL" || fail "cannot write $JSONL"
 
@@ -192,25 +221,68 @@ $COMPOSE run --rm --build --user "$(id -u):$(id -g)" \
 # The reading. One `load` per workload file: the file carries its own arm,
 # repeat, seed and environment, so the analyzer's identity check has something
 # real to refuse when an arm's workload changed between runs.
+#
+# The list comes from the manifest the workload process appended to as it wrote,
+# not from a `*.json` glob: the glob answers "what is on disk", which is only
+# "what this run measured" while the directory is empty, and the directory is not
+# necessarily empty for anyone but CI. A named file which is not there is counted,
+# because a report quietly missing a cell is the failure mode this script exists
+# to prevent. Without a manifest at all - a workload process which died before its
+# first write, or a foreign --out - the sweep says so and falls back to the
+# directory rather than publishing nothing.
 FILES=0
 BAD=0
-for file in "$OUT"/*.json; do
-        [ -f "$file" ] || continue
-        FILES=$((FILES + 1))
-        # A refused file is named and counted, not fatal where it can be avoided:
-        # one malformed record from one family used to end the run before
-        # `report`/`summary`/`detect`/`gate`, so a nightly with one bad family
-        # published nothing at all for the families which had measured. The run
-        # still ends red below - a report over part of a run is honest, a green
-        # over part of one is not.
-        if "$PYTHON" scripts/task_perf_bench.py load \
-                --fixture "$file" --out "$JSONL" >/dev/null; then
-                :
-        else
-                echo "task_perf_runner: REFUSED $file - not a workload this analyzer understands" >&2
-                BAD=$((BAD + 1))
-        fi
-done
+LOST=0
+MANIFEST="$OUT/.written-workloads"
+if [ -f "$MANIFEST" ]; then
+        LOAD_LIST=$(mktemp) || fail "cannot write a temporary file"
+        # keep only entries which are workload files, in the order they were written
+        while IFS= read -r name; do
+                case "$name" in
+                        *.json) printf '%s\n' "$name" >> "$LOAD_LIST" ;;
+                esac
+        done < "$MANIFEST"
+        while IFS= read -r name; do
+                [ -n "$name" ] || continue
+                case "$name" in
+                        */*) fail "the manifest names $name with a path; a workload file is one name in $OUT" ;;
+                esac
+                file="$OUT/$name"
+                if [ ! -f "$file" ]; then
+                        echo "task_perf_runner: LOST $name - the run wrote it, it is not on disk" >&2
+                        LOST=$((LOST + 1))
+                        continue
+                fi
+                FILES=$((FILES + 1))
+                # A refused file is named and counted, not fatal where it can be avoided:
+                # one malformed record from one family used to end the run before
+                # `report`/`summary`/`detect`/`gate`, so a nightly with one bad family
+                # published nothing at all for the families which had measured. The run
+                # still ends red below - a report over part of a run is honest, a green
+                # over part of one is not.
+                if "$PYTHON" scripts/task_perf_bench.py load \
+                        --fixture "$file" --out "$JSONL" >/dev/null; then
+                        :
+                else
+                        echo "task_perf_runner: REFUSED $file - not a workload this analyzer understands, or a cell already read" >&2
+                        BAD=$((BAD + 1))
+                fi
+        done < "$LOAD_LIST"
+        rm -f "$LOAD_LIST"
+else
+        echo "task_perf_runner: no $MANIFEST - the workload wrote no manifest, sweeping $OUT by name" >&2
+        for file in "$OUT"/*.json; do
+                [ -f "$file" ] || continue
+                FILES=$((FILES + 1))
+                if "$PYTHON" scripts/task_perf_bench.py load \
+                        --fixture "$file" --out "$JSONL" >/dev/null; then
+                        :
+                else
+                        echo "task_perf_runner: REFUSED $file - not a workload this analyzer understands" >&2
+                        BAD=$((BAD + 1))
+                fi
+        done
+fi
 if [ "$FILES" -eq 0 ]; then
         fail "$OUT holds no workload file: the suite skipped (MRMAP_TASK_PERF_BENCH unset, or the module moved) rather than measuring nothing"
 fi
@@ -263,6 +335,10 @@ GATE=$?
 cat "$OUT/gate.txt"
 echo
 echo "task_perf_runner: $FILES workload record(s) in $JSONL; artifacts in $OUT"
+if [ "$LOST" -gt 0 ]; then
+        echo "task_perf_runner: $LOST workload file(s) the run wrote are missing; the report above is not the run it names" >&2
+        exit 1
+fi
 if [ "$BAD" -gt 0 ]; then
         echo "task_perf_runner: $BAD of $FILES record(s) were refused; the report above covers the rest" >&2
         exit 1

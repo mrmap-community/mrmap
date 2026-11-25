@@ -87,6 +87,29 @@ def output_dir():
     return directory
 
 
+#: the manifest of workload files one run wrote, in the order they were written.
+#: The host sweep reads this list rather than ``*.json``: "the files on disk" is
+#: not "the files this run measured" once a directory is reused, and a report
+#: assembled from both is a report of a run which never happened. Not ``.json``
+#: for the same reason as the slow-body bookkeeping above.
+MANIFEST_NAME = '.written-workloads'
+
+
+def record_written(path):
+    """Append one written workload file to this run's manifest.
+
+    Written per file rather than swept at the end, so a run which died halfway
+    reports the cells it measured and no more.
+    """
+    try:
+        with open(Path(OUT_DIR) / MANIFEST_NAME, 'a', encoding='utf-8') as handle:
+            handle.write('%s\n' % path.name)
+    except OSError:
+        # a read-only artifact directory must not fail a benchmark run over how
+        # the host finds its files; the sweep falls back to the directory itself
+        pass
+
+
 def workload_slug(family, scale, arm, repeat):
     """The file name of one workload record - it names its own identity.
 
@@ -115,6 +138,7 @@ def write_workload(family, scale, arm, repeat, payload):
     payload['digest'] = workload_digest(payload)
     path.write_text(json.dumps(payload, sort_keys=True, default=str),
                     encoding='utf-8')
+    record_written(path)
     return path
 
 

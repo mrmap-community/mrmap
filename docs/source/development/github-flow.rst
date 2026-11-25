@@ -66,7 +66,8 @@ The project owner can configure the existing organization Project #3 in its UI,
 preserving items and views. This is a proposed configuration, not an applied
 settings change. Show **Parent issue**, **Sub-issue progress**, **Status**,
 **Assignees** and **Labels**. Use native parent links for hierarchy; keep legacy
-custom fields as historical until their owners approve removal under #1593.
+custom fields and their values as historical; field deletion requires separate
+owner approval. The sync code/workflow is removed by #1593.
 
 * **Work board**: group by Status (Todo, In progress, Blocked, In review, Done);
   show Assignees and Labels. Assignment and blocker status are manual.
@@ -81,8 +82,19 @@ not enable a Status change that closes issues, and do not mark work complete
 because its PR merely closed without merge. Review linked issue and PR items
 separately. Native workflows do not encode every dependency/assignment state;
 manual updates are the accepted trade-off. No new project script or token is
-needed. Coordinate disabling the old sync with #1593 before native/manual
-fields become authoritative so two writers do not compete.
+needed. After #1593 merges, confirm any already queued/running sync runs have
+finished before starting manual updates. Keep the old fields and values for
+history. Maintain Status in the UI: Backlog → Todo, In Progress → In progress,
+Review → In review, Blocked → Blocked, Done → Done. Do not bulk-copy stale
+Development Phase values. Replace the derived Agent Status column with the
+existing human-owned Labels column; a label remains a planning signal.
+
+Add an issue or PR through the project UI when assigning it, unless a native
+auto-add workflow already covers it. Inspect existing project views, then add
+or adapt views without deleting them. If built-in workflows are unavailable,
+manual item addition and Status updates are sufficient for this contribution
+loop. Keep shared Projects credentials; retiring this consumer does not
+authorize deleting a secret or revoking a token another consumer might use.
 
 GitHub references
 ==================

@@ -106,11 +106,6 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   Decision register. Its offline checks are `python3 scripts/test_decisions.py` (every
   GitHub call stubbed, no `gh`, no network); CI runs no job for `scripts/`, so run them by
   hand when touching either tool.
-  `scripts/epic_branch.py`, `scripts/epic_rollout.py` and `scripts/epic_rollout.json`
-  are retained legacy diagnostics of the superseded epic branch contract, pending #1593.
-  Their automatic modes remain advisory regardless of date; explicit strict mode is only
-  for reproducing historical diagnostics, never a new-work requirement. See
-  `docs/source/development/github-flow-transition.rst` for the measured cutover inventory.
   `scripts/test_validator_retirement.py` is the guard that the ETF validator retired by
   #1529 (epic #1527) does not creep back: it sweeps the tracked Compose, VS Code, Sonar and
   `docker/` surfaces for the validator's name and — where docker is present, probing for it
@@ -488,9 +483,9 @@ identifier itself is not an option — it breaks document matching against upstr
 - Existing branch arrangements may finish only as explicit temporary exceptions agreed
   with their owners. Retargeting, branch deletion and live protection/access changes stay
   with people; preserve unique commits, reviews and active work.
-- The mandatory epic branch contract and its automatic strict rollout are superseded
-  by #1592. The retained tools are legacy diagnostics pending removal in #1593, never
-  prerequisites for new work.
+- The mandatory epic branch contract and its automatic strict rollout were superseded
+  by #1592; #1593 removes their tooling and redundant project synchronization. Native
+  Projects and manual updates follow `docs/source/development/github-flow.rst`.
 - Only the same repository's `develop` branch may target
   `master` in a pull request.
 - Maintainer-directed synchronization from `master` back

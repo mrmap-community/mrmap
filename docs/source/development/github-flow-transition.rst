@@ -4,15 +4,145 @@
 GitHub Flow transition
 ======================
 
-Status: prepared for maintainer review under #1592, **cutover not approved or
-performed**. Snapshot: 2026-11-25, against ``origin/develop`` at ``e2c76a15e``.
-Live settings and in-flight work were read only. Re-read the inventory before
-acting; an empty assignment or old heartbeat is not evidence that work is free.
+The #1592 cutover was approved and merged in PR #1790 on 2026-11-25 at
+15:39:41 UTC (16:39:41 Europe/Berlin). Its original audit and sandbox evidence
+remain below as historical measurements. The canonical workflow is
+:doc:`github-flow`. The following retirement patch is prepared for review under
+#1593; its removal takes effect only when a person merges it into develop.
 
-The canonical workflow is :doc:`github-flow`. #1593 owns deletion of obsolete
-epic/project-sync tooling after the approved transition; #1753 owns claim and
-eligibility retirement after owners reconcile active work. No replacement
-scheduler, helper, feature flag or provenance mechanism is introduced.
+Tool retirement under #1593
+===========================
+
+Rechecked against ``origin/develop`` at ``631c2ca7a`` on 2026-11-25:
+
+* Effective rules for develop and master still require the same seven QA/Sonar
+  contexts listed below; neither requires **Validate PR target** or the project
+  sync job. No ruleset/check setting needs removal before deleting those jobs.
+  Recheck before merge if an administrator changes the rules in the meantime.
+* The same five open PRs below target develop; none uses an epic head/base.
+  The only epic branch, ``epic/epic-integration``, has zero commits ahead of
+  develop. It is left intact. No branch depends on the removed resolver,
+  manifest or dry-run engine in the observed inventory.
+* All tracked consumers of the retired tools are their workflows/tests and the
+  historical documents below. Active contributor/agent references are reconciled.
+  Unknown external installations are not migrated or interrupted; old evidence
+  can be read with ``git show 631c2ca7a:<path>``. No helper replaces these tools.
+* **Retained coverage:** QA, CodeQL, script-tests and PR classification keep
+  ``epic/**`` PR triggers as protection for existing arrangements. This does not
+  require an epic branch for new work. An operator may review coverage removal
+  only after confirming no legacy PR/owner still needs it; no coverage is removed
+  in #1593. All QA/security/release workflows and the small master source-policy
+  workflow remain byte-identical to the base revision.
+* The live workflow inventory reported CodeQL as ``disabled_manually``. This is
+  a pre-existing operator setting, not a source change or a claim that security
+  analysis passed. The operator should review that setting separately; this
+  patch neither enables nor disables workflows through the API.
+
+The retired surface contains 11 files and 6,583 physical lines before this
+change, zero files/lines afterward. No replacement tooling or dependency is added:
+
+.. list-table:: Retired files (physical lines)
+   :header-rows: 1
+   :widths: 70 15 15
+
+   * - Path
+     - Before
+     - After
+   * - ``scripts/epic_branch.py``
+     - 1598
+     - 0
+   * - ``scripts/test_epic_branch.py``
+     - 949
+     - 0
+   * - ``scripts/epic_rollout.py``
+     - 891
+     - 0
+   * - ``scripts/epic_rollout.json``
+     - 42
+     - 0
+   * - ``scripts/test_epic_rollout.py``
+     - 783
+     - 0
+   * - ``scripts/epic_integration_dryrun.py``
+     - 1057
+     - 0
+   * - ``scripts/test_epic_integration_dryrun.py``
+     - 935
+     - 0
+   * - ``scripts/sync_project_overview.py``
+     - 199
+     - 0
+   * - ``scripts/test_sync_project_overview.py``
+     - 46
+     - 0
+   * - ``.github/workflows/pr-target-policy.yml``
+     - 33
+     - 0
+   * - ``.github/workflows/project-overview-sync.yml``
+     - 50
+     - 0
+
+The suite runner discovers ``scripts/test_*.py`` automatically, so its invocation
+and the script-tests workflow need no replacement list. Removing these four
+suites leaves 36 suites. Historical ADRs, scenario JSON and recorded results stay
+as evidence, with explicit notices that their commands no longer run on develop.
+
+Native Projects handoff
+------------------------
+
+The removed sync imported issues and derived **Development Phase** and **Agent
+Status**. Its native/manual replacement is documented in :doc:`github-flow`:
+use Parent issue, Sub-issue progress, Status, Assignees and Labels; manually add
+items and maintain blocked/review states where built-in workflows are insufficient.
+There is no readiness or approval inference, no custom status authority and no
+new script, token or synchronization service.
+
+Project #3 inspection still fails for lack of ``read:project`` scope. Its live
+fields/views/workflows are therefore **unverified**, not claimed configured.
+An owner can follow the UI handoff without granting the agent more access:
+
+1. Preserve all project items, views, old custom fields and their values. Inspect
+   the native fields/views and use the mapping on the canonical workflow page.
+2. After this PR merges, confirm old queued/running project-sync jobs have
+   finished before relying on manual Status updates. The audit saw queued run
+   `45647950421 <https://github.com/mrmap-community/mrmap/actions/runs/45647950421>`_.
+   That run subsequently completed successfully. Recheck at merge because issue
+   events can enqueue more runs until the workflow is removed. Deleting the
+   workflow does not cancel existing runs. No run is cancelled here.
+3. Add/update items manually, or use available native auto-add and Done workflows;
+   do not enable Status-to-issue-close behavior. This meets daily planning needs
+   without reproducing the derived fields. A project setting change needs the
+   owner's confirmation; no settings are changed by this patch.
+4. Keep ``MRMAP_PROJECTS_TOKEN`` and any shared credentials. Removing this
+   consumer grants no permission to delete secrets, revoke access, delete fields
+   or clean up project data. Any later cleanup needs its own consumer inventory.
+
+Claims/eligibility and host-resource guards remain owned by #1753 until their
+owners reconcile active work. No foreign claim or live agent is changed.
+
+Validation
+-----------
+
+The retained master-policy shell step was executed directly with three synthetic
+event environments: same-repository develop succeeds; same-repository task branch
+and fork develop both fail. The workflow is unchanged. The native issue-to-develop
+review/check/merge/closing demonstration remains the completed #1592 sandbox
+record below; #1593 does not reuse or delete that sandbox. Targeted portal
+structural validation passes. ``scripts/check_repo_tooling.sh </dev/null``
+passed 35 of the remaining 36 suites. The unchanged XML parse guard also scans
+the local untracked ``backend/.venv`` and flags lxml's own text serialization,
+the same workspace-only failure recorded under #1592. Running that unchanged
+XML suite against a temporary clean local clone of this commit passed all 38
+checks; the temporary clone was removed afterward. Validator retirement
+passes with 93 checks (Docker skips are reported by that suite). No application,
+schema or migration changed and no Compose stack was started.
+
+Historical #1592 audit and transition plan
+==========================================
+
+Snapshot: 2026-11-25, against ``origin/develop`` at ``e2c76a15e``.
+Live settings and in-flight work were read only. The measurements below do not
+supersede the retirement audit above or authorize changes to live settings.
 
 Urgent target-check cutover
 ===========================
@@ -226,13 +356,11 @@ merge a production PR as an experiment. Before live setting changes:
    settings to the recorded prior values if the demonstration or cutover fails;
    do not re-enable mandatory epic targeting as a rollback.
 
-Maintainer sign-off remains required for the canonical workflow, this inventory,
-temporary exceptions (if any), sandbox evidence, and an explicit cutover date and
-operator. Merge the urgent retirement before 15 December, then confirm the live
-context no longer executes epic enforcement. #1593 may remove the compatibility
-context after a fresh required-check/consumer audit; #1753 may retire claims only
-after owner reconciliation. No unattended release or live-agent interruption is
-part of acceptance. An unanswered decision keeps #1592 open.
+PR #1790 completed the #1592 cutover before 15 December. The #1593 retirement
+audit above rechecks the required contexts and consumers before removing the
+compatibility workflow. Remaining project/access settings stay operator-owned;
+#1753 may retire claims only after owner reconciliation. No unattended release
+or live-agent interruption is authorized by either change.
 
 Project inspection limitation
 ==============================

@@ -1,8 +1,11 @@
 .. note::
 
-   Historical evidence retained for existing work. Issue #1592 supersedes the
-   mandatory epic branch workflow and its scheduled strict rollout. New work follows
-   :doc:`github-flow`; :doc:`github-flow-transition` records remaining operator actions.
+   Historical evidence only. Issue #1592 superseded this workflow; #1593 removes
+   its executable tools, tests and target-policy workflow. Commands below describe
+   the archived implementation at commit ``631c2ca7a`` and cannot run on current
+   develop. For example, ``git show 631c2ca7a:scripts/epic_branch.py`` reads the
+   former resolver. New work follows :doc:`github-flow`;
+   :doc:`github-flow-transition` records retirement and operator actions.
 
 .. _epic-integration-contract:
 

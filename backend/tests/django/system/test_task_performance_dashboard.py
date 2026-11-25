@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
+from django.test.utils import override_settings
 
 from system.task_performance_export import (EVENT_CLASS_BUCKET,
                                             EVENT_CLASS_COVERAGE,
@@ -223,6 +224,44 @@ class QueryContractTests(SimpleTestCase):
             self.assertIn("stats", target["expr"],
                           "panel %s lists the series instead of aggregating "
                           "it" % panel["id"])
+
+    def test_the_class_coverage_listing_bounds_no_smaller_than_one_fire(self):
+        # one fire publishes up to _max_buckets() class_coverage records, so a
+        # smaller panel bound drops whole task classes without a marker - the
+        # panel is the only per-class entry point for crash residue, and
+        # #1391 rules out hiding coverage (#1391 review of 8ae869f0). The
+        # bound has to ride the setting, not be a second constant.
+        from system.task_performance_export import _max_buckets
+        with override_settings(TASK_PERFORMANCE_EXPORT_MAX_BUCKETS=200):
+            fire = _max_buckets()
+        for panel, target in _targets():
+            if EVENT_CLASS_COVERAGE not in target["expr"]:
+                continue
+            bound = re.search(r"\| limit (\d+)\s*$", target["expr"])
+            self.assertIsNotNone(
+                bound, "panel %s does not end in its own row bound"
+                % panel["id"])
+            self.assertGreaterEqual(
+                int(bound.group(1)), fire,
+                "panel %s lists the per-class coverage newest-first with a "
+                "bound below what one fire can publish (%d < %d), which "
+                "drops whole task classes of the residue silently"
+                % (panel["id"], int(bound.group(1)), fire))
+
+    def test_the_truncation_of_the_class_coverage_listing_is_disclosed(self):
+        # above the default cap the newest-first listing is partial by
+        # construction, and no record marks the gap - so the panel has to say
+        # so instead of letting the absence read as no residue (the runbook
+        # carries the same sentence; it cannot be read here, because the
+        # test container mounts backend and the provisioning, not docs)
+        for panel, target in _targets():
+            if EVENT_CLASS_COVERAGE not in target["expr"]:
+                continue
+            description = panel.get("description", "")
+            self.assertIn("MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS",
+                          description,
+                          "panel %s bounds the class listing without "
+                          "naming the cap behind its bound" % panel["id"])
 
 
 def published_fields():

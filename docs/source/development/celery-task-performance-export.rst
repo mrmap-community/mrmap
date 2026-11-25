@@ -231,7 +231,14 @@ and a reviewer or an operator can copy one straight into Explore.
     ``open_abandoned`` per class. A class which keeps a row here for days is
     either genuinely long-running (``open_running``) or has crashed workers
     (``open_abandoned``); the two are shown apart because they are different
-    incidents, and the table is the drill-down entry for both.
+    incidents, and the table is the drill-down entry for both. The listing is
+    newest-first and capped at 200 rows, the default
+    ``MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS`` - one fire cannot publish
+    more ``class_coverage`` records than that cap, so the table is complete
+    for a default deployment; a deployment which raised the knob beyond 200
+    sees the newest 200 classes only, and the absent classes carry no marker
+    of their own, which is why the cap of the panel is pinned against the
+    setting by the dashboard test.
 ``Queues``
     executions and occupancy per ``queue``, so a saturated queue is visible
     without a broker export.

@@ -75,8 +75,17 @@ class RFC5424Formatter(logging.Formatter):
         # per task INFO and repeating warnings instead of the slow request
         # diagnostics it is there for (#1033). An ordinary record is answered
         # by its syslog line alone.
+        #
+        # A record which states its own detail inside its structured data asks
+        # for the same answer by name: the exporter of #1391 publishes a
+        # bounded record per window whose structured data *is* its payload, so
+        # a dump would duplicate every number of a line the log store already
+        # holds - once per window, which a scheduled exporter must not turn
+        # into a file flood below the media root.
         short_structured_data = {}
-        if any(sdid != PYTHON_META_SDID for sdid in structured_data):
+        if (not getattr(record, "suppress_dump", False)
+                and any(sdid != PYTHON_META_SDID
+                        for sdid in structured_data)):
             details_json = self._write_dump(structured_data)
             if details_json:
                 short_structured_data = {

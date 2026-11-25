@@ -258,4 +258,6 @@ Runbook
    :ref:`celery-task-profiling` (#1389) on the named task to find out why.
 
 See also: :ref:`celery-capacity-telemetry`, :ref:`celery-task-profiling`,
-:ref:`capacity-snapshot`, :ref:`background-operations`.
+:ref:`capacity-snapshot`, :ref:`background-operations`, and the published
+series and Grafana dashboard of the same epic at
+:ref:`celery-task-performance-export`.

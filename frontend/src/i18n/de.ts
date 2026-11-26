@@ -938,6 +938,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   historyChart: {
+    partial: "Unvollständige Statistik für diesen Zeitraum.",
     total: "Bestand %{unit}",
     new: "Neuaufnahmen",
     updated: "Aktualisierungen",

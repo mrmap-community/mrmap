@@ -1,0 +1,53 @@
+{
+  "schema": "mrmap.docs.coverage-baseline.v1",
+  "generator": "mrmap-docs/1.0.0",
+  "issue": "#1598 (epic #1589)",
+  "policy": "A floor is measured against a denominator discovered from source, never curated. A floor may only move upward, in a pull request that also names the surface it improved; the gate never raises its own floor. A run that measures below a committed floor is a release blocker, because the only thing that makes 'autonomous' safe is that a generator which silently loses a section cannot pass.",
+  "measurement": "covered counts facts whose exact name appears in a generated page of the reference locale; a page that dropped a fact because the model's prose about it was discarded does not count as covering it.",
+  "surfaces": {
+    "resources": {
+      "floor": 0,
+      "denominator": "every name: entry of frontend/src/components/Resource/Definition.tsx (72 at the ADR-0001 anchor)",
+      "owner": "#1600",
+      "note": "Raised when #1600's API reference pages land; 0 is the honest floor of a pipeline that generates no resource page yet."
+    },
+    "models": {
+      "floor": 0,
+      "denominator": "every models.Model subclass of backend/*/models*.py (55 at the ADR-0001 anchor)",
+      "owner": "#1599",
+      "note": "V-2 and V-3 are met by the generated ERD of each app, which #1599 owns."
+    },
+    "relations": {
+      "floor": 0,
+      "denominator": "every ForeignKey, OneToOneField and ManyToManyField of backend/*/models*.py (178 at the ADR-0001 anchor)",
+      "owner": "#1599"
+    },
+    "settings": {
+      "floor": 0,
+      "denominator": "every module-level uppercase assignment of backend/MrMap/settings.py, distinct names (204 measured on today's develop; 158 at the ADR-0001 anchor, which grew with the tree)",
+      "owner": "#1600"
+    },
+    "commands": {
+      "floor": 0,
+      "denominator": "every backend/*/management/commands/*.py that is not __init__.py (9 at the ADR-0001 anchor)",
+      "owner": "#1600"
+    },
+    "tasks": {
+      "floor": 0,
+      "denominator": "every task decorator under backend/*/tasks/ (35 at the ADR-0001 anchor)",
+      "owner": "#1600"
+    },
+    "services": {
+      "floor": 0,
+      "denominator": "every service key of each committed docker-compose*.yml (11 base and 12 dev at the ADR-0001 anchor; 32 across all committed variants today)",
+      "owner": "#1600"
+    },
+    "features": {
+      "floor": 0,
+      "denominator": "every .feature file under backend/tests/behave/features (97 at the ADR-0001 anchor)",
+      "owner": "#1602",
+      "report_only": true,
+      "note": "V-8 is reported rather than enforced until #1602 supplies browser scenarios; an enforced floor nobody can raise yet would be a lie, so the row is measured and named instead."
+    }
+  }
+}

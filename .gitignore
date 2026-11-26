@@ -66,6 +66,12 @@ ENV/
 # sphinx builded docs
 /docs/build/
 
+# scratch artifacts of the documentation pipeline (scripts/docs.py):
+# facts, evidence, generated sources, sidecars and the report of a run.
+# Nothing here is ever a commit - a release publishes them as an artifact
+# set (#1608), not into the tree (#1598).
+/.mrmap-docs-work/
+
 # Spyder project settings
 .spyderproject
 

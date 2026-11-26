@@ -54,9 +54,12 @@ const Dashboard = (): ReactNode => {
                 </Grid>
               ))}
       </Grid>
-      {!isPending && <Box sx={{ mt: 2 }}>
-        <ActivityChart resources={inventoryResources.filter(resource => canAccess?.[resource] === true)} />
-      </Box>}
+      {!isPending && <Grid container spacing={2} sx={{ mt: 2 }}>
+        {/* The left half of the chart row of the mockup; #1820 composes the right one. */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ActivityChart resources={inventoryResources.filter(resource => canAccess?.[resource] === true)} />
+        </Grid>
+      </Grid>}
     </Box>
   );
 };

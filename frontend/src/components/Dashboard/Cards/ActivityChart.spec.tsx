@@ -1,7 +1,5 @@
 import type { ActivitySource } from "../dashboardActivity";
 
-import type { ComponentType, ReactNode } from "react";
-
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,18 +8,43 @@ import en from "../../../i18n/en";
 import { dashboardStatistics } from "../dashboardStatistics";
 import ActivityChart from "./ActivityChart";
 
+type Line = {
+  id: string; label: string; data: number[]; color: string; curve: string;
+  area: boolean; showMark: boolean; shape: string; valueFormatter: (value: number | null) => string;
+};
+type PlotProps = {
+  "aria-label"?: string;
+  height: number;
+  series: Line[];
+  hiddenItems: { seriesId: string }[];
+  onHiddenItemsChange: (items: unknown[]) => void;
+  slotProps: { legend: { direction?: string; toggleVisibilityOnClick?: boolean } };
+  xAxis: {
+    data: string[]; height: number;
+    valueFormatter: (day: string, context: { location: string }) => string;
+    tickInterval: (day: string, index: number) => boolean;
+  }[];
+  yAxis: {
+    min: number; max?: number; tickNumber?: number; tickMinStep?: number; domainLimit?: string; width: number | string; label: string;
+    valueFormatter: (value: number) => string;
+  }[];
+  grid: { horizontal: boolean; vertical: boolean };
+};
+
 const state = vi.hoisted(() => ({ sources: [] as ActivitySource[], locale: "en", query: vi.fn(), chart: vi.fn() }));
 const lookup = (key: string) => {
   let value: unknown = state.locale === "de" ? de : en;
   for (const part of key.split(".")) value = (value as Record<string, unknown>)?.[part];
   return typeof value === "string" ? value : key;
 };
+/** the answer of the card and of the popover for a resource which cannot answer */
+const messageOf = { loading: "asking", error: "error", partial: "partial", unsupported: "noStatistics" } as const;
 vi.mock("react-admin", () => ({
   useLocaleState: () => [state.locale],
   useTranslate: () => (key: string, options: Record<string, unknown> = {}) => {
     const message = lookup(key);
     return (message === key ? String(options._ ?? key) : message)
-      .replace(/%\{(\w+)\}/g, (_, name: string) => String(options[name]));
+      .replace(/%\{(\w+)\}/g, (_all: string, name: string) => String(options[name]));
   },
 }));
 vi.mock("../useDashboardActivity", () => ({
@@ -30,151 +53,188 @@ vi.mock("../useDashboardActivity", () => ({
     return state.sources.filter(source => resources.includes(source.resource));
   },
 }));
-vi.mock("@mui/x-charts/ChartsLegend", () => ({
-  ChartsLegend: () => <div aria-label="Native series legend" />,
-}));
 vi.mock("@mui/x-charts/LineChart", () => ({
-  LineChart: (props: {
-    series: { id: string; data: number[] }[];
-    hiddenItems: { seriesId: string }[];
-    slots: { legend: ComponentType<{ controls?: ReactNode }> };
-    slotProps: { legend: { controls?: ReactNode } };
-  }) => {
+  LineChart: (props: PlotProps) => {
     state.chart(props);
-    const Legend = props.slots.legend;
     return <>
-      <Legend {...props.slotProps.legend} />
-      <div data-testid="activity-lines">{props.series.filter(series => !props.hiddenItems.some(hidden => hidden.seriesId === series.id))
-        .map(series => <span key={series.id}>{series.id}: {series.data.join(",")}</span>)}</div>
+      <div aria-label="Native series legend" />
+      <div data-testid="activity-lines">{props.series
+        .filter(line => !props.hiddenItems.some(hidden => hidden.seriesId === line.id))
+        .map(line => <span key={line.id}>{line.id}: {line.data.join(",")}</span>)}</div>
     </>;
   },
 }));
 
-const source = (resource: string, added: number): ActivitySource => ({
+const source = (resource: string, added: number, updated = 0, deleted = 0): ActivitySource => ({
   resource, statistics: dashboardStatistics([
-    { id: "2026-11-26", day: "2026-11-26", new: added, updated: 2, deleted: 1 },
+    { id: "2026-11-26", day: "2026-11-26", new: added, updated, deleted },
   ], 1, 100, 30, "2026-11-26"),
 });
-const resources = ["CatalogueService", "DatasetMetadataRecord", "WebMapService"];
-const choose = (label: string, option: string) => {
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: label }));
+const resources = ["CatalogueService", "DatasetMetadataRecord", "ServiceMetadataRecord", "WebMapService"];
+const plot = (): PlotProps => state.chart.mock.lastCall?.[0] as PlotProps;
+const lines = () => screen.getByTestId("activity-lines");
+const zero = (value: number) => `0,${"0,".repeat(28)}${value}`;
+const choosePeriod = (option: string) => {
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: lookup("dashboard.activity.period") }));
   fireEvent.click(screen.getByRole("option", { name: option }));
+};
+const openCoverage = () => {
+  fireEvent.click(screen.getByRole("button", { name: lookup("dashboard.activity.coverage") }));
+  return screen.getByRole("dialog", { name: lookup("dashboard.activity.coverage") });
 };
 
 beforeEach(() => {
   state.locale = "en";
-  state.sources = [source("CatalogueService", 10), source("DatasetMetadataRecord", 20)];
+  state.sources = [
+    source("CatalogueService", 10, 3, 2),
+    source("DatasetMetadataRecord", 20, 4, 1),
+    source("ServiceMetadataRecord", 30, 5, 0),
+  ];
   state.chart.mockClear();
   state.query.mockClear();
 });
 
 describe("ActivityChart", () => {
-  it("defaults to 30 days, aggregates events and makes coverage and exclusions explicit", () => {
+  it("draws one line per authorized resource, in the color of that resource", () => {
     render(<ActivityChart resources={resources} />);
     expect(state.query).toHaveBeenLastCalledWith(resources, 30);
-    expect(screen.getByLabelText("Event totals for the selected period")).toHaveTextContent("30");
-    expect(screen.getByText("2/2 histories complete · 1 unavailable")).toBeInTheDocument();
-    expect(screen.queryByText(/No verified dashboard history:/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "History coverage" }));
-    expect(screen.getByRole("dialog", { name: "History coverage" })).toBeInTheDocument();
-    expect(screen.getByText(/No verified dashboard history:/)).toHaveTextContent("Web Map Services");
-    expect(screen.getAllByText(/Complete for the selected period/)).toHaveLength(2);
-    expect(screen.getByText("Dataset metadata records: Complete for the selected period")).toBeInTheDocument();
-    const props = state.chart.mock.lastCall?.[0];
-    expect(props.series.map((series: { id: string }) => series.id)).toEqual(["new", "updated", "deleted"]);
-    expect(props.series.every((series: { curve: string; data: number[] }) => series.curve === "linear" && series.data.every(value => value >= 0))).toBe(true);
-    expect(props.yAxis[0]).toMatchObject({ min: 0, tickMinStep: 1, width: 80 });
-    expect(props.height).toBe(230);
-    expect(props.slotProps.legend.toggleVisibilityOnClick).toBe(true);
-    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toContain("2026");
-    expect(props.series[0].valueFormatter(1000)).toBe("1,000");
+    expect(plot().series.map(line => line.id)).toEqual([
+      "CatalogueService", "DatasetMetadataRecord", "ServiceMetadataRecord",
+    ]);
+    expect(plot().series.map(line => line.label)).toEqual([
+      "Catalogue Service", "Dataset metadata records", "Service metadata records",
+    ]);
+    expect(plot().series.map(line => line.color)).toEqual(["#ed6c02", "#2e7d32", "#1976d2"]);
+    expect(lines()).toHaveTextContent(`CatalogueService: ${zero(15)}`);
+    expect(lines()).toHaveTextContent(`DatasetMetadataRecord: ${zero(25)}`);
+    expect(lines()).toHaveTextContent(`ServiceMetadataRecord: ${zero(35)}`);
   });
 
-  it("filters one resource and changes verified periods", () => {
+  it("draws the plot with the native features of the mockup", () => {
     render(<ActivityChart resources={resources} />);
-    choose("Resource", lookup("resources.CatalogueService.plural"));
-    expect(screen.getByLabelText("Event totals for the selected period")).toHaveTextContent("10");
-    expect(state.chart.mock.lastCall?.[0].series[0].data.at(-1)).toBe(10);
-    choose("Period", "Last 7 days");
+    const props = plot();
+    expect(props["aria-label"]).toBe("Changes to services and metadata");
+    expect(screen.getByRole("heading", { name: "Changes to services and metadata" })).toBeInTheDocument();
+    expect(props.height).toBeLessThanOrEqual(180);
+    expect(props.series.every(line =>
+      line.curve === "linear" && line.area && line.showMark && line.shape === "circle")).toBe(true);
+    expect(props.grid).toEqual({ horizontal: true, vertical: true });
+    expect(props.yAxis[0]).toMatchObject({ min: 0, max: 40, tickNumber: 5, domainLimit: "strict", label: "Number of changes" });
+    expect(props.slotProps.legend).toMatchObject({ direction: "horizontal", toggleVisibilityOnClick: true });
+    expect(screen.getAllByLabelText("Native series legend")).toHaveLength(1);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("keeps the card compact: no permanent scope text, no totals block, no second filter", () => {
+    render(<ActivityChart resources={resources} />);
+    expect(screen.queryByText(/histories complete/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Additions|Updates|Deletions/)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("combobox")).toHaveLength(1);
+    expect(screen.getByRole("combobox", { name: "Period" })).toHaveTextContent("Last 30 days");
+  });
+
+  it("names sparse localized days and keeps the exact value in the tooltip", () => {
+    state.sources = [source("ServiceMetadataRecord", 20000)];
+    render(<ActivityChart resources={resources} />);
+    const props = plot();
+    expect(props.xAxis[0].data).toHaveLength(30);
+    expect(props.xAxis[0].data.filter((_day, index) => props.xAxis[0].tickInterval("", index))).toHaveLength(10);
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tick" })).toBe("Nov 26");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("Nov 26, 2026");
+    expect(props.yAxis[0]).toMatchObject({ min: 0, max: 20000, tickNumber: 5, domainLimit: "strict" });
+    expect(props.series[0].valueFormatter(20000)).toBe("20,000");
+    expect(props.yAxis[0].valueFormatter(20000)).toBe("20,000");
+  });
+
+  it("preserves the true spike of one day instead of smoothing it", () => {
+    state.sources = [source("ServiceMetadataRecord", 20000)];
+    render(<ActivityChart resources={resources} />);
+    const data = plot().series[0].data;
+    expect(data.filter(value => value === 20000)).toHaveLength(1);
+    expect(data.at(-1)).toBe(20000);
+    expect(data.filter(value => value > 0)).toHaveLength(1);
+  });
+
+  it("toggles the one legend without asking the api again and recovers from no series", () => {
+    render(<ActivityChart resources={resources} />);
+    const asked = state.query.mock.calls.length;
+    const hidden = plot().series.map(line => ({ type: "line" as const, seriesId: line.id }));
+    act(() => plot().onHiddenItemsChange(hidden));
+    expect(screen.getByRole("status")).toHaveTextContent("Unhide a resource in the legend");
+    expect(screen.getByTestId("activity-lines")).toBeEmptyDOMElement();
+    act(() => plot().onHiddenItemsChange(hidden.slice(0, 1)));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(lines()).toHaveTextContent("DatasetMetadataRecord:");
+    expect(lines()).not.toHaveTextContent("CatalogueService:");
+    expect(state.query.mock.calls).toHaveLength(asked);
+  });
+
+  it("changes the verified period", () => {
+    render(<ActivityChart resources={resources} />);
+    choosePeriod("Last 7 days");
     expect(state.query).toHaveBeenLastCalledWith(resources, 7);
-    choose("Period", "Last 90 days");
+    choosePeriod("Last 90 days");
     expect(state.query).toHaveBeenLastCalledWith(resources, 90);
   });
 
-  it("uses one native interactive legend and preserves no-series recovery", () => {
-    render(<ActivityChart resources={resources} />);
-    expect(screen.getAllByLabelText("Native series legend")).toHaveLength(1);
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
-    const hidden = ["new", "updated", "deleted"].map(seriesId => ({ type: "line", seriesId }));
-    act(() => state.chart.mock.lastCall?.[0].onHiddenItemsChange(hidden));
-    expect(screen.getByRole("status")).toHaveTextContent("Select an event series");
-    expect(screen.getByLabelText("Native series legend")).toBeInTheDocument();
-    expect(screen.getByTestId("activity-lines")).toBeEmptyDOMElement();
-    act(() => state.chart.mock.lastCall?.[0].onHiddenItemsChange(hidden.filter(item => item.seriesId !== "updated")));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.getByTestId("activity-lines")).toHaveTextContent("updated:");
-    expect(screen.getByTestId("activity-lines")).not.toHaveTextContent("new:");
-    expect(state.query).toHaveBeenLastCalledWith(resources, 30);
-  });
+  it.each(["partial", "error", "loading", "unsupported"] as const)(
+    "draws the verified resources and names a %s one instead of inventing a line", status => {
+      state.sources[1].statistics = { status };
+      render(<ActivityChart resources={resources} />);
+      expect(lines()).toHaveTextContent("CatalogueService:");
+      expect(lines()).not.toHaveTextContent("DatasetMetadataRecord:");
+      expect(screen.getByRole("status")).toHaveTextContent("Dataset metadata records cannot answer right now");
+      const dialog = openCoverage();
+      expect(within(dialog).getByText(new RegExp(`^Dataset metadata records: ${lookup(`historyChart.${messageOf[status]}`)}`)))
+        .toBeInTheDocument();
+      expect(within(dialog).getByText(/^Catalogue Service: Complete for the selected period/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/No verified dashboard history:/)).toHaveTextContent("Web Map Services");
+    });
 
-  it("keeps compact selectors functional and preserves a one-day spike with unclipped integer labels", () => {
-    state.sources = [source("CatalogueService", 20000)];
-    render(<ActivityChart resources={resources} />);
-    for (const label of ["Resource", "Period"]) {
-      expect(screen.getByRole("combobox", { name: label }).closest(".MuiInputBase-root")).toHaveClass("MuiInputBase-sizeSmall");
-    }
-    const props = state.chart.mock.lastCall?.[0];
-    expect(props.series[0].data).toHaveLength(30);
-    expect(props.series[0].data.filter((value: number) => value === 20000)).toHaveLength(1);
-    expect(props.series[0].curve).toBe("linear");
-    expect(props.series[0].valueFormatter(20000)).toBe("20,000");
-    expect(props.yAxis[0].valueFormatter(20000)).toBe("20K");
-    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tick" })).toBe("Nov 26");
-    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("Nov 26, 2026");
-    expect(props.series[0].data.filter((_: number, i: number) => props.xAxis[0].tickInterval("", i))).toHaveLength(5);
-  });
+  it.each(["partial", "error", "loading", "unsupported"] as const)(
+    "answers the %s state of the whole card when no resource can be drawn", status => {
+      for (const entry of state.sources) entry.statistics = { status };
+      render(<ActivityChart resources={resources} />);
+      expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(lookup(`historyChart.${messageOf[status]}`));
+    });
 
-  it.each(["partial", "error", "loading", "unsupported"] as const)("does not aggregate %s history", status => {
-    state.sources[1].statistics = { status };
-    render(<ActivityChart resources={resources} />);
-    expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Event totals for the selected period")).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    // A complete resource remains available when another resource has no usable history.
-    choose("Resource", lookup("resources.CatalogueService.plural"));
-    expect(screen.getByTestId("activity-lines")).toBeInTheDocument();
-  });
-
-  it("distinguishes a verified zero from unavailable history", () => {
+  it("distinguishes a verified zero from a resource which cannot answer", () => {
     state.sources = [{ resource: "CatalogueService", statistics: dashboardStatistics([], 0, 0, 30, "2026-11-26") }];
     const { rerender } = render(<ActivityChart resources={resources} />);
+    expect(lines()).toHaveTextContent(`CatalogueService: ${zero(0)}`);
     expect(screen.getByText("No changes recorded in this period.")).toBeInTheDocument();
-    expect(screen.getByTestId("activity-lines")).toBeInTheDocument();
     rerender(<ActivityChart resources={[]} />);
     expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("No change statistics");
   });
 
-  it("drops a selected resource immediately when its permission disappears", () => {
+  it("drops a resource as soon as its permission disappears", () => {
     const { rerender } = render(<ActivityChart resources={resources} />);
-    choose("Resource", lookup("resources.CatalogueService.plural"));
     rerender(<ActivityChart resources={["DatasetMetadataRecord"]} />);
-    expect(state.chart.mock.lastCall?.[0].series[0].data.at(-1)).toBe(20);
-    expect(screen.getByRole("combobox", { name: "Resource" })).toHaveTextContent("All supported resources");
+    expect(plot().series.map(line => line.id)).toEqual(["DatasetMetadataRecord"]);
   });
 
-  it("localizes controls, totals, series, dates and tooltips in German", () => {
+  it("explains the statistical scope on demand, with totals and the exact window", () => {
+    render(<ActivityChart resources={resources} />);
+    const dialog = openCoverage();
+    expect(dialog).toHaveTextContent("audit events, never distinct objects");
+    expect(within(dialog).getByText(/^Service metadata records: Complete for the selected period/)).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("35 Events");
+    expect(dialog).toHaveTextContent("Oct 28, 2026 – Nov 26, 2026 (30 calendar days, Europe/Berlin)");
+  });
+
+  it("localizes the card, the axes and the popover in German", () => {
     state.locale = "de";
     render(<ActivityChart resources={resources} />);
+    expect(screen.getByRole("heading", { name: "Änderungen an Diensten und Metadaten" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 30 Tage");
-    expect(screen.getByText("Neuaufnahmen")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Abdeckung des Verlaufs" }));
-    expect(screen.getByText("Datenmetadatensätze: Vollständig für den gewählten Zeitraum")).toBeInTheDocument();
-    const totals = screen.getByLabelText("Ereignissummen im gewählten Zeitraum");
-    expect(within(totals).getByText("30")).toBeInTheDocument();
-    const props = state.chart.mock.lastCall?.[0];
+    const props = plot();
+    expect(props.yAxis[0].label).toBe("Anzahl Änderungen");
     expect(props.series[0].valueFormatter(1000)).toBe("1.000");
-    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("26. Nov. 2026");
+    expect(props.yAxis[0].valueFormatter(1000)).toBe("1.000");
     expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tick" })).toBe("26. Nov.");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("26. Nov. 2026");
+    expect(within(openCoverage()).getByText(/^Dienstemetadatensätze: Vollständig für den gewählten Zeitraum/)).toBeInTheDocument();
   });
 });

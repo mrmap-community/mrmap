@@ -40,9 +40,13 @@ bend. Three rules follow, and they are load-bearing:
 * publication needs evidence that was not produced on the way to publication.
   `open-release-pr`, `finalize` and `gate` take the `mrmap-release-candidate/1`
   attestation preflight wrote and REFUSE without it, or with one for another
-  sha or version, or with digests that are not the attested ones. `gate
-  --simulate` is a dry-run answer, is reported as simulated, and can never
-  read as green.
+  sha or version, or with digests that are not the attested ones - and they
+  refuse one the promoter could not have written, because shape is what a
+  copy-paste has: the required evidence classes (each `pass`, each gathered for
+  exactly this commit), the required gate reports (each green) and a named
+  `generated_by` are what make "attested" mean "CI's conclusions were bound to
+  this commit by the one promoter". `gate --simulate` is a dry-run answer, is
+  reported as simulated, and can never read as green.
 
 The tool therefore drives, never decides-for:
 
@@ -481,15 +485,72 @@ def load_attestation(path, step):
     return document, text, sha, version
 
 
+def verify_attestation_provenance(document, sha, step):
+    """Refuse an attestation the promoter could not have written.
+
+    `load_attestation` can only check shape; shape is what a copy-paste has.
+    What makes the file worth trusting is that it carries the conclusions only
+    `release_gates.py promote` binds into it - the four evidence classes, each
+    PASSING and each gathered for exactly this commit, the three gate reports,
+    each green, and a named generator. A hand-written file that merely agrees
+    with what is about to be published stops matching here, which is the point:
+    "attested" has to mean "CI's conclusions were bound to this commit by the
+    one promoter", not "the operator pasted JSON that says so".
+    """
+    evidence = document.get("evidence")
+    if not isinstance(evidence, dict):
+        raise PromotionRefused(
+            f"{step}: the attestation carries no evidence section - "
+            f"`release_gates.py promote` always writes one, so this file is "
+            "not the promoter's answer. Run `evidence` and `preflight`")
+    for name in release_gates.REQUIRED_EVIDENCE:
+        entry = evidence.get(name)
+        if not isinstance(entry, dict):
+            raise PromotionRefused(
+                f"{step}: the attestation is missing the {name!r} evidence "
+                f"class of {release_gates.REQUIRED_EVIDENCE} - no attestation "
+                "without it")
+        if entry.get("status") != "pass":
+            raise PromotionRefused(
+                f"{step}: the attestation carries evidence {name} with status "
+                f"{entry.get('status')!r}, not 'pass' - a promotion does not "
+                "publish over a class that did not pass")
+        if entry.get("sha") != sha:
+            raise PromotionRefused(
+                f"{step}: the attestation says evidence {name} was gathered "
+                f"for {entry.get('sha')!r}, not for the candidate {sha} - "
+                "evidence of another build cannot attest this one")
+    gates = document.get("gates")
+    if not isinstance(gates, dict):
+        raise PromotionRefused(
+            f"{step}: the attestation carries no gates section - the promoter "
+            "writes one from the api, version and upgrade reports")
+    for name in release_gates.REQUIRED_GATES:
+        entry = gates.get(name)
+        if not isinstance(entry, dict):
+            raise PromotionRefused(
+                f"{step}: the attestation is missing the {name} gate report - "
+                "run the gate and hand its report to `preflight`")
+        if not entry.get("ok"):
+            raise PromotionRefused(
+                f"{step}: the attestation says the {name} gate is not ok - a "
+                "red gate is a REFUSED answer, not a pending one")
+    if not str(document.get("generated_by") or "").strip():
+        raise PromotionRefused(
+            f"{step}: the attestation names no generator - `promote` records "
+            "who or what wrote it, and an anonymous document is not the "
+            "promoter's answer")
+
+
 def require_attestation(args, root, sha, version, step, digests=None):
     """The fail-closed question every publishing step asks.
 
     Refuses when no attestation was handed over, when it names another sha or
-    version than the step is about to publish, or when the digests it attested
-    are not the digests being published. `digests` is the set finalize is
-    about to put into the release body; `gate` passes None because it reports
-    rather than publishes, but still refuses to call anything green without
-    the document.
+    version than the step is about to publish, when it is not the promoter's
+    own bound answer, or when the digests it attested are not the digests being
+    published. `digests` is the set finalize is about to put into the release
+    body; `gate` passes None because it reports rather than publishes, but
+    still refuses to call anything green without the document.
     """
     path = getattr(args, "attestation", None)
     if not path:
@@ -511,6 +572,7 @@ def require_attestation(args, root, sha, version, step, digests=None):
             f"candidate says {version} - the planner moves VERSION, its "
             "projection, the manifest and the release section together, so "
             "one of the two is not the reviewed candidate")
+    verify_attestation_provenance(document, sha, step)
     attested_digests = document.get("digests") or {}
     for name, digest in sorted(attested_digests.items()):
         if not DIGEST_RE.fullmatch(str(digest)):
@@ -690,8 +752,10 @@ def cmd_preflight(args):
             "--channel", args.channel, "--evidence", args.evidence]
     for spec in args.report or []:
         argv += ["--gate", spec]
-    if args.actor:
-        argv += ["--actor", args.actor]
+    # The promoter records who wrote the document, and every publishing step
+    # reads that name back: an anonymous attestation is refused, so preflight
+    # never hands promote an empty one.
+    argv += ["--actor", args.actor or "release_promotion preflight"]
     if args.output:
         argv += ["--output", args.output]
     code, out, err = run(argv)
@@ -1052,9 +1116,19 @@ def reconcile_state(args, root, version, sha):
     prs = release_prs(args, version)
     steps["release_pr"] = prs[0]["state"].lower() if prs else "none"
     head = resolve_pr_head(args, root, prs[0]) if prs else None
-    steps["release_pr_head"] = ("none" if head is None else
-                                "candidate" if head == sha else
-                                f"stale@{head[:12]}")
+    if head is None:
+        steps["release_pr_head"] = "none"
+    elif head == sha:
+        steps["release_pr_head"] = "candidate"
+    elif steps["release_pr"] == "merged":
+        # NOT `stale@`: a merged develop -> master PR's head is develop, which
+        # moves on the moment anybody merges anything after the release, so a
+        # moved head says nothing about whether the release is sound. `stale@`
+        # is reserved for the open case, where it does mean invalidated - this
+        # label is what operators are told to read as one.
+        steps["release_pr_head"] = f"develop@{head[:12]}"
+    else:
+        steps["release_pr_head"] = f"stale@{head[:12]}"
     parents = merged_parents(args, root, master)
     steps["master_is_merge_of_candidate"] = (len(parents) >= 2
                                              and sha in parents)
@@ -1096,9 +1170,18 @@ def cmd_gate(args):
     Green needs all of: the attestation of exactly this candidate (which is
     the frozen source/version/digest identity #1609 asks the gate to name), a
     merged release PR, master's tip as that merge, the candidate's tree on
-    master, the tag at master's tip and the release. `--simulate` answers for
-    the dry-run suites and can never be green: a simulated answer that could
-    satisfy a gate is not a dry run.
+    master, the tag at master's tip and the release.
+
+    The PR's head is deliberately NOT a term. Green already requires the PR to
+    be MERGED, and the head of a merged develop -> master PR is develop, which
+    moves the moment anybody merges anything after the release - asking it to
+    still point at the candidate would report a fully published version as not
+    green forever, and would contradict `cmd_finalize` and `cmd_open_release_pr`
+    (both refuse to compare a merged head for exactly this reason) as well as
+    the documented green contract. What survives the merge, and what is asked
+    instead, is that master's tip IS the merge commit carrying the candidate.
+    `--simulate` answers for the dry-run suites and can never be green: a
+    simulated answer that could satisfy a gate is not a dry run.
     """
     root = Path(args.root)
     if args.simulate:
@@ -1122,7 +1205,6 @@ def cmd_gate(args):
     _, _, attested_digests = require_attestation(args, root, sha, version,
                                                  "gate")
     green = (steps["release_pr"] == "merged"
-             and steps["release_pr_head"] == "candidate"
              and steps["master_is_merge_of_candidate"]
              and steps["master_carries_candidate"]
              and steps["master_tree_matches_candidate"]

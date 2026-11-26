@@ -140,7 +140,7 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   ledger exists (Q1 of #1578 fixed the tag shape and approved no alias — ADR-0002). `.github/workflows/release-promotion.yml` dispatches the
   steps behind the protected `release-stable` environment (an administrator must create it WITH
   required reviewers before the first run — GitHub auto-creates a missing environment unprotected);
-  `python3 scripts/test_release_promotion.py` runs the 72-check offline suite (synthetic
+  `python3 scripts/test_release_promotion.py` runs the 103-check offline suite (synthetic
   repositories, journaling `gh` shim) via `scripts/check_repo_tooling.sh`; docs:
   `docs/source/development/release-promotion.rst`).
   `scripts/release_lifecycle.json` is the machine-readable release lifecycle — the

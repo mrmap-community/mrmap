@@ -826,6 +826,24 @@ def test_finalize_before_and_after_the_merge(tmp):
           and '"status": "green"' in proc.stdout
           and BACKEND in proc.stdout, proc.stderr + proc.stdout)
 
+    # #1798 review: the head of a MERGED develop -> master PR is develop, and
+    # develop moves with the next unrelated merge. Green must not ask it to
+    # still point at the candidate, or a fully published release answers
+    # pending forever - and must not label a healthy release `stale@`, which
+    # operators are told to read as an invalidated promotion.
+    w.advance_develop("an unrelated merge nobody judged for this release")
+    proc = w.promo("gate", "--attestation", str(att))
+    check("gate: a released version stays green after develop moved on",
+          proc.returncode == 0 and '"status": "green"' in proc.stdout
+          and "stale@" not in proc.stdout
+          and '"release_pr": "merged"' in proc.stdout
+          and '"tag": "at-master-tip"' in proc.stdout, proc.stderr + proc.stdout)
+    proc = w.promo("status", "--attestation", str(att))
+    check("status: the reconcile view of a released version reads merged, "
+          "not stale", proc.returncode == 0
+          and "stale@" not in proc.stdout
+          and "at-master-tip" in proc.stdout, proc.stdout + proc.stderr)
+
     proc = w.promo("gate")
     check("gate: without the attestation the gate cannot be green",
           proc.returncode == 1 and "no attestation" in proc.stderr.lower(),
@@ -890,6 +908,87 @@ def test_finalize_before_and_after_the_merge(tmp):
           "direct push or a squash) is refused", proc.returncode == 1
           and "not a merge commit" in proc.stderr
           and w5.remote_sha("refs/tags/v0.2.0") is None, proc.stderr)
+
+
+def test_handwritten_attestation_cannot_publish(tmp):
+    """#1798 review: an attestation is the promoter's answer, not a claim.
+
+    Shape alone is what a copy-paste has: a file that only says
+    `mrmap-release-candidate/1` and repeats the sha, the version and the two
+    digests agrees with whatever it is handed to publish. What makes it worth
+    trusting is the sections only `release_gates.py promote` binds - the four
+    evidence classes (passing, each for this exact commit), the three green
+    gate reports and a named generator. Each is removed or falsified here, and
+    every publishing step must refuse BEFORE a tag is touched.
+    """
+    def world_with(mutate, name):
+        """A released world whose attestation was rewritten after promote.
+
+        The document is derived from THIS world's own genuine attestation, so
+        the only thing wrong with it is the mutation: a refusal can then only
+        come from provenance, never from an unrelated sha.
+        """
+        w = World(tmp, name)
+        genuine = attest(w)
+        w.promo("open-release-pr", "--attestation", str(genuine))
+        human_merge_release_pr(w)
+        doc = json.loads(genuine.read_text(encoding="utf-8"))
+        mutate(doc)
+        path = Path(w.dir) / f"attestation-{name}.json"
+        path.write_text(json.dumps(doc), encoding="utf-8")
+        return w, path
+
+    def strip_to_claim(d):
+        for key in list(d):
+            if key not in ("attestation", "candidate", "digests"):
+                del d[key]
+
+    mutations = [
+        ("a hand-written claim of schema, candidate and digests alone",
+         strip_to_claim),
+        ("an attestation with no evidence section", lambda d: d.pop("evidence")),
+        ("an attestation with no gates section", lambda d: d.pop("gates")),
+        ("an attestation naming no generator", lambda d: d.pop("generated_by")),
+        ("an attestation whose evidence class did not pass",
+         lambda d: d["evidence"]["tests"].update(status="failure")),
+        ("an attestation whose evidence belongs to another commit",
+         lambda d: d["evidence"]["sonar"].update(sha="0" * 40)),
+        ("an attestation whose gate report is red",
+         lambda d: d["gates"]["api"].update(ok=False)),
+        ("an attestation missing an evidence class",
+         lambda d: d["evidence"].pop("artifacts")),
+        ("an attestation missing a gate report",
+         lambda d: d["gates"].pop("upgrade")),
+    ]
+    for i, (label, mutate) in enumerate(mutations):
+        w, path = world_with(mutate, f"provenance-{i}")
+        proc = w.promo("finalize", "--attestation", str(path), *ARTIFACTS)
+        check(f"finalize refuses {label}", proc.returncode == 1
+              and w.remote_sha("refs/tags/v0.2.0") is None
+              and w.gh_state()["releases"] == [],
+              proc.stdout + proc.stderr)
+        proc = w.promo("open-release-pr", "--attestation", str(path))
+        check(f"open-release-pr refuses {label}", proc.returncode == 1
+              and "already merged" not in proc.stdout, proc.stderr)
+        proc = w.promo("gate", "--attestation", str(path))
+        check(f"gate refuses {label}", proc.returncode == 1
+              and '"status": "green"' not in proc.stdout,
+              proc.stdout + proc.stderr)
+
+    # and the promoter's own document still publishes all of this
+    w = World(tmp, "provenance-genuine")
+    att = attest(w)
+    w.promo("open-release-pr", "--attestation", str(att))
+    human_merge_release_pr(w)
+    proc = w.promo("finalize", "--attestation", str(att), *ARTIFACTS)
+    check("the promoter's own attestation still publishes",
+          proc.returncode == 0 and w.remote_sha("refs/tags/v0.2.0^{}")
+          is not None and len(w.gh_state()["releases"]) == 1,
+          proc.stderr + proc.stdout)
+    proc = w.promo("gate", "--attestation", str(att))
+    check("the promoter's own attestation still answers green",
+          proc.returncode == 0 and '"status": "green"' in proc.stdout,
+          proc.stderr + proc.stdout)
 
 
 def test_attested_digests_are_the_published_ones(tmp):
@@ -1038,6 +1137,7 @@ def main():
             test_open_release_pr_is_develop_to_master,
             test_stale_candidate_is_invalidated,
             test_finalize_before_and_after_the_merge,
+            test_handwritten_attestation_cannot_publish,
             test_attested_digests_are_the_published_ones,
             test_sync_and_status,
             test_two_promotions_of_one_version,

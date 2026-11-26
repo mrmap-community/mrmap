@@ -37,8 +37,13 @@ follow from it, and they are load-bearing:
   ``open-release-pr``, ``finalize`` and ``gate`` take the
   ``mrmap-release-candidate/1`` attestation and REFUSE without it, or with one
   for another sha or version, or with digests that are not the attested ones.
-  ``gate --simulate`` is a dry-run answer, says ``simulated``, and can never
-  read as green.
+  Shape alone is what a copy-paste has, so the file is additionally checked
+  against what only ``release_gates.py promote`` binds into it: each required
+  evidence class present, ``pass``, and gathered for exactly this commit; each
+  required gate report present and green; a named ``generated_by``. A file
+  written by hand that merely agrees with what is about to be published is
+  refused. ``gate --simulate`` is a dry-run answer, says ``simulated``, and can
+  never read as green.
 
 The tool is `scripts/release_promotion.py`, run host-side as `python3
 scripts/release_promotion.py <subcommand>` with the local `git` CLI for every
@@ -138,6 +143,19 @@ release PR is what landed — with `--simulate` for dry-run suites that must not
 touch a remote. A simulated answer reports `simulated` and `green: false`:
 nothing that did not read reality can satisfy a publication decision.
 
+Green is the conjunction of the published facts — a merged release PR, master's
+tip as that PR's merge, the candidate carried by master, master's tree equal to
+the candidate's, the tag at master's tip, the release — plus the attestation.
+The PR's head is deliberately **not** one of them: the head of a merged
+``develop`` → ``master`` PR is develop, and develop moves the moment anybody
+merges anything after the release, so requiring it to still point at the
+candidate would report a fully published version as not green forever. That is
+the same reasoning `finalize` and `open-release-pr` apply to a merged PR. The
+head is resolved and reported, and ``stale@<sha>`` is reserved for the
+``open`` case, where a moved head really does mean the reviewed candidate was
+invalidated; a merged PR whose head has moved reads ``develop@<sha>``, because
+operators are told to treat ``stale@`` as an invalidation.
+
 The protected environment
 =========================
 
@@ -167,19 +185,23 @@ journal of steps is the run list itself.
 Offline checks
 ==============
 
-`scripts/test_release_promotion.py` (72 checks) and the promotion phases of
-`scripts/test_release_lifecycle_dry_run.py` (71 checks, both in
+`scripts/test_release_promotion.py` (103 checks) and the promotion phases of
+`scripts/test_release_lifecycle_dry_run.py` (72 checks, both in
 `scripts/check_repo_tooling.sh`) drive the tool against throw-away repositories
 whose "origin" is a local bare repo and a journaling `gh` shim: the unplanned
 candidate, both changelog grammars and the prerelease of the line, a hand-edited
 generated release section, a section that stays silent about its breaking
 changes, evidence of another sha, the missing gate report, no attestation at
-all, an attestation of another sha, version or digest, a release PR whose head
-moved (STALE), a master that moved without a merged release PR, a master tip
-that is not a merge, a master whose tree diverged, the tag standing on a foreign
-commit, the missing digest — each seen REFUSED, and refused before a tag was
-touched — then the same worlds promoted to green, every step re-run to prove
-"already done" is a skip and never a duplicate.
+all, an attestation of another sha, version or digest, an attestation written by
+hand rather than by the promoter (no evidence section, no gates, a class that
+did not pass, evidence of another commit, a red gate, no named generator), a
+release PR whose head moved while it was open (STALE), a master that moved
+without a merged release PR, a master tip that is not a merge, a master whose
+tree diverged, the tag standing on a foreign commit, the missing digest — each
+seen REFUSED, and refused before a tag was touched — then the same worlds
+promoted to green, every step re-run to prove "already done" is a skip and never
+a duplicate, and the gate re-read after an unrelated merge advanced develop, so
+that a published version is shown to stay green.
 
 Deliberate limits, named
 ========================

@@ -961,6 +961,31 @@ def phase_verify_on_master(w, lifecycle):
              "the gate reports green: tag at master, release exists",
              "scripts/release_promotion.py gate")
 
+    # #1798 review: the head of the merged release PR IS develop, and develop
+    # moves with the next unrelated merge. A released version that answers
+    # pending from then on is a broken contract for every consumer of the
+    # published state, and a healthy release labelled `stale@` is the exact
+    # signal operators are told to treat as an invalidated promotion.
+    git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
+    w.write({"later.txt": "an unrelated merge nobody judged for this release\n"})
+    w.commit("chore: an unrelated later merge onto develop")
+    git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
+    proc = w.promo("gate", "--sha", w.candidate,
+                   "--attestation", str(w.attestation))
+    expect(proc.returncode == 0 and '"status": "green"' in proc.stdout,
+           "verify-on-master",
+           "a published version stopped answering green once develop moved "
+           f"on: {proc.stdout}{proc.stderr}")
+    expect("stale@" not in proc.stdout, "verify-on-master",
+           f"the gate calls a healthy release stale: {proc.stdout}")
+    check("gate: a released version stays green after develop moved on",
+          proc.returncode == 0 and '"status": "green"' in proc.stdout
+          and "stale@" not in proc.stdout, proc.stdout[:300])
+    w.record("verify-on-master", "ok",
+             "the gate still reads green after an unrelated merge advanced "
+             "develop past the candidate",
+             "scripts/release_promotion.py gate (after develop moved)")
+
 
 def phase_post_release(w, lifecycle):
     """The sync PR to develop; closing issues stays with a person."""

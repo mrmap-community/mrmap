@@ -154,6 +154,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # A prerelease is never a promotion candidate. The grammar is the one
+          # ADR-0002 and the lifecycle registry agree on, and it is checked
+          # before anything is read from GitHub so an rc never reaches the tag
+          # name below and never gets a stable identity.
+          if ! printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$VERSION is not a reviewed MAJOR.MINOR.PATCH version; a prerelease is cut behind its own identity, never promoted to a stable one."
+            exit 1
+          fi
+
           # The reviewed release pull request is the merged develop -> master PR
           # (the only head branch-policy.yml admits onto master, #1798). `gh`
           # answers which one and what its merge commit was, sorted by the merge
@@ -195,15 +204,6 @@ jobs:
             exit 1
           fi
 
-          # A prerelease is never a promotion candidate. The grammar is the one
-          # ADR-0002 and the lifecycle registry agree on, and it is checked
-          # before anything is read from GitHub so an rc never reaches the tag
-          # name below and never gets a stable identity.
-          if ! printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::$VERSION is not a reviewed MAJOR.MINOR.PATCH version; a prerelease is cut behind its own identity, never promoted to a stable one."
-            exit 1
-          fi
-
           TAG="v$VERSION"
           # Immutable tag, answered before anything is written and answered from
           # the remote: the checkout's own tag set is as of the fetch, and a tag
@@ -237,7 +237,7 @@ jobs:
             echo "tag=$TAG"
           } >> "$GITHUB_OUTPUT"
 
-          echo "verified: release PR #$PR merged as ${MERGE_COMMIT:0:12}, master's tip, VERSION $VERSION, tag $TAG ($([ "$ALREADY" = true ] && echo 'already published' || echo 'to publish'))"
+          echo "verified: release PR #$PR merged as ${MERGE_COMMIT:0:12}, master's tip, VERSION $VERSION, tag $TAG"
 
   publish:
     name: publish the reviewed release
@@ -286,7 +286,6 @@ jobs:
               echo "::error::$TAG was pushed to ${STANDING:0:12} while this run waited. A published tag is never moved."
               exit 1
             fi
-            ALREADY=true
           fi
 
           # One digest per first-party image, or nothing is published. #1799 is

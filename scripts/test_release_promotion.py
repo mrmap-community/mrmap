@@ -597,9 +597,11 @@ def measured_and_documented(doc):
           and "base branch" in design, design[:120])
     check("the runbook still sends an operator to the release-stable environment",
           "release-stable" in RUNBOOK.read_text(encoding="utf-8"))
+    # The registry must not name the retired tool. It does name its own test
+    # suite, whose path ends in the same words, so match the tool's path.
     check("nothing still ships the superseded promotion tool or its registry entry",
           not (REPO / "scripts" / "release_promotion.py").exists()
-          and "release_promotion.py" not in
+          and "scripts/release_promotion.py" not in
               (REPO / "scripts" / "release_lifecycle.json").read_text(encoding="utf-8"))
     check("and the lifecycle still names the workflow as the promotion mechanism",
           "release-promotion.yml" in

@@ -147,21 +147,26 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   files in `scripts/` are reviewed content — the PR that edits one is the review (`python3
   scripts/test_release_gates.py` runs the 63-check suite offline; `.github/workflows/
   release-gates.yml` runs the gates; docs: `docs/source/development/release-compatibility-gates.rst`).
-  `scripts/release_promotion.py` is the protected path a planned version takes from develop to
-  master (#1584, epic #1577): five idempotent human-gated steps — `plan` reads the planned candidate
-  (VERSION, its projection, the manifest and the folded changelog section must agree), `evidence`
-  plus `preflight` bind CI's conclusions and the gate reports into the one attestation of
-  `release_gates.py promote`, `open-release-pr` freezes `release/v<version>` at the candidate and
-  opens the PR to master (a person merges — that merge IS the release decision), `finalize`
-  tree-checks master against the tested candidate before pushing the annotated tag and the GitHub
-  release in the same run, and `sync` opens the reviewed master→develop sync PR; it never pushes a
-  permanent branch, never moves a tag or release branch that stands elsewhere, and refuses rolling
-  aliases while no reviewed alias ledger exists (Q1 of #1578 fixed the tag shape and approved no
-  alias — ADR-0002). `.github/workflows/release-promotion.yml` dispatches the
-  steps behind the protected `release-stable` environment (an administrator must create it WITH
-  required reviewers before the first run — GitHub auto-creates a missing environment unprotected);
-  `python3 scripts/test_release_promotion.py` runs the 31-check offline suite (synthetic
-  repositories, journaling `gh` shim) via `scripts/check_repo_tooling.sh`; docs:
+  `.github/workflows/release-promotion.yml` is the protected path a planned version takes from develop to
+  master (#1798, epic #1577, which replaced the orchestrator #1584 had shipped): two jobs — `verify` and
+  `publish` — wired through `needs`, one `concurrency` group and the protected `release-stable` environment
+  that covers the single job which writes. What decides publication is two facts fetched through `gh` and
+  `git` and never remembered: the reviewed `develop` -> `master` release pull request is **merged** (a person
+  merges it — that merge IS the release decision) and `master`'s tip **is** that pull request's merge commit,
+  the exact commit the release stands on. A required check cannot be bypassed, so `merged` with a
+  `mergeCommit` is itself the evidence that the candidate was tested; binding the job names and the built
+  image digests to it is #1800 and #1799. `verify` writes nothing; `publish` re-reads master and the tag at
+  the moment of writing, so a tag standing elsewhere is a conflict and never a move, publication needs one
+  `sha256:<64 hex>` digest per first-party image plus the reviewed `## [<version>]` changelog section, and the
+  annotated tag and the `gh release create` land in the **same run** (a `GITHUB_TOKEN` tag push emits no
+  event). `publish` defaults to **false**, which rehearses and writes no ref until #1799/#1800 sit in front of
+  it via `needs`. It never pushes a permanent branch, never moves a tag, writes no rolling alias (Q1 of #1578
+  fixed the tag shape and approved no alias — ADR-0002) and refuses a prerelease version; the sync back to
+  develop is an ordinary reviewed PR. An administrator must create `release-stable` WITH required reviewers
+  before the first run (GitHub auto-creates a missing environment unprotected);
+  `python3 scripts/test_release_promotion.py` runs the 51-check offline suite by extracting the step scripts
+  from the workflow YAML and executing them against synthetic repositories and a journaling `gh` shim, via
+  `scripts/check_repo_tooling.sh`; docs:
   `docs/source/development/release-promotion.rst`).
   `scripts/release_lifecycle.json` is the machine-readable release lifecycle — the
   #1585 interface the documentation automation (#1604) generates from and the interface

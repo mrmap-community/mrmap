@@ -91,14 +91,6 @@
   "operator_runbook": {
     "page": "docs/source/administration/release-operator-runbook.rst",
     "label": "release-operator-runbook",
-    "sections": [
-      "Lifecycle",
-      "Prerequisites",
-      "Receiving an upgrade",
-      "Backup obligations",
-      "Rollback",
-      "Security fixes",
-      "Troubleshooting"
-    ]
+    "sections": ["Lifecycle", "Prerequisites", "Receiving an upgrade", "Backup obligations", "Rollback", "Security fixes", "Troubleshooting"]
   }
 }

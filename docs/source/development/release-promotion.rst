@@ -4,150 +4,165 @@
 Release promotion
 =================
 
-Issue #1584 of epic #1577 wires the promotion: the protected path that turns
-ONE reviewed commit of ``develop`` into a published stable release on
-``master`` — release branch, merge, tag, GitHub release, sync — step by step,
-each step an idempotent act, each judgement checked hard enough that running
-the sequence cannot skip a person. The planner (#1581,
-:ref:`release-planning`) prepares the version; the gates (#1583,
-:ref:`release-compatibility-gates`) judge a candidate; this is what happens
-between a green judgement and a tag, and after it.
+Issue #1798 of epic #1577 reconciles the promotion with the develop-first
+policy: ONE reviewed ``develop`` → ``master`` pull request per release, the
+build, the approval and the publication all bound to that pull request's
+**merge commit**, and no orchestrator of our own in between. The planner
+(#1581, :ref:`release-planning`) prepares the version on ``develop``; the
+gates (#1583, :ref:`release-compatibility-gates`) judge a candidate; this is
+what happens once a person has merged, and it is two jobs of one workflow.
 
-The tool is `scripts/release_promotion.py`, run host-side as `python3
-scripts/release_promotion.py <subcommand>` with the local `git` CLI for every
-repository fact and the `gh` CLI for every GitHub fact. Exit codes are those
-of every tool in ``scripts/``: **0** done or already done, **1** the step is
-decided against the candidate, **2** it could not run — "could not run" is
-never reported as a pass.
+The mechanism is `.github/workflows/release-promotion.yml`: ``verify`` and
+``publish``, wired through ``needs``, guarded by one ``concurrency`` group and
+one protected environment, written with nothing but the ``git`` and ``gh``
+CLIs that already run on a runner. ``workflow_dispatch`` is the only trigger
+that can promote, and ``workflow_call`` exposes the same two jobs to the
+consumers of #1609 and #1800 so nobody maintains a second copy of them. There
+is no promotion script, no subcommand to run host-side, no state file and no
+journal: the run list is the record, and re-dispatching is the retry story.
 
-What this is, and what it refuses to be
-=======================================
+Why there is no orchestrator
+============================
 
-* it never pushes to ``develop`` or ``master``. Both pull requests it needs —
-  the release PR and the sync PR — it OPENS; a person reviews and merges, per
-  the git conventions of ``AGENTS.md``;
-* it never moves or deletes an existing tag or release branch. Something
-  standing where the promotion would put something, at a different commit, is
-  a CONFLICT it reports and stops on: reconcile means completing missing
-  steps, never overwriting present ones;
-* it writes no rolling alias. Q1 of #1578 answered the tag shape (`v0.2.0`
-  first, `vMAJOR.MINOR.PATCH` — ADR-0002) and approved no alias, so the
-  approved-alias set is still empty and `finalize` refuses `--alias` outright
-  until a reviewed alias decision is on record — the same reading
-  `image_release.py` applies to image aliases;
-* it produces no evidence and no attestation of its own. CI collects the
-  evidence (`evidence`), `release_gates.py promote` is the ONE attester
-  (`preflight` invokes it; its `mrmap-release-candidate/1` shape survives
-  unchanged into the release body), and the gates' reports are consumed as
-  files, never recomputed here.
+This is the part of #1798 that removed code, so it is worth stating as
+positively as the parts that added it.
 
-The five steps
-==============
+* **One dispatch answers and, when approved, publishes.** Nothing sits
+  half-done waiting for a later dispatch to notice. ``verify`` decides one
+  question about one commit; ``publish`` consumes the answer through ``needs``.
+  A state machine exists to be reconciled, and reconciling it was the work.
+* **The facts that decide publication are GitHub's, read through ``gh``.** A
+  release happens when the reviewed release pull request is merged and
+  ``master``'s tip *is* that pull request's merge commit. Both answers are
+  fetched, never remembered — which is exactly what a state machine had to
+  keep in sync and could get wrong.
+* **A required check cannot be bypassed, so the workflow does not
+  re-implement one.** A pull request becomes merged only through branch
+  protection, and protection refuses the merge while a required check is
+  missing, pending or red. ``merged`` with a ``mergeCommit`` therefore *is* the
+  evidence that the commit was built and tested on the reviewed tree. Naming
+  the specific jobs and pinning the built image digests to that commit is
+  #1800; producing them is #1799. This workflow trusts the one thing GitHub
+  cannot be talked out of.
+* **Approval is the environment, and the environment covers the one job that
+  writes.** Splitting the write across jobs would mean either an approval per
+  job — a person clicking twice for one act — or a job that writes without an
+  approval at all.
+* **Publication is not a side effect of a rerun.** ``publish`` re-reads the tag
+  at the moment of writing and refuses a tag that stands on another commit, so
+  a rerun cannot move, duplicate or quietly complete a release somebody else
+  already made.
 
-Each step is its own dispatch and safe to re-run at any point — that is the
-"reconcile partial failures" acceptance criterion as working code. The
-workflow `.github/workflows/release-promotion.yml` exposes them behind the
-protected ``release-stable`` environment with `workflow_dispatch` as its ONLY
-trigger; there is deliberately no scheduled or push trigger that could promote
-anything on its own.
+What the rehearsal measured
+===========================
 
-1. ``plan`` — read-only. Is this sha a planned candidate: the five files the
-   planner moves together (`VERSION`, its projection `backend/MrMap/version.py`,
-   `.release-please-manifest.json`, the folded `## [<version>] - <date>`
-   changelog section) all agree at it, and develop itself carries it. A
-   VERSION that moved without its folded section is refused — the folded
-   section is what the GitHub release body quotes.
-2. ``evidence`` + ``preflight`` — `evidence` assembles the four classes
-   `release_gates promote` requires (tests and sonar from CI's own check
-   conclusions, dependencies from a manual URL, artifacts from
-   `name=sha256:<64 hex>` digests) for one exact sha. `preflight` feeds that
-   file plus the three gate reports (api, version, upgrade) to
-   `release_gates.py promote` and writes its attestation. Evidence of another
-   sha gets no attestation, and a gate whose report was never produced stops
-   the promotion. These two run where the gates run (host or the
-   release-gates job), not in the protected workflow — the attestation file
-   they produce is an INPUT of finalize.
-3. ``open-release-pr`` — the freeze: push `release/v<version>` at the exact
-   candidate sha (develop moves on; the PR must not drift with it) and open
-   `release/v<version>` → ``master``. An existing branch at another sha is a
-   conflict, never a reset. A person reviews and merges — the merge IS the
-   release decision.
-4. ``finalize`` — after the merge. Master must carry the candidate, and
-   `git diff <candidate> master` must be EMPTY: the reviewed merge must have
-   landed exactly the tested tree, or publication is refused. Every judgement
-   (alias refusal, digest shape, digest completeness, tree equality, tag
-   placement) is made BEFORE the first push — a tag is the point of no easy
-   return. Then: annotated tag `v<version>` on master's tip (peeled comparison
-   — a tag object's sha is not its commit's), and the GitHub release quoting
-   candidate, release commit, artifact digests and the attestation, in the
-   SAME run as the tag push, because a `GITHUB_TOKEN` tag push emits no
-   workflow events for a later run to catch. An existing tag or release at the
-   expected place is a skip; anywhere else a conflict.
-5. ``sync`` — the reviewed ``master`` → ``develop`` sync PR after the release,
-   so the planner's next window starts from the released state. While develop
-   already contains master there is nothing to sync and the step says so.
+release-please's own ``github-release`` command is the supported way to turn a
+merged release pull request into a tag and a release, and it was rehearsed here
+end to end on a throw-away repository before deciding. Two upstream facts make
+it unusable for *this* repository as it is configured today, and both are worth
+recording because they are the reason ``verify`` is a step at all:
 
-``status`` prints the reconcile view of all of it (frozen branch, release PR
-state, whether master carries the candidate, where the tag stands, whether the
-release exists); ``gate`` answers the callable contract #1609 asked for —
-frozen source/version, whether master really carries it — with `--simulate`
-for dry-run suites that must not touch a remote.
+* it creates the tag on the release pull request's **base branch** — which for
+  us is ``develop``, because #1581 plans on ``develop``. It can therefore only
+  ever tag ``develop``, the one thing #1577 and #1581 forbid. Measured:
+  ``--target-branch master`` finds no releases to build and POSTs no ref,
+  because ``master`` carries no release pull request of its own.
+* with ``skip-github-release: true`` — which #1581 sets precisely so
+  ``develop`` stays tag-free — it builds no release at all. Measured: 0 refs
+  and 0 releases POSTed for a merged release pull request.
+
+Everything upstream still owns stays upstream's: the plan, the version, the
+changelog, the release pull request and the merge. Only the tag and the GitHub
+release are written here, with ``git tag`` and ``gh release create``, standing
+on the commit ``verify`` proved.
+
+The two jobs
+============
+
+``verify`` answers, in order, and stops on the first no:
+
+1. is the dispatched version a reviewed ``MAJOR.MINOR.PATCH`` — a prerelease is
+   never a promotion candidate;
+2. is there a **merged** ``develop`` → ``master`` pull request, and what is its
+   merge commit (the newest such pull request, since that is the release);
+3. is ``master``'s tip still exactly that merge commit — if ``master`` moved
+   after the reviewed merge, this run publishes nothing;
+4. does that commit carry the dispatched ``VERSION``; and
+5. if a ``v<version>`` tag already exists, does it stand exactly on that
+   commit. Anywhere else is a conflict, and a published tag is never moved.
+
+It writes nothing. Its outputs — merge commit, version, tag — are what
+``publish`` receives through ``needs``.
+
+``publish`` runs behind the protected environment and re-reads ``master`` and
+the tag rather than trusting what ``verify`` saw minutes or hours earlier:
+
+* with ``publish`` false, the default, it is a **rehearsal**: it builds the
+  release body, prints it, and writes no ref;
+* with ``publish`` true it requires one ``sha256:<64 hex>`` digest per
+  first-party image before writing anything — a release body whose digests are
+  missing or malformed is an audit trail that dead-ends — and refuses a
+  changelog with no ``## [<version>]`` section, because the notes a person
+  reviewed *are* the release body;
+* then the annotated tag ``v<version>`` on the verified commit, peeled for the
+  comparison (a tag object's sha is not its commit's), and the
+  ``gh release create`` for it **in the same run**: a ``GITHUB_TOKEN`` push of
+  a tag emits no workflow event, so nothing may hinge on catching one later;
+* if the tag and its release already stand where this run would put them, the
+  run is a skip and duplicates nothing.
 
 The protected environment
 =========================
 
-The workflow references the environment ``release-stable``; its required
-reviewers ARE the manual approval the acceptance criteria demand. Two facts
-before the first run, because GitHub cannot know them:
+``publish`` runs behind the environment ``release-stable``; its required
+reviewers ARE the manual approval the acceptance criteria demand, and the
+environment deployment log is the answer to "who approved this release".
+
+Two facts before the first run, because GitHub cannot know them:
 
 * an administrator must create the environment **with required reviewers
-  before the first dispatch** — GitHub auto-creates a referenced-but-missing
-  environment UNPROTECTED, which is exactly the hole this issue exists to
-  close;
-* the dispatch answer to "who approved this release" is the environment
-  deployment log: one approval per step, one step per run, never one run
-  waiting across days for an approval that blurs who approved what.
-
-Why five dispatches instead of one waiting job
-==============================================
-
-A GitHub job can wait for an environment approval, but a job that waits for
-days holds a runner and records one approval for many acts; and a design that
-hinged on the tag-push event would silently skip publication, because pushes
-of tags made with `GITHUB_TOKEN` trigger no workflow at all. So approval
-granularity is job granularity (one act per dispatch), idempotence is the
-retry story (every step re-runnable, skips named in its output), and the
-journal of steps is the run list itself.
+  before the workflow is first used** — GitHub auto-creates a
+  referenced-but-missing environment UNPROTECTED on the first run, which is
+  exactly the hole this issue exists to close;
+* publication stays rehearsing until the required build and gate jobs of #1799
+  and #1800 sit in front of ``publish`` through ``needs`` and are green for the
+  exact commit. Flipping the input is the deliberate act, and it belongs to
+  that wiring, not to an operator's convenience. Until then a green run here
+  means "the rehearsal passed", never "a release exists".
 
 Offline checks
 ==============
 
-`scripts/test_release_promotion.py` (31 checks, in
-`scripts/check_repo_tooling.sh`) drives the tool against throw-away
-repositories whose "origin" is a local bare repo and a journaling `gh` shim:
-the unplanned candidate, evidence of another sha, the missing gate report, the
-frozen branch elsewhere, the master whose tree diverged, the tag standing on a
-foreign commit, the missing digest — each seen REFUSED, and refused before a
-tag was touched — then the same worlds promoted to green, every step re-run to
-prove "already done" is a skip and never a duplicate.
+`scripts/test_release_promotion.py` runs the **workflow's own step scripts**:
+they are read out of the committed YAML and executed against throw-away
+repositories whose "origin" is a local bare repo, with a journaling ``gh`` shim
+in ``PATH``. A test cannot pass by drifting from the workflow, because there is
+no second copy of the logic to drift from. It pins each refusal — no merged
+release pull request, ``master`` moved after the merge, the version the commit
+does not carry, the tag on a foreign commit, the malformed or missing digest,
+the unfolded changelog section — seen REFUSED with nothing written, then the
+same worlds promoted to green, with the re-run proving that "already published"
+is a skip. `scripts/test_release_lifecycle_dry_run.py` drives the same scripts
+through the whole lifecycle. Both run in `scripts/check_repo_tooling.sh`.
 
 Deliberate limits, named
 ========================
 
 * **No prereleases.** The planner may propose one (#1579's grammar carries
-  `-rc.1`); whether one is ever cut is this issue's to own. Q1-Q6 of #1578 are
-  answered policy now (ADR-0002) and Q5 makes a release candidate conditional
-  on a supported, tested upgrade baseline, which #1800 has to verify first — so
-  the stable path is complete and prerelease semantics stay unopened rather
-  than invented here.
-* **The tag is the anchor.** The planner re-anchors `last-release-sha` from
-  the tag itself (see :ref:`release-planning`); promotion emits the tag and
-  the release in one run rather than reacting to events.
-* **Digests are typed by hand into the protected workflow** until the
-  registry-publish side (#1582's `image_release.py --promote`) is wired to
-  hand them over automatically; the shape validation (`sha256:<64 hex>`, both
-  first-party images or nothing) is what a typed-by-hand mistake can still not
-  survive.
-* **`wip done` before the merge of anything** — the claim board rule
+  ``-rc.1``); ``verify`` refuses one. Q1-Q6 of #1578 are answered policy now
+  (ADR-0002) and Q5 makes a release candidate conditional on a supported,
+  tested upgrade baseline, which #1800 has to verify first — so the stable path
+  is complete and prerelease semantics stay unopened rather than invented here.
+* **No rolling aliases.** Q1 of #1578 answered the tag shape and approved no
+  alias, so no stable version tag moves once written and ``image_release.py``
+  keeps refusing image aliases until a reviewed alias ledger is on record.
+* **The tag is the anchor.** The planner re-anchors ``last-release-sha`` from
+  the tag itself (see :ref:`release-planning`); promotion emits the tag and the
+  release in one run rather than reacting to events.
+* **Digests are passed in by hand** until #1799's build job hands its outputs
+  down automatically; the shape validation (``sha256:<64 hex>``, both
+  first-party images or nothing published) is what a typed-by-hand mistake
+  still cannot survive.
+* **``wip done`` before the merge of anything** — the claim board rule
   unaffected: an agent opens, a person reviews, merges and approves the
   environment deployment.

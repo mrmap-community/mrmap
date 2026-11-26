@@ -44,7 +44,7 @@
     {
       "id": "cut",
       "actor": "human",
-      "action": "release-please opens the Version Release PR; a human approves and merges it; the merge tags vX.Y.Z and advances master",
+      "action": "release-please opens the Version Release PR against develop; a human approves and merges it; the merge moves no branch but develop and writes no tag - vX.Y.Z is pushed later, by the finalize step of the promotion, onto master (#1798)",
       "evidence": ".github/workflows/release-planning.yml",
       "docs": "release-planning"
     },

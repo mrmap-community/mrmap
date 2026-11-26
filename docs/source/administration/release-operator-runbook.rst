@@ -36,13 +36,15 @@ Lifecycle
 
 .. code-block:: text
 
-    develop ── release-please PR ──► merged ──► tag vX.Y.Z on master
+    develop ── release-please PR ──► merged ──► candidate commit on develop
                                                   │
                                      build & attest images (digests)
                                                   │
                               promotion gates (contract, version, upgrade)
                                                   │
                      "Release promotion" dispatch (environment: release-stable)
+                                                  │
+        develop -> master release PR ── human merge ──► tag vX.Y.Z on master
                                                   │
                     promote stable tag by digest ──► instance pulls, migrates
 
@@ -52,11 +54,13 @@ Lifecycle
    PR that edits it.
 2. **Cut.** When a release is wanted, release-please opens the Version
    Release PR against develop (:ref:`release planning <release-planning>`). A
-   human approves and merges it. The merge produces the ``vX.Y.Z`` tag and
-   advances master; release notes and ``CHANGELOG.md`` are maintained by that
-   PR, never by hand.
-3. **Build and promote.** The tagged commit's images are built and their
-   digests attested; the compatibility gates
+   human approves and merges it. That merge changes develop and nothing else:
+   it produces no ``vX.Y.Z`` tag and does not advance ``master``, which is
+   reachable only through the release PR of step 4 (#1798); release notes and
+   ``CHANGELOG.md`` are maintained by that PR, never by hand.
+3. **Build and promote.** The candidate commit's images are built and their
+   digests attested - the commit, not a tag, since the tag of step 4 is what
+   the attested digests must still match; the compatibility gates
    (:ref:`release gates <release-compatibility-gates>`) judge the candidate.
    Promotion itself runs by digest through ``scripts/image_release.py
    --promote`` - the tested bytes get the stable tag, never a rebuild - and is

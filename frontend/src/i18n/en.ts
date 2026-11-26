@@ -943,6 +943,15 @@ const en = lodashMerge(
     },
     dashboard: {
       activity: {
+        coverageSummary: "%{ready}/%{total} histories complete · %{excluded} unavailable",
+        resourceNames: {
+          DatasetMetadataRecord: "Dataset metadata records",
+          ServiceMetadataRecord: "Service metadata records",
+          Layer: "Layers",
+          FeatureType: "Feature types",
+          Organization: "Organizations",
+          User: "Users",
+        },
         title: "Activity over time",
         scope: "Audit events, not distinct objects. Only resources with verified dashboard history are combined.",
         resource: "Resource",
@@ -1519,12 +1528,6 @@ const en = lodashMerge(
       },
     },
     resources: {
-      DatasetMetadataRecord: { plural: "Dataset metadata records" },
-      ServiceMetadataRecord: { plural: "Service metadata records" },
-      Layer: { plural: "Layers" },
-      FeatureType: { plural: "Feature types" },
-      Organization: { plural: "Organizations" },
-      User: { plural: "Users" },
 
       ServiceAlert: {
         name: "Attention required",

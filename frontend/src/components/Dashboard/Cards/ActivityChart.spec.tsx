@@ -1,6 +1,8 @@
 import type { ActivitySource } from "../dashboardActivity";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ComponentType, ReactNode } from "react";
+
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import de from "../../../i18n/de";
@@ -16,8 +18,11 @@ const lookup = (key: string) => {
 };
 vi.mock("react-admin", () => ({
   useLocaleState: () => [state.locale],
-  useTranslate: () => (key: string, options: Record<string, unknown> = {}) =>
-    lookup(key).replace(/%\{(\w+)\}/g, (_, name: string) => String(options[name])),
+  useTranslate: () => (key: string, options: Record<string, unknown> = {}) => {
+    const message = lookup(key);
+    return (message === key ? String(options._ ?? key) : message)
+      .replace(/%\{(\w+)\}/g, (_, name: string) => String(options[name]));
+  },
 }));
 vi.mock("../useDashboardActivity", () => ({
   useDashboardActivity: (resources: string[], period: number) => {
@@ -25,10 +30,23 @@ vi.mock("../useDashboardActivity", () => ({
     return state.sources.filter(source => resources.includes(source.resource));
   },
 }));
+vi.mock("@mui/x-charts/ChartsLegend", () => ({
+  ChartsLegend: () => <div aria-label="Native series legend" />,
+}));
 vi.mock("@mui/x-charts/LineChart", () => ({
-  LineChart: (props: { series: { id: string; data: number[] }[] }) => {
+  LineChart: (props: {
+    series: { id: string; data: number[] }[];
+    hiddenItems: { seriesId: string }[];
+    slots: { legend: ComponentType<{ controls?: ReactNode }> };
+    slotProps: { legend: { controls?: ReactNode } };
+  }) => {
     state.chart(props);
-    return <div data-testid="activity-lines">{props.series.map(series => <span key={series.id}>{series.id}: {series.data.join(",")}</span>)}</div>;
+    const Legend = props.slots.legend;
+    return <>
+      <Legend {...props.slotProps.legend} />
+      <div data-testid="activity-lines">{props.series.filter(series => !props.hiddenItems.some(hidden => hidden.seriesId === series.id))
+        .map(series => <span key={series.id}>{series.id}: {series.data.join(",")}</span>)}</div>
+    </>;
   },
 }));
 
@@ -55,14 +73,20 @@ describe("ActivityChart", () => {
     render(<ActivityChart resources={resources} />);
     expect(state.query).toHaveBeenLastCalledWith(resources, 30);
     expect(screen.getByLabelText("Event totals for the selected period")).toHaveTextContent("30");
+    expect(screen.getByText("2/2 histories complete · 1 unavailable")).toBeInTheDocument();
+    expect(screen.queryByText(/No verified dashboard history:/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "History coverage" }));
+    expect(screen.getByRole("dialog", { name: "History coverage" })).toBeInTheDocument();
     expect(screen.getByText(/No verified dashboard history:/)).toHaveTextContent("Web Map Services");
     expect(screen.getAllByText(/Complete for the selected period/)).toHaveLength(2);
     expect(screen.getByText("Dataset metadata records: Complete for the selected period")).toBeInTheDocument();
     const props = state.chart.mock.lastCall?.[0];
     expect(props.series.map((series: { id: string }) => series.id)).toEqual(["new", "updated", "deleted"]);
     expect(props.series.every((series: { curve: string; data: number[] }) => series.curve === "linear" && series.data.every(value => value >= 0))).toBe(true);
-    expect(props.yAxis[0]).toMatchObject({ min: 0, tickMinStep: 1 });
-    expect(props.xAxis[0].valueFormatter("2026-11-26")).toContain("26");
+    expect(props.yAxis[0]).toMatchObject({ min: 0, tickMinStep: 1, width: 80 });
+    expect(props.height).toBe(230);
+    expect(props.slotProps.legend.toggleVisibilityOnClick).toBe(true);
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toContain("2026");
     expect(props.series[0].valueFormatter(1000)).toBe("1,000");
   });
 
@@ -77,14 +101,37 @@ describe("ActivityChart", () => {
     expect(state.query).toHaveBeenLastCalledWith(resources, 90);
   });
 
-  it("toggles each event series without altering totals or query parameters", () => {
+  it("uses one native interactive legend and preserves no-series recovery", () => {
     render(<ActivityChart resources={resources} />);
-    for (const name of ["Additions", "Updates", "Deletions"]) fireEvent.click(screen.getByRole("checkbox", { name }));
-    expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText("Native series legend")).toHaveLength(1);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    const hidden = ["new", "updated", "deleted"].map(seriesId => ({ type: "line", seriesId }));
+    act(() => state.chart.mock.lastCall?.[0].onHiddenItemsChange(hidden));
     expect(screen.getByRole("status")).toHaveTextContent("Select an event series");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Updates" }));
-    expect(state.chart.mock.lastCall?.[0].series.map((series: { id: string }) => series.id)).toEqual(["updated"]);
+    expect(screen.getByLabelText("Native series legend")).toBeInTheDocument();
+    expect(screen.getByTestId("activity-lines")).toBeEmptyDOMElement();
+    act(() => state.chart.mock.lastCall?.[0].onHiddenItemsChange(hidden.filter(item => item.seriesId !== "updated")));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByTestId("activity-lines")).toHaveTextContent("updated:");
+    expect(screen.getByTestId("activity-lines")).not.toHaveTextContent("new:");
     expect(state.query).toHaveBeenLastCalledWith(resources, 30);
+  });
+
+  it("keeps compact selectors functional and preserves a one-day spike with unclipped integer labels", () => {
+    state.sources = [source("CatalogueService", 20000)];
+    render(<ActivityChart resources={resources} />);
+    for (const label of ["Resource", "Period"]) {
+      expect(screen.getByRole("combobox", { name: label }).closest(".MuiInputBase-root")).toHaveClass("MuiInputBase-sizeSmall");
+    }
+    const props = state.chart.mock.lastCall?.[0];
+    expect(props.series[0].data).toHaveLength(30);
+    expect(props.series[0].data.filter((value: number) => value === 20000)).toHaveLength(1);
+    expect(props.series[0].curve).toBe("linear");
+    expect(props.series[0].valueFormatter(20000)).toBe("20,000");
+    expect(props.yAxis[0].valueFormatter(20000)).toBe("20K");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tick" })).toBe("Nov 26");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("Nov 26, 2026");
+    expect(props.series[0].data.filter((_: number, i: number) => props.xAxis[0].tickInterval("", i))).toHaveLength(5);
   });
 
   it.each(["partial", "error", "loading", "unsupported"] as const)("does not aggregate %s history", status => {
@@ -120,12 +167,14 @@ describe("ActivityChart", () => {
     state.locale = "de";
     render(<ActivityChart resources={resources} />);
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 30 Tage");
-    expect(screen.getByRole("checkbox", { name: "Neuaufnahmen" })).toBeInTheDocument();
+    expect(screen.getByText("Neuaufnahmen")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Abdeckung des Verlaufs" }));
     expect(screen.getByText("Datenmetadatensätze: Vollständig für den gewählten Zeitraum")).toBeInTheDocument();
     const totals = screen.getByLabelText("Ereignissummen im gewählten Zeitraum");
     expect(within(totals).getByText("30")).toBeInTheDocument();
     const props = state.chart.mock.lastCall?.[0];
     expect(props.series[0].valueFormatter(1000)).toBe("1.000");
-    expect(props.xAxis[0].valueFormatter("2026-11-26")).toBe("26. Nov. 2026");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tooltip" })).toBe("26. Nov. 2026");
+    expect(props.xAxis[0].valueFormatter("2026-11-26", { location: "tick" })).toBe("26. Nov.");
   });
 });

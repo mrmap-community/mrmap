@@ -927,6 +927,15 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
   },
   dashboard: {
     activity: {
+      coverageSummary: "%{ready}/%{total} Verläufe vollständig · %{excluded} nicht verfügbar",
+      resourceNames: {
+        DatasetMetadataRecord: "Datenmetadatensätze",
+        ServiceMetadataRecord: "Dienstemetadatensätze",
+        Layer: "Ebenen",
+        FeatureType: "Objektarten",
+        Organization: "Organisationen",
+        User: "Benutzer",
+      },
       title: "Aktivität im Zeitverlauf",
       scope: "Protokollierte Ereignisse, keine verschiedenen Objekte. Nur Ressourcen mit verifiziertem Dashboard-Verlauf werden zusammengefasst.",
       resource: "Ressource",
@@ -1061,12 +1070,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     noRecentEvents: "Für diesen Dienst wurde noch keine Aktualisierung ausgeführt.",
   },
   resources: {
-    DatasetMetadataRecord: { plural: "Datenmetadatensätze" },
-    ServiceMetadataRecord: { plural: "Dienstemetadatensätze" },
-    Layer: { plural: "Ebenen" },
-    FeatureType: { plural: "Objektarten" },
-    Organization: { plural: "Organisationen" },
-    User: { plural: "Benutzer" },
 
     ServiceAlert: {
       name: "Handlungsbedarf",

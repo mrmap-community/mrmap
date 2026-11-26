@@ -1519,6 +1519,13 @@ const en = lodashMerge(
       },
     },
     resources: {
+      DatasetMetadataRecord: { plural: "Dataset metadata records" },
+      ServiceMetadataRecord: { plural: "Service metadata records" },
+      Layer: { plural: "Layers" },
+      FeatureType: { plural: "Feature types" },
+      Organization: { plural: "Organizations" },
+      User: { plural: "Users" },
+
       ServiceAlert: {
         name: "Attention required",
         fields: {

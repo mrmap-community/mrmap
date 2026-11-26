@@ -57,6 +57,7 @@ describe("ActivityChart", () => {
     expect(screen.getByLabelText("Event totals for the selected period")).toHaveTextContent("30");
     expect(screen.getByText(/No verified dashboard history:/)).toHaveTextContent("Web Map Services");
     expect(screen.getAllByText(/Complete for the selected period/)).toHaveLength(2);
+    expect(screen.getByText("Dataset metadata records: Complete for the selected period")).toBeInTheDocument();
     const props = state.chart.mock.lastCall?.[0];
     expect(props.series.map((series: { id: string }) => series.id)).toEqual(["new", "updated", "deleted"]);
     expect(props.series.every((series: { curve: string; data: number[] }) => series.curve === "linear" && series.data.every(value => value >= 0))).toBe(true);
@@ -120,6 +121,7 @@ describe("ActivityChart", () => {
     render(<ActivityChart resources={resources} />);
     expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 30 Tage");
     expect(screen.getByRole("checkbox", { name: "Neuaufnahmen" })).toBeInTheDocument();
+    expect(screen.getByText("Datenmetadatensätze: Vollständig für den gewählten Zeitraum")).toBeInTheDocument();
     const totals = screen.getByLabelText("Ereignissummen im gewählten Zeitraum");
     expect(within(totals).getByText("30")).toBeInTheDocument();
     const props = state.chart.mock.lastCall?.[0];

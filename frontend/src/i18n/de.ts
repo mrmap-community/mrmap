@@ -1061,6 +1061,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     noRecentEvents: "Für diesen Dienst wurde noch keine Aktualisierung ausgeführt.",
   },
   resources: {
+    DatasetMetadataRecord: { plural: "Datenmetadatensätze" },
+    ServiceMetadataRecord: { plural: "Dienstemetadatensätze" },
+    Layer: { plural: "Ebenen" },
+    FeatureType: { plural: "Objektarten" },
+    Organization: { plural: "Organisationen" },
+    User: { plural: "Benutzer" },
+
     ServiceAlert: {
       name: "Handlungsbedarf",
       fields: {

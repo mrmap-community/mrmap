@@ -67,6 +67,31 @@ Apply this rule proportionately: routine fixes need no separate ADR or
 approval workflow; material unresolved trade-offs follow the existing human
 decision process.
 
+
+### Minimal implementation and stop rule
+
+- For epics and generic cross-cutting functionality, **configuration first**:
+  identify the smallest supported standard solution and narrow the scope before
+  implementing. Prefer adapting our workflow to an upstream tool over extending
+  the tool with custom orchestration. Existing issues/PRs are not exempt.
+- If generic infrastructure (release, docs, testing, backup, monitoring, CI,
+  workflow/state machine, evidence or registry tooling) still needs custom code,
+  demonstrate the specific upstream gap with a small test and obtain an explicit
+  maintainer decision **before** implementing a new engine or substantial adapter.
+  An existing approved issue is not approval for unplanned architectural scope.
+- Deliver only the required behavior; stop once acceptance criteria are met.
+  Do not add speculative features, parallel sources of truth, frameworks,
+  simulated platforms or future-proofing. Prefer deleting obsolete code/tests
+  to maintaining two systems. Keep domain, security and data integrity checks.
+- Reviewers must challenge unnecessary custom code and scope expansion even when
+  CI passes. For material tooling changes, the PR should briefly identify reused
+  components, remaining custom code and why it is necessary; request simplification
+  rather than repeatedly fixing an avoidably complex design.
+
+This rule requires no new tooling, automated policy checker or additional
+approval process for ordinary domain fixes. Apply existing human decisions only
+to material unresolved trade-offs.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.

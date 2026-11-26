@@ -16,6 +16,7 @@ export interface ResourceListCardProps extends PropsWithChildren {
     resource: string
     sort?: SortPayload
     withList?: boolean
+    compact?: boolean
 }
 
 const ResourceListCard = (
@@ -23,6 +24,7 @@ const ResourceListCard = (
         resource,
         sort,
         withList = true,
+        compact = false,
         children
     }: ResourceListCardProps
 ) => {
@@ -51,19 +53,16 @@ const ResourceListCard = (
               to={`/${name}`}
               icon={icon}
               title={name}
+              compact={compact}
               subtitle={
                   <WithListContext render={({ total }) => <Fragment>{total}</Fragment>} />
               }
-          > 
-            
+          >
             {children}
-            {
-                hasCreate ?
+            {!compact && hasCreate ?
                 <Fragment><Divider /><CreateButton/></Fragment>: null
             }
-            
-            <ChangeLogList/>
-            
+            {!compact && <ChangeLogList/>}
           </CardWithIcon>
       </ListBase>
   );

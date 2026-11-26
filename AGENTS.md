@@ -172,6 +172,18 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   the scripts or `docs/source/conf.py` it names. The operator-facing prose it feeds is
   `docs/source/administration/release-operator-runbook.rst`, the entry page of the new
   `docs/source/administration/` portal section.
+  `scripts/docs_publish.py` is the privileged documentation publisher (#1608, epic #1589,
+  ADR-0001 section 12): it downloads a verified portal artifact, checks every attested
+  digest, and writes it onto the Pages tree as one commit whose parent is the fetched tip —
+  `/vX.Y.Z/` immutable, `/develop/` the last validated candidate, `/stable/` a forward-only
+  copy. `--channel` is the publisher's decision, never the build's. There is no `--force`
+  in the code and no local Pages branch to rewrite, which is what retired
+  `docs/publish_docs.sh`; `.github/workflows/docs-pages.yml` is the gated job and
+  `docs.yml` still only builds. `python3 scripts/test_docs_publish.py` (offline, part of
+  `scripts/check_repo_tooling.sh`) holds candidate/stable isolation, immutability, reuse
+  only on a matching `docs_manifest`, serialized publication and "a failed publication
+  loses no old docs"; `docs_publish.py retire` checks the force-push era stayed over
+  (docs: `docs/source/development/documentation-publishing.rst`).
   `scripts/decisions` is the decision-request protocol described under "Asking for human
   decisions": numbered questions, `Q7: C` answers verified against GitHub's
   `author_association`, append-only audit-trail comments and a generated view of the issue's

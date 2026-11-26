@@ -21,7 +21,9 @@ notes totalling 1 633 lines under `docs/`, and 2 files totalling 690 lines
 `conf.py` loads only `sphinx.ext.autodoc`, `sphinx_rtd_theme` and
 `sphinx_multiversion` and no Markdown parser.
 Publishing runs `docs/publish_docs.sh`, a 2021 script that force-pushes the
-build onto the `gh-pages` branch.
+build onto the `gh-pages` branch. (At the time of writing #1608 has retired it:
+`scripts/docs_publish.py` publishes a verified artifact as one forward commit
+instead. The sentence above stays as the measured baseline of this record.)
 
 Epic #1589 wants documentation that no human authors or maintains: derived from
 source and from running instances, complete for every audience, in English and
@@ -485,6 +487,25 @@ version. The multiversion machinery already in `conf.py` (`sphinx_multiversion`,
 with the tag selection described by `scripts/release_lifecycle.json`) keeps
 historical versions selectable, so preserving old URLs is inherited from
 existing behaviour rather than added.
+
+**Delivered by #1608 (2026-11-25).** `scripts/docs_publish.py` is that publisher
+and `docs/publish_docs.sh` is deleted. The channel is the publisher's decision
+(`--channel develop|stable|version`), never the build's: a develop candidate
+carrying `pages_build: develop` is refused when someone asks for stable. Each
+published directory carries `.docs-version.json` naming its version,
+`docs_manifest`, `documented_commit`, `candidate_sha` and its own tree digest,
+so `verify` can compare what is served with what the artifact claimed; the root
+marker is the site-wide record `status` prints. `/stable/` is a copy of the stable tree rather than a pointer, so
+retention can drop a version directory without taking `/stable/` with it. The
+Pages branch is held in a private bare repository the tool fetches and pushes
+one forward commit to - there is no local branch and no `--force` in the code,
+which is why "never force-pushes" is a property of the tool rather than a
+promise in a document. `.github/workflows/docs-pages.yml` is the privileged job
+behind the `docs-pages` environment; `docs.yml` still only builds and uploads.
+`python3 scripts/test_docs_publish.py` holds candidate/stable isolation, the
+immutable version directory, reuse only on a matching key, serialized
+publication and "a failed publication loses no previously published docs"
+offline (129 checks).
 
 Historical content is preserved by construction: the pre-epic corpus enters as
 `kind: human` evidence, the existing `docs/source` tree keeps its paths and

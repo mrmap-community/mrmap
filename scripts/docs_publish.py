@@ -50,9 +50,13 @@ The four path families of the acceptance criteria, chosen by ``--channel``:
 
 A directory counts as published when it carries ``.docs-version.json``, naming
 its version, its ``docs_manifest``, its ``documented_commit``, its
-``candidate_sha`` and the digest of its own tree. The root ``.docs-version.json``
-is the version index the multiversion build and a health check read, refreshed
-with every publication, which is what keeps historical versions selectable.
+``candidate_sha`` and the digest of its own tree. That marker is the publisher's
+own record - the theme's version switcher comes from the build - which is why
+``verify`` can compare what is served against what the artifact claimed and be
+able to say they disagree. The root ``.docs-version.json`` extends it to the
+whole site: which versions are served, which is stable, which candidate is the
+current preview. It is refreshed with every publication, so ``status`` has one
+answer and a monitoring probe has one URL to ask.
 
 The reuse key
 -------------
@@ -711,13 +715,13 @@ def primary_path(args, artifact):
 
 def marker_payload(artifact, manifest, candidate_sha, channel, path, args,
                    unvalidated=False):
-    """The version selector of one published directory.
+    """The record one published directory keeps about itself.
 
-    The multiversion build offers the highest version in the tree, so a
-    directory that is being served has to name itself. The digests are what make
-    "immutable versioned artifact" checkable afterwards: ``verify`` re-downloads
-    the artifact and compares bytes, and an operator reading a page about their
-    own deployment can ask which build answered.
+    The digests are what make "immutable versioned artifact" checkable after
+    the fact: ``verify`` re-digests the published tree and compares it with what
+    the artifact claimed, so a divergence is a named failure rather than a
+    suspicion, and an operator reading a page about their own deployment can ask
+    which build answered it.
     """
     payload = {
         "schema": MARKER_SCHEMA,

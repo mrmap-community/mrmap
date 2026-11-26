@@ -24,7 +24,8 @@ pull request.
 
 Publishing is not part of this issue. There is no deployment here, no artifact
 pushed anywhere, and no gh-pages branch written; the portal is built, checked and
-uploaded as a reviewable artifact and nothing more.
+uploaded as a reviewable artifact and nothing more. What is published from that
+artifact, and under which rules, is :ref:`development-documentation-publishing`.
 
 Building it
 ===========
@@ -295,8 +296,9 @@ reachable from a runner and a runbook page that names one is not broken.
 What is deliberately absent
 ===========================
 
-- **Publishing.** No deployment, no gh-pages push, no artifact uploaded to a
-  registry. That is #1604 and #1586.
+- **Publishing.** This job builds, checks and uploads an artifact; it deploys
+  nothing and writes no ``gh-pages`` branch. Publication is its own privileged
+  step, the subject of :ref:`development-documentation-publishing` (#1608).
 - **Screenshots of a running instance and behavioural claims about one.** Those
   need a stack and browser evidence; #1601 and #1602 own them and the portal
   declares them as stubs rather than writing prose that looks like a test result.

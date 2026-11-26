@@ -942,6 +942,29 @@ const en = lodashMerge(
       },
     },
     dashboard: {
+      activity: {
+        resourceNames: {
+          DatasetMetadataRecord: "Dataset metadata records",
+          ServiceMetadataRecord: "Service metadata records",
+          Layer: "Layers",
+          FeatureType: "Feature types",
+          Organization: "Organizations",
+          User: "Users",
+        },
+        title: "Changes to services and metadata",
+        yAxis: "Number of changes",
+        scope: "Additions, updates and deletions counted per day for each resource — audit events, never distinct objects. Only resources with verified dashboard history are drawn.",
+        period: "Period",
+        days: "Last %{days} days",
+        coverage: "History coverage",
+        complete: "Complete for the selected period",
+        unavailable: "%{resources} cannot answer right now and is not drawn.",
+        excluded: "No verified dashboard history: %{resources}",
+        window: "%{from} – %{to} (%{days} calendar days, Europe/Berlin)",
+        events: "Events",
+        empty: "No changes recorded in this period.",
+        noSeries: "Unhide a resource in the legend to display the chart.",
+      },
       // the critical states of the deployment above the queues and the
       // inventory (#1816): the names of the components are the words of the
       // system status, this card only says how many of them carry the state
@@ -1532,6 +1555,7 @@ const en = lodashMerge(
       },
     },
     resources: {
+
       ServiceAlert: {
         name: "Attention required",
         fields: {

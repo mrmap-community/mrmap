@@ -926,6 +926,29 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    activity: {
+      resourceNames: {
+        DatasetMetadataRecord: "Datenmetadatensätze",
+        ServiceMetadataRecord: "Dienstemetadatensätze",
+        Layer: "Ebenen",
+        FeatureType: "Objektarten",
+        Organization: "Organisationen",
+        User: "Benutzer",
+      },
+      title: "Änderungen an Diensten und Metadaten",
+      yAxis: "Anzahl Änderungen",
+      scope: "Neuaufnahmen, Aktualisierungen und Löschungen, pro Tag und je Ressource gezählt — Protokollereignisse, keine verschiedenen Objekte. Nur Ressourcen mit verifiziertem Dashboard-Verlauf werden dargestellt.",
+      period: "Zeitraum",
+      days: "Letzte %{days} Tage",
+      coverage: "Abdeckung des Verlaufs",
+      complete: "Vollständig für den gewählten Zeitraum",
+      unavailable: "%{resources} kann derzeit nicht antworten und wird nicht dargestellt.",
+      excluded: "Kein verifizierter Dashboard-Verlauf: %{resources}",
+      window: "%{from} – %{to} (%{days} Kalendertage, Europe/Berlin)",
+      events: "Ereignisse",
+      empty: "Keine Änderungen in diesem Zeitraum erfasst.",
+      noSeries: "Blenden Sie eine Ressource in der Legende ein, um das Diagramm anzuzeigen.",
+    },
     // die kritischen Zustände der Bereitstellung über den Warteschlangen und
     // dem Bestand (#1816): die Namen der Komponenten sind die Worte des
     // Systemstatus, diese Karte sagt nur, wie viele von ihnen den Zustand haben
@@ -1067,6 +1090,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     noRecentEvents: "Für diesen Dienst wurde noch keine Aktualisierung ausgeführt.",
   },
   resources: {
+
     ServiceAlert: {
       name: "Handlungsbedarf",
       fields: {

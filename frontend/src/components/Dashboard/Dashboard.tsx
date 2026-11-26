@@ -3,6 +3,7 @@ import { useCanAccessResources } from "react-admin";
 
 import { Box, Grid, Skeleton, Stack } from "@mui/material";
 
+import ActivityChart from "./Cards/ActivityChart";
 import CriticalAlerts from "./Cards/CriticalAlerts";
 import ResourceListCard from "./Cards/ResourceListCard";
 import ServiceAttentionCard from "./Cards/ServiceAttentionCard";
@@ -77,6 +78,12 @@ const Dashboard = (): ReactNode => {
           </Stack>
         </Grid>
       </Grid>
+      {!isPending && <Grid container spacing={2} sx={{ mt: 2 }}>
+        {/* The left half of the chart row of the mockup; #1820 composes the right one. */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ActivityChart resources={inventoryResources.filter(resource => canAccess?.[resource] === true)} />
+        </Grid>
+      </Grid>}
     </Box>
   );
 };

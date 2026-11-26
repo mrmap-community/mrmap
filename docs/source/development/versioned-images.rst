@@ -120,8 +120,9 @@ Rolling aliases are opt-in and default to none:
 ``latest``, ``stable``, ``main`` and ``prod`` are the aliases that promise "the
 current release". A dev build may not write any alias and a prerelease may not
 write one of those: an upgrade candidate must not become what an operator pulls
-by default. Whether this repository publishes a ``latest`` at all is still open
-(Q1 of #1578, Pending), so the default is that it does not.
+by default. Q1 of #1578 fixed the tag shape and approved no rolling alias
+(ADR-0002), so the default is that it does not; publishing one would be its own
+reviewed decision.
 
 Labels
 ======
@@ -253,15 +254,19 @@ Not wired on purpose
 
 * **No automatic publication of a version tag.** #1582's scope said the publisher
   stays unwired, and #1799 wired the half of it that needs no approval: the
-  candidate build. ``.github/workflows/candidate-images.yml`` (:ref:`release-candidate-images`)
-  publishes candidate tags for one dispatched, reviewed commit and cannot write a
-  version tag - the tag is created only by ``--promote``, from the protected
-  ``release-promotion.yml`` dispatch behind ``release-stable``, where a person
-  approves. The trigger design of #1581/#1586 still waits on Q1 (start version and
-  tag shape) and Q4 (whether a docs-only window may consume a version) of #1578,
-  which are unanswered; nothing here presumes an answer.
-* **Rolling aliases exist as an option, not as a default**, for the same reason: a
-  candidate kind refuses them outright.
+  candidate build. ``.github/workflows/candidate-images.yml``
+  (:ref:`release-candidate-images`) publishes candidate tags for one dispatched,
+  reviewed commit and cannot write a version tag - the tag is created only by
+  ``--promote``, from the protected ``release-promotion.yml`` dispatch behind
+  ``release-stable``, where a person approves. The trigger design belongs to
+  #1581/#1586. Q1 (start version and tag shape) and Q4 (a docs-only window
+  consumes no version) of #1578 are answered policy now (ADR-0002), and a
+  recorded answer publishes nothing by itself: the readiness gates #1798..#1801
+  and #1610 stand between this tool and a first tag. What is here is everything a
+  workflow would need to *decide*: names, tags, labels, the immutability rule,
+  the manifest.
+* **Rolling aliases exist as an option, not as a default**, for the same reason:
+  Q1 approved no alias, and a candidate build refuses them outright.
 * ``docker/docs/Dockerfile`` builds nothing and pulls nothing: no compose file,
   workflow or script names it (Read the Docs builds the docs through
   ``.readthedocs.yaml``). It is left in place and named here, because an

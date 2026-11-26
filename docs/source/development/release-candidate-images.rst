@@ -348,9 +348,9 @@ What is still not wired
   ``image_release.py --promote`` from ``release-promotion.yml`` behind
   ``release-stable`` (#1609). This workflow cannot reach it, and no input here can
   ask it to.
-* **No rolling aliases.** #1578's Q1 is unanswered, ``--kind candidate`` refuses
-  them, and ``release_promotion.py finalize`` refuses ``--alias`` until an
-  approved ledger exists.
+* **No rolling aliases.** Q1 of #1578 approved no alias (ADR-0002), ``--kind
+  candidate`` refuses them, and ``release_promotion.py finalize`` refuses
+  ``--alias`` until a reviewed alias ledger exists.
 * **Multi-arch**, as above.
 * **A required status check on releases.** Making this workflow's evidence job
   required for a release PR is #1609's and #1604's decision to record, not this

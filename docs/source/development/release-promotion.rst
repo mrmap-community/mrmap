@@ -30,10 +30,11 @@ What this is, and what it refuses to be
   standing where the promotion would put something, at a different commit, is
   a CONFLICT it reports and stops on: reconcile means completing missing
   steps, never overwriting present ones;
-* it writes no rolling alias. Q1 of #1578 is Pending, so the approved-alias
-  set is empty today and `finalize` refuses `--alias` outright until a
-  recorded answer exists — the same reading `image_release.py` applies to
-  image aliases;
+* it writes no rolling alias. Q1 of #1578 answered the tag shape (`v0.2.0`
+  first, `vMAJOR.MINOR.PATCH` — ADR-0002) and approved no alias, so the
+  approved-alias set is still empty and `finalize` refuses `--alias` outright
+  until a reviewed alias decision is on record — the same reading
+  `image_release.py` applies to image aliases;
 * it produces no evidence and no attestation of its own. CI collects the
   evidence (`evidence`), `release_gates.py promote` is the ONE attester
   (`preflight` invokes it; its `mrmap-release-candidate/1` shape survives
@@ -163,9 +164,11 @@ Deliberate limits, named
 ========================
 
 * **No prereleases.** The planner may propose one (#1579's grammar carries
-  `-rc.1`); whether one is ever cut is this issue's to own and Q1-Q6 of #1578
-  stay Pending — so the stable path is complete and prerelease semantics stay
-  unanswered rather than invented here.
+  `-rc.1`); whether one is ever cut is this issue's to own. Q1-Q6 of #1578 are
+  answered policy now (ADR-0002) and Q5 makes a release candidate conditional
+  on a supported, tested upgrade baseline, which #1800 has to verify first — so
+  the stable path is complete and prerelease semantics stay unopened rather
+  than invented here.
 * **The tag is the anchor.** The planner re-anchors `last-release-sha` from
   the tag itself (see :ref:`release-planning`); promotion emits the tag and
   the release in one run rather than reacting to events.

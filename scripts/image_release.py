@@ -17,11 +17,13 @@ to write the evidence file of that run (#1799); what that workflow may never do
 is point a stable version tag at anything, because the tool creates a version tag
 only through ``--promote``, and ``--promote`` is a human dispatch of
 ``.github/workflows/release-promotion.yml`` behind the ``release-stable``
-environment. Publishing a stable release stays a human act on a project's own
-package namespace; the immutable-tag rule - and the refusal that backs it - is
-here either way. Everything that makes publication safe - names, tags, labels,
-the rule that a stable tag never moves, the manifest a deployment is pinned with
-- is here and testable today.
+environment. Q1 and Q4 of #1578 are answered policy now (first published tag
+`v0.2.0`, tag shape `vMAJOR.MINOR.PATCH`, no version for a docs-only window -
+ADR-0002), and an answered question publishes nothing by itself: publishing a
+stable release stays a human act on a project's own package namespace. The
+immutable-tag rule - and the refusal that backs it - is here either way, as is
+everything else that makes publication safe: names, tags, labels, the rule that a
+stable tag never moves, the manifest a deployment is pinned with.
 
 The inventory this tool encodes (measured on develop, #1582)
 ------------------------------------------------------------
@@ -82,8 +84,8 @@ second constant:
              registry serves.
 
 Rolling aliases (``latest``, ``stable``, ...) are opt-in, one ``--alias`` each,
-and the default is none: #1578's Q1 is unanswered and a rolling alias is a
-product promise this repository has not made. ``--alias`` is refused for
+and the default is none: #1578's Q1 fixed the tag shape and approved no alias,
+and a rolling alias is a product promise this repository has not made. ``--alias`` is refused for
 ``--kind dev``, and the stable aliases are refused for a prerelease.
 
 Build once, promote the bytes that were tested
@@ -1232,9 +1234,10 @@ def inventory_lines(root, registry_base=REGISTRY_BASE):
     lines.append("  one explicitly selected, reviewed commit and writes this tool's")
     lines.append("  evidence file (#1799); nothing else writes a version tag, because only")
     lines.append("  --promote creates one and --promote runs behind the release-stable")
-    lines.append("  environment of .github/workflows/release-promotion.yml. Publishing a")
-    lines.append("  release stays a human act; the dependency images below are the only")
-    lines.append("  other publisher in the repository, and their contract is #959's.")
+    lines.append("  environment of .github/workflows/release-promotion.yml. Q1/Q4 of #1578")
+    lines.append("  are answered policy, not a publisher (ADR-0002): publishing a release")
+    lines.append("  stays a human act, and dev-images.yml on the #959 dependency contract")
+    lines.append("  is the only other publisher in the repository.")
     lines.append("")
     lines.append("dev tooling only - contract of #959, untouched by a release:")
     lines.append("  ghcr.io/mrmap-community/mrmap-backend-dev:<fingerprint>")

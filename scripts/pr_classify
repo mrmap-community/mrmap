@@ -46,10 +46,12 @@ that a `revert:` names what it reverts; and that a change entering the integrati
 history is attributable to exactly one entry.
 
 Not enforced, on purpose: whether the change is good, and whether a class consumes a
-version number. "Docs and chores consume no number" is decision Q4 of #1578 and that
-register is still Pending, and the arithmetic is #1581's. This tool reports the class
-and the matrix's *proposed* `consumes_version` of it, and never gates on it, so a run
-today cannot be misread as that decision having been taken.
+version number. "Docs and chores consume no number" is the recorded Q4 answer of #1578
+(Accepted: A, 2026-11-25; policy: ADR-0002) and the arithmetic that turns it into a
+version is #1581's - release-please, driven by `release-please-config.json`. This tool
+reports the class and the matrix's `consumes_version` of it, and never gates on it: the
+classifier stays one voice, the version stays the planner's single answer, and a check
+here must not become a second place the bump policy is decided.
 
 Nothing here approves anything, bypasses a branch rule, writes a label or touches
 protection: it reads and it reports. Making its check a required status check is a
@@ -103,8 +105,10 @@ from pathlib import Path
 STRICT_FROM = "2026-12-07"
 STRICT_FROM_ENV = "MRMAP_PR_CLASSIFICATION_STRICT_FROM"
 
-# The change classes of #1578's classification matrix, with what the matrix proposes
-# about them. `consumes_version` is reported and never enforced: it is Q4, still Pending.
+# The change classes of #1578's classification matrix, with what the recorded policy
+# says about them (ADR-0002, section 2). `consumes_version` is reported and never
+# enforced here: the enforcement is the hidden section table release-please reads, and
+# scripts/test_release_planning.py holds the two tables equal.
 TYPES = {
     "feat": {"consumes_version": True, "changelog": "Added"},
     "fix": {"consumes_version": True, "changelog": "Fixed"},
@@ -1143,9 +1147,9 @@ def render_types():
     for word in sorted(HINTS):
         lines.append("    %-14s %s" % (word + ":", HINTS[word].split(" - ")[0]))
     lines.append("")
-    lines.append("  Whether a class consumes a number is reported, never enforced: that is")
-    lines.append("  decision Q4 of #1578 and its register is Pending; #1581 computes the")
-    lines.append("  number. Nothing here approves anything or bypasses a branch rule.")
+    lines.append("  Whether a class consumes a number is reported, never enforced here:")
+    lines.append("  that is the recorded Q4 policy of #1578 (ADR-0002) and #1581 computes")
+    lines.append("  the number. Nothing here approves anything or bypasses a branch rule.")
     return "\n".join(lines)
 
 

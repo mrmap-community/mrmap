@@ -1,5 +1,13 @@
 {
   "note": "The staged upgrade boundaries the release gates must keep (#1583, epic #1577; the procedure a human operator follows is docs/source/development/celery-result-backend.rst, section 'Removal of django-celery-results (#1180)').",
+  "upgrade_window": {
+    "policy": "single-hop upgrade from an explicitly supported AND tested released baseline; two MINOR releases of deprecation notice before a removal; the staged intermediate boundaries of #1180 honoured; no promise of a direct upgrade from an unverified historical checkout",
+    "recorded_by": "Q5 of #1578 - Accepted: A, qualified, on 2026-11-25 (#1578 comment 7171857760, recorded via scripts/decisions; policy text: docs/architecture/decisions/ADR-0002-semantic-versioning-and-release-baseline-policy.md, section 5)",
+    "deprecation_notice": "two MINOR releases",
+    "supported_baselines": "named by 'oldest_supported_baseline' plus every release published after it; the list becomes a released set only when a tag exists (Q1 of #1578: first published tag v0.2.0)",
+    "verification": "the oldest supported baseline is actually upgraded from before the FIRST stable publication - #1800 owns that verification; a recorded answer is not a verification",
+    "measured": "0 tags and 0 releases exist (measured_by below), so today the supported set is empty by measurement rather than by omission: there is no baseline to claim yet, and nothing an operator could upgrade from"
+  },
   "oldest_supported_baseline": "the release carrying #1178 and #1179 - the intermediate release of #1180 answer 3",
   "marker_migration": "notify/0006_remove_backgroundprocess_threads",
   "marker_how_to_read": "a deployment is only allowed to upgrade to a #1180-or-later release when django_migrations records the marker; without it, stop at the intermediate release first - migrate alone will NOT warn (#1180)",

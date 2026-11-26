@@ -53,9 +53,9 @@ phase is only proven when it was also seen to stop a wrong candidate. So
 `build-and-gate` is walked red on a VERSION move without its folded changelog
 section, `promote` red on a missing evidence class and on evidence gathered for
 another sha, `verify-on-master` red on a master whose tree diverged and on a
-missing artifact digest. The walk refuses rolling aliases while Q1 of #1578 is
-Pending, and cuts a prerelease without ever letting it take the stable identity
-of its line.
+missing artifact digest. The walk refuses rolling aliases while no reviewed
+alias ledger exists, and cuts a prerelease without ever letting it take the
+stable identity of its line.
 
 Run from the repository root:
     python3 scripts/test_release_lifecycle_dry_run.py [--report report.json]
@@ -912,9 +912,10 @@ def scenario_no_release_changes(tmp):
           and f'status of the {BASE_VERSION} promotion' in status.stdout,
           stdout_head(status.stdout))
     # the red half of the same rule, and what actually guards it: the bump
-    # question is only decidable against a RELEASED baseline (Q1 of #1578).
-    # While the committed manifest says pre-baseline a missing minor bump is an
-    # advisory; the refusal needs the reviewed manifest that names a version.
+    # question is only decidable against a RELEASED baseline (Q1 of #1578 names
+    # v0.2.0 as the first one, and #1800 stands in front of it). While the
+    # committed manifest says pre-baseline a missing minor bump is an advisory;
+    # the refusal needs the reviewed manifest that names a version.
     w.write({"app.txt": "a reviewed feature\n"})
     w.commit("feat: something a deployment can ask for")
     proc = w.gates("version", "--report", str(w.dir / "version-advisory.json"))
@@ -926,7 +927,8 @@ def scenario_no_release_changes(tmp):
           f"{proc.returncode} {advisory['problems']} {advisory['advisories']}")
     w.record("pre-release", "ok",
              "no bump owed by a class-less range; a feat's missing bump is an "
-             "advisory while Q1 of #1578 is Pending",
+             "advisory while no tag is published (Q1 of #1578: v0.2.0 is the "
+             "first one)",
              "scripts/release_gates.py version")
     manifest = json.loads((w.repo / "scripts/release_contract_baseline.json")
                           .read_text(encoding="utf-8"))
@@ -1019,7 +1021,7 @@ def scenario_finalize_red(tmp):
           proc.returncode == 1 and "digest for mrmap-frontend" in proc.stderr,
           proc.stderr[:200])
     proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS, "--alias=latest")
-    check("rolling aliases stay refused while Q1 of #1578 is Pending",
+    check("rolling aliases stay refused while no reviewed alias ledger exists",
           proc.returncode == 1 and "rolling aliases are refused" in proc.stderr,
           proc.stderr[:200])
     check("a refused finalize published nothing",
@@ -1169,7 +1171,8 @@ def scenario_bump_policy(tmp):
     """What each commit class demands of a version, against a released baseline.
 
     The bump question of the version gate is decidable only from a released
-    baseline, and this checkout has none (Q1 of #1578 is Pending), so the green
+    baseline, and this checkout has none (Q1 of #1578 fixed v0.2.0 as the first
+    published tag and #1800 verifies the oldest baseline before it), so the green
     walk alone cannot show the class rules of the issue: patch, minor, major and
     the reviewed 0.x reading. The scenario therefore runs the tools against a
     copy of the manifest in `released` mode at 0.1.0 - the content the first

@@ -61,10 +61,12 @@ The tool therefore drives, never decides-for:
   stops on - tags are the planner's anchor (#1581) and a released deployment's
   identity; reconciling means completing missing steps, never overwriting
   present ones;
-* it writes no rolling alias. Q1 of #1578 is Pending, so "approved rolling
-  aliases" from the acceptance criteria is the empty set today; `finalize`
-  refuses `--alias` outright until an approved ledger exists, the same way
-  `image_release.py` refuses aliases without a reviewed decision;
+* it writes no rolling alias. Q1 of #1578 is answered (first published tag
+  `v0.2.0`, tags `vMAJOR.MINOR.PATCH` - ADR-0002) and it approved no alias, so
+  "approved rolling aliases" from the acceptance criteria is still the empty
+  set: `finalize` refuses `--alias` outright until a reviewed alias ledger
+  exists, the same way `image_release.py` refuses aliases without a reviewed
+  decision;
 * it produces no evidence of its own. Tests, Sonar, dependency and artifact
   evidence are collected from CI (`evidence`) and judged by
   `release_gates.py promote` (imported as a module, one promoter like one
@@ -869,9 +871,10 @@ def cmd_finalize(args):
     root = Path(args.root)
     if args.alias:
         raise PromotionRefused(
-            "rolling aliases are refused: Q1 of #1578 is Pending and the "
-            "approved-aliases ledger does not exist yet - the first release "
-            "that may carry one needs that answer on record first")
+            "rolling aliases are refused: the approved-aliases ledger does "
+            "not exist yet, and Q1 of #1578 (ADR-0002) approved the tag shape "
+            "but no alias - the first release that may carry one needs a "
+            "reviewed alias decision on record first")
     gitlet(args, root, "fetch", "--quiet", args.remote)
     gitlet(args, root, "fetch", "--quiet", args.remote, "master")
     sha = candidate_from_attestation(args, root, "finalize")

@@ -109,8 +109,9 @@ Rolling aliases are opt-in and default to none:
 ``latest``, ``stable``, ``main`` and ``prod`` are the aliases that promise "the
 current release". A dev build may not write any alias and a prerelease may not
 write one of those: an upgrade candidate must not become what an operator pulls
-by default. Whether this repository publishes a ``latest`` at all is still open
-(Q1 of #1578, Pending), so the default is that it does not.
+by default. Q1 of #1578 fixed the tag shape and approved no rolling alias
+(ADR-0002), so the default is that it does not; publishing one would be its own
+reviewed decision.
 
 Labels
 ======
@@ -242,10 +243,12 @@ Not wired on purpose
 
 * **No publisher workflow, no production push.** #1582's scope says it, and
   publishing to the project's own package namespace is a human act. The trigger
-  design belongs to #1581/#1586 and still waits on Q1 (start version and tag
-  shape) and Q4 (whether a docs-only window may consume a version) of #1578, which
-  are unanswered. What is here is everything a workflow would need to *decide*:
-  names, tags, labels, the immutability rule, the manifest.
+  design belongs to #1581/#1586. Q1 (start version and tag shape) and Q4
+  (a docs-only window consumes no version) of #1578 are answered policy now
+  (ADR-0002), and a recorded answer publishes nothing by itself: the readiness
+  gates #1798..#1801 and #1610 stand between this tool and a first tag. What is
+  here is everything a workflow would need to *decide*: names, tags, labels, the
+  immutability rule, the manifest.
 * **Rolling aliases exist as an option, not as a default**, for the same reason.
 * ``docker/docs/Dockerfile`` builds nothing and pulls nothing: no compose file,
   workflow or script names it (Read the Docs builds the docs through

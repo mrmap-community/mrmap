@@ -66,7 +66,9 @@ answer, it never re-asks it and never accepts an answer at the command line.
     The contract baseline. Two modes. **pre-baseline** (today, and the honest
     reading of #1578's measurement: 0 tags, 0 releases) declares that no
     previously supported stable release exists to diff against, and declares
-    the reviewed 0.x reading standing in until one exists; a manifest claiming
+    where the 0.x reading comes from — the recorded answers of #1578 (Q1..Q6
+    Accepted on 2026-11-25, policy in ADR-0002) plus the evidence #1583 owes a
+    breaking change — standing in until a tag exists; a manifest claiming
     pre-baseline without that declaration fails the gate *cannot run*, because
     then nobody decided the fallback. **released** names the baseline's
     version, its source tag and the committed snapshot of its OpenAPI
@@ -190,7 +192,9 @@ Deliberate limits, named
 * The removed-deployment-setting direction is invisible to a static diff
   exactly when the range's own code was the last reader - which is precisely
   the case the Migration notes entry forces into the changelog.
-* While Q1/Q2/Q5/Q6 of #1578 stay Pending, the version-bump and contract-diff
-  halves run in pre-baseline mode; ``scripts/decisions`` recording a human
-  answer, or cutting the first release, is what turns the released half on -
-  not a knob an agent gets to set.
+* The version-bump and contract-diff halves run in pre-baseline mode while no
+  tag exists, and that is a measurement, not a question: Q1..Q6 of #1578 are
+  recorded as Accepted (ADR-0002) and still no release exists, so what turns
+  the released half on is cutting the first release - #1798..#1801 and #1610
+  in front of it - never a knob an agent gets to set. ``version`` and
+  ``upgrade`` enforce what a breaking change owes in both modes.

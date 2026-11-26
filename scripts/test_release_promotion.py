@@ -776,8 +776,8 @@ def test_finalize_before_and_after_the_merge(tmp):
 
     proc = w.promo("finalize", "--alias", "latest", "--attestation", str(att),
                    *ARTIFACTS)
-    check("finalize: rolling aliases stay refused while Q1 of #1578 is "
-          "Pending", proc.returncode == 1 and "alias" in proc.stderr.lower(),
+    check("finalize: rolling aliases stay refused while no reviewed alias "
+          "ledger exists", proc.returncode == 1 and "alias" in proc.stderr.lower(),
           proc.stderr)
 
     w_nopr = World(tmp, "finalize-nopr")

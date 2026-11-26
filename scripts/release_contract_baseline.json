@@ -14,7 +14,8 @@
     "reviewed_0_x": true,
     "breaking_below_1_0": "minor",
     "declared_on": [
-      "Q1/Q2/Q5/Q6 of #1578 - the register is Pending; scripts/decisions records the human answers (this knob is the gate's reading of Q2 option A, active only once a released baseline exists, and superseded by the recorded answer)",
+      "Q2 of #1578 - Accepted: A on 2026-11-25 (#1578 comment 7171857760, recorded by scripts/decisions and stated as policy in docs/architecture/decisions/ADR-0002-semantic-versioning-and-release-baseline-policy.md): a breaking change below 1.0.0 is the MINOR this project promised, with a mandatory Breaking Changes note. This knob is the gate's reading of that recorded answer, active only once a released baseline exists.",
+      "Q1/Q5/Q6 of #1578 - Accepted on the same date: first published tag v0.2.0 with vMAJOR.MINOR.PATCH (Q1), a supported upgrade window over explicitly supported and tested baselines (Q5), and one application version with no separate contract version while 0.x (Q6). Until that first tag exists there is still no released baseline to diff against, so pre-baseline stays in force.",
       "issue #1583 - while no baseline exists, the reviewed evidence a breaking change still owes is the #1580 classification, a '**Breaking:**' line in the changelog, the exceptions ledger and the migration notes"
     ],
     "note": "pre-baseline refuses to be an anything-goes window: version and upgrade keep enforcing what every breaking change owes. The first published release replaces this manifest in its own reviewed pull request."

@@ -12,9 +12,13 @@ pass.
 Why these gates exist as host checks
 -----------------------------------
 #1578 measured that the repository has ZERO tags and ZERO releases: there is no
-previously supported stable release to compare a candidate against, and Q1/Q2/
-Q5/Q6 of its decision register are Pending. A compatibility gate that demanded
-a released baseline would therefore be dead code today - and dead code is
+previously supported stable release to compare a candidate against. Its
+decision register has since been answered - Q1..Q6 Accepted on 2026-11-25, the
+policy recorded in
+`docs/architecture/decisions/ADR-0002-semantic-versioning-and-release-baseline-policy.md`
+- and an answered question is still not a published tag, so the measurement
+stands and the mode is decided by it. A compatibility gate that demanded a
+released baseline would therefore be dead code today - and dead code is
 precisely what lets the first real release skip it. So every gate here runs
 TODAY in one of two modes and the mode itself is reviewed content:
 
@@ -26,10 +30,11 @@ TODAY in one of two modes and the mode itself is reviewed content:
                  evidence a breaking change still owes while major is 0: the
                  reviewed classification of #1580, a "**Breaking:**" line in
                  the changelog, migration notes, and the ledger entries below.
-                 The manifest must carry `reviewed_0_x: true` and say which
-                 pending questions stand in for a policy - if the manifest
-                 ever claims pre-baseline without that declaration, the gate
-                 refuses (exit 2), because then nobody decided the fallback.
+                 The manifest must carry `reviewed_0_x: true` and say where the
+                 0.x reading comes from - the recorded answers of #1578 and the
+                 #1583 evidence a breaking change still owes - because a
+                 pre-baseline claim nobody declared is an anything-goes window,
+                 so the gate refuses it (exit 2).
 
 The diff itself reuses nothing invented here: the version bump policy reads the
 same classified history `scripts/pr_classify` produces (#1580 - one classifier,
@@ -277,7 +282,8 @@ def read_baseline(root, path, document_required=True):
             raise GateCannotRun(
                 f"{path}: mode 'pre-baseline' requires policy.reviewed_0_x: "
                 "true and a policy.declared_on list naming where the 0.x "
-                "reading was asked (the pending questions of #1578)")
+                "reading was decided (the recorded answers of #1578, see "
+                "ADR-0002)")
         if not policy.get("declared_on"):
             raise GateCannotRun(
                 f"{path}: policy.declared_on must name the questions/issues "
@@ -581,8 +587,9 @@ def cmd_api(args):
                       "covering changes nobody reviewed", file=sys.stderr)
                 return EXIT_FAIL
     else:
-        # Nothing to diff against until the first tag exists; the reviewed 0.x
-        # declaration is what stands in, and it was validated by read_baseline.
+        # Nothing to diff against until the first tag exists (Q1 of #1578 makes
+        # v0.2.0 that tag); the reviewed 0.x declaration is what stands in, and
+        # it was validated by read_baseline.
         print("api: NOTE - contract mode is pre-baseline: this repository has "
               "no previously supported stable release to diff against "
               "(measured 0 tags, #1578). The reviewed 0.x reading declared in "
@@ -814,8 +821,9 @@ def cmd_version(args):
             advisories.append(
                 f"the range contains a {required}-worthy change, but there "
                 f"is no released baseline to bump from (mode "
-                f"'{baseline['mode']}', Q1 of #1578 Pending) - the reviewed "
-                "0.x reading stands in until the first tag exists")
+                f"'{baseline['mode']}', no published tag yet - Q1 of #1578 "
+                "names v0.2.0 as the first one) - the reviewed 0.x reading "
+                "stands in until the first tag exists")
     else:
         base_parts = semver_parse(baseline_version, "the baseline version")[:3]
         cand_parts = semver_parse(candidate_version,

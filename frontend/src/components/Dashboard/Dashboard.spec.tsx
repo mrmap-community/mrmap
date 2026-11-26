@@ -20,6 +20,10 @@ vi.mock("./Cards/ActivityChart", () => ({
   default: ({ resources }: { resources: string[] }) => <div data-testid="activity-chart">{resources.join(",")}</div>,
 }));
 
+vi.mock("./Cards/CriticalAlerts", () => ({
+  default: () => <div>critical</div>,
+}));
+
 vi.mock("./Cards/WorkQueueCard", () => ({
   default: () => <div>workQueue</div>,
 }));
@@ -64,21 +68,38 @@ const askedResources = () =>
     .map((element) => element.textContent ?? "");
 
 describe("Dashboard", () => {
-  it("answers the work which waits before the inventory", () => {
-    render(<Dashboard />);
-    const answered = screen.getAllByText(/workQueue|attention|inventory/);
-    const asked = answered.map((element) => element.textContent);
-    expect(asked.slice(0, 2)).toEqual(["workQueue", "attention"]);
-    expect(asked.indexOf("workQueue")).toBeLessThan(
+  it("answers the critical states above everything and the work which waits beside the inventory", () => {
+    const { container } = render(<Dashboard />);
+    const asked = screen
+      .getAllByText(/critical|workQueue|attention|inventory/)
+      .map((element) => element.textContent);
+    // what is broken is read before the counts of the registry
+    expect(asked[0]).toBe("critical");
+    expect(asked.indexOf("critical")).toBeLessThan(
       asked.indexOf("inventory WebMapService false true"),
     );
-    expect(asked.indexOf("attention")).toBeLessThan(
-      asked.indexOf("inventory WebMapService false true"),
+
+    // the health of the deployment and the alerts of its services answer one
+    // column of the same grid the inventory answers, so the exceptions are read
+    // in the middle-right of the screen instead of pushing the counts down the
+    // page (#1816)
+    const health = screen.getByText("workQueue");
+    expect(health.parentElement).toBe(
+      screen.getByText("attention").parentElement,
+    );
+    // the stack of the two cards is one grid item of the grid the inventory
+    // answers in
+    const column = health.parentElement?.parentElement;
+    const grid = container.querySelector(".MuiGrid-container");
+    expect(column?.parentElement).toBe(grid);
+    expect(grid).toContainElement(
+      screen.getByText("inventory WebMapService false true"),
     );
   });
 
   it("answers which work waits and which services carry a problem", () => {
     render(<Dashboard />);
+    expect(screen.getByText("critical")).toBeInTheDocument();
     expect(screen.getByText("workQueue")).toBeInTheDocument();
     expect(screen.getByText("attention")).toBeInTheDocument();
   });

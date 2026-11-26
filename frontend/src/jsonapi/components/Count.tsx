@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from 'react';
 import { Link } from 'react-admin';
 
 import ErrorIcon from '@mui/icons-material/Error';
@@ -12,6 +12,57 @@ import {
   useTimeout,
 } from 'ra-core';
 
+
+/** whether an api error says the caller may not read what was asked for - the
+ *  same reading of the http status by which the context of the system status
+ *  decides about its indicator (#833). A read which is not allowed is answered
+ *  apart from a read which failed, so a count never reads as zero and a
+ *  missing permission is not reported as a failure of the api (#1816) */
+const isUnauthorized = (error: unknown): boolean => {
+  const e = error as { status?: number; response?: { status?: number } };
+  const status = e?.status ?? e?.response?.status;
+  return status === 401 || status === 403;
+};
+
+/** what the read of a `Count` answered, so a screen can answer the state of a
+ *  number instead of reading a refused count as a zero or a loading count as a
+ *  healthy one - `zero` is the answer of the api that nothing waits, `value`
+ *  the answer that something does, and the three others are never healthy */
+export type CountState = 'loading' | 'zero' | 'value' | 'forbidden' | 'error';
+
+/** what the read of a count answered: the number to show and the state of the
+ *  read beside it. The three answers which are not a number are kept apart, so
+ *  a screen never reads a refused count as a zero or a loading count as a
+ *  deployment without work (#1816) */
+const answerOfRead = (
+  isPending: boolean,
+  error: unknown,
+  total: number | undefined,
+  oneSecondHasPassed: boolean,
+): { body: ReactNode; state: CountState } => {
+  if (isPending) {
+    return {
+      body: oneSecondHasPassed ? <CircularProgress size={14} /> : '',
+      state: 'loading',
+    };
+  }
+  if (error) {
+    // the mark says which of the two answers it is: a queue the caller may
+    // not read is not a queue whose api failed
+    const unauthorized = isUnauthorized(error);
+    return {
+      body: (
+        <ErrorIcon
+          color="error"
+          fontSize="small"
+          titleAccess={unauthorized ? 'unauthorized' : 'error'}
+        />
+      ),
+      state: unauthorized ? 'forbidden' : 'error',
+    };
+  }
+  return { body: total, state: total ? 'value' : 'zero' };
+};
 
 /**
  * Fetch and render the number of records of a given resource
@@ -44,6 +95,7 @@ export const Count = ({
         resource: _resourceFromProps,
         timeout = 1000,
         refetchInterval,
+        onStateChange,
         ...rest
     } = props;
     const resource = useResourceContext(props);
@@ -86,14 +138,22 @@ export const Count = ({
         }
     }, { refetchInterval });
 
-    let body: ReactNode;
-    if (isPending) {
-        body = oneSecondHasPassed ? <CircularProgress size={14} /> : '';
-    } else if (error) {
-        body = <ErrorIcon color="error" fontSize="small" titleAccess="error" />;
-    } else {
-        body = total;
-    }
+    const { body, state } = answerOfRead(
+        isPending,
+        error,
+        total,
+        oneSecondHasPassed,
+    );
+
+    // a screen which answers the state of the read beside the number - the
+    // queue of a dashboard must never read a refused count as a zero - learns
+    // it from here, because asking the api a second time for the same records
+    // is a duplicate request (#1816)
+    const report = useRef(onStateChange);
+    report.current = onStateChange;
+    useEffect(() => {
+        report.current?.(state);
+    }, [state]);
 
     return link ? (
         <Link
@@ -123,4 +183,7 @@ export interface CountProps extends TypographyProps {
     relatedResource?: string;
     relatedResourceId?: Identifier;
     timeout?: number;
+    /** called with the state of the read, so a screen can answer a refused or
+     *  loading count apart from a zero without asking the api twice */
+    onStateChange?: (state: CountState, total?: number) => void;
 }

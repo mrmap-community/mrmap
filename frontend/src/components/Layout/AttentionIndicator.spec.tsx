@@ -51,15 +51,44 @@ describe("cross-service attention surfaces", () => {
     { error: { status: 403 } },
     { error: { status: 401 } },
     { isPending: true },
-  ])("hides both surfaces for %j", (overrides) => {
+  ])("hides the indicator of the app bar for %j", (overrides) => {
     mockAlerts.mockReturnValue(state(overrides));
-    const { container } = render(
-      <>
-        <AttentionIndicator />
-        <ServiceAttentionCard />
-      </>,
-    );
+    const { container } = render(<AttentionIndicator />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // the dashboard answers its states apart, so that none of them reads as a
+  // deployment without a problem (#1816) - a chip without a count is
+  // meaningless, which is why only the card answers the read which is out
+  it("answers the read which is out on the dashboard instead of nothing", () => {
+    mockAlerts.mockReturnValue(state({ isPending: true }));
+    render(<ServiceAttentionCard />);
+    expect(
+      screen.getByRole("progressbar", { name: "serviceAlerts.checking" }),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    { total: 0 },
+    { error: { status: 403 } },
+    { error: { status: 401 } },
+  ])("hides the card of the dashboard for %j", (overrides) => {
+    mockAlerts.mockReturnValue(state(overrides));
+    const { container } = render(<ServiceAttentionCard />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("answers a failed read as a problem instead of a deployment without one", () => {
+    mockAlerts.mockReturnValue(state({ error: { status: 500 } }));
+    render(<ServiceAttentionCard />);
+    expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorError");
+    expect(
+      screen.getByText("serviceAlerts.loadError", { exact: false }),
+    ).toBeInTheDocument();
+    // the list of the alerts stays reachable from the failing card
+    expect(
+      screen.getByRole("link", { name: "serviceAlerts.viewAll" }),
+    ).toHaveAttribute("href", "/ServiceAlert");
   });
   it("links dashboard problems to their workflow and offers the full list", () => {
     mockAlerts.mockReturnValue(state());

@@ -17,14 +17,72 @@ interface Props {
     compact?: boolean;
 }
 
-const CardWithIcon = ({
-    icon,
-    title,
-    subtitle,
-    to,
-    children,
-    compact = false,
-}: Props) => {
+const InventoryChange = ({ delta, percent, numberFormat }: {
+    delta?: number;
+    percent?: number | null;
+    numberFormat: Intl.NumberFormat;
+}) => {
+    const translate = useTranslate();
+    const deltaLabel = delta === undefined
+        ? null
+        : translate('dashboard.kpi.delta', {
+            delta: `${delta >= 0 ? '+' : '−'}${numberFormat.format(Math.abs(delta))}`,
+        });
+    let percentLabel = null;
+    if (percent === null) {
+        percentLabel = translate('dashboard.kpi.noPercent');
+    } else if (percent !== undefined && Number.isFinite(percent)) {
+        percentLabel = translate('dashboard.kpi.percent', {
+            percent: `${percent >= 0 ? '+' : '−'}${numberFormat.format(Math.abs(percent))}%`,
+        });
+    }
+
+    if (!deltaLabel && !percentLabel) return null;
+    return (
+        <Typography variant="caption" color="text.secondary">
+            {[deltaLabel, percentLabel].filter(Boolean).join(' · ')}
+        </Typography>
+    );
+};
+
+const InventoryTrend = ({ stats, title, numberFormat }: {
+    stats: ReturnType<typeof useDashboardStatistics>;
+    title: string;
+    numberFormat: Intl.NumberFormat;
+}) => {
+    const translate = useTranslate();
+    const values = stats.status === 'ready'
+        ? stats.days.map(day => day.total).filter((value): value is number => value !== null)
+        : [];
+    return (
+        <Box sx={{ height: 64, mt: 'auto', px: 1, pb: 1 }} role="img"
+            aria-label={translate('dashboard.kpi.sparkline', { resource: title })}>
+            {stats.status === 'ready' && values.length > 1
+                ? <SparkLineChart
+                    data={values}
+                    height={64}
+                    area
+                    showHighlight
+                    showTooltip
+                    valueFormatter={(value) => value === null ? '—' : numberFormat.format(value)}
+                    margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
+                    color="secondary.main"
+                />
+                : <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+                    {translate(stats.status === 'ready'
+                        ? 'dashboard.kpi.noTrend'
+                        : {
+                            loading: 'historyChart.asking',
+                            error: 'historyChart.error',
+                            partial: 'historyChart.partial',
+                            unsupported: 'historyChart.noStatistics',
+                        }[stats.status])}
+                </Typography>}
+        </Box>
+    );
+};
+
+const CompactCardWithIcon = ({ icon, title, to }: Props) => {
     const resource = useResourceContext();
     const count = useListContext();
     const stats = useDashboardStatistics(resource ?? '', count);
@@ -32,95 +90,63 @@ const CardWithIcon = ({
     const [locale] = useLocaleState();
     const numberFormat = new Intl.NumberFormat(locale === 'de' ? 'de-DE' : 'en-GB');
 
-    if (compact) {
-        const translatedTitle = title
-            ? translate(`resources.${resource}.plural`, { _: title })
-            : translate(`resources.${resource}.name`, { _: resource });
-        const values = stats.status === 'ready'
-            ? stats.days.map(day => day.total).filter((value): value is number => value !== null)
-            : [];
-        const currentCount = count.error || count.isPending
-            ? undefined
-            : count.total;
-        const delta = stats.status === 'ready' ? stats.inventory?.delta : undefined;
-        const percent = stats.status === 'ready' ? stats.inventory?.percent : undefined;
+    const translatedTitle = title
+        ? translate(`resources.${resource}.plural`, { _: title })
+        : translate(`resources.${resource}.name`, { _: resource });
+    const currentCount = count.error || count.isPending
+        ? undefined
+        : count.total;
+    const delta = stats.status === 'ready' ? stats.inventory?.delta : undefined;
+    const percent = stats.status === 'ready' ? stats.inventory?.percent : undefined;
 
-        const deltaLabel = delta === undefined
-            ? null
-            : translate('dashboard.kpi.delta', {
-                delta: `${delta >= 0 ? '+' : '−'}${numberFormat.format(Math.abs(delta))}`,
-            });
-        const percentLabel = percent === null
-            ? translate('dashboard.kpi.noPercent')
-            : percent !== undefined && Number.isFinite(percent)
-                ? translate('dashboard.kpi.percent', {
-                    percent: `${percent >= 0 ? '+' : '−'}${numberFormat.format(Math.abs(percent))}%`,
-                })
-                : null;
-
-        return (
-            <Card
-                sx={{
-                    height: '100%',
-                    minHeight: 180,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    '& a': { textDecoration: 'none', color: 'inherit' },
-                }}
-            >
-                <Link to={to} aria-label={translatedTitle}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                            <Box sx={{ color: 'secondary.main', display: 'flex' }}>
-                                {icon === undefined ? null : createElement(icon, { fontSize: 'medium' })}
-                            </Box>
-                            <Typography variant="subtitle2" noWrap title={translatedTitle}>
-                                {translatedTitle}
-                            </Typography>
+    return (
+        <Card
+            sx={{
+                height: '100%',
+                minHeight: 180,
+                display: 'flex',
+                flexDirection: 'column',
+                '& a': { textDecoration: 'none', color: 'inherit' },
+            }}
+        >
+            <Link to={to} aria-label={translatedTitle}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2, pt: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                        <Box sx={{ color: 'secondary.main', display: 'flex' }}>
+                            {icon === undefined ? null : createElement(icon, { fontSize: 'medium' })}
                         </Box>
+                        <Typography variant="subtitle2" noWrap title={translatedTitle}>
+                            {translatedTitle}
+                        </Typography>
                     </Box>
-                    <Box sx={{ px: 2, pt: 1 }}>
-                        {count.isPending
-                            ? <Skeleton variant="text" width={96} height={48} />
-                            : <Typography variant="h4" component="p" sx={{ fontWeight: 600 }}>
-                                {count.error || currentCount === undefined
-                                    ? '—'
-                                    : numberFormat.format(currentCount)}
-                            </Typography>}
-                        {(deltaLabel || percentLabel) && (
-                            <Typography variant="caption" color="text.secondary">
-                                {[deltaLabel, percentLabel].filter(Boolean).join(' · ')}
-                            </Typography>
-                        )}
-                    </Box>
-                </Link>
-                <Box sx={{ height: 64, mt: 'auto', px: 1, pb: 1 }} role="img"
-                    aria-label={translate('dashboard.kpi.sparkline', { resource: translatedTitle })}>
-                    {stats.status === 'ready' && values.length > 1
-                        ? <SparkLineChart
-                            data={values}
-                            height={64}
-                            area
-                            showHighlight
-                            showTooltip
-                            valueFormatter={(value) => value === null ? '—' : numberFormat.format(value)}
-                            margin={{ top: 4, right: 8, bottom: 4, left: 8 }}
-                            color="secondary.main"
-                        />
-                        : <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
-                            {translate(stats.status === 'ready'
-                                ? 'dashboard.kpi.noTrend'
-                                : {
-                                    loading: 'historyChart.asking',
-                                    error: 'historyChart.error',
-                                    partial: 'historyChart.partial',
-                                    unsupported: 'historyChart.noStatistics',
-                                }[stats.status])}
-                        </Typography>}
                 </Box>
-            </Card>
-        );
-    }
+                <Box sx={{ px: 2, pt: 1 }}>
+                    {count.isPending
+                        ? <Skeleton variant="text" width={96} height={48} />
+                        : <Typography variant="h4" component="p" sx={{ fontWeight: 600 }}>
+                            {count.error || currentCount === undefined
+                                ? '—'
+                                : numberFormat.format(currentCount)}
+                        </Typography>}
+                    <InventoryChange delta={delta} percent={percent} numberFormat={numberFormat} />
+                </Box>
+            </Link>
+            <InventoryTrend stats={stats} title={translatedTitle} numberFormat={numberFormat} />
+        </Card>
+    );
+};
+
+const StandardCardWithIcon = ({
+    icon,
+    title,
+    subtitle,
+    to,
+    children,
+}: Props) => {
+    const resource = useResourceContext();
+    const count = useListContext();
+    const stats = useDashboardStatistics(resource ?? '', count);
+    const translate = useTranslate();
 
     const messages = {
         loading: 'historyChart.asking',
@@ -172,5 +198,9 @@ const CardWithIcon = ({
         </Card>
     );
 };
+
+const CardWithIcon = (props: Props) => props.compact
+    ? <CompactCardWithIcon {...props} />
+    : <StandardCardWithIcon {...props} />;
 
 export default CardWithIcon;

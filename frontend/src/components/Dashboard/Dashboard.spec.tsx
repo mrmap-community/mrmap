@@ -64,18 +64,33 @@ const askedResources = () =>
     .map((element) => element.textContent ?? "");
 
 describe("Dashboard", () => {
-  it("answers the critical states and the work which waits before the inventory", () => {
-    render(<Dashboard />);
-    const answered = screen.getAllByText(
-      /critical|workQueue|attention|inventory/,
+  it("answers the critical states above everything and the work which waits beside the inventory", () => {
+    const { container } = render(<Dashboard />);
+    const asked = screen
+      .getAllByText(/critical|workQueue|attention|inventory/)
+      .map((element) => element.textContent);
+    // what is broken is read before the counts of the registry
+    expect(asked[0]).toBe("critical");
+    expect(asked.indexOf("critical")).toBeLessThan(
+      asked.indexOf("inventory WebMapService false true"),
     );
-    const asked = answered.map((element) => element.textContent);
-    expect(asked.slice(0, 3)).toEqual(["critical", "workQueue", "attention"]);
-    for (const answeredFirst of ["critical", "workQueue", "attention"]) {
-      expect(asked.indexOf(answeredFirst)).toBeLessThan(
-        asked.indexOf("inventory WebMapService false true"),
-      );
-    }
+
+    // the health of the deployment and the alerts of its services answer one
+    // column of the same grid the inventory answers, so the exceptions are read
+    // in the middle-right of the screen instead of pushing the counts down the
+    // page (#1816)
+    const health = screen.getByText("workQueue");
+    expect(health.parentElement).toBe(
+      screen.getByText("attention").parentElement,
+    );
+    // the stack of the two cards is one grid item of the grid the inventory
+    // answers in
+    const column = health.parentElement?.parentElement;
+    const grid = container.querySelector(".MuiGrid-container");
+    expect(column?.parentElement).toBe(grid);
+    expect(grid).toContainElement(
+      screen.getByText("inventory WebMapService false true"),
+    );
   });
 
   it("answers which work waits and which services carry a problem", () => {

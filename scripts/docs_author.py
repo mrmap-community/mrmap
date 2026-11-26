@@ -134,16 +134,24 @@ class CostLedger:
         if self.total_tokens > self.limit("model_tokens_total"):
             self.stopped = "model_tokens_total"
 
-    def as_dict(self) -> dict:
-        return {"requests": self.requests, "retries": self.retries,
-                "prompt_tokens": self.prompt_tokens,
-                "completion_tokens": self.completion_tokens,
-                "total_tokens": self.total_tokens,
-                "token_limit": self.limit("model_tokens_total"),
-                "requests_per_claim_limit": self.limit("model_requests_per_claim"),
-                "wall_clock_limit_s": self.limit("wall_clock_narrative_s"),
-                "elapsed_s": round(time.monotonic() - self.started, 3),
-                "stopped_at": self.stopped}
+    def as_dict(self, *, reproducible: bool = False) -> dict:
+        """The ledger as recorded output.
+
+        ``reproducible`` drops the one field a second run cannot reproduce - the
+        wall clock the generator itself spent - so the field can appear in the
+        transcript without making the release artifact unreproducible.
+        """
+        record = {"requests": self.requests, "retries": self.retries,
+                  "prompt_tokens": self.prompt_tokens,
+                  "completion_tokens": self.completion_tokens,
+                  "total_tokens": self.total_tokens,
+                  "token_limit": self.limit("model_tokens_total"),
+                  "requests_per_claim_limit": self.limit("model_requests_per_claim"),
+                  "wall_clock_limit_s": self.limit("wall_clock_narrative_s"),
+                  "stopped_at": self.stopped}
+        if not reproducible:
+            record["elapsed_s"] = round(time.monotonic() - self.started, 3)
+        return record
 
 
 class TranslationMemory:
@@ -338,6 +346,10 @@ class AuthorStage:
                                 f"every attempt was discarded by the gate: "
                                 f"{last_detail}")
         row["status"] = "failed"
+        # The attempt count travels with the failure: a report that says a claim was
+        # discarded without saying it was tried three times reads as one bad answer,
+        # and the retries are the part a reviewer audits against the retry budget.
+        row["attempts"] = attempts
         return row
 
     def generate_audience(self, *, audience: str, claims, locales=contract.LOCALES):

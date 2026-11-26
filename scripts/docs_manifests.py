@@ -38,6 +38,7 @@ cache of accepted sentences rather than an incremental engine.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -56,6 +57,33 @@ SIDECAR_SUFFIX = ".manifest.json"
 #: to a state that no longer exists, which is the failure mode of every hand-kept
 #: manifest this contract replaced.
 RESOLVERS = ("source", "facts", "evidence", "model", "locale", "generator", "tool")
+
+
+#: The files whose content *is* the generator. Digesting them, rather than trusting
+#: a version string nobody bumps, is what makes "a change to the tool regenerates"
+#: true: editing an extractor moves the reuse key without anyone remembering to
+#: raise ``TOOL_VERSION``, and an unversioned behaviour change is exactly how a stale
+#: artifact survives a fix to the code that produced it.
+GENERATOR_FILES = (
+    "docs.py", "docs_contract.py", "docs_workspace.py", "docs_extract.py",
+    "docs_evidence.py", "docs_manifests.py", "docs_providers.py", "docs_author.py",
+    "docs_coverage_baseline.json",
+)
+
+
+def generator_digest() -> str:
+    """One digest over the pipeline's own source, stable across runs."""
+    blob = hashlib.sha256()
+    for name in sorted(GENERATOR_FILES):
+        path = SCRIPTS / name
+        blob.update(name.encode("utf-8"))
+        blob.update(b"\0")
+        try:
+            blob.update(path.read_bytes())
+        except OSError:
+            blob.update(b"<absent>")
+        blob.update(b"\0")
+    return "sha256:" + blob.hexdigest()
 
 
 def digest_of(kind: str, value: str) -> str:

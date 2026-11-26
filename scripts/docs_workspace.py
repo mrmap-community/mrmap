@@ -272,10 +272,27 @@ class Workspace:
         if is_secret_path(safe):
             self.denied.append(f"read:{safe}")
             raise GuardError(f"refusing to read a credential path: {safe}")
+        # Check every step before following it, then check the target. A single
+        # ``resolve()`` followed by a symlink test catches nothing, because resolving
+        # has already followed the link and the test is then false: a symlink committed
+        # anywhere in a candidate tree pointing at the checkout's own ``.env`` walks
+        # straight past a deny-list that names that file. The untrusted content of the
+        # revision under documentation decides where a documentation run reads, which is
+        # the case the issue names as a required test, so it is refused on the way in.
+        walked = self.root
+        for part in Path(safe).parts:
+            walked = walked / part
+            if walked.is_symlink():
+                self.denied.append(f"symlink:{safe}")
+                raise GuardError(
+                    f"refusing to follow a symlink: {safe} (at {part})")
         candidate = (self.root / safe).resolve()
-        if candidate.is_symlink():
-            self.denied.append(f"symlink:{safe}")
-            raise GuardError(f"refusing to follow a symlink: {safe}")
+        if is_secret_path(candidate.relative_to(self.root)
+                          if candidate.is_relative_to(self.root) else candidate):
+            self.denied.append(f"read:{safe}")
+            raise GuardError(
+                f"refusing to read a credential path: {safe} resolves to "
+                f"{candidate.name}")
         return self._contained(self.root, candidate, f"read of {safe}")
 
     def read_bytes(self, rel: str) -> bytes:
@@ -325,7 +342,7 @@ class Workspace:
         """
         for root in roots:
             candidate = Path(root).resolve()
-            if candidate == self.root or self.root in candidate.parents:
+            if candidate == self.root or candidate in self.root.parents:
                 raise GuardError(
                     f"refusing {candidate} as a writable root: it is the tree under "
                     f"documentation or an ancestor of it, which would make every "

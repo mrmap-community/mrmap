@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -251,6 +252,9 @@ class Run:
                           for name in LOCKFILES},
             "locales": list(self.locales),
             "generator": contract.TOOL_VERSION,
+            # The code, not just its version string: a behaviour change that forgot
+            # to bump TOOL_VERSION still moves the key.
+            "generator_code": manifests.generator_digest(),
             "model": model,
             "evidence": self.evidence.input_digest(),
             "surfaces": list(self.surfaces),
@@ -359,8 +363,7 @@ class Run:
         self.sidecars.set_current("evidence", "store",
                                   self.evidence.input_digest())
         self.sidecars.set_current(
-            "generator", contract.TOOL_VERSION,
-            manifests.digest_of("generator", contract.TOOL_VERSION))
+            "generator", contract.TOOL_VERSION, manifests.generator_digest())
         self.sidecars.set_current("source", "tree",
                                   self.input_digest or contract.sha256_text(""))
         if self.provider:
@@ -467,7 +470,11 @@ class Run:
         for surface, document in sorted(self.facts.items()):
             documents[f"facts/{surface}.json"] = document
         for output, record in self.sidecars._written.items():
-            documents[f"manifests/{output}"] = record
+            # The sidecar's own name, suffix included. Publishing it as
+            # ``manifests/<page>.rst`` would put JSON bytes at a path the portal build
+            # reads as a document, so the release bundle would carry a page that is not
+            # a page and the strict Sphinx job on #1597 would fail on it.
+            documents[manifests.sidecar_path(output)] = record
         return documents
 
     def scan_for_secrets(self) -> list[str]:
@@ -478,9 +485,7 @@ class Run:
         and the environment sweep catches the specific values this host happens to
         hold - which is the disclosure that would actually matter.
         """
-        import re
         problems: list[str] = []
-        import os
         values = [value for name, value in os.environ.items()
                   if workspace_lib.SECRET_NAME_RE.search(name)
                   and len(value) >= 8 and value != "0" and value != "1"]
@@ -508,10 +513,19 @@ class Run:
 
     # -------------------------------------------------------------------- report ---
     def provenance(self) -> dict:
+        """The reproducible half of the run's record: what produced this artifact.
+
+        Deliberately free of wall clock. A release artifact has to be rebuildable
+        byte-for-byte from its inputs - that is the comparison #1606's clean build and
+        the #1597 portal's determinism check both rest on - and a file that records how
+        long the generator's own requests took can never be reproduced by a second run.
+        The timing, the per-stage durations and the gate detail strings are the
+        *transcript* of one execution, not a property of the documentation; they live
+        in :meth:`report`, which stays in the working directory and is what CI reads.
+        """
         return {
             "schema": PROVENANCE_SCHEMA,
             "generator": contract.TOOL_VERSION,
-            "run_id": self.run_id,
             "documented_commit": self.documented_commit,
             "version": self.version,
             "candidate_sha": self.release.get("candidate_sha"),
@@ -523,10 +537,8 @@ class Run:
                           "model": self.provider.model_id if self.provider else None},
             "source_digest": self.input_digest,
             "evidence_digest": self.evidence.digest(),
-            "started_at": self.started_at,
-            "finished_at": self.finished_at,
-            "cost": self.ledger.as_dict(),
-            "gate": self.gate.as_dict() if self.gate else None,
+            "cost": self.ledger.as_dict(reproducible=True),
+            "gate": self.gate.as_dict(reproducible=True) if self.gate else None,
             "budgets": {name: entry["value"]
                         for name, entry in sorted(contract.BUDGETS.items())},
             "allowlisted_tools": sorted(contract.TOOL_ALLOWLIST),
@@ -788,6 +800,11 @@ def stage_generate(run: Run) -> dict:
                 run_id=run.run_id, generated_at=run.started_at)
     run.pages = pages
     run.apply_orphan_removal()
+    # The store is persisted next to the pages it backs, not only inside a release
+    # bundle: `docs.py evidence --verify` and the reuse of a previous run both read
+    # it from the working directory, and an artifact that exists only inside a bundle
+    # cannot be checked by the tool that documents it.
+    run.evidence.save(run.workspace)
     run.memory.save(run.workspace)
     summary = stage.summary()
     for row in rows:
@@ -928,10 +945,17 @@ def stage_validate(run: Run) -> dict:
                      f"scripts/docs_coverage_baseline.json in a pull request that "
                      f"names the surface - the gate never raises its own floor")
     if run.author:
-        for locale in run.locales:
+        # V-12 checks the locales the portal is required to carry, not the ones this
+        # run was asked for. A run that generated only English would otherwise pass a
+        # gate computed over its own subset - the aggregate-green failure the epic
+        # names, where one locale silently disappears because nothing insisted on
+        # both. Narrowing --locales is legitimate for local iteration; it is not
+        # legitimate for a run whose artifact is published.
+        for locale in contract.LOCALES:
             rows = [row for row in run.author.outcomes if row["locale"] == locale]
-            gate.add(f"locale {locale} produced claims", bool(rows),
-                     "this locale produced nothing")
+            gate.add(f"V-12 locale {locale} produced claims", bool(rows),
+                     "this locale produced nothing, so its coverage cannot be "
+                     "compared with the other")
         per_locale = run.author.summary()["per_locale"]
         en = per_locale.get("en", {})
         de = per_locale.get("de", {})
@@ -1020,7 +1044,7 @@ def stage_publish(run: Run) -> dict:
                           "--release-sha names the frozen revision this artifact "
                           "documents, and neither was given"}
     target = run.workspace.publish / run.docs_manifest
-    if (target / "report.json").exists() and not run.overwrite:
+    if (target / "provenance.json").exists() and not run.overwrite:
         return {"status": "blocked",
                 "reason": f"{target} already carries a bundle for this "
                           f"docs_manifest; a published path is immutable "
@@ -1039,16 +1063,11 @@ def stage_publish(run: Run) -> dict:
         rel = f"{run.docs_manifest}/{page['output']}"
         _write_bundle(run, rel, body)
         written.append(rel)
-        sidecar = run.sidecars._written.get(page["output"])
-        if sidecar:
-            rel = f"{run.docs_manifest}/manifests/{page['output']}"
-            _write_bundle(run, rel, json.dumps(sidecar, indent=2, sort_keys=True,
-                                               ensure_ascii=False) + "\n")
-            written.append(rel)
-    _write_bundle(run, f"{run.docs_manifest}/report.json",
-                  json.dumps(run.report(), indent=2, sort_keys=True,
-                             ensure_ascii=False) + "\n")
-    written.append(f"{run.docs_manifest}/report.json")
+    # The bundle carries the provenance, not the report. The report is the transcript
+    # of one execution - stage timings, gate detail strings, the run id - and a release
+    # artifact has to be rebuildable byte for byte from its inputs, which a file full of
+    # wall clock never is. The full report stays in the working directory, where the CI
+    # job and whoever diagnoses a refusal read it.
     _write_bundle(run, f"{run.docs_manifest}/provenance.json",
                   json.dumps(run.provenance(), indent=2, sort_keys=True,
                              ensure_ascii=False) + "\n")
@@ -1101,8 +1120,19 @@ class Gate:
             return "skipped"
         return "pass"
 
-    def as_dict(self) -> dict:
-        return {"status": self.status, "checks": self.checks}
+    def as_dict(self, *, reproducible: bool = False) -> dict:
+        """The gate as recorded output.
+
+        ``reproducible`` keeps the verdicts and drops the detail strings: a
+        "1.06s of 3600s" is the transcript of one execution, and a byte-reproducible
+        artifact cannot carry a sentence about how long an earlier run took. The
+        working directory keeps the full rows, which is where a failed release is
+        actually diagnosed.
+        """
+        checks = self.checks
+        if reproducible:
+            checks = [{"id": row["id"], "status": row["status"]} for row in checks]
+        return {"status": self.status, "checks": checks}
 
 
 SURFACE_AUDIENCE = {

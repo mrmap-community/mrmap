@@ -320,8 +320,15 @@ class FakeAdapter(ProviderAdapter):
                     "model_id": self.model_id,
                     "usage": self._usage(request), "refusal_reason": None}
         if self.script == "invented":
-            text = self._compose(request) + " It also exposes the SyncScheduler."
-            return {"text": text, "cited_fact_ids": [self._ids(request)],
+            # Both shapes of invented content at once: a citation for a fact that was
+            # never sent, and prose naming an identifier no fact carries. Catching
+            # only the first would let a confident paragraph about a class that does
+            # not exist through, which is the failure a model is most likely to
+            # produce and the one a reader cannot check.
+            return {"text": self._compose(request)
+                            + " It is coordinated by the SyncSchedulerRegistry.",
+                    "cited_fact_ids": self._ids(request)
+                                      + ["models:model:SyncScheduler"],
                     "model_id": self.model_id, "usage": self._usage(request),
                     "refusal_reason": None}
         return {"text": self._compose(request),
@@ -358,6 +365,10 @@ class FakeAdapter(ProviderAdapter):
         return " ".join(sentences)
 
 
+SHELL_PROGRAMS = frozenset({"sh", "bash", "dash", "zsh", "ksh", "fish", "csh",
+                            "tcsh", "powershell", "pwsh", "cmd"})
+
+
 class CommandAdapter(ProviderAdapter):
     """One allowlisted local binary, speaking JSON on stdin and stdout.
 
@@ -384,6 +395,21 @@ class CommandAdapter(ProviderAdapter):
             if re.search(r"[;&|`$<>\n\r]", token):
                 raise AdapterPolicyError(
                     f"command adapter refuses a shell metacharacter in {token!r}")
+        # The argv is operator configuration, so a metacharacter check alone is not
+        # the boundary: ``["/bin/sh", "-c", "…"]`` needs no metacharacter to run
+        # anything, and an adapter that can run anything is not an adapter. Naming the
+        # interpreter is what makes "bring your own model" an operations decision about
+        # *one program* rather than an arbitrary-execution hole with a nicer name.
+        program = Path(argv[0]).name
+        if program in SHELL_PROGRAMS:
+            raise AdapterPolicyError(
+                f"command adapter refuses {argv[0]!r} as the program: a shell turns "
+                f"the argv into arbitrary execution; name the model client itself")
+        if len(argv) > 1 and argv[1] in ("-c", "-Command", "/c") and program.startswith(
+                ("python", "perl", "ruby", "node")):
+            raise AdapterPolicyError(
+                f"command adapter refuses {argv[1]!r} passed to {argv[0]!r}: an "
+                f"inline program body is arbitrary execution")
         if workspace is None:
             raise AdapterPolicyError("command adapter needs a workspace boundary")
         self.argv = list(argv)
@@ -404,10 +430,11 @@ class CommandAdapter(ProviderAdapter):
         # child named in the configuration, never a broad environment.
         payload = json.dumps(request, sort_keys=True)
         try:
+            # ``input`` already implies a pipe for stdin; passing both is a ValueError
+            # from subprocess itself, so the request is written by ``input`` alone.
             proc = subprocess.run(  # nosec B603 - validated argv, no shell
                 self.argv, input=payload, capture_output=True, text=True,
-                env=env, timeout=self.timeout_s,
-                cwd=str(self.workspace.root), stdin=subprocess.PIPE)
+                env=env, timeout=self.timeout_s, cwd=str(self.workspace.root))
         except subprocess.TimeoutExpired as exc:
             raise ProviderError(
                 f"command provider timed out after {self.timeout_s}s") from exc

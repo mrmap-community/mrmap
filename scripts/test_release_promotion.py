@@ -40,9 +40,10 @@ in docs/source/development/release-promotion.rst, pinned so that swapping those
 commands back in without re-measuring goes red.
 
 Run from the repository root:  python3 scripts/test_release_promotion.py
-(also run by scripts/check_repo_tooling.sh). Standard library only; `yaml` is
-used for the shape checks and its absence skips those out loud. git and bash are
-required; docker, node and the network are not.
+(also run by scripts/check_repo_tooling.sh). Standard library only: the steps
+come from scripts/workflow_steps.py, because PyYAML is no stdlib dependency and
+a runner without it must not be able to report this suite green without having
+run it. git and bash are required; docker, node and the network are not.
 """
 import json
 import os
@@ -54,6 +55,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
+sys.path.insert(0, str(HERE))
+import workflow_steps
 WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
 RUNBOOK = REPO / "docs" / "source" / "administration" / "release-operator-runbook.rst"
 DESIGN = REPO / "docs" / "source" / "development" / "release-promotion.rst"
@@ -64,10 +67,6 @@ RESULTS = []
 def check(name, ok, detail=""):
     RESULTS.append((name, bool(ok), detail))
     return bool(ok)
-
-
-def skip(name, detail):
-    RESULTS.append((name, None, detail))
 
 
 GIT_ENV = dict(os.environ,
@@ -252,8 +251,8 @@ class World:
         return self.merge_commit
 
     # -- the steps under test ----------------------------------------------
-    def run_step(self, doc, job, step_name, env_extra):
-        script = step_script(doc, job, step_name)
+    def run_step(self, text, job, step_name, env_extra):
+        script = step_script(text, job, step_name)
         path = self.dir / f"{job}.sh"
         path.write_text(script, encoding="utf-8")
         env = dict(GIT_ENV,
@@ -274,15 +273,15 @@ class World:
                 outputs[key] = value
         return proc, outputs
 
-    def verify(self, doc, version=VERSION):
-        return self.run_step(doc, "verify",
+    def verify(self, text, version=VERSION):
+        return self.run_step(text, "verify",
                              "Verify the reviewed release pull request",
                              {"VERSION": version})
 
-    def publish(self, doc, outputs=None, version=VERSION, publish=True,
+    def publish(self, text, outputs=None, version=VERSION, publish=True,
                 artifacts=ARTIFACTS):
         outputs = outputs or {}
-        return self.run_step(doc, "publish",
+        return self.run_step(text, "publish",
                              "Publish the tag and the GitHub release",
                              {"VERSION": outputs.get("version", version),
                               "MERGE_COMMIT": outputs.get("merge_commit",
@@ -319,68 +318,98 @@ class World:
 
 # ---------------------------------------------------------- workflow reading
 def load_workflow():
-    try:
-        import yaml
-    except ImportError:
-        return None
-    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    """The workflow text the steps are read out of.
+
+    Not a parse: scripts/workflow_steps.py reads the `run:` blocks, and it
+    raises rather than guessing at a shape it does not read, which main()
+    reports as a failure. A runner without PyYAML gets the same checks as one
+    with it, because there is nothing here left to skip.
+    """
+    return WORKFLOW.read_text(encoding="utf-8")
 
 
-def commands(job, step_name, doc):
+def commands(job, step_name, text):
     """The step's script without its comment lines.
 
     A check that a command is absent has to mean absent from what bash runs: the
     header comments of these steps name the very commands they forbid, and a
     substring test over the whole script would fail on the explanation.
     """
-    script = step_script(doc, job, step_name)
+    script = step_script(text, job, step_name)
     return "\n".join(line for line in script.splitlines()
                       if not line.lstrip().startswith("#"))
 
 
-def step_script(doc, job, step_name):
-    for step in doc["jobs"][job]["steps"]:
-        if step.get("name") == step_name:
-            return step["run"]
-    raise AssertionError(f"no step named {step_name!r} in job {job!r}")
+def step_script(text, job, step_name):
+    return workflow_steps.step_script(text, job, step_name)
 
 
 # ------------------------------------------------------------------- checks
-def shape_checks(doc):
-    triggers = doc.get("on", doc.get(True))
+def shape_checks(text):
+    """The wiring the criteria depend on, read out of the file CI runs.
+
+    Through scripts/workflow_steps.py rather than a YAML library: PyYAML is no
+    stdlib dependency and no runner carries it, so a suite that skipped its
+    checks for want of it would report green having tested nothing - which is
+    how this suite first behaved in CI.
+    """
+    def reads(block, key, indent):
+        lines = block.splitlines() if isinstance(block, str) else block
+        return (any(l.strip().startswith(key + ":") for l in lines)
+                and workflow_steps.scalar(block, key, indent))
+
+    on = workflow_steps.region(text, "on", 0)
+    triggers = workflow_steps.keys(on, 2)
     check("the workflow is dispatched by people and callable, never scheduled or push-triggered",
           set(triggers) == {"workflow_dispatch", "workflow_call"}, str(sorted(triggers)))
-    check("dispatch requires the reviewed version and defaults publish to off",
-          triggers["workflow_dispatch"]["inputs"]["version"]["required"] is True
-          and triggers["workflow_dispatch"]["inputs"]["publish"]["default"] is False,
-          json.dumps(triggers["workflow_dispatch"]["inputs"]))
-    check("the callable inputs mirror the dispatch inputs, so #1609 and #1800 read one interface",
-          set(triggers["workflow_call"]["inputs"])
-          == set(triggers["workflow_dispatch"]["inputs"]),
-          str(sorted(triggers["workflow_call"]["inputs"])))
-    check("one promotion runs at a time and a re-dispatch never cancels a run that may have tagged",
-          doc["concurrency"] == {"group": "release-promotion",
-                                 "cancel-in-progress": False},
-          json.dumps(doc["concurrency"]))
 
-    jobs = doc["jobs"]
+    dispatch_inputs = workflow_steps.region(
+        workflow_steps.region(on, "workflow_dispatch", 2), "inputs", 4)
+    names = workflow_steps.keys(dispatch_inputs, 6)
+    check("dispatch requires the reviewed version and defaults publish to off",
+          {"version", "publish"} <= set(names)
+          and reads(workflow_steps.region(dispatch_inputs, "version", 6),
+                    "required", 8) == "true"
+          and reads(workflow_steps.region(dispatch_inputs, "publish", 6),
+                    "default", 8) == "false",
+          str(names))
+    callable_inputs = workflow_steps.region(
+        workflow_steps.region(on, "workflow_call", 2), "inputs", 4)
+    check("the callable inputs mirror the dispatch inputs, so #1609 and #1800 read one interface",
+          workflow_steps.keys(callable_inputs, 6) == names,
+          str(workflow_steps.keys(callable_inputs, 6)))
+
+    concurrency = workflow_steps.region(text, "concurrency", 0)
+    check("one promotion runs at a time and a re-dispatch never cancels a run that may have tagged",
+          reads(concurrency, "group", 2) == "release-promotion"
+          and reads(concurrency, "cancel-in-progress", 2) == "false",
+          str(concurrency))
+
+    jobs = workflow_steps.keys(workflow_steps.region(text, "jobs", 0), 2)
+    blocks = {job: workflow_steps.job_block(text, job) for job in jobs}
     check("exactly two jobs, and the publisher needs the verifier",
-          set(jobs) == {"verify", "publish"} and jobs["publish"]["needs"] == "verify",
+          set(jobs) == {"verify", "publish"}
+          and reads(blocks["publish"], "needs", 4) == "verify",
           str(sorted(jobs)))
     check("only the publishing job sits behind the protected environment",
-          jobs["publish"].get("environment") == "release-stable"
-          and "environment" not in jobs["verify"],
-          str({k: v.get("environment") for k, v in jobs.items()}))
+          reads(blocks["publish"], "environment", 4) == "release-stable"
+          and "environment" not in blocks["verify"],
+          str({job: ("release-stable" if "environment" in block else None)
+               for job, block in blocks.items()}))
     check("least privilege: read at the top, write only where the tag and release are written",
-          doc["permissions"] == {"contents": "read"}
-          and jobs["verify"].get("permissions", {"contents": "read"}) == {"contents": "read"}
-          and jobs["publish"]["permissions"] == {"contents": "write"},
-          json.dumps({k: v.get("permissions") for k, v in jobs.items()}))
+          reads(workflow_steps.region(text, "permissions", 0), "contents", 2) == "read"
+          and reads(workflow_steps.region(blocks["publish"], "permissions", 4),
+                    "contents", 6) == "write"
+          and not any("contents: write" in block
+                      for job, block in blocks.items() if job != "publish"),
+          str({job: ("write" if "contents: write" in block else "read")
+               for job, block in blocks.items()}))
     check("no job reads a deployment or registry secret",
-          not any("secrets." in json.dumps(job) for job in jobs.values()))
+          not any("secrets." in block for block in blocks.values()),
+          [job for job, block in blocks.items() if "secrets." in block])
 
-    verify_script = commands("verify", "Verify the reviewed release pull request", doc)
-    publish_script = commands("publish", "Publish the tag and the GitHub release", doc)
+    verify_script = commands("verify", "Verify the reviewed release pull request", text)
+    publish_script = commands("publish", "Publish the tag and the GitHub release", text)
     check("verify asks GitHub for the merged develop -> master PR, the only head the policy admits",
           all(part in verify_script for part in
               ("--base master", "--head develop", "--state merged")))
@@ -413,16 +442,16 @@ def shape_checks(doc):
           [l for l in both.splitlines() if "scripts/" in l][:3])
 
 
-def no_merged_pr(doc):
+def no_merged_pr(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-no-pr-"))
     try:
-        proc, _ = w.verify(doc)
+        proc, _ = w.verify(text)
         check("verify refuses when no release pull request was merged",
               proc.returncode == 1 and "no merged develop -> master" in proc.stderr + proc.stdout,
               proc.stderr[:200])
         check("and names the human act that is missing",
               "only a person may merge" in proc.stderr + proc.stdout, proc.stderr[:200])
-        proc, _ = w.publish(doc)
+        proc, _ = w.publish(text)
         check("publish without a verified commit publishes nothing",
               proc.returncode == 1 and w.tags() == [] and w.gh_state()["releases"] == [],
               proc.stderr[:200])
@@ -430,7 +459,7 @@ def no_merged_pr(doc):
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def master_moved(doc):
+def master_moved(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-moved-"))
     try:
         w.prepare_release_pr()
@@ -440,7 +469,7 @@ def master_moved(doc):
         git_ok("add", "-A", cwd=w.repo)
         git_ok("commit", "-q", "-m", "fix: merged straight to master", cwd=w.repo)
         git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=w.repo)
-        proc, _ = w.verify(doc)
+        proc, _ = w.verify(text)
         check("verify refuses a master that moved without a reviewed release merge",
               proc.returncode == 1 and "is not the merge commit" in proc.stderr + proc.stdout,
               proc.stderr[:220])
@@ -449,7 +478,7 @@ def master_moved(doc):
         check("no tag was pushed for the unreviewed tip", w.tags() == [])
         git_ok("update-ref", "refs/remotes/origin/master", merge, cwd=w.repo)
         git_ok("push", "-q", "-f", "origin", f"{merge}:refs/heads/master", cwd=w.repo)
-        proc, out = w.verify(doc)
+        proc, out = w.verify(text)
         check("the same world verifies once master's tip is the reviewed merge again",
               proc.returncode == 0 and out.get("merge_commit") == merge,
               f"{proc.stderr[-200:]} {out}")
@@ -457,12 +486,12 @@ def master_moved(doc):
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def version_mismatch(doc):
+def version_mismatch(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-version-"))
     try:
         w.prepare_release_pr()
         w.merge_to_master()
-        proc, _ = w.verify(doc, version="9.9.9")
+        proc, _ = w.verify(text, version="9.9.9")
         check("verify refuses a dispatch whose version the merged PR does not carry",
               proc.returncode == 1 and "carries VERSION" in proc.stderr + proc.stdout,
               proc.stderr[:220])
@@ -472,7 +501,7 @@ def version_mismatch(doc):
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def malformed_merge_commit(doc):
+def malformed_merge_commit(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-malformed-"))
     try:
         w.prepare_release_pr()
@@ -481,7 +510,7 @@ def malformed_merge_commit(doc):
                                           "mergedAt": "2026-11-26T00:00:00Z",
                                           "mergeCommit": None}]
         w.save()
-        proc, _ = w.verify(doc)
+        proc, _ = w.verify(text)
         check("verify refuses rather than guessing when GitHub answers no merge commit",
               proc.returncode == 1 and "no merged develop -> master" in proc.stderr + proc.stdout,
               proc.stderr[:200])
@@ -489,7 +518,7 @@ def malformed_merge_commit(doc):
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def immutable_tag(doc):
+def immutable_tag(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-foreign-tag-"))
     try:
         w.prepare_release_pr()
@@ -503,23 +532,23 @@ def immutable_tag(doc):
         foreign = git_ok("rev-parse", "HEAD", cwd=w.repo)
         git_ok("tag", "-a", "-m", "v0.2.0", "v0.2.0", cwd=w.repo)
         git_ok("push", "-q", "origin", "refs/tags/v0.2.0", cwd=w.repo)
-        proc, _ = w.verify(doc)
+        proc, _ = w.verify(text)
         check("verify refuses to move a published tag that stands on another commit",
               proc.returncode == 1 and "already stands on" in proc.stderr + proc.stdout,
               proc.stderr[:220])
         check("and it did not move it", w.tag_commit("v0.2.0") == foreign)
         check("a re-run refuses too, so retrying cannot smuggle it through",
-              w.verify(doc)[0].returncode == 1)
+              w.verify(text)[0].returncode == 1)
     finally:
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def green_publish(doc):
+def green_publish(text):
     w = World(tempfile.mkdtemp(prefix="mrmap-1798-green-"))
     try:
         w.prepare_release_pr()
         merge = w.merge_to_master()
-        proc, out = w.verify(doc)
+        proc, out = w.verify(text)
         check("verify passes on the reviewed state", proc.returncode == 0,
               f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
         check("verify reports the merge commit, the version and the tag as job outputs",
@@ -529,7 +558,7 @@ def green_publish(doc):
               merge[:12] in proc.stdout and "release PR #1700" in proc.stdout,
               proc.stdout[-200:])
 
-        proc, _ = w.publish(doc, out, publish=False)
+        proc, _ = w.publish(text, out, publish=False)
         check("the rehearsal writes no tag and no release",
               proc.returncode == 0 and w.tags() == [] and w.gh_state()["releases"] == [],
               f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
@@ -540,7 +569,7 @@ def green_publish(doc):
               "v0.2.0" in proc.stdout and BACKEND_DIGEST in proc.stdout,
               proc.stdout[-300:])
 
-        proc, _ = w.publish(doc, out, publish=True)
+        proc, _ = w.publish(text, out, publish=True)
         check("publish tags master's tip",
               proc.returncode == 0 and w.tag_commit("v0.2.0") == merge,
               f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
@@ -564,7 +593,7 @@ def green_publish(doc):
               any(c[:2] == ["release", "create"] for c in w.journal()),
               str(w.journal())[:200])
 
-        proc, _ = w.publish(doc, out, publish=True)
+        proc, _ = w.publish(text, out, publish=True)
         check("re-running publish is a skip and never a duplicate",
               proc.returncode == 0 and "nothing to do" in proc.stdout
               and [r["tagName"] for r in w.gh_state()["releases"]] == ["v0.2.0"],
@@ -578,7 +607,7 @@ def green_publish(doc):
         git_ok("add", "-A", cwd=w.repo)
         git_ok("commit", "-q", "-m", "fix: landed while this run was approved", cwd=w.repo)
         git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=w.repo)
-        proc, _ = w.publish(doc, out, publish=True)
+        proc, _ = w.publish(text, out, publish=True)
         check("publish re-checks master after the approval and refuses a moved tip",
               proc.returncode == 1 and "moved away from the verified" in proc.stderr + proc.stdout,
               proc.stderr[:220])
@@ -588,7 +617,7 @@ def green_publish(doc):
         shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def measured_and_documented(doc):
+def measured_and_documented(text):
     """The two measurements that decide this design, pinned so a swap back to
     release-please's own github-release has to be re-measured, not asserted."""
     design = DESIGN.read_text(encoding="utf-8")
@@ -610,43 +639,53 @@ def measured_and_documented(doc):
 
 def main():
     if not shutil.which("git") or not shutil.which("bash"):
-        print("SKIP  git or bash is unavailable; the promotion checks need both")
-        print("OK (0 of 0 checks passed)")
-        return 0
+        # Exit 2 is the "the harness cannot run" answer the lifecycle dry run
+        # uses for the same case, and check_repo_tooling.sh reports it as a
+        # failure. It is deliberately not an OK: a suite that executed nothing
+        # must never report a pass, and "OK (0/0 checks passed)" is exactly how
+        # this file once hid that it had run no check at all.
+        print("harness cannot run: git and bash are both required to execute "
+              "the workflow's steps")
+        return 2
     try:
-        doc = load_workflow()
-    except Exception as exc:            # a workflow that will not parse is red
-        check("the promotion workflow parses as YAML", False, str(exc))
-        print("FAIL  the promotion workflow parses as YAML - " + str(exc))
-        print("FAILED (1 of 1 checks passed)")
+        text = load_workflow()
+        shape_checks(text)
+    except workflow_steps.WorkflowReadingError as exc:
+        # The steps ARE the implementation, so a workflow whose steps cannot be
+        # read is a failure to report, never a reason to skip the suite.
+        check("the promotion workflow's steps can be read", False, str(exc))
+        print(f"FAIL  the promotion workflow's steps can be read - {exc}")
+        print(f"FAILED ({sum(1 for r in RESULTS if r[1])}/{len(RESULTS)} "
+              "checks passed)")
         return 1
-    if doc is None:
-        skip("workflow shape checks", "PyYAML is not importable on this runner")
-    else:
-        shape_checks(doc)
-        for name, fn in (("no merged release PR", no_merged_pr),
-                         ("master moved on its own", master_moved),
-                         ("version mismatch", version_mismatch),
-                         ("malformed merge commit", malformed_merge_commit),
-                         ("immutable tag conflict", immutable_tag),
-                         ("green publish, rehearsal and rerun", green_publish)):
-            try:
-                fn(doc)
-            except Exception as exc:
-                check(name, False, f"raised {type(exc).__name__}: {exc}")
-        measured_and_documented(doc)
 
+    for name, fn in (("no merged release PR", no_merged_pr),
+                     ("master moved on its own", master_moved),
+                     ("version mismatch", version_mismatch),
+                     ("malformed merge commit", malformed_merge_commit),
+                     ("immutable tag conflict", immutable_tag),
+                     ("green publish, rehearsal and rerun", green_publish)):
+        try:
+            fn(text)
+        except Exception as exc:
+            check(name, False, f"raised {type(exc).__name__}: {exc}")
+    measured_and_documented(text)
+
+    # No SKIP label: this suite has nothing a runner could lack and still let
+    # the promotion be checked, so a missing prerequisite is the exit-2 answer
+    # above rather than a check that reports itself skipped.
     failed = [r for r in RESULTS if r[1] is False]
-    skipped = [r for r in RESULTS if r[1] is None]
     for name, ok, detail in RESULTS:
-        label = "SKIP" if ok is None else ("PASS" if ok else "FAIL")
-        line = f"{label}  {name}"
-        if ok is not True and detail:
-            line += f"  - {detail}"
-        print(line)
+        print(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"  - {detail}"
+                                                      if not ok and detail else ""))
     passed = [r for r in RESULTS if r[1] is True]
-    print(f'{"FAILED" if failed else "OK"} ({len(passed)}/'
-          f"{len(RESULTS) - len(skipped)} checks passed)")
+    print(f'{"FAILED" if failed or not RESULTS else "OK"} ({len(passed)}/'
+          f"{len(RESULTS)} checks passed)")
+    if not RESULTS:
+        # Nothing reached check(), so nothing was tested. An empty run is never
+        # a pass, whatever else went wrong on the way here.
+        print("harness cannot run: no check was executed")
+        return 2
     return 1 if failed else 0
 
 

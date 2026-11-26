@@ -484,6 +484,19 @@ After modifications:
   left open it blocks there forever — the harness prints the suites finished so far and then stalls,
   which reads as a hang rather than as a failure.
 - Add or update tests when behavior changes.
+- A suite under `scripts/` imports the standard library and other `scripts/` modules only, because
+  `check_repo_tooling.sh` runs it on a bare runner with no virtualenv. This is enforced, not just
+  expected: `scripts/test_release_lifecycle.py` fails when a suite reaches for a third-party import
+  at module level. A guarded optional probe inside a function is the exception and stays legitimate
+  (the xml canary probes `lxml` behind `try`/`except ImportError` and says so out loud). Reading a
+  workflow file needs no parser — `scripts/workflow_steps.py` reads the `run:` blocks as text, the
+  way `test_dev_image_gate.py` reads `dev-images.yml`.
+- A suite must never report a pass without having run a check. The promotion suites once read their
+  workflow with `import yaml`: on a runner without PyYAML one died with exit 2, and the other skipped
+  every check and still printed `OK (0 of 0 checks passed)` — green, having tested nothing. Where the
+  harness genuinely cannot run, exit 2 with "harness cannot run: …" (the lifecycle dry run's
+  convention, which `check_repo_tooling.sh` reports as a failure), and an empty results list is an
+  exit 2 too, never `OK`.
 - In a `check()`-based suite, a check must be able to *report* a failure: read what a check asserts
   through a lookup that yields a value on absence (`res.get("scope")`, a helper returning `None`
   rather than `findings[0]`), and pass the detail as a single operand (`"... %s" % (detail,)`).

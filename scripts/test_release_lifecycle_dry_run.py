@@ -77,6 +77,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
+sys.path.insert(0, str(HERE))
+import workflow_steps
 LIFECYCLE = HERE / "release_lifecycle.json"
 PROMOTION_WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
 VERIFY_STEP = "Verify the reviewed release pull request"
@@ -446,19 +448,12 @@ class DryRun:
     # git's, and this walk can only supply them the way the runner does.
 
     def _step(self, job, step_name, env_extra):
-        try:
-            import yaml
-        except ImportError:
-            raise HarnessCannotRun("PyYAML is not importable, so the promotion "
-                                   "steps cannot be read out of the workflow")
-        doc = yaml.safe_load(PROMOTION_WORKFLOW.read_text(encoding="utf-8"))
-        script = None
-        for step in doc["jobs"][job]["steps"]:
-            if step.get("name") == step_name:
-                script = step["run"]
-        if script is None:
-            raise HarnessCannotRun(f"the promotion workflow has no {job!r} step "
-                                   f"named {step_name!r}")
+        # scripts/workflow_steps.py reads the `run:` block: PyYAML is no stdlib
+        # dependency and no runner has it, which is how this walk once failed
+        # shut in CI. A step that is not there is an error from the reader, not
+        # a silently empty script.
+        script = workflow_steps.step_script(
+            PROMOTION_WORKFLOW.read_text(encoding="utf-8"), job, step_name)
         path = self.dir / f"step-{job}.sh"
         path.write_text(script, encoding="utf-8")
         env = dict(GIT_ENV, GH_TOKEN="",

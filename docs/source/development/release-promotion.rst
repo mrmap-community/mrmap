@@ -136,8 +136,12 @@ Offline checks
 `scripts/test_release_promotion.py` runs the **workflow's own step scripts**:
 they are read out of the committed YAML and executed against throw-away
 repositories whose "origin" is a local bare repo, with a journaling ``gh`` shim
-in ``PATH``. A test cannot pass by drifting from the workflow, because there is
-no second copy of the logic to drift from. It pins each refusal — no merged
+in ``PATH``. The reading is done by `scripts/workflow_steps.py` rather than a
+YAML library, because PyYAML is no stdlib dependency and the runner that
+executes these suites has none — a suite that needed it would either fail shut
+or, worse, skip its checks and still report a pass. A test cannot pass by
+drifting from the workflow, because there is no second copy of the logic to
+drift from. It pins each refusal — no merged
 release pull request, ``master`` moved after the merge, the version the commit
 does not carry, the tag on a foreign commit, the malformed or missing digest,
 the unfolded changelog section — seen REFUSED with nothing written, then the

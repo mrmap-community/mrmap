@@ -18,6 +18,7 @@ Run from the repository root: `python3 scripts/test_release_lifecycle.py`.
 Exit 0 when every check passes, 1 with the failed ones listed.
 """
 
+import ast
 import json
 import re
 import sys
@@ -83,6 +84,34 @@ def main():
     named.add(dev_images)
     for rel in sorted(named):
         check(f"named file exists: {rel}", (ROOT / rel).is_file())
+
+    # --- the suites run on a plain checkout, so they may import nothing else ----
+    #
+    # check_repo_tooling.sh runs scripts/test_*.py on a runner with no virtualenv
+    # of its own. That is stated in the script's header but enforced nowhere, so
+    # a suite that reaches for a third-party import goes red there while passing
+    # locally: the promotion suites once read their workflow with `import yaml`,
+    # which is no stdlib dependency and absent from the runner - one failed shut,
+    # the other skipped every check and still reported "OK (0/0 checks passed)".
+    # PyYAML was the specific trap; the rule is written for the next one.
+    stdlib = set(sys.stdlib_module_names) | {p.stem for p in (ROOT / "scripts").glob("*.py")}
+    offenders = []
+    for suite in sorted((ROOT / "scripts").glob("test_*.py")):
+        # Top level only. An import inside a function can guard itself - the xml
+        # canary probes lxml behind try/except ImportError and says so out loud -
+        # and that is the right convention. A top-level one cannot, and is what
+        # raises before a single check runs.
+        tree = ast.parse(suite.read_text(encoding="utf-8"), filename=str(suite))
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                roots = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+                roots = [node.module.split(".")[0]]
+            else:
+                continue
+            offenders += [f"{suite.name}: {r}" for r in roots if r not in stdlib]
+    check("every scripts/ suite imports stdlib and scripts/ only",
+          not offenders, str(offenders))
 
     # --- the promotion workflow is what the phases claim -----------------------
     wf = read(PROMOTION_WORKFLOW)

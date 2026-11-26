@@ -134,7 +134,8 @@ The phases and what each one proves
    exists. The release body carries both image digests and, when an attestation
    was passed in, the attestation itself. Red half: a master whose tree diverged
    from the tested candidate, a release missing one of the two image digests,
-   and a rolling alias while Q1 of #1578 is Pending - each refused before a tag
+   and a rolling alias while no reviewed alias ledger exists (Q1 of #1578 fixed
+   the tag shape and approved no alias - ADR-0002) - each refused before a tag
    was pushed, which the check after them proves by finding no tag at all.
 
 ``post-release`` (actor: human)
@@ -145,8 +146,9 @@ The version policy, which needs a released baseline
 ===================================================
 
 The bump question - patch, minor, major - is decidable only from a released
-baseline, and this checkout has none: Q1 of #1578 is Pending, so
-``scripts/release_contract_baseline.json`` is in ``pre-baseline`` mode and the
+baseline, and this checkout has none: Q1 of #1578 names ``v0.2.0`` as the first
+published tag and #1800 verifies the oldest supported baseline in front of it,
+so ``scripts/release_contract_baseline.json`` stays in ``pre-baseline`` mode and the
 committed reading reports the required class as an advisory. The walk alone
 cannot show the class rules, and the suite does not pretend otherwise. It asserts
 the committed pre-baseline reading first, then runs the same tools against a copy
@@ -189,9 +191,10 @@ other: the top-level ``tag_pattern`` of the lifecycle, which the stable channel
 of ``master`` publishes under, matches ``vX.Y.Z`` only, the multiversion
 whitelist of ``docs/source/conf.py`` excludes the prerelease pattern, and
 ``release_gates.py`` refuses a prerelease as the ``version`` of a ``released``
-contract baseline. Rolling aliases stay refused while Q1 of #1578 is Pending,
-and the check that asserts it names Q1, so the
-check that trips when the answer lands explains itself.
+contract baseline. Rolling aliases stay refused while no reviewed alias ledger
+exists - Q1 of #1578 (ADR-0002) approved the tag shape and no alias - and the
+check that asserts it names the missing ledger, so the check that trips when a
+reviewed alias decision lands explains itself.
 
 What a dry run cannot decide offline
 ====================================

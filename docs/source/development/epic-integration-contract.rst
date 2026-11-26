@@ -467,11 +467,12 @@ recommendation this page proposes:
   recorded in ``scripts/epic_rollout.json`` under ``branch_lifecycle.merge_queue``
   so it is readable next to the protection rule it belongs to, and the
   implementing act is the branch protection of ``epic/<slug>``. [#1594 — decided]
-* **Does an epic get one version or do its children?** The baseline of #1578
-  (``release-versioning-baseline.rst``) and its ``Q4`` are still Pending. Under
-  this contract the answer is structurally the same either way — the epic's
-  integration PR is the single candidate event — so the contract does not
-  depend on ``Q4``, which is the property that lets this epic and #1577 proceed
+* **Does an epic get one version or do its children?** ``Q4`` of #1578 is
+  answered (Accepted: A — a docs/chore-only window consumes no version; policy
+  in ADR-0002), and the classification that feeds it is the epic integration
+  PR's own carrier. Under this contract the answer was structurally the same
+  either way — the epic's integration PR is the single candidate event — which
+  is why the contract never depended on ``Q4`` and the two epics could proceed
   independently. Owner: #1577.
 * **Label vs native parent for "is an epic".** Recommendation: the native
   parent/sub-issue relation is the fact, and the ``Epic`` label is only a

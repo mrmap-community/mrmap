@@ -13,7 +13,9 @@ What it does NOT do is publish anything to a public registry. No workflow calls
 this tool, it reads no credential of any deployment, and the only registry it
 will push to is the one named by ``--registry-base``. Publishing is a human act
 on a project's own package namespace; wiring an automatic publisher belongs to
-#1581/#1586 and still waits on Q1/Q4 of #1578. Everything that makes publication
+#1581/#1586. Q1 and Q4 of #1578 are answered (first published tag `v0.2.0`,
+tag shape `vMAJOR.MINOR.PATCH`, no version for a docs-only window - ADR-0002),
+and an answered question publishes nothing by itself. Everything that makes publication
 safe - names, tags, labels, the rule that a stable tag never moves, the manifest
 a deployment is pinned with - is here and testable today.
 
@@ -66,8 +68,8 @@ second constant:
              "dev and RC must not overwrite stable" rule in one line.
 
 Rolling aliases (``latest``, ``stable``, ...) are opt-in, one ``--alias`` each,
-and the default is none: #1578's Q1 is unanswered and a rolling alias is a
-product promise this repository has not made. ``--alias`` is refused for
+and the default is none: #1578's Q1 fixed the tag shape and approved no alias,
+and a rolling alias is a product promise this repository has not made. ``--alias`` is refused for
 ``--kind dev``, and the stable aliases are refused for a prerelease.
 
 Build once, promote the bytes that were tested
@@ -934,7 +936,8 @@ def inventory_lines(root, registry_base=REGISTRY_BASE):
     lines.append("  No workflow publishes either name today: .github/workflows/dev-images.yml")
     lines.append("  is the only publisher in the repository and publishes the two")
     lines.append("  dependency images below. Publishing a runtime image is a human act")
-    lines.append("  until #1581/#1586 wire this tool to a trigger (#1578's Q1/Q4 pending).")
+    lines.append("  until #1581/#1586 wire this tool to a trigger (Q1/Q4 of #1578 are")
+    lines.append("  answered policy, not a publisher).")
     lines.append("")
     lines.append("dev tooling only - contract of #959, untouched by a release:")
     lines.append("  ghcr.io/mrmap-community/mrmap-backend-dev:<fingerprint>")

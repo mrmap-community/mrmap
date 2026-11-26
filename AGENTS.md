@@ -131,7 +131,8 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   tree-checks master against the tested candidate before pushing the annotated tag and the GitHub
   release in the same run, and `sync` opens the reviewed master→develop sync PR; it never pushes a
   permanent branch, never moves a tag or release branch that stands elsewhere, and refuses rolling
-  aliases while Q1 of #1578 is Pending. `.github/workflows/release-promotion.yml` dispatches the
+  aliases while no reviewed alias ledger exists (Q1 of #1578 fixed the tag shape and approved no
+  alias — ADR-0002). `.github/workflows/release-promotion.yml` dispatches the
   steps behind the protected `release-stable` environment (an administrator must create it WITH
   required reviewers before the first run — GitHub auto-creates a missing environment unprotected);
   `python3 scripts/test_release_promotion.py` runs the 31-check offline suite (synthetic

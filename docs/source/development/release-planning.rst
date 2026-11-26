@@ -120,11 +120,13 @@ The bump
     ``docs``/``chore``/… only               0.1.1          -            notes empty → no PR at all
     ======================================  =============  ===========  ======================================
 
-    ``bump-minor-pre-major`` is the ADR recommendation of #1578 (Q2) kept as a
-    one-key reversible choice while Q2 stays Pending: without it, the first
-    breaking window would jump the pre-1.0 project to ``1.0.0`` - a major
-    release nobody planned. ``bump-patch-for-minor-pre-major`` stays off: it
-    would also demote ``feat`` to patch.
+    ``bump-minor-pre-major`` is the recorded Q2 answer of #1578 (Accepted: A,
+    ADR-0002): below 1.0.0 a breaking change is the MINOR this project
+    promised. Without it, the first breaking window would jump the pre-1.0
+    project to ``1.0.0`` - a major release nobody planned, decided by nothing
+    but the adoption of a commit-message convention.
+    ``bump-patch-for-minor-pre-major`` stays off: it would also demote ``feat``
+    to patch.
 
 The notes
     ``changelog-sections`` is the release-facing echo of ``scripts/pr_classify``
@@ -136,16 +138,20 @@ The notes
     keeps out of the release notes are ``hidden``. A hidden class still parses:
     a ``chore``-only window *bumps* nothing visible because empty notes mean no
     pull request (strategies/base.js returns no candidate) - verified with the
-    ``docs and chore windows prepare nothing`` scenario. This is the Q4A
-    suppression, kept reversible the same way as Q2's knob.
+    ``docs and chore windows prepare nothing`` scenario. This is the recorded
+    Q4 suppression (Accepted: A, ADR-0002), kept as reversible as Q2's knob.
 
 What the config must not be read to decide
 -------------------------------------------
 Prereleases: nothing here produces one; the SemVer grammar of #1579 carries
 ``-rc.1`` fine and #1584 owns whether a prerelease is ever cut. Q1-Q6 of #1578
-stay Pending until a person answers them through ``scripts/decisions``; the two
-config knobs that touch them are documented above and one key each away from
-the alternative reading.
+were answered by a maintainer on 2026-11-25 through ``scripts/decisions`` and are
+policy in ADR-0002, so the two config knobs that touch them are no longer a
+reversible guess: ``bump-minor-pre-major`` is the recorded Q2 answer and the
+hidden section table is the recorded Q4 answer. Both stay one key away from the
+alternative reading on purpose - a recorded decision is still changed by a
+reviewed pull request, and none of them authorises a tag: the readiness gates
+#1798..#1801 and #1610 stand in front of the first publication.
 
 The found gap: a bang title that only GitHub sees
 ---------------------------------------------------

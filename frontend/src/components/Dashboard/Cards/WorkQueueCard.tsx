@@ -174,11 +174,21 @@ const cardScope = (
       (answers[queue.key]?.total ?? 0) > 0 && queue.kind === "attention",
   );
   if (waiting) return "watch";
-  if (states.some((state) => state === "value")) return "running";
+  if (states.includes("value")) return "running";
   // only a status which says so answers healthy, and never while a queue of
   // them was not read - that is the false green this card exists to prevent
   if (health === "healthy" && read.length === queues.length) return "healthy";
   return "idle";
+};
+
+/** the severity a queue answers with once it does hold records: work which runs
+ *  answers the color of the deployment, an error of the work answers an error
+ *  and everything an administrator owes answers a warning. The chip of a row and
+ *  the icon of the very row answer the same severity, so a row cannot answer two
+ *  different things about what waits in it */
+const severityOf = (queue: WorkQueue): "primary" | "error" | "warning" => {
+  if (queue.kind === "running") return "primary";
+  return queue.key === "failedWork" ? "error" : "warning";
 };
 
 /** the chip of a row: a number answers what waits, a word answers a state a
@@ -219,36 +229,30 @@ const rowChip = (
         label={translate("dashboard.workQueue.unreadable")}
       />
     );
-  if (!total)
+  const running = queue.kind === "running";
+  if (!total) {
+    const emptiness = translate(
+      running ? "dashboard.workQueue.idle" : "dashboard.workQueue.none",
+    );
     return (
       <Chip
         size="small"
         variant="outlined"
         color="default"
         icon={<HourglassEmptyIcon />}
-        label={translate(
-          queue.kind === "running"
-            ? "dashboard.workQueue.idle"
-            : "dashboard.workQueue.none",
-        )}
+        label={emptiness}
       />
     );
+  }
+  const waiting = translate(
+    running ? "dashboard.workQueue.running" : "dashboard.workQueue.waiting",
+  );
   return (
     <Chip
       size="small"
       variant="outlined"
-      color={
-        queue.kind === "running"
-          ? "primary"
-          : queue.key === "failedWork"
-            ? "error"
-            : "warning"
-      }
-      label={translate(
-        queue.kind === "running"
-          ? "dashboard.workQueue.running"
-          : "dashboard.workQueue.waiting",
-      )}
+      color={severityOf(queue)}
+      label={waiting}
     />
   );
 };
@@ -300,6 +304,11 @@ const WorkQueueCard = () => {
       <List disablePadding>
         {queues.map((queue) => {
           const answer = answers[queue.key];
+          // the icon answers the severity of the queue only once its records
+          // were read - a queue which is loading, may not be read or holds
+          // nothing is answered neutral, never colored
+          const iconColor =
+            answer?.state === "value" ? severityOf(queue) : "disabled";
           return (
             <ListItem
               key={queue.key}
@@ -307,18 +316,7 @@ const WorkQueueCard = () => {
               divider
               sx={{ py: 0.75, alignItems: "center" }}
             >
-              <queue.icon
-                fontSize="small"
-                color={
-                  answer?.state === "value"
-                    ? queue.kind === "running"
-                      ? "primary"
-                      : queue.key === "failedWork"
-                        ? "error"
-                        : "warning"
-                    : "disabled"
-                }
-              />
+              <queue.icon fontSize="small" color={iconColor} />
               <ListItemText
                 sx={{ ml: 1, minWidth: 0 }}
                 primary={

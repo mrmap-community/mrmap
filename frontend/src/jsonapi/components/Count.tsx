@@ -30,6 +30,40 @@ const isUnauthorized = (error: unknown): boolean => {
  *  the answer that something does, and the three others are never healthy */
 export type CountState = 'loading' | 'zero' | 'value' | 'forbidden' | 'error';
 
+/** what the read of a count answered: the number to show and the state of the
+ *  read beside it. The three answers which are not a number are kept apart, so
+ *  a screen never reads a refused count as a zero or a loading count as a
+ *  deployment without work (#1816) */
+const answerOfRead = (
+  isPending: boolean,
+  error: unknown,
+  total: number | undefined,
+  oneSecondHasPassed: boolean,
+): { body: ReactNode; state: CountState } => {
+  if (isPending) {
+    return {
+      body: oneSecondHasPassed ? <CircularProgress size={14} /> : '',
+      state: 'loading',
+    };
+  }
+  if (error) {
+    // the mark says which of the two answers it is: a queue the caller may
+    // not read is not a queue whose api failed
+    const unauthorized = isUnauthorized(error);
+    return {
+      body: (
+        <ErrorIcon
+          color="error"
+          fontSize="small"
+          titleAccess={unauthorized ? 'unauthorized' : 'error'}
+        />
+      ),
+      state: unauthorized ? 'forbidden' : 'error',
+    };
+  }
+  return { body: total, state: total ? 'value' : 'zero' };
+};
+
 /**
  * Fetch and render the number of records of a given resource
  *
@@ -104,21 +138,12 @@ export const Count = ({
         }
     }, { refetchInterval });
 
-    let body: ReactNode;
-    let state: CountState;
-    if (isPending) {
-        body = oneSecondHasPassed ? <CircularProgress size={14} /> : '';
-        state = 'loading';
-    } else if (error) {
-        // the mark says which of the two answers it is: a queue the caller may
-        // not read is not a queue whose api failed
-        const unauthorized = isUnauthorized(error);
-        body = <ErrorIcon color="error" fontSize="small" titleAccess={unauthorized ? 'unauthorized' : 'error'} />;
-        state = unauthorized ? 'forbidden' : 'error';
-    } else {
-        body = total;
-        state = total ? 'value' : 'zero';
-    }
+    const { body, state } = answerOfRead(
+        isPending,
+        error,
+        total,
+        oneSecondHasPassed,
+    );
 
     // a screen which answers the state of the read beside the number - the
     // queue of a dashboard must never read a refused count as a zero - learns

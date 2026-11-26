@@ -432,10 +432,12 @@ Use an authorized host GitHub login; do not copy tokens into evidence::
    gh api --paginate repos/mrmap-community/mrmap/collaborators?per_page=100
    gh api repos/mrmap-community/mrmap/teams
    gh api repos/mrmap-community/mrmap/actions/permissions/workflow
-   scripts/wip ls
 
 Inspect every returned ruleset's conditions, required contexts and bypass actors.
 If a listing reaches a CLI limit, paginate before declaring the inventory complete.
+The claim listing of the cutover audit ran through the then-current
+``scripts/wip ls``, retired with its tool under #1794; the claim it found is
+recorded above and needs no re-run.
 Also inspect the existing Project #3 UI and installed app permissions with its
 owner: repository collaborator rights do not establish every app installation's
 authority, and built-in project workflow settings were not audited through REST.

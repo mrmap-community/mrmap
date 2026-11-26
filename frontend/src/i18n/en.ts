@@ -942,6 +942,13 @@ const en = lodashMerge(
       },
     },
     dashboard: {
+      // the critical states of the deployment above the queues and the
+      // inventory (#1816): the names of the components are the words of the
+      // system status, this card only says how many of them carry the state
+      criticalAlerts: {
+        down: "%{smart_count} component of the deployment is down |||| %{smart_count} components of the deployment are down",
+        degraded: "%{smart_count} component of the deployment is degraded |||| %{smart_count} components of the deployment are degraded",
+      },
       workQueue: {
         title: "Work which waits",
         scope: "Counted over everything you are allowed to see",
@@ -1057,6 +1064,13 @@ const en = lodashMerge(
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
       viewCatalogueAlerts: "View catalogue alerts",
+      // the read of the alerts is out: a card which is simply absent would be
+      // read as a deployment without a problem (#1816)
+      checking: "Checking the alerts of the services…",
+      // the read of the alerts failed: the deployment may have alerts which
+      // nobody can count right now, so the card says so instead of answering
+      // a deployment without a problem (#1816)
+      loadError: "The alerts could not be loaded.",
       error: "Error",
       warning: "Warning",
       categories: {

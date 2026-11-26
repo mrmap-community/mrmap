@@ -13,6 +13,17 @@ import {
 } from 'ra-core';
 
 
+/** whether an api error says the caller may not read what was asked for - the
+ *  same reading of the http status by which the context of the system status
+ *  decides about its indicator (#833). A read which is not allowed is answered
+ *  apart from a read which failed, so a count never reads as zero and a
+ *  missing permission is not reported as a failure of the api (#1816) */
+const isUnauthorized = (error: unknown): boolean => {
+  const e = error as { status?: number; response?: { status?: number } };
+  const status = e?.status ?? e?.response?.status;
+  return status === 401 || status === 403;
+};
+
 /**
  * Fetch and render the number of records of a given resource
  *
@@ -90,7 +101,9 @@ export const Count = ({
     if (isPending) {
         body = oneSecondHasPassed ? <CircularProgress size={14} /> : '';
     } else if (error) {
-        body = <ErrorIcon color="error" fontSize="small" titleAccess="error" />;
+        // the mark says which of the two answers it is: a queue the caller may
+        // not read is not a queue whose api failed
+        body = <ErrorIcon color="error" fontSize="small" titleAccess={isUnauthorized(error) ? 'unauthorized' : 'error'} />;
     } else {
         body = total;
     }

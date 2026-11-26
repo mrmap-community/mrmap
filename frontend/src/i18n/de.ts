@@ -926,6 +926,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    // die kritischen Zustände der Bereitstellung über den Warteschlangen und
+    // dem Bestand (#1816): die Namen der Komponenten sind die Worte des
+    // Systemstatus, diese Karte sagt nur, wie viele von ihnen den Zustand haben
+    criticalAlerts: {
+      down: "%{smart_count} Komponente der Bereitstellung ist gestoppt |||| %{smart_count} Komponenten der Bereitstellung sind gestoppt",
+      degraded: "%{smart_count} Komponente der Bereitstellung ist eingeschränkt |||| %{smart_count} Komponenten der Bereitstellung sind eingeschränkt",
+    },
     workQueue: {
       title: "Wartende Arbeit",
       scope: "Gezählt über alles, was Sie sehen dürfen",
@@ -1193,6 +1200,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
     viewAll: "Alle Hinweise anzeigen",
     viewCatalogueAlerts: "Hinweise der Kataloge anzeigen",
+    // der Abruf der Hinweise ist unterwegs: eine Karte, die einfach fehlt,
+    // würde als Bereitstellung ohne Hinweise gelesen (#1816)
+    checking: "Die Hinweise der Dienste werden geprüft…",
+    // der Abruf der Hinweise ist fehlgeschlagen: die Bereitstellung kann
+    // Hinweise haben, die gerade niemand zahlen kann, also sagt die Karte das
+    // statt eine Bereitstellung ohne Hinweise zu antworten (#1816)
+    loadError: "Die Hinweise konnten nicht geladen werden.",
     error: "Fehler",
     warning: "Warnung",
     categories: {

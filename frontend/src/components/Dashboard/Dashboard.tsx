@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 
 import { Box, Grid, Stack } from "@mui/material";
 
+import CriticalAlerts from "./Cards/CriticalAlerts";
 import ResourceListCard from "./Cards/ResourceListCard";
 import ServiceAttentionCard from "./Cards/ServiceAttentionCard";
 import WorkQueueCard from "./Cards/WorkQueueCard";
@@ -9,11 +10,13 @@ import WorkQueueCard from "./Cards/WorkQueueCard";
 /**
  * The dashboard of the deployment.
  *
- * It answers the work before the inventory: what waits for an administrator,
- * which services carry a problem and which work the deployment is doing right
- * now are answered above the counts of the registered resources, because an
- * administrator opens this screen to decide what to do next and not to read the
- * size of the registry. The inventory stays below and is the same as before.
+ * It answers what is broken, then the work which waits, then the inventory: a
+ * deployment whose workers do not run is answered above everything else, what
+ * waits for an administrator and which services carry a problem above the
+ * counts of the registered resources, because an administrator opens this
+ * screen to decide what to do next and not to read the size of the registry.
+ * The critical answers and the queues only answer when they have something to
+ * say, so a healthy deployment with nothing to do reads as the inventory.
  *
  * The inventory is answered in three rows of MUI grid cells: four cards on the
  * wide screens of the registry, two by two on a tablet and one below the other
@@ -22,9 +25,13 @@ import WorkQueueCard from "./Cards/WorkQueueCard";
 const Dashboard = (): ReactNode => {
   return (
     <Box sx={{ py: 2 }}>
-      {/* the queues of work and the alerts of the services answer the work which
-          waits - on a narrow screen they are asked one below the other */}
+      {/* the critical states of the deployment precede the work which waits and
+          the inventory - they answer nothing while the deployment is healthy */}
       <Stack spacing={2} sx={{ mb: 2 }}>
+        <CriticalAlerts />
+        {/* the queues of work and the alerts of the services answer the work
+            which waits - on a narrow screen they are asked one below the
+            other */}
         <WorkQueueCard />
         <ServiceAttentionCard />
       </Stack>

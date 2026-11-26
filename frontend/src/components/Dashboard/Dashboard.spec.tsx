@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import Dashboard from "./Dashboard";
 
+vi.mock("./Cards/CriticalAlerts", () => ({
+  default: () => <div>critical</div>,
+}));
+
 vi.mock("./Cards/WorkQueueCard", () => ({
   default: () => <div>workQueue</div>,
 }));
@@ -40,21 +44,23 @@ const askedResources = () =>
     .map((element) => element.textContent ?? "");
 
 describe("Dashboard", () => {
-  it("answers the work which waits before the inventory", () => {
+  it("answers the critical states and the work which waits before the inventory", () => {
     render(<Dashboard />);
-    const answered = screen.getAllByText(/workQueue|attention|inventory/);
+    const answered = screen.getAllByText(
+      /critical|workQueue|attention|inventory/,
+    );
     const asked = answered.map((element) => element.textContent);
-    expect(asked.slice(0, 2)).toEqual(["workQueue", "attention"]);
-    expect(asked.indexOf("workQueue")).toBeLessThan(
-      asked.indexOf("inventory WebMapService false"),
-    );
-    expect(asked.indexOf("attention")).toBeLessThan(
-      asked.indexOf("inventory WebMapService false"),
-    );
+    expect(asked.slice(0, 3)).toEqual(["critical", "workQueue", "attention"]);
+    for (const answeredFirst of ["critical", "workQueue", "attention"]) {
+      expect(asked.indexOf(answeredFirst)).toBeLessThan(
+        asked.indexOf("inventory WebMapService false"),
+      );
+    }
   });
 
   it("answers which work waits and which services carry a problem", () => {
     render(<Dashboard />);
+    expect(screen.getByText("critical")).toBeInTheDocument();
     expect(screen.getByText("workQueue")).toBeInTheDocument();
     expect(screen.getByText("attention")).toBeInTheDocument();
   });

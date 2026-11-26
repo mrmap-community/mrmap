@@ -16,6 +16,10 @@ vi.mock("react-admin", () => ({
   useCanAccessResources: () => ({ canAccess: access.canAccess, isPending: access.isPending }),
 }));
 
+vi.mock("./Cards/ActivityChart", () => ({
+  default: ({ resources }: { resources: string[] }) => <div data-testid="activity-chart">{resources.join(",")}</div>,
+}));
+
 vi.mock("./Cards/WorkQueueCard", () => ({
   default: () => <div>workQueue</div>,
 }));
@@ -96,6 +100,16 @@ describe("Dashboard", () => {
     access.isPending = true;
     const { container } = render(<Dashboard />);
     expect(container.querySelectorAll(".MuiSkeleton-root")).toHaveLength(9);
+    expect(screen.queryByTestId("activity-chart")).not.toBeInTheDocument();
+  });
+
+  it("only gives permitted resources to the activity chart", () => {
+    access.canAccess.CatalogueService = false;
+    access.canAccess.User = false;
+    render(<Dashboard />);
+    expect(screen.getByTestId("activity-chart")).not.toHaveTextContent("CatalogueService");
+    expect(screen.getByTestId("activity-chart")).not.toHaveTextContent("User");
+    expect(screen.getByTestId("activity-chart")).toHaveTextContent("DatasetMetadataRecord");
   });
 
   it("leaves no layout wrapper dividers or spacers of its own", () => {

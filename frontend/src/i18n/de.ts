@@ -926,6 +926,23 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    activity: {
+      title: "Aktivität im Zeitverlauf",
+      scope: "Protokollierte Ereignisse, keine verschiedenen Objekte. Nur Ressourcen mit verifiziertem Dashboard-Verlauf werden zusammengefasst.",
+      resource: "Ressource",
+      all: "Alle unterstützten Ressourcen",
+      period: "Zeitraum",
+      days: "Letzte %{days} Tage",
+      coverage: "Abdeckung des Verlaufs",
+      complete: "Vollständig für den gewählten Zeitraum",
+      excluded: "Kein verifizierter Dashboard-Verlauf: %{resources}",
+      window: "%{from} – %{to} (%{days} Kalendertage, Europe/Berlin)",
+      totals: "Ereignissummen im gewählten Zeitraum",
+      series: "Sichtbare Ereignisreihen",
+      events: "Ereignisse",
+      empty: "Keine Änderungen in diesem Zeitraum erfasst.",
+      noSeries: "Wählen Sie eine Ereignisreihe, um das Diagramm anzuzeigen.",
+    },
     kpi: {
       delta: "Veränderung %{delta}",
       percent: "%{percent} gegenüber Periodenanfang",

@@ -16,9 +16,10 @@ export const useDashboardStatistics = (
     filterValues?: Record<string, unknown>;
   },
   period: DashboardPeriod = 30,
+  enabled = true,
 ): DashboardStatistics => {
   const { api, isPending, error } = useHttpClientContext();
-  const supported = hasDashboardHistory(resource)
+  const supported = enabled && hasDashboardHistory(resource)
     && Object.keys(count.filterValues ?? {}).length === 0
     && Boolean(api?.getOperation(`list_Statistical${resource}`));
   const today = dashboardToday();

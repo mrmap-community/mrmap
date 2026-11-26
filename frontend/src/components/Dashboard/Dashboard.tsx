@@ -3,6 +3,7 @@ import { useCanAccessResources } from "react-admin";
 
 import { Box, Grid, Skeleton, Stack } from "@mui/material";
 
+import ActivityChart from "./Cards/ActivityChart";
 import ResourceListCard from "./Cards/ResourceListCard";
 import ServiceAttentionCard from "./Cards/ServiceAttentionCard";
 import WorkQueueCard from "./Cards/WorkQueueCard";
@@ -53,6 +54,9 @@ const Dashboard = (): ReactNode => {
                 </Grid>
               ))}
       </Grid>
+      {!isPending && <Box sx={{ mt: 2 }}>
+        <ActivityChart resources={inventoryResources.filter(resource => canAccess?.[resource] === true)} />
+      </Box>}
     </Box>
   );
 };

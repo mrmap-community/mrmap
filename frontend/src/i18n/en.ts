@@ -942,6 +942,23 @@ const en = lodashMerge(
       },
     },
     dashboard: {
+      activity: {
+        title: "Activity over time",
+        scope: "Audit events, not distinct objects. Only resources with verified dashboard history are combined.",
+        resource: "Resource",
+        all: "All supported resources",
+        period: "Period",
+        days: "Last %{days} days",
+        coverage: "History coverage",
+        complete: "Complete for the selected period",
+        excluded: "No verified dashboard history: %{resources}",
+        window: "%{from} – %{to} (%{days} calendar days, Europe/Berlin)",
+        totals: "Event totals for the selected period",
+        series: "Visible event series",
+        events: "Events",
+        empty: "No changes recorded in this period.",
+        noSeries: "Select an event series to display the chart.",
+      },
       kpi: {
         delta: "Change %{delta}",
         percent: "%{percent} from the period start",

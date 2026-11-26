@@ -82,7 +82,7 @@ const InventoryTrend = ({ stats, title, numberFormat }: {
     );
 };
 
-const CompactCardWithIcon = ({ icon, title, to }: Props) => {
+const CompactCardWithIcon = ({ icon, title, to }: Pick<Props, "icon" | "title" | "to">) => {
     const resource = useResourceContext();
     const count = useListContext();
     const stats = useDashboardStatistics(resource ?? '', count);
@@ -142,7 +142,7 @@ const StandardCardWithIcon = ({
     subtitle,
     to,
     children,
-}: Props) => {
+}: Omit<Props, "compact">) => {
     const resource = useResourceContext();
     const count = useListContext();
     const stats = useDashboardStatistics(resource ?? '', count);

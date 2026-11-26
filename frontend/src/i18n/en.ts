@@ -954,6 +954,7 @@ const en = lodashMerge(
       },
     },
     historyChart: {
+      partial: "Incomplete statistics for this period.",
       total: "Total %{unit}",
       new: "Additions",
       updated: "Updates",

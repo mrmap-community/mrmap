@@ -1,10 +1,11 @@
 import { createElement, FC, ReactNode } from 'react';
-import { useListContext } from 'react-admin';
+import { useListContext, useResourceContext, useTranslate } from 'react-admin';
 import { Link, To } from 'react-router-dom';
 
 import { Box, Card, Typography } from '@mui/material';
 
-import HistoryChart from '../../Resource/Generic/History/HistoryChart';
+import { HistoryChartCore } from '../../Resource/Generic/History/HistoryChart';
+import { useDashboardStatistics } from '../useDashboardStatistics';
 
 interface Props {
     icon: FC<import("@mui/material").SvgIconProps>;
@@ -21,7 +22,16 @@ const CardWithIcon = ({
     to,
     children 
 }: Props) => {
-    const { total } = useListContext();
+    const resource = useResourceContext();
+    const count = useListContext();
+    const stats = useDashboardStatistics(resource ?? '', count);
+    const translate = useTranslate();
+    const messages = {
+        loading: 'historyChart.asking',
+        error: 'historyChart.error',
+        partial: 'historyChart.partial',
+        unsupported: 'historyChart.noStatistics',
+    };
 
     return (
         <Card
@@ -87,7 +97,9 @@ const CardWithIcon = ({
                 
                     
             </Box>
-            <HistoryChart height={100} total={total}/>
+            {stats.status === 'ready'
+                ? <HistoryChartCore changes={stats.days} height={100} />
+                : <Typography variant="body2">{translate(messages[stats.status])}</Typography>}
             {children}
         </Card>
     )

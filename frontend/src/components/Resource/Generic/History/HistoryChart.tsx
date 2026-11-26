@@ -7,7 +7,11 @@ import { AllSeriesType, ChartsContainerProps } from '@mui/x-charts';
 import { ChartSeriesType } from '@mui/x-charts/internals';
 
 import GradientChartsContainer from '../../../MUI/GradientChartsContainer';
+import { CHANGE_DAYS, changesOfDays, lastDays, type DailyChange } from './historyDays';
 import HistoryListBase from './HistoryListBase';
+
+export { CHANGE_DAYS, changesOfDays, lastDays } from "./historyDays";
+export type { DailyChange } from "./historyDays";
 
 export interface HistoryChartProps extends Omit<ChartsContainerProps, "filter">{
   resource?: string
@@ -15,28 +19,8 @@ export interface HistoryChartProps extends Omit<ChartsContainerProps, "filter">{
   filter?: import("react-admin").FilterPayload
 }
 
-/** the days of the past the chart of a resource counts the changes of */
-export const CHANGE_DAYS = 30;
-
 /** the amount of days of the window the axis of the chart names */
 const NAMED_DAYS = 5;
-
-/**
- * The day a statistic of the api belongs to, as the chart asks it back.
- *
- * The api answers the day of the resource as a plain day of the month, and a day
- * of the month is never moved into another day by the timezone of the viewer, so
- * an answered day is taken as it is and only an instant is read as a day.
- */
-const dayOf = (day: unknown) => {
-  if (typeof day === 'string') return day.slice(0, 10);
-  const date = new Date(day as string | number);
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-');
-};
 
 /**
  * The day of the window named for the viewer.
@@ -74,73 +58,6 @@ export const namedDays = (days: string[]): Set<string> => {
   return named;
 };
 
-/** the given amount of days before today, oldest first, as yyyy-mm-dd */
-export const lastDays = (days: number): string[] => {
-  const today = new Date();
-  return Array.from({ length: days }, (_unused, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (days - 1 - index));
-    return dayOf(date);
-  });
-};
-
-/** the changes of one day of the window of the chart */
-export interface DailyChange {
-  /** the day the change belongs to, as yyyy-mm-dd */
-  id: string
-  /** what was added to the inventory of the resource that day */
-  new: number
-  /** what was updated in the inventory of the resource that day */
-  updated: number
-  /** what was taken out of the inventory of the resource that day */
-  deleted: number
-  /** the inventory the resource counted that day */
-  total: number
-}
-
-/**
- * The changes of the given days, oldest first, and the inventory which was
- * answered for the day after them.
- *
- * The api answers only the days which did have a change, so a day without an
- * answer is a day without any change and never a hole. The inventory of the
- * oldest day is stepped back from the inventory of today, because the api
- * answers the changes per day and not the inventory per day.
- *
- * @param data the statistics the api answered for the resource
- * @param total the inventory the resource counts today
- * @param days the days of the window, oldest first, as yyyy-mm-dd
- * @returns the changes of every day of the window, oldest first
- */
-export const changesOfDays = (
-  data: import("react-admin").RaRecord[] | undefined,
-  total: number,
-  days: string[]
-): DailyChange[] => {
-  const byDay = new Map<string, import("react-admin").RaRecord>();
-  data?.forEach(record => byDay.set(dayOf(record?.day), record));
-
-  const changes = days.map(day => {
-    const answered = byDay.get(day);
-    return {
-      id: day,
-      new: answered?.new ?? 0,
-      updated: answered?.updated ?? 0,
-      deleted: answered?.deleted ?? 0,
-      total: 0,
-    };
-  });
-
-  // the last day of the window carries the inventory the resource counts today
-  let inventory = total;
-  for (let index = changes.length - 1; index >= 0; index--) {
-    changes[index].total = inventory;
-    inventory = inventory - changes[index].new + changes[index].deleted;
-  }
-
-  return changes;
-}
-
 /**
  * The changes of a resource, drawn as stacked bars of what changed and as a line
  * of the inventory which was counted after them.
@@ -155,7 +72,7 @@ export const HistoryChartCore = (
     ...props
   }: {
     /** the changes of the days of the window, oldest first */
-    changes: DailyChange[]
+    changes: (Omit<DailyChange, "total"> & { total: number | null })[]
   } & Omit<HistoryChartProps, "resource" | "total" | "filter">
 ) => {
   const { name } = useResourceDefinition()
@@ -164,7 +81,7 @@ export const HistoryChartCore = (
   const theme = useTheme();
 
   const series = useMemo<Readonly<AllSeriesType<ChartSeriesType>>[]>(() => {
-    const totals: number[] = []
+    const totals: (number | null)[] = []
     const added: number[] = []
     const changed: number[] = []
     const removed: number[] = []
@@ -180,7 +97,7 @@ export const HistoryChartCore = (
     // the amount it changed and the line above them reads as the inventory the
     // card counts - the chart never draws a change as a part of the inventory
     const series = [
-      { type: 'line' as const, data: totals, label: translate('historyChart.total', { unit: name }), area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'},
+      ...(totals.every(total => total === null) ? [] : [{ type: 'line' as const, data: totals, label: translate('historyChart.total', { unit: name }), area: true, showMark: true, color: theme.palette.primary.main || '', id: 'stats'}]),
       { type: 'bar' as const, data: added, label: translate('historyChart.new'), stack: 'changes', color: theme.palette.success.main },
       { type: 'bar' as const, data: changed, label: translate('historyChart.updated'), stack: 'changes', color: theme.palette.info.main },
       { type: 'bar' as const, data: removed, label: translate('historyChart.deleted'), stack: 'changes', color: theme.palette.error.main },

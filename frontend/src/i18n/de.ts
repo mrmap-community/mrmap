@@ -926,6 +926,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    kpi: {
+      delta: "Veränderung %{delta}",
+      percent: "%{percent} gegenüber Periodenanfang",
+      noPercent: "Prozentsatz bei Null-Ausgangswert nicht verfügbar",
+      noTrend: "Keine Bestandstrenddaten",
+      sparkline: "Bestandstrend für %{resource}",
+    },
     workQueue: {
       title: "Wartende Arbeit",
       scope: "Gezählt über alles, was Sie sehen dürfen",

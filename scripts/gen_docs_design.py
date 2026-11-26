@@ -95,6 +95,11 @@ DECISIONS = [
      " docs-chore suppression, the supported upgrade window and its two-MINOR"
      " deprecation unit, and the single application version as the external"
      " contract."),
+    ("ADR-0003-low-overhead-observability",
+     "architecture/decisions/ADR-0003-low-overhead-observability.md",
+     "Proposed technical observability contract: direct OTLP, pinned evaluation"
+     " versions, privacy and process boundaries, independent metrics and gates"
+     " before legacy diagnostics can retire."),
     ("ADR-README", "architecture/decisions/README.md",
      "The conventions the records are written under: numbering, what each status"
      " commits the project to, and how a record is superseded rather than edited."

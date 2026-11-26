@@ -1,0 +1,220 @@
+{
+  "issue": 1776,
+  "inspected_on": "2026-11-26",
+  "baseline_develop_sha": "bc3e516b6cefdd6ec13de3945a6615e89d69a64d",
+  "scope": "Source/metadata audit and synthetic SDK-to-loopback protobuf receiver; no application or Victoria runtime",
+  "probe": {
+    "bucket_counts": [
+      2,
+      1,
+      0
+    ],
+    "explicit_bounds_seconds": [
+      0.4,
+      1.0
+    ],
+    "export_http_400_work_result": "completed",
+    "http_exporter": "1.45.2",
+    "metric_forbidden_attribute_removed": true,
+    "normal_series_limit": 2,
+    "overflow_observation_count": 2,
+    "python": "3.14.4",
+    "real_store_compatibility": "not tested",
+    "receiver_decode_failures": [],
+    "sampling_off_metric_count": 3,
+    "sampling_on_exported_spans_before_refusal": 1,
+    "sdk": "1.45.2",
+    "temporality": "cumulative",
+    "total_series_with_overflow": 3
+  },
+  "expected_probe_stderr": [
+    "Failed to export spans batch code: 400, reason: Bad Request",
+    "Failed to export metrics batch code: 400, reason: Bad Request"
+  ],
+  "upstream_metadata": [
+    {
+      "name": "opentelemetry-api",
+      "version": "1.45.2",
+      "url": "https://pypi.org/pypi/opentelemetry-api/1.45.2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "typing-extensions>=4.5.0"
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34"
+    },
+    {
+      "name": "opentelemetry-sdk",
+      "version": "1.45.2",
+      "url": "https://pypi.org/pypi/opentelemetry-sdk/1.45.2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "opentelemetry-api==1.45.2",
+        "opentelemetry-semantic-conventions==0.66b2",
+        "typing-extensions>=4.5.0",
+        "opentelemetry-configuration==0.66b2; extra == \"file-configuration\""
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "ff974ea70ee4f1d51e2ec152db37c2b626c7bf82bb3f7d86114fd8704e7199c6"
+    },
+    {
+      "name": "opentelemetry-exporter-otlp-proto-http",
+      "version": "1.45.2",
+      "url": "https://pypi.org/pypi/opentelemetry-exporter-otlp-proto-http/1.45.2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "googleapis-common-protos~=1.52",
+        "opentelemetry-api~=1.15",
+        "opentelemetry-exporter-http-transport[requests]==0.66b2",
+        "opentelemetry-exporter-otlp-common==0.66b2",
+        "opentelemetry-exporter-otlp-proto-common==1.45.2",
+        "opentelemetry-proto==1.45.2",
+        "opentelemetry-sdk~=1.45.2",
+        "requests~=2.7",
+        "typing-extensions>=4.5.0",
+        "opentelemetry-exporter-credential-provider-gcp>=0.59b0; extra == \"gcp-auth\"",
+        "opentelemetry-exporter-http-transport[requests]==0.66b2; extra == \"requests\"",
+        "requests~=2.7; extra == \"requests\""
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "6e4d025138829d0ee57946930c2ccad6491ad4d92a958e9c7eea69278fe60cfc"
+    },
+    {
+      "name": "opentelemetry-instrumentation-django",
+      "version": "0.66b2",
+      "url": "https://pypi.org/pypi/opentelemetry-instrumentation-django/0.66b2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "opentelemetry-api~=1.12",
+        "opentelemetry-instrumentation-wsgi==0.66b2",
+        "opentelemetry-instrumentation==0.66b2",
+        "opentelemetry-semantic-conventions==0.66b2",
+        "opentelemetry-util-http==0.66b2",
+        "opentelemetry-instrumentation-asgi==0.66b2; extra == \"asgi\"",
+        "django>=2.0; extra == \"instruments\""
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "a21f629959a90a62ca209cc5f40224128d7cbe7df9682f7febcb414de39d5978"
+    },
+    {
+      "name": "opentelemetry-instrumentation-celery",
+      "version": "0.66b2",
+      "url": "https://pypi.org/pypi/opentelemetry-instrumentation-celery/0.66b2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "opentelemetry-api~=1.12",
+        "opentelemetry-instrumentation==0.66b2",
+        "opentelemetry-semantic-conventions==0.66b2",
+        "celery<6.0,>=4.0; extra == \"instruments\""
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "ebd105e957a92c1e002ced628f8948a19334296183f6d558eeab9fa406b84406"
+    },
+    {
+      "name": "opentelemetry-instrumentation-requests",
+      "version": "0.66b2",
+      "url": "https://pypi.org/pypi/opentelemetry-instrumentation-requests/0.66b2/json",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "opentelemetry-api~=1.12",
+        "opentelemetry-instrumentation==0.66b2",
+        "opentelemetry-semantic-conventions==0.66b2",
+        "opentelemetry-util-http==0.66b2",
+        "requests~=2.0; extra == \"instruments\""
+      ],
+      "advertised_python_versions": [
+        "3.10",
+        "3.11",
+        "3.12",
+        "3.13",
+        "3.14"
+      ],
+      "license_expression": "Apache-2.0",
+      "wheel_sha256": "b0ba903a0bd7ebb234c8b32d3d957efc4061ba8571916558dc3f3dcdabb5e5e1"
+    }
+  ],
+  "probe_environment_freeze": [
+    "certifi==2026.11.20",
+    "charset-normalizer==3.5.3",
+    "googleapis-common-protos==1.76.0",
+    "idna==3.20",
+    "opentelemetry-api==1.45.2",
+    "opentelemetry-exporter-http-transport==0.66b2",
+    "opentelemetry-exporter-otlp-common==0.66b2",
+    "opentelemetry-exporter-otlp-proto-common==1.45.2",
+    "opentelemetry-exporter-otlp-proto-http==1.45.2",
+    "opentelemetry-instrumentation==0.66b2",
+    "opentelemetry-instrumentation-celery==0.66b2",
+    "opentelemetry-instrumentation-django==0.66b2",
+    "opentelemetry-instrumentation-requests==0.66b2",
+    "opentelemetry-instrumentation-wsgi==0.66b2",
+    "opentelemetry-proto==1.45.2",
+    "opentelemetry-sdk==1.45.2",
+    "opentelemetry-semantic-conventions==0.66b2",
+    "opentelemetry-util-http==0.66b2",
+    "packaging==26.4",
+    "protobuf==7.36.2",
+    "requests==2.34.2",
+    "typing_extensions==4.16.0",
+    "urllib3==2.8.0",
+    "wrapt==2.5.2"
+  ],
+  "evaluation_images": {
+    "metrics": "victoriametrics/victoria-metrics:v1.157.0",
+    "traces": "victoriametrics/victoria-traces:v0.13.0",
+    "logs_existing": "victoriametrics/victoria-logs:v1.54.0",
+    "grafana_existing": "grafana/grafana:13.3.2"
+  },
+  "not_verified": [
+    "MrMap Python 3.15.2 / Django 6.0.10 / Celery 5.7.0 runtime and full dependency resolution",
+    "Actual Victoria ingestion, persistence, query, cumulative multi-process/restart behavior, Grafana plugins and image digests",
+    "Real instrumentor redaction, process lifecycle, trace propagation and redirect trust boundaries",
+    "Admitted repeated full/lite application performance, privacy, slow/offline exporter, queue pressure and disk-full workloads",
+    "Live deployment logs, file/table sizes, retention and external filesystem consumers"
+  ],
+  "docker_stack_started": false,
+  "interpretation": "The local receiver decodes OTLP and responds with synthetic status codes. Its success is not a store compatibility, privacy, performance or cutover approval.",
+  "local_documentation_validation": {
+    "portal_structure": "python3 scripts/test_docs_build.py: passed",
+    "strict_html": "Pinned backend/.requirements/docs.txt environment; python -m sphinx -b html -E -W --keep-going: passed",
+    "python_lint": "flake8 --jobs=1 --ignore=E501,W503,W504 on generator and probe: passed",
+    "repository_tooling": "scripts/check_repo_tooling.sh </dev/null: 30/32 passed initially; test_dev_image_exists.py passed all 75 checks when repeated with NO_PROXY/no_proxy=127.0.0.1,localhost",
+    "remaining_tooling_environment_failure": "test_test_memory_mode.py: host Docker Compose v2.29.2 rejects --no-env-resolution (exit 16). Test and Compose files match origin/develop byte for byte.",
+    "application_tests": "Not run: documentation and synthetic evidence only; no application code changed."
+  }
+}

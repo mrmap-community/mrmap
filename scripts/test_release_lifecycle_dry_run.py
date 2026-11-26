@@ -182,9 +182,12 @@ def save():
 
 
 if argv[:2] == ["pr", "list"]:
-    out = [p for p in state["prs"]
-           if p["headRefName"] == flag("--head")
-           and p["baseRefName"] == flag("--base")]
+    out = state["prs"]
+    for name in ("--head", "--base"):
+        value = flag(name)
+        if value is not None:
+            key = {"--head": "headRefName", "--base": "baseRefName"}[name]
+            out = [p for p in out if p.get(key) == value]
     print(json.dumps(out))
 elif argv[:2] == ["pr", "create"]:
     n = 100 + len(state["prs"]) + 1
@@ -298,7 +301,7 @@ def planned_release_files(version, notes=True):
             + ("### Migration notes\n\n- notify.0007_a_new_column records "
                "what it changes (#1586)\n\n" if notes else "")
             + f"## [{version}] - 2026-11-20\n\n"
-            "### Features\n\n- a reviewed feature\n\n"
+            "### Added\n\n- a reviewed feature\n\n"
             "\n## [0.1.0] - 2023-03-23\n\n- the first shape of it all\n"),
         "backend/notify/migrations/0007_a_new_column.py": migration_file(
             [("notify", "0006_remove_backgroundprocess_threads")], ADD_FIELD),
@@ -446,26 +449,92 @@ class DryRun:
         return self.candidate
 
     def merge_release_pr(self, version, diverge=False, force=False):
-        """The human merge of the release PR, landed the way GitHub lands it: a
-        merge commit on master whose parents are master's tip and the frozen
-        branch, so master carries the candidate's tree but is not the candidate.
-        `diverge` lands one more commit, which is the situation finalize must
-        refuse; `force` is the person who reverted that extra commit and let the
-        release through afterwards."""
+        """The human merge of the release PR, landed the way GitHub lands it.
+
+        The head of the release PR is develop (#1798 - develop is the only head
+        branch-policy.yml admits onto master), so the merge commit on master has
+        master's tip and the candidate as parents: master carries the
+        candidate's tree without BEING the candidate. The PR is recorded MERGED
+        at the same time, because finalize publishes only on a release PR a
+        person actually merged - a merge commit alone is not that evidence.
+
+        `diverge` lands an unreviewed commit on master FIRST and merges on top
+        of it, so the reviewed merge itself lands a tree that is not the tested
+        candidate's tree - the situation the tree check of finalize exists for.
+        `force` is the person who removed that unreviewed commit from master
+        afterwards (the maintainer act of rewriting a permanent branch, here a
+        forced push to the suite's own bare origin) and let the reviewed merge
+        through on its own.
+        """
         git("fetch", "-q", "origin", cwd=self.repo)
         git("checkout", "-q", "-B", "master", "origin/master", cwd=self.repo)
+        force_push = False
         if force:
-            git("revert", "--no-edit", "HEAD", cwd=self.repo)
+            git("reset", "--hard", self.master_before_diverge, cwd=self.repo)
+            git("merge", "--no-ff", "-q",
+                "-m", f"Merge pull request from develop ({version})",
+                "origin/develop", cwd=self.repo)
+            force_push = True
+        elif diverge:
+            self.master_before_diverge = git("rev-parse", "HEAD",
+                                             cwd=self.repo).stdout.strip()
+            self.write({"hotfix.txt": "an unreviewed extra on master\n"})
+            self.commit("fix: something landed on master that was not "
+                        "reviewed")
+            git("merge", "--no-ff", "-q",
+                "-m", f"Merge pull request from develop ({version})",
+                "origin/develop", cwd=self.repo)
         else:
             git("merge", "--no-ff", "-q",
-                "-m", f"Merge pull request from release/v{version}",
-                f"origin/release/v{version}", cwd=self.repo)
-            if diverge:
-                self.write({"hotfix.txt": "an unreviewed extra on master\n"})
-                self.commit("fix: something landed on master that was not "
-                            "reviewed")
-        git("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.repo)
+                "-m", f"Merge pull request from develop ({version})",
+                "origin/develop", cwd=self.repo)
+        argv = ["push", "-q", "origin", "HEAD:refs/heads/master"]
+        if force_push:
+            argv = ["push", "-q", "--force", "origin", "HEAD:refs/heads/master"]
+        git(*argv, cwd=self.repo)
         git("checkout", "-q", "-B", "develop", "origin/develop", cwd=self.repo)
+        self.mark_release_pr_merged(version)
+
+    def mark_release_pr_merged(self, version):
+        doc = json.loads(self.state.read_text(encoding="utf-8"))
+        for pr in doc["prs"]:
+            if pr["baseRefName"] == "master":
+                pr["state"] = "MERGED"
+        self.state.write_text(json.dumps(doc), encoding="utf-8")
+
+    def attest(self, sha, version):
+        """evidence + preflight for a commit outside the walked phases.
+
+        Every publishing step reads the attestation, so a scenario that wants
+        one without walking build-and-gate has to produce it the same way:
+        through the promoter, never by writing the file.
+        """
+        checks = self.dir / f"checks-{sha[:8]}.json"
+        checks.write_text(json.dumps(checks_payload()), encoding="utf-8")
+        evidence = self.dir / f"evidence-{sha[:8]}.json"
+        proc = self.promo("evidence", "--sha", sha, "--checks-file", str(checks),
+                          *ARTIFACTS, *MANUAL, "--output", str(evidence))
+        expect(proc.returncode == 0, "attest",
+               f"evidence for {sha[:12]} could not be built: {proc.stderr}")
+        reports = []
+        doc = self.dir / f"{sha[:8]}.openapi.json"
+        doc.write_text(json.dumps(openapi_doc(version)), encoding="utf-8")
+        for name in ("api", "version", "upgrade"):
+            report = self.dir / f"{name}-{sha[:8]}.json"
+            argv = [name, "--report", str(report)]
+            if name == "api":
+                argv += ["--candidate", str(doc)]
+            proc = self.gates(*argv)
+            expect(proc.returncode == 0, "attest",
+                   f"the {name} gate refused {sha[:12]}: {proc.stderr}")
+            reports.append(f"{name}={report}")
+        attestation = self.dir / f"attestation-{sha[:8]}.json"
+        proc = self.promo("preflight", "--sha", sha, "--evidence", str(evidence),
+                          *[f"--report={spec}" for spec in reports],
+                          "--actor", "dry-run", "--output", str(attestation))
+        expect(proc.returncode == 0, "attest",
+               f"preflight refused {sha[:12]}: {proc.stderr}")
+        return attestation
 
     # -- reading the world back --------------------------------------------
 
@@ -686,17 +755,30 @@ def phase_cut(w, lifecycle):
     expect("is a planned 0.2.0 release" in proc.stdout, "cut",
            f"plan did not name the release: {proc.stdout[:200]}")
     w.record("cut", "ok",
-             "the planner proposes develop, release/v0.2.0 and the five steps "
-             "to master", "scripts/release_promotion.py plan",
+             "the planner proposes develop -> master and the five steps",
+             "scripts/release_promotion.py plan",
              proc.stdout.splitlines()[0])
     status = w.promo("status", "--sha", w.candidate)
+    view = status_view(status.stdout)
     expect(status.returncode == 0
-           and f'{"frozen_branch":26} False' in status.stdout
-           and f'{"release_pr":26} none' in status.stdout
-           and f'{"tag":26} absent' in status.stdout,
+           and view.get("release_pr") == "none"
+           and view.get("release_pr_head") == "none"
+           and view.get("tag") == "absent"
+           and view.get("candidate_is_tip") == "True",
            "cut", f"the candidate is not what status sees: {status.stdout}")
-    w.record("cut", "ok", "the candidate is planned but not yet frozen",
+    w.record("cut", "ok", "the candidate is planned and nothing is released "
+                          "or opened yet",
              "scripts/release_promotion.py status", stdout_head(status.stdout))
+
+
+def status_view(stdout):
+    """The reconcile view of `status` as a dict, keyed by the step name."""
+    view = {}
+    for line in stdout.splitlines()[1:]:
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2:
+            view[parts[0]] = parts[1]
+    return view
 
 
 def phase_build_and_gate(w, lifecycle):
@@ -755,41 +837,63 @@ def phase_build_and_gate(w, lifecycle):
 
 
 def phase_promote(w, lifecycle):
-    """The protected dispatch: freeze, open the PR, wait for the human."""
+    """The protected dispatch: open the PR, wait for the human.
+
+    #1798: the PR's head is develop - the only head branch-policy.yml and
+    AGENTS.md admit onto master - so there is no frozen branch to push and no
+    permanent ref to write. What freezes the release is the attestation the
+    previous phase wrote, which every step here has to be handed.
+    """
     env = lifecycle["phases"][PHASE_INDEX["promote"]].get("environment")
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
+    attestation = str(w.attestation)
+    proc = w.promo("open-release-pr", "--sha", w.candidate,
+                   "--attestation", attestation)
     expect(proc.returncode == 0, "promote",
            f"open-release-pr refused: {proc.stderr}")
-    remote = w.remote_ref("refs/heads/release/v0.2.0")
-    expect(remote == w.candidate, "promote",
-           "the frozen branch is not the candidate")
+    expect(w.remote_ref("refs/heads/release/v0.2.0") is None, "promote",
+           "the promotion wrote a release branch, which branch-policy.yml "
+           "would refuse as a head onto master")
     prs = [p for p in w.gh_state()["prs"] if p["baseRefName"] == "master"]
     expect(len(prs) == 1, "promote",
            f"the release PR to master is missing: {w.gh_state()['prs']}")
+    expect(prs[0]["headRefName"] == "develop"
+           and prs[0]["title"] == f"chore: release v{w.candidate_version}",
+           "promote",
+           f"the release PR is not develop -> master: {prs[0]}")
     w.record("promote", "ok",
-             f"release/v0.2.0 frozen at {w.candidate[:12]} and PR "
-             f"{prs[0]['number']} opened to master",
+             f"develop -> master PR {prs[0]['number']} opened for "
+             f"{w.candidate_version} at {w.candidate[:12]}, no branch written",
              "scripts/release_promotion.py open-release-pr",
              f"the dispatch would run behind environment {env}")
-    verdict = json.loads(w.promo("gate").stdout)
+    verdict = json.loads(w.promo("gate", "--sha", w.candidate,
+                                 "--attestation", attestation).stdout)
     expect(verdict["master"]["carries_candidate"] is False
            and verdict["status"] == "pending"
            and verdict["frozen"]["version"] == w.candidate_version, "promote",
            f"the gate is not pending on the unmerged release PR: {verdict}")
     w.record("promote", "ok", "the gate stays pending while the PR is unmerged",
              "scripts/release_promotion.py gate")
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
+    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS,
+                   "--attestation", attestation)
     expect(proc.returncode == 1, "promote",
-           "finalize tagged a master that does not carry the candidate")
+           "finalize tagged a master that no person merged into")
     check("promote refuses to release what no person merged",
-          "release PR is unmerged" in proc.stderr, stderr_head(proc))
+          "no MERGED release PR" in proc.stderr, stderr_head(proc))
     w.record("promote", "refused", "finalize before the merge",
              "scripts/release_promotion.py finalize",
              proc.stderr.strip().splitlines()[0])
-    proc = w.promo("open-release-pr")
+    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
+    check("promote refuses to publish anything it was not attested for",
+          proc.returncode == 1 and "no attestation" in proc.stderr.lower(),
+          stderr_head(proc))
+    w.record("promote", "refused", "finalize without the attestation",
+             "scripts/release_promotion.py finalize",
+             proc.stderr.strip().splitlines()[0])
+    proc = w.promo("open-release-pr", "--sha", w.candidate,
+                   "--attestation", attestation)
     expect(proc.returncode == 0, "promote",
            f"the step is not idempotent: {proc.stderr}")
-    w.record("promote", "ok", "re-running the step reports the branch it froze",
+    w.record("promote", "ok", "re-running the step finds the PR it opened",
              "scripts/release_promotion.py open-release-pr")
     w.merge_release_pr(w.candidate_version)
     check("promote: the walk merged the release PR as a person, and says so",
@@ -799,8 +903,9 @@ def phase_promote(w, lifecycle):
     w.record("promote", "ok",
              "the release PR merged to master (simulated merge, the constraint "
              "that reserves it to a person is asserted not exercised)",
-             "git merge of the frozen branch into master")
-    verdict = json.loads(w.promo("gate").stdout)
+             "git merge of develop into master")
+    verdict = json.loads(w.promo("gate", "--sha", w.candidate,
+                                 "--attestation", attestation).stdout)
     expect(verdict["master"]["carries_candidate"] is True
            and verdict["status"] == "pending", "promote",
            f"the gate does not see the merged candidate: {verdict}")
@@ -842,7 +947,8 @@ def phase_verify_on_master(w, lifecycle):
              "the upgrade gate re-runs against master's migrations",
              "scripts/release_gates.py upgrade (HEAD on master)")
     git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
-    proc = w.promo("gate")
+    proc = w.promo("gate", "--sha", w.candidate,
+                   "--attestation", str(w.attestation))
     expect(proc.returncode == 0, "verify-on-master",
            f"the promotion gate is not green after a complete release: "
            f"{proc.stdout}{proc.stderr}")
@@ -905,10 +1011,12 @@ def scenario_no_release_changes(tmp):
           and verdict["candidate_version"] == BASE_VERSION,
           f"{proc.returncode} {verdict['problems']} {verdict['required_bump']}")
     status = w.promo("status", "--sha", sha)
-    check("and nothing is frozen while develop owes no release",
+    view = status_view(status.stdout)
+    check("and nothing is opened or published while develop owes no release",
           status.returncode == 0
-          and f'{"frozen_branch":26} False' in status.stdout
-          and f'{"release_pr":26} none' in status.stdout
+          and view.get("release_pr") == "none"
+          and view.get("tag") == "absent"
+          and view.get("github_release") == "absent"
           and f'status of the {BASE_VERSION} promotion' in status.stdout,
           stdout_head(status.stdout))
     # the red half of the same rule, and what actually guards it: the bump
@@ -961,13 +1069,12 @@ def scenario_missing_changelog(tmp):
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
     sha = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
     proc = w.promo("plan")
-    check("a VERSION move with no folded section is not a release",
-          proc.returncode == 1 and "folded release section" in proc.stderr,
+    check("a VERSION move with no release section is not a release",
+          proc.returncode == 1 and "no release section" in proc.stderr,
           stderr_head(proc))
     proc = w.promo("open-release-pr", "--sha", sha)
-    check("and the promotion tool refuses to freeze it",
-          proc.returncode == 1
-          and w.remote_ref(f"refs/heads/release/v{CANDIDATE_VERSION}") is None,
+    check("and the promotion tool refuses to open a release PR for it",
+          proc.returncode == 1 and w.gh_state()["prs"] == [],
           stderr_head(proc))
     proc = w.gates("version", "--base", sha_before)
     check("the version gate is not what guards the fold",
@@ -1006,19 +1113,23 @@ def scenario_finalize_red(tmp):
     """finalize refuses a diverged master, a missing digest and an alias."""
     w = DryRun(tmp, "finalize-red")
     w.advance()
-    w.promo("open-release-pr")
+    att = w.attest(w.candidate, w.candidate_version)
+    w.promo("open-release-pr", "--sha", w.candidate, "--attestation", str(att))
     w.merge_release_pr(w.candidate_version, diverge=True)
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
+    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS,
+                   "--attestation", str(att))
     check("finalize refuses a master whose tree diverged",
           proc.returncode == 1 and "does not carry the candidate" in proc.stderr,
           stderr_head(proc))
     w.merge_release_pr(w.candidate_version, force=True)
     proc = w.promo("finalize", "--sha", w.candidate,
-                   f"--artifact=mrmap-backend={BACKEND_DIGEST}")
+                   f"--artifact=mrmap-backend={BACKEND_DIGEST}",
+                   "--attestation", str(att))
     check("finalize refuses a release without both image digests",
           proc.returncode == 1 and "digest for mrmap-frontend" in proc.stderr,
           proc.stderr[:200])
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS, "--alias=latest")
+    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS,
+                   "--alias=latest", "--attestation", str(att))
     check("rolling aliases stay refused while Q1 of #1578 is Pending",
           proc.returncode == 1 and "rolling aliases are refused" in proc.stderr,
           proc.stderr[:200])
@@ -1103,12 +1214,17 @@ def scenario_prerelease(tmp):
     w.commit("chore(release): an rc on develop")
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
     sha = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
-    proc = w.promo("open-release-pr", "--sha", sha)
-    check("a planned prerelease is cut behind its own release branch",
-          proc.returncode == 0 and "froze release/v0.2.0-rc.1" in proc.stdout,
-          stderr_head(proc))
+    att = w.attest(sha, PRERELEASE_VERSION)
+    proc = w.promo("open-release-pr", "--sha", sha, "--attestation", str(att))
+    check("a planned prerelease is opened as its own release PR",
+          proc.returncode == 0
+          and [p for p in w.gh_state()["prs"]
+               if p["title"] == f"chore: release v{PRERELEASE_VERSION}"
+               and p["headRefName"] == "develop"],
+          stderr_head(proc) + str(w.gh_state()))
     w.merge_release_pr(PRERELEASE_VERSION)
-    proc = w.promo("finalize", "--sha", sha, *ARTIFACTS)
+    proc = w.promo("finalize", "--sha", sha, *ARTIFACTS,
+                   "--attestation", str(att))
     check("and is published under its prerelease tag",
           proc.returncode == 0
           and f"published the GitHub release for v{PRERELEASE_VERSION}"
@@ -1303,45 +1419,55 @@ def scenario_stale_candidate_document(tmp):
 
 
 def scenario_concurrent_release(tmp):
-    """Two promotions of one version: the second is a conflict, and nothing moves.
+    """Two promotions of one version: one pull request, and nothing moves twice.
 
-    #1584's rule is that the tool never moves a frozen release branch, so two
-    runs that both believe they hold the candidate is not a race the tool
-    resolves by last-write-wins: it refuses. The journal is the proof that the
-    re-runs cost one pull request, not one per attempt.
+    #1798 removed the frozen branch the two runs used to fight over, so what can
+    collide is the pull request (exactly one title per version) and the tag. The
+    reviewed candidate is the attestation, so the run whose attestation names a
+    commit develop no longer carries is the invalidated one - refused, never
+    obeyed, and never able to overwrite what the current run already did. The
+    journal is the proof that the attempts cost one pull request, not one each.
     """
     w = DryRun(tmp, "concurrent")
     w.advance()
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
+    att = w.attest(w.candidate, w.candidate_version)
+    proc = w.promo("open-release-pr", "--sha", w.candidate,
+                   "--attestation", str(att))
     expect(proc.returncode == 0, "red: concurrent release",
-           f"the first freeze failed: {stderr_head(proc)}")
-    frozen = w.remote_ref("refs/heads/release/v0.2.0")
+           f"the first open-release-pr failed: {stderr_head(proc)}")
     git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
     w.write({"app.txt": "a later commit that did not move the version\n"})
     w.commit("chore: a second promotion attempt of the same version")
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
     rival = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
-    proc = w.promo("open-release-pr", "--sha", rival)
-    check("a second promotion of one version is refused as a conflict",
-          proc.returncode == 1 and "never moves a frozen" in proc.stderr,
+    rival_att = w.attest(rival, w.candidate_version)
+    proc = w.promo("open-release-pr", "--attestation", str(rival_att))
+    check("a second promotion of one version opens no second pull request",
+          proc.returncode == 0 and "already open" in proc.stdout,
           stderr_head(proc))
-    check("the refusal moved nothing: branch, tags and releases stand as frozen",
-          w.remote_ref("refs/heads/release/v0.2.0") == frozen
+    # the run whose candidate develop moved past is the refused one
+    proc = w.promo("open-release-pr", "--attestation", str(att))
+    check("a candidate develop moved past is STALE, not obeyed",
+          proc.returncode == 1 and "STALE" in proc.stderr, stderr_head(proc))
+    check("the refusal wrote nothing: no branch, no tag, no release",
+          w.remote_ref("refs/heads/release/v0.2.0") is None
           and w.remote_tags() == [] and w.gh_state()["releases"] == [],
-          str(w.remote_ref("refs/heads/release/v0.2.0")))
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
-    expect(proc.returncode == 0 and "already" in proc.stdout,
-           "red: concurrent release", stderr_head(proc))
+          str(w.gh_state()))
     creates = [c for c in w.journal_calls()
                if "pr" in c and "create" in " ".join(map(str, c))]
-    check("three attempts at the freeze cost one pull request",
+    check("three attempts at the release cost one pull request",
           len(creates) == 1, json.dumps(creates)[:200])
-    # and the walk can still be resumed by the run that owns the freeze: the
-    # merge and the publication are unaffected by the refused attempt.
+    # the walk is resumed by the promotion that is current: merge and publication
+    # are unaffected by the refused attempt.
     w.merge_release_pr(w.candidate_version)
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
-    check("the refused rival attempt did not poison the promotion",
+    proc = w.promo("finalize", "--attestation", str(rival_att), *ARTIFACTS)
+    check("the refused attempt did not poison the promotion",
           proc.returncode == 0
+          and w.remote_tag_commit("v0.2.0") == w.remote_ref("refs/heads/master"),
+          stderr_head(proc))
+    proc = w.promo("finalize", "--attestation", str(att), *ARTIFACTS)
+    check("the invalidated attestation cannot publish over the standing tag",
+          proc.returncode == 1
           and w.remote_tag_commit("v0.2.0") == w.remote_ref("refs/heads/master"),
           stderr_head(proc))
 

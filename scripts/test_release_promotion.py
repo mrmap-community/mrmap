@@ -327,10 +327,17 @@ ARTIFACTS = ["--artifact=mrmap-backend=" + BACKEND,
              "--artifact=mrmap-frontend=" + FRONTEND]
 
 
+def tip_of(world):
+    return world.remote_sha("refs/heads/develop") or world.candidate_sha
+
+
 def evidence_file(world, path, sha=None):
+    # The promoter refuses evidence of another build, so evidence and
+    # attestation must always name the same commit - the current tip of
+    # develop, which is what a world's edit just moved.
     checks = Path(str(path) + ".checks.json")
     checks.write_text(json.dumps(GREEN_CHECKS), encoding="utf-8")
-    return world.promo("evidence", "--sha", sha or world.candidate_sha,
+    return world.promo("evidence", "--sha", sha or tip_of(world),
                        "--checks-file", str(checks),
                        "--manual", "dependencies=https://deps.test/audit",
                        *ARTIFACTS, "--output", str(path))
@@ -340,8 +347,7 @@ def preflight(world, ev, rep, sha=None, output=None):
     # A world that edited its changelog changed develop's tip; attestation and
     # evidence must speak about THAT commit, not the one the world was built
     # with.
-    tip = world.remote_sha("refs/heads/develop")
-    return world.promo("preflight", "--sha", sha or tip or world.candidate_sha,
+    return world.promo("preflight", "--sha", sha or tip_of(world),
                        "--evidence", str(ev),
                        "--report", f"api={rep['api']}",
                        "--report", f"version={rep['version']}",
@@ -357,7 +363,7 @@ def attest(world, version="0.2.0", sha=None, breaking=0, tag="att"):
     scenario that wants to publish without it must pass no file at all rather
     than an empty one.
     """
-    sha = sha or world.remote_sha("refs/heads/develop") or world.candidate_sha
+    sha = sha or tip_of(world)
     ev = Path(world.dir) / f"evidence-{tag}.json"
     proc = evidence_file(world, ev, sha=sha)
     if proc.returncode != 0:
@@ -368,6 +374,17 @@ def attest(world, version="0.2.0", sha=None, breaking=0, tag="att"):
     if proc.returncode != 0:
         raise RuntimeError(f"preflight failed: {proc.stderr}{proc.stdout}")
     return att
+
+
+def record_merged_release_pr(world, title="chore: release v0.2.0"):
+    """A release PR that exists on GitHub already MERGED, in the shim state."""
+    doc = world.gh_state()
+    number = 100 + len(doc["prs"]) + 1
+    doc["prs"].append({"number": number, "state": "MERGED",
+                       "headRefName": "develop", "baseRefName": "master",
+                       "title": title})
+    world.state.write_text(json.dumps(doc), encoding="utf-8")
+    return number
 
 
 def human_merge_release_pr(world, sha=None, title="chore: release v0.2.0",
@@ -480,15 +497,16 @@ def test_generated_notes_are_verified(tmp):
                                                  "### Handwritten things"))
     proc = preflight(w, ev, rep)
     check("preflight: a subsection the planner does not generate is refused",
-          proc.returncode == 1 and "never hand-edited" in proc.stderr,
+          proc.returncode == 1
+          and "never hand-edited" in proc.stderr + proc.stdout,
           proc.stderr + proc.stdout)
 
     w2 = World(tmp, "notes-curated", shape="generated")
+    w2.edit("CHANGELOG.md", w2.changelog().replace(
+        "### Fixed", "### Migration notes\n\n- run migrate\n\n### Fixed"))
     ev2 = Path(w2.dir) / "ev-curated.json"
     evidence_file(w2, ev2)
     rep2 = reports(w2.dir, tag="curated")
-    w2.edit("CHANGELOG.md", w2.changelog().replace(
-        "### Fixed", "### Migration notes\n\n- run migrate\n\n### Fixed"))
     proc = preflight(w2, ev2, rep2,
                      output=Path(w2.dir) / "att-curated.json")
     check("preflight: the curated Migration notes subsection survives",
@@ -502,7 +520,8 @@ def test_generated_notes_are_verified(tmp):
     proc = preflight(w3, ev3, rep3)
     check("preflight: breaking changes the window contained but the release "
           "section never names are refused (the bang-title gap)",
-          proc.returncode == 1 and "breaking" in proc.stderr.lower(),
+          proc.returncode == 1
+          and "breaking" in (proc.stderr + proc.stdout).lower(),
           proc.stderr + proc.stdout)
     rep4 = reports(w3.dir, breaking=0, tag="brk-ok")
     proc = preflight(w3, ev3, rep4, output=Path(w3.dir) / "att-brk-ok.json")
@@ -510,23 +529,23 @@ def test_generated_notes_are_verified(tmp):
           proc.returncode == 0, proc.stderr + proc.stdout)
 
     w4 = World(tmp, "notes-breaking-generated", shape="generated")
-    ev4 = Path(w4.dir) / "ev-brk-gen.json"
-    evidence_file(w4, ev4)
     w4.edit("CHANGELOG.md", w4.changelog().replace(
         "### Fixed",
         "### \u26a0 BREAKING CHANGES\n\n* one API shape moved\n\n### Fixed"))
+    ev4 = Path(w4.dir) / "ev-brk-gen.json"
+    evidence_file(w4, ev4)
     rep5 = reports(w4.dir, breaking=2, tag="brkgen")
     proc = preflight(w4, ev4, rep5, output=Path(w4.dir) / "att-brk-gen.json")
     check("preflight: the generated breaking section satisfies the demand",
           proc.returncode == 0, proc.stderr + proc.stdout)
 
     w5 = World(tmp, "notes-breaking-curated", shape="generated")
-    ev5 = Path(w5.dir) / "ev-brk-curated.json"
-    evidence_file(w5, ev5)
     w5.edit("CHANGELOG.md", w5.changelog().replace(
         "### Fixed",
         "### Fixed\n\n* a reviewed fix ([2222222](u))\n\n"
         "**Breaking:** one API shape moved."))
+    ev5 = Path(w5.dir) / "ev-brk-curated.json"
+    evidence_file(w5, ev5)
     rep6 = reports(w5.dir, breaking=1, tag="brkcur")
     proc = preflight(w5, ev5, rep6, output=Path(w5.dir) / "att-brk-cur.json")
     check("preflight: the curated **Breaking:** line satisfies the demand too",
@@ -724,7 +743,7 @@ def test_stale_candidate_is_invalidated(tmp):
     check("open-release-pr: an open release PR whose head moved is STALE, "
           "not open", proc.returncode == 1 and "STALE" in proc.stderr,
           proc.stderr + proc.stdout)
-    proc = w2.promo("status")
+    proc = w2.promo("status", "--attestation", str(att))
     view = {}
     for line in proc.stdout.splitlines()[1:]:
         parts = line.strip().split(None, 1)
@@ -865,8 +884,7 @@ def test_finalize_before_and_after_the_merge(tmp):
     git("checkout", "-q", "-B", "master", "origin/master", cwd=w5.clone)
     git("cherry-pick", w5.candidate_sha, cwd=w5.clone)
     git("push", "-q", "origin", "master", cwd=w5.clone)
-    for pr in w5.release_prs("chore: release v0.2.0"):
-        w5.set_pr_state(pr["number"], "MERGED")
+    record_merged_release_pr(w5)
     proc = w5.promo("finalize", "--attestation", str(att5), *ARTIFACTS)
     check("finalize: a master tip that is not the reviewed MERGE commit (a "
           "direct push or a squash) is refused", proc.returncode == 1

@@ -6,12 +6,39 @@ Release promotion
 
 Issue #1584 of epic #1577 wires the promotion: the protected path that turns
 ONE reviewed commit of ``develop`` into a published stable release on
-``master`` — release branch, merge, tag, GitHub release, sync — step by step,
+``master`` — release PR, merge, tag, GitHub release, sync — step by step,
 each step an idempotent act, each judgement checked hard enough that running
 the sequence cannot skip a person. The planner (#1581,
 :ref:`release-planning`) prepares the version; the gates (#1583,
 :ref:`release-compatibility-gates`) judge a candidate; this is what happens
 between a green judgement and a tag, and after it.
+
+Issue #1798 reconciled that path with the two things it has to live under and
+may not bend: the develop-first policy of ``AGENTS.md`` and
+``branch-policy.yml``, and what Release Please actually writes. Three rules
+follow from it, and they are load-bearing:
+
+* the pull request onto ``master`` has this repository's ``develop`` as its
+  head. Nothing else: ``.github/workflows/branch-policy.yml`` answers any head
+  but develop's onto master with "Only develop may target master", so the
+  ``release/v<version>`` → ``master`` PR #1584 opened could never have been
+  merged. Nothing is lost by dropping it — the reviewed candidate identity
+  (sha, version, digests, evidence urls) is carried by the attestation
+  ``preflight`` writes, so the freeze needs no ref at all and the tool writes
+  no permanent branch;
+* identity is checked against reality at every step. If ``develop`` advances
+  past the reviewed candidate, that candidate is INVALIDATED: opening is
+  refused until ``evidence`` and ``preflight`` have attested the new tip, an
+  open release PR whose head no longer resolves to the attested commit is
+  reported STALE rather than "open", and no step trusts a ref name — each
+  resolves the candidate and the PR head to an exact commit, and requires
+  master's tip to be the merged release PR's merge commit;
+* publication needs evidence that was not produced on the way to publication.
+  ``open-release-pr``, ``finalize`` and ``gate`` take the
+  ``mrmap-release-candidate/1`` attestation and REFUSE without it, or with one
+  for another sha or version, or with digests that are not the attested ones.
+  ``gate --simulate`` is a dry-run answer, says ``simulated``, and can never
+  read as green.
 
 The tool is `scripts/release_promotion.py`, run host-side as `python3
 scripts/release_promotion.py <subcommand>` with the local `git` CLI for every
@@ -26,10 +53,10 @@ What this is, and what it refuses to be
 * it never pushes to ``develop`` or ``master``. Both pull requests it needs —
   the release PR and the sync PR — it OPENS; a person reviews and merges, per
   the git conventions of ``AGENTS.md``;
-* it never moves or deletes an existing tag or release branch. Something
-  standing where the promotion would put something, at a different commit, is
-  a CONFLICT it reports and stops on: reconcile means completing missing
-  steps, never overwriting present ones;
+* it never moves or deletes an existing tag. Something standing where the
+  promotion would put its tag, at a different commit, is a CONFLICT it reports
+  and stops on: reconcile means completing missing steps, never overwriting
+  present ones;
 * it writes no rolling alias. Q1 of #1578 is Pending, so the approved-alias
   set is empty today and `finalize` refuses `--alias` outright until a
   recorded answer exists — the same reading `image_release.py` applies to
@@ -52,10 +79,15 @@ anything on its own.
 
 1. ``plan`` — read-only. Is this sha a planned candidate: the five files the
    planner moves together (`VERSION`, its projection `backend/MrMap/version.py`,
-   `.release-please-manifest.json`, the folded `## [<version>] - <date>`
-   changelog section) all agree at it, and develop itself carries it. A
-   VERSION that moved without its folded section is refused — the folded
-   section is what the GitHub release body quotes.
+   `.release-please-manifest.json`, the release section of ``CHANGELOG.md``)
+   all agree at it, develop itself carries it, and it says whether the sha is
+   still develop's tip. A VERSION that moved without its release section is
+   refused — that section is what the GitHub release body quotes. Since #1798
+   the matcher reads BOTH shapes this repository carries: the hand-written
+   `## [0.1.0] - 2023-03-23` of the history and the linked, generated
+   `## [0.2.0](<compare url>) (2026-11-20)` of #1681. The version is captured
+   and compared exactly, so neither the prerelease `[0.2.0-rc.1]` nor the
+   longer digit run `[0.2.10]` of the line answers for `0.2.0`.
 2. ``evidence`` + ``preflight`` — `evidence` assembles the four classes
    `release_gates promote` requires (tests and sonar from CI's own check
    conclusions, dependencies from a manual URL, artifacts from
@@ -66,31 +98,44 @@ anything on its own.
    the promotion. These two run where the gates run (host or the
    release-gates job), not in the protected workflow — the attestation file
    they produce is an INPUT of finalize.
-3. ``open-release-pr`` — the freeze: push `release/v<version>` at the exact
-   candidate sha (develop moves on; the PR must not drift with it) and open
-   `release/v<version>` → ``master``. An existing branch at another sha is a
-   conflict, never a reset. A person reviews and merges — the merge IS the
-   release decision.
-4. ``finalize`` — after the merge. Master must carry the candidate, and
-   `git diff <candidate> master` must be EMPTY: the reviewed merge must have
-   landed exactly the tested tree, or publication is refused. Every judgement
-   (alias refusal, digest shape, digest completeness, tree equality, tag
-   placement) is made BEFORE the first push — a tag is the point of no easy
-   return. Then: annotated tag `v<version>` on master's tip (peeled comparison
-   — a tag object's sha is not its commit's), and the GitHub release quoting
-   candidate, release commit, artifact digests and the attestation, in the
-   SAME run as the tag push, because a `GITHUB_TOKEN` tag push emits no
-   workflow events for a later run to catch. An existing tag or release at the
-   expected place is a skip; anywhere else a conflict.
+3. ``open-release-pr`` — this repository's ``develop`` → ``master``, titled
+   `chore: release v<version>` and quoting the attested candidate in its body.
+   Refused without the attestation of exactly that sha and version, and refused
+   while develop has moved past it: a candidate the tip no longer is owes a
+   fresh ``evidence`` + ``preflight`` pair, never a silently re-anchored PR.
+   A PR whose head no longer resolves to the attested commit is STALE and a
+   person closes it. The title is the PR's identity, so one version costs one
+   pull request however often the step is re-run. A person reviews and merges —
+   the merge IS the release decision.
+4. ``finalize`` — after the merge, and refused without the attestation: it must
+   name this sha and version, and the digests about to be published must be the
+   digests it attested. It is also refused without a MERGED release PR for this
+   version — master moving on its own, even by a merge commit, is not a
+   reviewed act. Master's tip must then be that merge commit, must carry the
+   candidate as a parent, and `git diff <candidate> master` must be EMPTY: the
+   reviewed merge must have landed exactly the tested tree. Every judgement
+   (alias refusal, digest shape, digest completeness, attestation, merged PR,
+   merge-commit shape, tree equality, tag placement) is made BEFORE the first
+   push — a tag is the point of no easy return. Then: annotated tag
+   `v<version>` on master's tip (peeled comparison — a tag object's sha is not
+   its commit's), and the GitHub release quoting candidate, release commit,
+   artifact digests and the attestation, in the SAME run as the tag push,
+   because a `GITHUB_TOKEN` tag push emits no workflow events for a later run
+   to catch. An existing tag or release at the expected place is a skip;
+   anywhere else a conflict.
 5. ``sync`` — the reviewed ``master`` → ``develop`` sync PR after the release,
    so the planner's next window starts from the released state. While develop
    already contains master there is nothing to sync and the step says so.
 
-``status`` prints the reconcile view of all of it (frozen branch, release PR
-state, whether master carries the candidate, where the tag stands, whether the
-release exists); ``gate`` answers the callable contract #1609 asked for —
-frozen source/version, whether master really carries it — with `--simulate`
-for dry-run suites that must not touch a remote.
+``status`` prints the reconcile view of all of it (whether the candidate is
+still develop's tip, release PR state and where its head resolves, whether
+master's tip is that PR's merge, whether master carries the candidate and holds
+its exact tree, where the tag stands, whether the release exists); ``gate``
+answers the callable contract #1609 asked for — reviewed source/version and the
+attested digests, whether master really carries them and whether the reviewed
+release PR is what landed — with `--simulate` for dry-run suites that must not
+touch a remote. A simulated answer reports `simulated` and `green: false`:
+nothing that did not read reality can satisfy a publication decision.
 
 The protected environment
 =========================
@@ -121,14 +166,19 @@ journal of steps is the run list itself.
 Offline checks
 ==============
 
-`scripts/test_release_promotion.py` (31 checks, in
-`scripts/check_repo_tooling.sh`) drives the tool against throw-away
-repositories whose "origin" is a local bare repo and a journaling `gh` shim:
-the unplanned candidate, evidence of another sha, the missing gate report, the
-frozen branch elsewhere, the master whose tree diverged, the tag standing on a
-foreign commit, the missing digest — each seen REFUSED, and refused before a
-tag was touched — then the same worlds promoted to green, every step re-run to
-prove "already done" is a skip and never a duplicate.
+`scripts/test_release_promotion.py` (72 checks) and the promotion phases of
+`scripts/test_release_lifecycle_dry_run.py` (71 checks, both in
+`scripts/check_repo_tooling.sh`) drive the tool against throw-away repositories
+whose "origin" is a local bare repo and a journaling `gh` shim: the unplanned
+candidate, both changelog grammars and the prerelease of the line, a hand-edited
+generated release section, a section that stays silent about its breaking
+changes, evidence of another sha, the missing gate report, no attestation at
+all, an attestation of another sha, version or digest, a release PR whose head
+moved (STALE), a master that moved without a merged release PR, a master tip
+that is not a merge, a master whose tree diverged, the tag standing on a foreign
+commit, the missing digest — each seen REFUSED, and refused before a tag was
+touched — then the same worlds promoted to green, every step re-run to prove
+"already done" is a skip and never a duplicate.
 
 Deliberate limits, named
 ========================

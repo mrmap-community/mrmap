@@ -1074,8 +1074,12 @@ def cmd_status(args):
     root = Path(args.root)
     gitlet(args, root, "fetch", "--quiet", args.remote)
     gitlet(args, root, "fetch", "--quiet", args.remote, "master")
-    sha = args.sha or gitlet(args, root, "rev-parse", args.develop_ref)
-    version = candidate_version_at(args, root, sha)
+    # "status of the promotion" means the promotion of the reviewed candidate,
+    # so the candidate comes from the attestation when one was handed over; a
+    # status that always re-read develop's tip would report a moved-past
+    # candidate as if it were still current.
+    sha = candidate_from_attestation(args, root, "status")
+    version = args.version or candidate_version_at(args, root, sha)
     steps = reconcile_state(args, root, version, sha)
     print(f"status of the {version} promotion (candidate {sha[:12]}):")
     for name, state in steps.items():
@@ -1207,6 +1211,9 @@ def main(argv=None):
     sp.set_defaults(func=cmd_sync)
     sp = sub.add_parser("status")
     common(sp)
+    sp.add_argument("--attestation", default=None,
+                    help="report the promotion of the candidate this "
+                         "attestation names, not develop's current tip")
     sp.set_defaults(func=cmd_status)
     sp = sub.add_parser("gate")
     common(sp)

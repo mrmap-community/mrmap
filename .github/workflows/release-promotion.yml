@@ -25,9 +25,14 @@
 #
 # `evidence` and `preflight` are deliberately NOT modes here: they consume
 # what release-gates.yml produces (gate report artifacts, CI conclusions) and
-# belong where those run; the attestation file they print is an INPUT to
-# finalize (the operator pastes its path), and finalizing without one still
-# publishes digests, so the audit trail names what was attested where.
+# belong where those run. The attestation file preflight writes is the reviewed
+# candidate identity, and since #1798 it is an INPUT this workflow cannot do
+# without: `open-release-pr`, `finalize` and `gate` refuse to open, publish or
+# answer green without the `mrmap-release-candidate/1` file that names exactly
+# the sha and version they are about. That is why `attestation` is a required
+# input for those three modes rather than an optional convenience - a
+# promotion that could be dispatched without it could be dispatched around the
+# evidence.
 #
 # Design and the measurements behind it:
 # docs/source/development/release-promotion.rst
@@ -51,6 +56,10 @@ on:
         type: string
       artifacts:
         description: "for finalize: name=sha256:<64 hex> lines, one per first-party image"
+        required: false
+        type: string
+      attestation:
+        description: "path of the mrmap-release-candidate/1 file preflight wrote; required for open-release-pr, finalize and gate"
         required: false
         type: string
 
@@ -86,10 +95,25 @@ jobs:
           VERSION: ${{ inputs.version }}
           SHA: ${{ inputs.sha }}
           ARTIFACTS: ${{ inputs.artifacts }}
+          ATTESTATION: ${{ inputs.attestation }}
         run: |
           args=(--root . --develop-ref origin/develop --master-ref origin/master)
           [ -n "$VERSION" ] && args+=(--version "$VERSION" --expect-version "$VERSION")
           [ -n "$SHA" ] && args+=(--sha "$SHA")
+          # The attestation is the reviewed candidate: the step that opens,
+          # publishes or judges takes its candidate FROM it, so a dispatch that
+          # names no sha promotes what was judged, not whatever develop became
+          # since. Only plan and sync need no attestation - plan reads a commit
+          # and publishes nothing, sync speaks of master.
+          case "$MODE" in
+            open-release-pr|finalize|gate)
+              if [ -z "$ATTESTATION" ]; then
+                echo "::error::$MODE needs the attestation preflight wrote - run evidence and preflight for this sha first" >&2
+                exit 1
+              fi
+              args+=(--attestation "$ATTESTATION")
+              ;;
+          esac
           if [ "$MODE" = "finalize" ] || [ "$MODE" = "evidence" ]; then
             while IFS= read -r line; do
               [ -n "$line" ] && args+=(--artifact "$line")

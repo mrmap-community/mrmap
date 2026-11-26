@@ -115,13 +115,15 @@ The phases and what each one proves
    names.
 
 ``promote`` (actor: human, protected environment ``release-stable``)
-   ``open-release-pr`` freezes ``release/v<version>`` at the candidate and opens
-   one pull request to master; the gate stays ``pending`` while that pull request
-   is unmerged; ``finalize`` refuses to tag a master that does not carry the
-   candidate; the step is idempotent. Then the walk performs the merge on behalf
-   of a person and checks that master carries the candidate's tree while the gate
-   still reports no tag. Red half: evidence with a missing class, and evidence
-   gathered for another SHA.
+   ``open-release-pr`` opens this repository's ``develop`` → ``master`` — the
+   only head ``branch-policy.yml`` admits (#1798) — and writes no branch at all;
+   the gate stays ``pending`` while that pull request is unmerged; ``finalize``
+   refuses to publish without the attestation and refuses a master no person
+   merged a release PR into; the step is idempotent. Then the walk performs the
+   merge on behalf of a person and checks that master carries the candidate's
+   tree while the gate still reports no tag. Red half: evidence with a missing
+   class, evidence gathered for another SHA, and publishing without the
+   attestation.
 
 ``verify-on-master`` (actor: CI)
    ``finalize`` in the one run #1584 requires: the tree of master is compared
@@ -278,10 +280,12 @@ true, because nothing in a temp directory can hold them for the real one:
   environment unprotected, so an administrator has to create it before the first
   run; the lifecycle JSON names the environment and the suites assert that the
   phase carries it, but no offline run can assert that the reviewers exist.
-- the release branches that ``open-release-pr`` freezes, ``release/v<version>``,
-  are never moved afterwards. A re-run of the step reports the branch that stands
-  rather than moving it, which is what the walk asserts; on the real repository
-  that behaviour is only useful if nothing else moves the branch either.
+- ``open-release-pr`` writes no branch (#1798): the reviewed candidate identity
+  is the attestation, and a re-run of the step reports the pull request it
+  already opened rather than opening a second one. What keeps that pull request
+  honest is not a frozen ref but the attestation check — a candidate develop has
+  moved past is reported STALE and refused, so the walk asserts that the
+  invalidated run cannot publish over the current one.
 
 The version identities the release tools check are ``VERSION``, its projection
 ``backend/MrMap/version.py``, ``.release-please-manifest.json``, and

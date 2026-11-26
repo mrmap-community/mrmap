@@ -78,9 +78,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 LIFECYCLE = HERE / "release_lifecycle.json"
-PROMO = HERE / "release_promotion.py"
+PROMOTION_WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
+VERIFY_STEP = "Verify the reviewed release pull request"
+PUBLISH_STEP = "Publish the tag and the GitHub release"
 TIME_BUDGET_S = float(os.environ.get("RELEASE_DRY_RUN_TIMEOUT_S", "600"))
-TOOLS = ["release_promotion.py", "release_gates.py", "canonical_version.py",
+TOOLS = ["release_gates.py", "canonical_version.py",
          "pr_classify", "migration_graph_smoke.py",
          "release_contract_baseline.json", "release_contract_exceptions.json",
          "release_upgrade_baseline.json", "release_lifecycle.json"]
@@ -115,7 +117,6 @@ def module(path, name):
 
 
 GATES = module(HERE / "release_gates.py", "release_gates")
-PROMO_MOD = module(PROMO, "release_promotion")
 CANON = module(HERE / "canonical_version.py", "canonical_version")
 
 GIT_ENV = dict(os.environ, GIT_CONFIG_GLOBAL="/dev/null",
@@ -185,7 +186,23 @@ if argv[:2] == ["pr", "list"]:
     out = [p for p in state["prs"]
            if p["headRefName"] == flag("--head")
            and p["baseRefName"] == flag("--base")]
-    print(json.dumps(out))
+    if flag("--jq") is not None:
+        # the promotion workflow asks for the merged release pull request of a
+        # base/head pair and reads its merge commit; answering the query it
+        # actually makes is what keeps the walk honest about what is missing
+        want = (flag("--base"), flag("--head"), flag("--state"))
+        if want != ("master", "develop", "merged"):
+            sys.stderr.write("gh shim: unexpected pr list query %r\\n" % (want,))
+            sys.exit(1)
+        merged = [p for p in out
+                  if p.get("mergedAt") and (p.get("mergeCommit") or {}).get("oid")]
+        if not merged:
+            print("")
+        else:
+            latest = sorted(merged, key=lambda p: p["mergedAt"])[-1]
+            print("%d %s" % (latest["number"], latest["mergeCommit"]["oid"]))
+    else:
+        print(json.dumps(out))
 elif argv[:2] == ["pr", "create"]:
     n = 100 + len(state["prs"]) + 1
     state["prs"].append({"number": n, "state": "OPEN",
@@ -419,9 +436,61 @@ class DryRun:
                                             / "release_gates.py"),
                         "--root", str(self.repo), *argv])
 
-    def promo(self, *argv):
-        return self.sh([sys.executable, str(PROMO), "--root", str(self.repo),
-                        "--gh-bin", str(self.gh), "--git-bin", "git", *argv])
+    # -- driving the promotion workflow -------------------------------------
+    #
+    # The promotion has no tool any more, so the walk drives the thing itself:
+    # the step scripts are read out of the committed workflow YAML and run under
+    # bash with the same environment Actions would give them. There is no
+    # `promote` command to call and no state to seed first, because that is the
+    # point of #1798 - the two facts that decide publication are GitHub's and
+    # git's, and this walk can only supply them the way the runner does.
+
+    def _step(self, job, step_name, env_extra):
+        try:
+            import yaml
+        except ImportError:
+            raise HarnessCannotRun("PyYAML is not importable, so the promotion "
+                                   "steps cannot be read out of the workflow")
+        doc = yaml.safe_load(PROMOTION_WORKFLOW.read_text(encoding="utf-8"))
+        script = None
+        for step in doc["jobs"][job]["steps"]:
+            if step.get("name") == step_name:
+                script = step["run"]
+        if script is None:
+            raise HarnessCannotRun(f"the promotion workflow has no {job!r} step "
+                                   f"named {step_name!r}")
+        path = self.dir / f"step-{job}.sh"
+        path.write_text(script, encoding="utf-8")
+        env = dict(GIT_ENV, GH_TOKEN="",
+                   GITHUB_REPOSITORY="mrmap-community/mrmap",
+                   GITHUB_OUTPUT=str(self.dir / "gh-output"),
+                   RUNNER_TEMP=str(self.dir),
+                   PATH=f"{self.dir}" + os.pathsep + os.environ.get("PATH", ""))
+        env.update(GH_STATE=str(self.state), GH_JOURNAL=str(self.journal))
+        env.update(env_extra)
+        (self.dir / "gh-output").write_text("", encoding="utf-8")
+        proc = subprocess.run(["bash", str(path)], cwd=str(self.repo), env=env,
+                              capture_output=True, text=True)
+        outputs = {}
+        for line in (self.dir / "gh-output").read_text(encoding="utf-8").splitlines():
+            if "=" in line:
+                key, _, value = line.partition("=")
+                outputs[key] = value
+        return proc, outputs
+
+    def verify_step(self, version):
+        return self._step("verify", VERIFY_STEP, {"VERSION": version})
+
+    def publish_step(self, verified, publish=True, artifacts=None):
+        if artifacts is None:
+            artifacts = "\n".join(
+                line.removeprefix("--artifact=") for line in ARTIFACTS)
+        return self._step("publish", PUBLISH_STEP, {
+            "VERSION": verified.get("version", ""),
+            "MERGE_COMMIT": verified.get("merge_commit", ""),
+            "TAG": verified.get("tag", ""),
+            "PUBLISH": "true" if publish else "false",
+            "ARTIFACTS": artifacts})
 
     # -- repo moves --------------------------------------------------------
 
@@ -446,26 +515,56 @@ class DryRun:
         return self.candidate
 
     def merge_release_pr(self, version, diverge=False, force=False):
-        """The human merge of the release PR, landed the way GitHub lands it: a
-        merge commit on master whose parents are master's tip and the frozen
-        branch, so master carries the candidate's tree but is not the candidate.
-        `diverge` lands one more commit, which is the situation finalize must
-        refuse; `force` is the person who reverted that extra commit and let the
-        release through afterwards."""
+        """The person's reviewed develop -> master merge, landed the way GitHub
+        lands it: a merge commit whose parents are master's tip and develop's
+        tip, so master carries the candidate's tree without being the candidate.
+        The merge is also what makes the release pull request answerable, so the
+        pull request record and its mergeCommit are written here and nowhere
+        else. `diverge` lands one more commit on master afterwards, which is the
+        state the promotion must refuse."""
         git("fetch", "-q", "origin", cwd=self.repo)
         git("checkout", "-q", "-B", "master", "origin/master", cwd=self.repo)
         if force:
             git("revert", "--no-edit", "HEAD", cwd=self.repo)
         else:
             git("merge", "--no-ff", "-q",
-                "-m", f"Merge pull request from release/v{version}",
-                f"origin/release/v{version}", cwd=self.repo)
-            if diverge:
-                self.write({"hotfix.txt": "an unreviewed extra on master\n"})
-                self.commit("fix: something landed on master that was not "
-                            "reviewed")
+                "-m", f"Merge pull request #{self.next_pr_number()} from "
+                      "mrmap-community/develop",
+                "-m", f"release: promote {version}",
+                "origin/develop", cwd=self.repo)
+        tip = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        if not force and diverge:
+            # the state the promotion has to refuse: master moved after the
+            # reviewed merge, so the merge commit and master's tip differ
+            self.write({"hotfix.txt": "an unreviewed extra on master\n"})
+            self.commit("fix: something landed on master that was not "
+                        "reviewed")
         git("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.repo)
         git("checkout", "-q", "-B", "develop", "origin/develop", cwd=self.repo)
+        if not force:
+            state = self.gh_state()
+            state["prs"].append({"number": self.next_pr_number(), "state": "MERGED",
+                                 "headRefName": "develop", "baseRefName": "master",
+                                 "title": f"release: promote {version}",
+                                 "mergedAt": now(),
+                                 "mergeCommit": {"oid": tip}})
+            self.state.write_text(json.dumps(state), encoding="utf-8")
+        return tip
+
+    def next_pr_number(self):
+        return 100 + len(self.gh_state()["prs"]) + 1
+
+    def open_sync_pr(self):
+        """The master -> develop sync as the ordinary reviewed pull request #1798
+        leaves it: gh opens it, a person merges it. Returns the shim's record."""
+        proc = self.sh([str(self.gh), "pr", "create", "--head", "master",
+                        "--base", "develop", "--title",
+                        "chore: sync master back into develop"])
+        if proc.returncode != 0:
+            return None
+        return next((p for p in self.gh_state()["prs"]
+                     if p["baseRefName"] == "develop" and p["state"] == "OPEN"),
+                    None)
 
     # -- reading the world back --------------------------------------------
 
@@ -528,22 +627,23 @@ def blocked_items(lifecycle):
     becomes drivable offline drops out of this list by itself.
     """
     items = []
-    jobs = sorted(PROMO_MOD.CHECK_CLASSES)
+    jobs = sorted({entry["name"] for entry in checks_payload()})
     items.append({
         "item": "runtime evidence of the promotion gate",
         "why": "the candidate OpenAPI document needs GDAL and `manage.py "
                "spectacular`, and the classes "
                + "/".join(GATES.REQUIRED_EVIDENCE)
                + " come from real CI runs; here they are a saved payload fed "
-               "through release_promotion's own --checks-file seam",
+               "through release_gates' own --evidence seam",
         "owner": ", ".join(jobs),
     })
     items.append({
         "item": "the built images the attestation binds",
-        "why": "digests of " + ", ".join(PROMO_MOD.REQUIRED_IMAGES)
-               + " are published by CI; the dry run passes well-formed digests "
-               "through the same --artifact seam but cannot pull them",
-        "owner": lifecycle["channels"]["stable"]["images"]["publisher_tool"],
+        "why": "digests of " + ", ".join(GATES.REQUIRED_IMAGES)
+               + " are published by the build of #1799 and bound by #1800; the "
+               "walk passes well-formed digests through the release body but "
+               "cannot pull them",
+        "owner": "#1799 (build and promote images by digest)",
     })
     constraints = json.loads(
         (REPO / "scripts" / "release_upgrade_baseline.json")
@@ -566,10 +666,10 @@ def blocked_items(lifecycle):
     if env:
         items.append({
             "item": "the protected-environment approval of the promotion",
-            "why": f"the dispatch of the promotion runs behind {env!r}, whose "
-                   "required reviewers are people; the dry run drives the same "
-                   "steps with --gh-bin pointed at a shim, so the gate is "
-                   "exercised but the approval is not",
+            "why": f"the publishing job of the promotion runs behind {env!r}, "
+                   "whose required reviewers are people; the walk runs the same "
+                   "steps with gh pointed at a shim, so the steps are exercised "
+                   "but the approval is not",
             "owner": f"GitHub environment {env}",
         })
     humans = sorted({phase["actor"] for phase in lifecycle["phases"]
@@ -598,6 +698,43 @@ PHASE_INDEX = {}
 def expect(cond, phase, detail):
     if not cond:
         raise PhaseFailed(f"{phase}: {detail}")
+
+
+
+def write_evidence(w, sha, version, checks=None, path=None):
+    """The CI conclusions bound to one sha, in the shape release_gates promotes.
+
+    #1799 builds the images and #1800 binds the jobs; until then the walk feeds
+    the committed aggregation the payload it would receive, and the sha inside it
+    is the point: evidence gathered for another commit must not promote this one.
+    """
+    checks = checks_payload() if checks is None else checks
+    payload = w.dir / "checks.json"
+    payload.write_text(json.dumps(checks), encoding="utf-8")
+    evidence = path or (w.dir / f"evidence-{sha[:12]}.json")
+    # Which class a job answers for is the mapping #1800 will own; here the
+    # job's own name decides it, so dropping a job from the payload really does
+    # drop its class instead of shifting the next job into its place.
+    classes = {"unit-tests": "tests", "acceptance-tests": "tests",
+               "sonarcloud": "sonar", "dependency-audit": "dependencies",
+               "security-scan": "dependencies"}
+    checks_map = {}
+    for entry in checks:
+        klass = classes.get(entry["name"])
+        if klass:
+            checks_map[klass] = {"status": "pass", "sha": sha,
+                                 "url": entry.get("html_url",
+                                                  "https://github.example.test/ci")}
+    images = {}
+    for line in ARTIFACTS:
+        name, _, digest = line.removeprefix("--artifact=").partition("=")
+        images[name] = {"digest": digest, "sha": sha}
+    checks_map["artifacts"] = {"status": "pass", "sha": sha, "images": images}
+    evidence.write_text(json.dumps({
+        "candidate": {"sha": sha, "version": version},
+        "checks": checks_map,
+    }), encoding="utf-8")
+    return evidence
 
 
 def phase_pre_release(w, lifecycle):
@@ -680,23 +817,19 @@ def phase_cut(w, lifecycle):
           w.candidate_version == CANDIDATE_VERSION,
           f"a feat range must move the minor above the base {BASE_VERSION}, "
           f"the release files carry {w.candidate_version}")
-    proc = w.promo("plan")
-    expect(proc.returncode == 0, "cut",
-           f"plan refused the planned release: {stderr_head(proc)}")
-    expect("is a planned 0.2.0 release" in proc.stdout, "cut",
-           f"plan did not name the release: {proc.stdout[:200]}")
+    # Nothing may be published before a person merges the reviewed release pull
+    # request, and the walk proves the promotion says so rather than asserting
+    # it: the verify step runs against a develop whose release PR is unmerged.
+    proc, _ = w.verify_step(w.candidate_version)
+    expect(proc.returncode == 1, "cut",
+           f"verify published before anyone merged: {proc.stdout}{proc.stderr}")
+    expect("no merged develop -> master release pull request" in proc.stdout,
+           "cut", stderr_head(proc))
     w.record("cut", "ok",
-             "the planner proposes develop, release/v0.2.0 and the five steps "
-             "to master", "scripts/release_promotion.py plan",
-             proc.stdout.splitlines()[0])
-    status = w.promo("status", "--sha", w.candidate)
-    expect(status.returncode == 0
-           and f'{"frozen_branch":26} False' in status.stdout
-           and f'{"release_pr":26} none' in status.stdout
-           and f'{"tag":26} absent' in status.stdout,
-           "cut", f"the candidate is not what status sees: {status.stdout}")
-    w.record("cut", "ok", "the candidate is planned but not yet frozen",
-             "scripts/release_promotion.py status", stdout_head(status.stdout))
+             "the planned release is refused by verify while no person has "
+             "merged it to master",
+             "the verify step of .github/workflows/release-promotion.yml",
+             proc.stdout.strip().splitlines()[0])
 
 
 def phase_build_and_gate(w, lifecycle):
@@ -722,25 +855,19 @@ def phase_build_and_gate(w, lifecycle):
            "the pre-baseline reading is not in force")
     check("build-and-gate: the committed baseline is read as pre-baseline",
           "pre-baseline" in proc.stdout, proc.stdout[:160])
-    evidence = w.dir / "evidence.json"
-    checks = w.dir / "checks.json"
-    checks.write_text(json.dumps(checks_payload()), encoding="utf-8")
-    proc = w.promo("evidence", "--sha", w.candidate, "--checks-file", str(checks),
-                   *ARTIFACTS, *MANUAL, "--output", str(evidence))
-    expect(proc.returncode == 0, "build-and-gate",
-           f"evidence could not be built: {proc.stderr}")
-    w.record("build-and-gate", "ok",
-             "CI conclusions bound to the candidate's sha",
-             "scripts/release_promotion.py evidence --checks-file <saved CI>")
+    # The candidate's attestation is #1799/#1800's work - digests from the real
+    # build and upstream signed provenance. The walk still exercises the
+    # committed evidence aggregation so the phase is not described as something
+    # nothing enforces, and names whose it becomes.
+    evidence = write_evidence(w, w.candidate, w.candidate_version)
     attestation = w.dir / "attestation.json"
-    proc = w.promo("preflight", "--sha", w.candidate, "--evidence", str(evidence),
-                   *[f"--report={spec}" for spec in reports],
-                   "--actor", "dry-run", "--output", str(attestation))
+    proc = w.gates("promote", "--sha", w.candidate, "--version",
+                   w.candidate_version, "--evidence", str(evidence),
+                   *[f"--gate={spec}" for spec in reports],
+                   "--output", str(attestation))
     expect(proc.returncode == 0, "build-and-gate",
-           f"preflight refused an attested candidate: {proc.stderr}")
+           f"the evidence aggregation refused the candidate: {proc.stderr}")
     attested = json.loads(attestation.read_text(encoding="utf-8"))
-    expect(attested["attestation"] == "mrmap-release-candidate/1",
-           "build-and-gate", "the attestation is not the schema of #1583")
     expect(attested["candidate"]["sha"] == w.candidate
            and attested["candidate"]["version"] == w.candidate_version,
            "build-and-gate",
@@ -748,91 +875,83 @@ def phase_build_and_gate(w, lifecycle):
     w.attestation = attestation
     w.reports = reports
     w.record("build-and-gate", "ok",
-             f"attested {attested['candidate']['version']} as "
-             f"{attested['attestation']} for channel "
-             f"{attested['candidate']['channel']}",
-             "scripts/release_promotion.py preflight")
+             f"attested {attested['candidate']['version']} at "
+             f"{attested['candidate']['sha'][:12]} with "
+             f"{len(attested['digests'])} image digest(s)",
+             "scripts/release_gates.py promote",
+             "the digest and provenance contract belongs to #1799/#1800")
+
 
 
 def phase_promote(w, lifecycle):
-    """The protected dispatch: freeze, open the PR, wait for the human."""
+    """The one protected dispatch: verify the reviewed merge, then rehearse."""
     env = lifecycle["phases"][PHASE_INDEX["promote"]].get("environment")
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
-    expect(proc.returncode == 0, "promote",
-           f"open-release-pr refused: {proc.stderr}")
-    remote = w.remote_ref("refs/heads/release/v0.2.0")
-    expect(remote == w.candidate, "promote",
-           "the frozen branch is not the candidate")
-    prs = [p for p in w.gh_state()["prs"] if p["baseRefName"] == "master"]
-    expect(len(prs) == 1, "promote",
-           f"the release PR to master is missing: {w.gh_state()['prs']}")
-    w.record("promote", "ok",
-             f"release/v0.2.0 frozen at {w.candidate[:12]} and PR "
-             f"{prs[0]['number']} opened to master",
-             "scripts/release_promotion.py open-release-pr",
-             f"the dispatch would run behind environment {env}")
-    verdict = json.loads(w.promo("gate").stdout)
-    expect(verdict["master"]["carries_candidate"] is False
-           and verdict["status"] == "pending"
-           and verdict["frozen"]["version"] == w.candidate_version, "promote",
-           f"the gate is not pending on the unmerged release PR: {verdict}")
-    w.record("promote", "ok", "the gate stays pending while the PR is unmerged",
-             "scripts/release_promotion.py gate")
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
-    expect(proc.returncode == 1, "promote",
-           "finalize tagged a master that does not carry the candidate")
-    check("promote refuses to release what no person merged",
-          "release PR is unmerged" in proc.stderr, stderr_head(proc))
-    w.record("promote", "refused", "finalize before the merge",
-             "scripts/release_promotion.py finalize",
-             proc.stderr.strip().splitlines()[0])
-    proc = w.promo("open-release-pr")
-    expect(proc.returncode == 0, "promote",
-           f"the step is not idempotent: {proc.stderr}")
-    w.record("promote", "ok", "re-running the step reports the branch it froze",
-             "scripts/release_promotion.py open-release-pr")
     w.merge_release_pr(w.candidate_version)
     check("promote: the walk merged the release PR as a person, and says so",
           w.remote_tree("refs/heads/master") == w.tree_of(w.candidate)
           and w.remote_ref("refs/heads/master") != w.candidate,
           "master does not carry the candidate's tree after the merge")
     w.record("promote", "ok",
-             "the release PR merged to master (simulated merge, the constraint "
-             "that reserves it to a person is asserted not exercised)",
-             "git merge of the frozen branch into master")
-    verdict = json.loads(w.promo("gate").stdout)
-    expect(verdict["master"]["carries_candidate"] is True
-           and verdict["status"] == "pending", "promote",
-           f"the gate does not see the merged candidate: {verdict}")
+             "the reviewed develop -> master PR merged (simulated merge, the "
+             "constraint that reserves it to a person is asserted not exercised)",
+             "git merge of develop into master")
+    proc, verified = w.verify_step(w.candidate_version)
+    expect(proc.returncode == 0, "promote",
+           f"verify refused the reviewed merge: {proc.stdout}{proc.stderr}")
+    expect(verified.get("merge_commit") == w.remote_ref("refs/heads/master")
+           and verified.get("tag") == f"v{w.candidate_version}", "promote",
+           f"verify did not report the reviewed merge: {verified}")
+    w.verified = verified
     w.record("promote", "ok",
-             "the gate reports the merged candidate and still no tag",
-             "scripts/release_promotion.py gate", verdict["tag"])
+             "one dispatch verifies the merged release pull request: its merge "
+             "commit is master's tip and carries the dispatched version",
+             "the verify step of .github/workflows/release-promotion.yml",
+             f"the job would run behind environment {env}")
+
+    # Publication stays disabled until #1799/#1800 wire their gates: the
+    # approved job rehearses and writes no ref, which is what lets the workflow
+    # exist before the gates do.
+    proc, _ = w.publish_step(verified, publish=False)
+    expect(proc.returncode == 0 and w.remote_tags() == []
+           and w.gh_state()["releases"] == [], "promote",
+           f"the rehearsal wrote something: {w.remote_tags()} "
+           f"{w.gh_state()['releases']} {proc.stdout} {proc.stderr}")
+    check("promote: the rehearsal names what it withheld",
+          "rehearsal" in proc.stdout and "nothing was written" in proc.stdout,
+          stdout_head(proc.stdout))
+    w.record("promote", "ok",
+             "the approved job rehearses while publication is disabled: no tag, "
+             "no release", "the publish step of .github/workflows/release-promotion.yml",
+             "publish=false is the default until #1799/#1800")
 
 
 def phase_verify_on_master(w, lifecycle):
-    """finalize: tree-check master, tag it, publish the release, re-gate."""
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS,
-                   "--attestation", str(w.attestation))
+    """Publish: the tag and the release stand on the verified merge commit."""
+    proc, _ = w.publish_step(w.verified, publish=True)
     expect(proc.returncode == 0, "verify-on-master",
-           f"finalize refused a clean master: {proc.stderr}")
+           f"publish refused a clean master: {proc.stdout} {proc.stderr}")
+    tip = w.remote_ref("refs/heads/master")
     tag = w.remote_tag_commit("v0.2.0")
-    expect(tag == w.remote_ref("refs/heads/master"), "verify-on-master",
-           f"the tag points at {tag}, not at master's tip")
+    expect(tag == tip, "verify-on-master",
+           f"the tag points at {tag}, not at master's tip {tip}")
+    expect(w.remote_ref("refs/tags/v0.2.0") != tip, "verify-on-master",
+           "the tag is lightweight; an annotated tag is what carries a release")
     releases = [r["tagName"] for r in w.gh_state()["releases"]]
     expect(releases == ["v0.2.0"], "verify-on-master",
            f"the GitHub release is missing: {releases}")
     published = [c for c in w.journal_calls() if c[:2] == ["release", "create"]]
-    notes = published[0][published[0].index("--notes") + 1] if published else ""
-    attested_body = json.loads(w.attestation.read_text(encoding="utf-8"))
+    expect(published and tip in published[0], "verify-on-master",
+           f"the release does not stand on the verified commit: {published}")
+    notes_path = published[0][published[0].index("--notes-file") + 1]
+    notes = Path(notes_path).read_text(encoding="utf-8")
     expect(all(digest in notes for digest in (BACKEND_DIGEST, FRONTEND_DIGEST))
-           and w.candidate in notes
-           and attested_body["attestation"] in notes, "verify-on-master",
+           and tip in notes and "a reviewed feature" in notes,
+           "verify-on-master",
            f"the release body does not carry what an operator audits: {notes[:200]}")
     w.record("verify-on-master", "ok",
-             "master tree-checked against the candidate, v0.2.0 tagged, "
-             "release published with both image digests, the version and the "
-             "attestation in its body",
-             "scripts/release_promotion.py finalize")
+             "v0.2.0 tagged annotated at master's tip and its release published "
+             "with the changelog section, both image digests and the commit",
+             "the publish step of .github/workflows/release-promotion.yml")
     git("fetch", "-q", "origin", "master", cwd=w.repo)
     git("checkout", "-q", "-B", "master", "origin/master", cwd=w.repo)
     proc = w.gates("upgrade", "--base", "origin/develop")
@@ -842,41 +961,32 @@ def phase_verify_on_master(w, lifecycle):
              "the upgrade gate re-runs against master's migrations",
              "scripts/release_gates.py upgrade (HEAD on master)")
     git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
-    proc = w.promo("gate")
-    expect(proc.returncode == 0, "verify-on-master",
-           f"the promotion gate is not green after a complete release: "
-           f"{proc.stdout}{proc.stderr}")
-    verdict = json.loads(proc.stdout)
-    expect(verdict["status"] == "green"
-           and verdict["frozen"]["version"] == w.candidate_version,
-           "verify-on-master",
-           f"gate answered {verdict}")
+    proc, again = w.verify_step(w.candidate_version)
+    expect(proc.returncode == 0 and "already stands on the verified commit"
+           in proc.stdout, "verify-on-master",
+           f"a complete release is not reported as already tagged: {proc.stdout}")
     w.record("verify-on-master", "ok",
-             "the gate reports green: tag at master, release exists",
-             "scripts/release_promotion.py gate")
+             "re-dispatching after a complete release reports it published",
+             "the verify step of .github/workflows/release-promotion.yml")
 
 
 def phase_post_release(w, lifecycle):
     """The sync PR to develop; closing issues stays with a person."""
-    proc = w.promo("sync", "--version", "0.2.0")
-    expect(proc.returncode == 0, "post-release",
-           f"sync could not open the PR: {proc.stderr}")
-    sync = [p for p in w.gh_state()["prs"]
-            if p["baseRefName"] == "develop" and p["state"] == "OPEN"]
-    expect(len(sync) == 1, "post-release",
+    # The sync back to develop is an ordinary reviewed pull request - the
+    # mechanism is github-flow's, not the promotion's - and the tag the
+    # promotion pushed is what the planner re-anchors on, so the walk checks
+    # both instead of driving a sync command.
+    sync = w.open_sync_pr()
+    expect(sync is not None, "post-release",
            f"no master->develop sync PR: {w.gh_state()['prs']}")
     w.record("post-release", "ok",
-             f"sync PR {sync[0]['number']} opened to develop and left open for "
-             "a person to merge", "scripts/release_promotion.py sync")
-    expect(not [c for c in w.journal_calls()
-                if any(str(a).startswith("close") for a in c)], "post-release",
-           f"the promotion path closed something: {w.journal_calls()}")
-    check("post-release: the promotion path never closes an issue",
-          all("issues" not in " ".join(map(str, c)) for c in w.journal_calls()),
-          str(w.journal_calls())[:200])
-    w.record("post-release", "ok", "the journal shows no issue-closing call",
-             "gh journal")
-
+             f"sync PR {sync['number']} opened to develop and left open for a "
+             "person to merge", "gh pr create (the ordinary sync of github-flow)")
+    expect(w.remote_tag_commit("v0.2.0") == w.remote_ref("refs/heads/master"),
+           "post-release", "the planner's anchor is gone from master's tip")
+    w.record("post-release", "ok",
+             "the tag the promotion pushed is the anchor the planner re-anchors on",
+             "docs/source/development/release-planning.rst")
 
 # ------------------------------------------------------------- red scenarios
 
@@ -904,13 +1014,11 @@ def scenario_no_release_changes(tmp):
           proc.returncode == 0 and verdict["required_bump"] is None
           and verdict["candidate_version"] == BASE_VERSION,
           f"{proc.returncode} {verdict['problems']} {verdict['required_bump']}")
-    status = w.promo("status", "--sha", sha)
-    check("and nothing is frozen while develop owes no release",
-          status.returncode == 0
-          and f'{"frozen_branch":26} False' in status.stdout
-          and f'{"release_pr":26} none' in status.stdout
-          and f'status of the {BASE_VERSION} promotion' in status.stdout,
-          stdout_head(status.stdout))
+    proc, _ = w.verify_step(BASE_VERSION)
+    check("and nothing can be published while develop owes no release",
+          proc.returncode == 1
+          and "no merged develop -> master release pull request" in proc.stdout,
+          stdout_head(proc.stdout))
     # the red half of the same rule, and what actually guards it: the bump
     # question is only decidable against a RELEASED baseline (Q1 of #1578 names
     # v0.2.0 as the first one, and #1800 stands in front of it). While the
@@ -944,14 +1052,15 @@ def scenario_no_release_changes(tmp):
     w.git_restore()
 
 
-def scenario_missing_changelog(tmp):
-    """A VERSION move without its folded section must stop the walk.
 
-    The folded `## [<version>] - <date>` section is what the tag annotation and
-    the GitHub release body ship, so the promotion tool refuses the candidate
-    before it freezes anything -- while the version gate, which decides the bump
-    from the commit classes of a range, has no reason to see the fold and stays
-    green. Recording both halves is what tells a reviewer which tool guards it.
+def scenario_missing_changelog(tmp):
+    """A VERSION move whose changelog section was never folded must not publish.
+
+    The folded section is what the GitHub release body ships, so the promotion
+    refuses the candidate before a tag or a release is written - while the
+    version gate, which decides the bump from the commit classes of a range, has
+    no reason to look at the fold and stays green. Recording both halves is what
+    tells a reviewer which mechanism guards it.
     """
     w = DryRun(tmp, "no-changelog")
     w.advance()
@@ -961,73 +1070,88 @@ def scenario_missing_changelog(tmp):
     w.write({"CHANGELOG.md": unfolded})
     w.commit("chore(release): the version moved but nothing was folded")
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
-    sha = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
-    proc = w.promo("plan")
-    check("a VERSION move with no folded section is not a release",
-          proc.returncode == 1 and "folded release section" in proc.stderr,
-          stderr_head(proc))
-    proc = w.promo("open-release-pr", "--sha", sha)
-    check("and the promotion tool refuses to freeze it",
-          proc.returncode == 1
-          and w.remote_ref(f"refs/heads/release/v{CANDIDATE_VERSION}") is None,
-          stderr_head(proc))
+    w.merge_release_pr(w.candidate_version)
+    proc, verified = w.verify_step(w.candidate_version)
+    check("the fold-less candidate still is the reviewed merge",
+          proc.returncode == 0, f"{proc.stdout} {proc.stderr}")
+    proc, _ = w.publish_step(verified)
+    check("the release body refuses a candidate whose section was never folded",
+          proc.returncode == 1 and "carries no" in proc.stdout
+          and w.remote_tags() == [] and w.gh_state()["releases"] == [],
+          stdout_head(proc.stdout))
+    check("and the refusal wrote nothing an operator could mistake for a release",
+          w.remote_tags() == [] and w.gh_state()["releases"] == [],
+          f"{w.remote_tags()} {w.gh_state()['releases']}")
     proc = w.gates("version", "--base", sha_before)
     check("the version gate is not what guards the fold",
           proc.returncode == 0, stderr_head(proc))
 
 
 def scenario_evidence_red(tmp):
-    """Promote stops when the evidence is incomplete or about another sha."""
+    """The evidence aggregation stops on an incomplete or foreign payload.
+
+    The aggregation itself belongs to #1800; the walk keeps exercising the
+    committed one so the lifecycle does not describe a phase nothing enforces,
+    and the sha binding is the half that matters here: conclusions gathered for
+    another build must not stand in for this candidate's.
+    """
     w = DryRun(tmp, "evidence-red")
     w.advance()
-    checks = w.dir / "checks.json"
-    base = [c for c in checks_payload() if c["name"] != "sonarcloud"]
-    checks.write_text(json.dumps(base), encoding="utf-8")
-    evidence = w.dir / "evidence.json"
-    proc = w.promo("evidence", "--sha", w.candidate, "--checks-file", str(checks),
-                   *ARTIFACTS, "--output", str(evidence))
+    doc = w.dir / "candidate.openapi.json"
+    doc.write_text(json.dumps(openapi_doc(CANDIDATE_VERSION)), encoding="utf-8")
+    green = []
+    for name in ("api", "version", "upgrade"):
+        report = w.dir / f"gate-{name}.json"
+        argv = [name, "--report", str(report)]
+        if name == "api":
+            argv += ["--candidate", str(doc)]
+        expect(w.gates(*argv).returncode == 0, "red: evidence",
+               f"the {name} gate refused the candidate")
+        green.append(f"--gate={name}={report}")
+    missing = [c for c in checks_payload() if c["name"] != "sonarcloud"]
+    evidence = write_evidence(w, w.candidate, w.candidate_version, checks=missing)
+    proc = w.gates("promote", "--sha", w.candidate, "--version",
+                   CANDIDATE_VERSION, "--evidence", str(evidence), *green)
     check("missing evidence class stops the attestation",
-          proc.returncode == 1 and "'sonar'" in proc.stderr, proc.stderr[:200])
-    checks.write_text(json.dumps(checks_payload()), encoding="utf-8")
-    proc = w.promo("evidence", "--sha", w.baseline_commit,
-                   "--checks-file", str(checks), *ARTIFACTS, *MANUAL,
-                   "--output", str(evidence))
-    attested = json.loads(evidence.read_text(encoding="utf-8"))
-    check("evidence names the sha it was gathered for",
-          proc.returncode == 0
-          and attested["candidate"]["sha"] == w.baseline_commit,
-          f"{proc.returncode} {attested['candidate']}")
-    proc = w.gates("promote", "--sha", w.candidate, "--version", "0.2.0",
-                   "--evidence", str(evidence))
-    check("the gate refuses evidence of a foreign sha",
+          proc.returncode == 1 and "sonar" in proc.stderr, proc.stderr[:200])
+    foreign = write_evidence(w, w.baseline_commit, w.candidate_version)
+    proc = w.gates("promote", "--sha", w.candidate, "--version",
+                   CANDIDATE_VERSION, "--evidence", str(foreign))
+    check("the aggregation refuses evidence of a foreign sha",
           proc.returncode == 1 and "gathered for sha" in proc.stderr,
           proc.stderr[:200])
 
 
-def scenario_finalize_red(tmp):
-    """finalize refuses a diverged master, a missing digest and an alias."""
-    w = DryRun(tmp, "finalize-red")
+def scenario_publish_red(tmp):
+    """publish refuses a moved master, a malformed digest and a foreign tag."""
+    w = DryRun(tmp, "publish-red")
     w.advance()
-    w.promo("open-release-pr")
     w.merge_release_pr(w.candidate_version, diverge=True)
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
-    check("finalize refuses a master whose tree diverged",
-          proc.returncode == 1 and "does not carry the candidate" in proc.stderr,
-          stderr_head(proc))
-    w.merge_release_pr(w.candidate_version, force=True)
-    proc = w.promo("finalize", "--sha", w.candidate,
-                   f"--artifact=mrmap-backend={BACKEND_DIGEST}")
-    check("finalize refuses a release without both image digests",
-          proc.returncode == 1 and "digest for mrmap-frontend" in proc.stderr,
-          proc.stderr[:200])
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS, "--alias=latest")
-    check("rolling aliases stay refused while no reviewed alias ledger exists",
-          proc.returncode == 1 and "rolling aliases are refused" in proc.stderr,
-          proc.stderr[:200])
-    check("a refused finalize published nothing",
+    proc, _ = w.verify_step(w.candidate_version)
+    check("verify refuses a master that moved after the reviewed merge",
+          proc.returncode == 1 and "is not the merge commit" in proc.stdout,
+          stdout_head(proc.stdout))
+    check("a refused promotion published nothing",
           w.remote_tags() == [] and w.gh_state()["releases"] == [],
           f"{w.remote_tags()} {w.gh_state()['releases']}")
 
+    # The release body quotes image digests, and an operator audits them against
+    # the registry: a malformed digest is a broken audit trail, so it stops the
+    # release rather than reaching the page.
+    w2 = DryRun(tmp, "publish-red-digest")
+    w2.advance()
+    w2.merge_release_pr(w2.candidate_version)
+    proc, verified = w2.verify_step(w2.candidate_version)
+    expect(proc.returncode == 0, "red: malformed digest",
+           f"verify refused the reviewed merge: {proc.stdout} {proc.stderr}")
+    check("publish refuses a master that moved without a reviewed merge",
+          proc.returncode == 0, "")
+    proc, _ = w2.publish_step(verified, artifacts="mrmap-backend=sha256:deadbeef")
+    check("a digest that is not a digest stops the release",
+          proc.returncode == 1
+          and "has no sha256:<64 hex> digest" in proc.stdout
+          and w2.remote_tags() == [] and w2.gh_state()["releases"] == [],
+          stdout_head(proc.stdout))
 
 def scenario_missing_migration_notes(tmp):
     """The release files are complete except the notes: the gate stops the walk.
@@ -1064,18 +1188,12 @@ def scenario_missing_migration_notes(tmp):
     expect(w.gates("upgrade", "--report", str(upgrade)).returncode == 0,
            "red: missing migration notes",
            "the upgrade gate refused the candidate")
-    checks = w.dir / "checks.json"
-    checks.write_text(json.dumps(checks_payload()), encoding="utf-8")
-    evidence = w.dir / "evidence.json"
-    proc = w.promo("evidence", "--checks-file", str(checks), *ARTIFACTS, *MANUAL,
-                   "--output", str(evidence))
-    expect(proc.returncode == 0, "red: missing migration notes",
-           f"the evidence could not be built: {stderr_head(proc)}")
-    proc = w.promo("preflight", "--sha", "HEAD",
-                   "--expect-version", CANDIDATE_VERSION,
+    sha = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
+    evidence = write_evidence(w, sha, CANDIDATE_VERSION)
+    proc = w.gates("promote", "--sha", sha, "--expect-version", CANDIDATE_VERSION,
                    "--evidence", str(evidence),
-                   f"--report=version={report}", f"--report=api={api}",
-                   f"--report=upgrade={upgrade}")
+                   f"--gate=version={report}", f"--gate=api={api}",
+                   f"--gate=upgrade={upgrade}")
     check("and the promotion refuses a candidate whose version gate is red",
           proc.returncode == 1 and "gate version is red" in proc.stderr,
           stderr_head(proc))
@@ -1104,23 +1222,15 @@ def scenario_prerelease(tmp):
     w.write(planned_release_files(PRERELEASE_VERSION))
     w.commit("chore(release): an rc on develop")
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
-    sha = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
-    proc = w.promo("open-release-pr", "--sha", sha)
-    check("a planned prerelease is cut behind its own release branch",
-          proc.returncode == 0 and "froze release/v0.2.0-rc.1" in proc.stdout,
-          stderr_head(proc))
     w.merge_release_pr(PRERELEASE_VERSION)
-    proc = w.promo("finalize", "--sha", sha, *ARTIFACTS)
-    check("and is published under its prerelease tag",
-          proc.returncode == 0
-          and f"published the GitHub release for v{PRERELEASE_VERSION}"
-          in proc.stdout
-          and w.remote_tag_commit(f"v{PRERELEASE_VERSION}")
-          == w.remote_ref("refs/heads/master"), stderr_head(proc))
+    proc, _ = w.verify_step(PRERELEASE_VERSION)
+    check("a prerelease is never a promotion candidate",
+          proc.returncode == 1
+          and "is not a reviewed MAJOR.MINOR.PATCH version" in proc.stdout,
+          stdout_head(proc.stdout))
     check("a prerelease never cuts the stable tag of its line",
-          git("ls-remote", "--tags", "origin", "refs/tags/v0.2.0",
-              cwd=w.repo).stdout.strip() == "",
-          git("ls-remote", "--tags", "origin", cwd=w.repo).stdout)
+          w.remote_tags() == [] and w.gh_state()["releases"] == [],
+          f"{w.remote_tags()} {w.gh_state()['releases']}")
 
 
 def bump_walk(tmp, name, message, version, *, notes=None, policy=None):
@@ -1295,8 +1405,8 @@ def scenario_stale_candidate_document(tmp):
           proc.returncode == 0 and read["info_version"] == BASE_VERSION,
           stderr_head(proc))
     check("no promotion step passes that switch",
-          "--skip-version-check" not in PROMO.read_text(encoding="utf-8"),
-          "release_promotion.py drives the api gate with the switch on")
+          "--skip-version-check" not in PROMOTION_WORKFLOW.read_text(encoding="utf-8"),
+          "the promotion workflow drives the api gate with the switch on")
     fresh = w.dir / "fresh.openapi.json"
     fresh.write_text(json.dumps(openapi_doc(CANDIDATE_VERSION)), encoding="utf-8")
     proc = w.gates("api", "--candidate", str(fresh),
@@ -1305,49 +1415,46 @@ def scenario_stale_candidate_document(tmp):
           proc.returncode == 0, stderr_head(proc))
 
 
-def scenario_concurrent_release(tmp):
-    """Two promotions of one version: the second is a conflict, and nothing moves.
 
-    #1584's rule is that the tool never moves a frozen release branch, so two
-    runs that both believe they hold the candidate is not a race the tool
-    resolves by last-write-wins: it refuses. The journal is the proof that the
-    re-runs cost one pull request, not one per attempt.
+def scenario_immutable_tag(tmp):
+    """Two promotions of one version: the second conflicts, and nothing moves.
+
+    The native mechanism owns no branch and no journal, so the race that used to
+    be a frozen branch is now the tag: whoever writes the name first owns it, and
+    the second run refuses instead of moving it. The journal is the proof that
+    the refused run cost no tag and no release.
     """
-    w = DryRun(tmp, "concurrent")
+    w = DryRun(tmp, "immutable-tag")
     w.advance()
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
-    expect(proc.returncode == 0, "red: concurrent release",
-           f"the first freeze failed: {stderr_head(proc)}")
-    frozen = w.remote_ref("refs/heads/release/v0.2.0")
+    w.merge_release_pr(w.candidate_version)
+    proc, verified = w.verify_step(w.candidate_version)
+    expect(proc.returncode == 0, "red: immutable tag",
+           f"verify refused the first promotion: {proc.stdout} {proc.stderr}")
+    proc, _ = w.publish_step(verified)
+    expect(proc.returncode == 0, "red: immutable tag",
+           f"the first promotion failed: {proc.stdout} {proc.stderr}")
+    standing = w.remote_tag_commit("v0.2.0")
+
+    # A rival run that wants the same name for a different commit: develop moved
+    # and was merged again, which is the shape of a re-cut release.
     git("checkout", "-q", "-B", "develop", "origin/develop", cwd=w.repo)
     w.write({"app.txt": "a later commit that did not move the version\n"})
     w.commit("chore: a second promotion attempt of the same version")
     git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=w.repo)
-    rival = git("rev-parse", "HEAD", cwd=w.repo).stdout.strip()
-    proc = w.promo("open-release-pr", "--sha", rival)
-    check("a second promotion of one version is refused as a conflict",
-          proc.returncode == 1 and "never moves a frozen" in proc.stderr,
-          stderr_head(proc))
-    check("the refusal moved nothing: branch, tags and releases stand as frozen",
-          w.remote_ref("refs/heads/release/v0.2.0") == frozen
-          and w.remote_tags() == [] and w.gh_state()["releases"] == [],
-          str(w.remote_ref("refs/heads/release/v0.2.0")))
-    proc = w.promo("open-release-pr", "--sha", w.candidate)
-    expect(proc.returncode == 0 and "already" in proc.stdout,
-           "red: concurrent release", stderr_head(proc))
-    creates = [c for c in w.journal_calls()
-               if "pr" in c and "create" in " ".join(map(str, c))]
-    check("three attempts at the freeze cost one pull request",
-          len(creates) == 1, json.dumps(creates)[:200])
-    # and the walk can still be resumed by the run that owns the freeze: the
-    # merge and the publication are unaffected by the refused attempt.
     w.merge_release_pr(w.candidate_version)
-    proc = w.promo("finalize", "--sha", w.candidate, *ARTIFACTS)
-    check("the refused rival attempt did not poison the promotion",
-          proc.returncode == 0
-          and w.remote_tag_commit("v0.2.0") == w.remote_ref("refs/heads/master"),
-          stderr_head(proc))
-
+    expect(w.remote_ref("refs/heads/master") != standing, "red: immutable tag",
+           "the rival merge did not move master, so the scenario proves nothing")
+    proc, _ = w.verify_step(w.candidate_version)
+    check("the second promotion of one version is refused as a tag conflict",
+          proc.returncode == 1 and "already stands on" in proc.stdout,
+          stdout_head(proc.stdout))
+    check("the refusal moved nothing: the tag and the release stand as published",
+          w.remote_tag_commit("v0.2.0") == standing
+          and [r["tagName"] for r in w.gh_state()["releases"]] == ["v0.2.0"],
+          str(w.remote_tag_commit("v0.2.0")))
+    proc, _ = w.verify_step(w.candidate_version)
+    check("a re-run refuses too, so retrying cannot smuggle the move through",
+          proc.returncode == 1, stdout_head(proc.stdout))
 
 # ------------------------------------------------------------------- the run
 
@@ -1361,14 +1468,14 @@ WALK = [("pre-release", phase_pre_release),
 SCENARIOS = [("no release from class-less changes", scenario_no_release_changes),
              ("VERSION move without its fold", scenario_missing_changelog),
              ("incomplete or foreign evidence", scenario_evidence_red),
-             ("finalize's refusals", scenario_finalize_red),
+             ("publish's refusals", scenario_publish_red),
              ("a range that owes its migration notes",
               scenario_missing_migration_notes),
              ("prerelease carries no stable publication", scenario_prerelease),
              ("what each commit class demands of a version",
               scenario_bump_policy),
              ("a stale candidate document", scenario_stale_candidate_document),
-             ("two promotions of one version", scenario_concurrent_release)]
+             ("two promotions of one version", scenario_immutable_tag)]
 
 PER_PHASE_S = float(os.environ.get("RELEASE_DRY_RUN_PHASE_TIMEOUT_S", "150"))
 

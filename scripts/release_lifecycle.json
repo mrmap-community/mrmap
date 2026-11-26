@@ -51,37 +51,38 @@
     {
       "id": "build-and-gate",
       "actor": "ci",
-      "action": "images for the candidate are built and attested by digest; the contract, version and upgrade gates judge it",
+      "action": "images for the candidate are built and attested by digest; the contract, version and upgrade gates judge the exact master merge commit (#1799/#1800)",
       "evidence": ".github/workflows/release-gates.yml",
       "docs": "release-compatibility-gates"
     },
     {
       "id": "promote",
       "actor": "human",
-      "action": "the Release promotion workflow is dispatched manually behind the protected environment; its gate step refuses a candidate whose evidence is incomplete",
+      "action": "one manual dispatch of the promotion workflow verifies the merged release pull request and, behind the protected environment, publishes it; verify refuses a candidate that is not master's tip, an unpublished version, or a tag that already stands elsewhere",
       "evidence": ".github/workflows/release-promotion.yml",
       "environment": "release-stable",
-      "dispatch_modes": ["plan", "status", "gate", "open-release-pr", "finalize", "sync"],
+      "mechanism": "native Actions jobs, needs and concurrency plus gh and git; the steps are written in the workflow itself and scripts/test_release_promotion.py runs them out of the workflow text, so no promotion tool exists to drift",
+      "publishing": "disabled until the build and gate jobs of #1799/#1800 are wired in front of it: the approved job rehearses and writes nothing",
       "docs": "release-promotion"
     },
     {
       "id": "verify-on-master",
       "actor": "ci",
-      "action": "the version upgrade gate re-runs against master with the candidate's migrations before anything is called stable",
-      "evidence": "scripts/release_promotion.py finalize",
+      "action": "the tag and the GitHub release stand on the merge commit that was verified and reviewed; the version upgrade gate re-runs against master's migrations before anything is called stable",
+      "evidence": ".github/workflows/release-promotion.yml",
       "docs": "release-promotion"
     },
     {
       "id": "post-release",
       "actor": "human",
-      "action": "the release issue family is closed and the next maintenance versions announced; the master-to-develop sync PR is opened by the tool and merged by a human",
-      "evidence": "scripts/release_promotion.py sync",
+      "action": "the release issue family is closed and the next maintenance versions announced; the master-to-develop sync is an ordinary reviewed pull request, and the planner re-anchors on the tag the promotion pushed",
+      "evidence": ".github/workflows/release-promotion.yml verify step and the ordinary sync PR of docs/source/development/github-flow.rst",
       "docs": "release-planning"
     }
   ],
   "constraints": {
     "version_bumping": "automatic via release-please reading conventional commit classes; no contributor edits version fields",
-    "permanent_branch_pushes": "no agent pushes develop or master; the promotion tool opens PRs and a human merges",
+    "permanent_branch_pushes": "no agent pushes develop or master; the promotion path writes a tag and a release, and a human merges",
     "approvals": "humans alone approve, merge and resolve",
     "issue_closing": "the promotion path never closes issues",
     "security_fix_class": "fix(security) is a patch unless it breaks an API shape, which is a major",
@@ -90,6 +91,14 @@
   "operator_runbook": {
     "page": "docs/source/administration/release-operator-runbook.rst",
     "label": "release-operator-runbook",
-    "sections": ["Lifecycle", "Prerequisites", "Receiving an upgrade", "Backup obligations", "Rollback", "Security fixes", "Troubleshooting"]
+    "sections": [
+      "Lifecycle",
+      "Prerequisites",
+      "Receiving an upgrade",
+      "Backup obligations",
+      "Rollback",
+      "Security fixes",
+      "Troubleshooting"
+    ]
   }
 }

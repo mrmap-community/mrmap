@@ -51,10 +51,6 @@ def doc_labels():
     return labels
 
 
-def argparse_subcommands(path):
-    return set(re.findall(r'add_parser\("([\w-]+)"', read(path)))
-
-
 def main():
     print("release_lifecycle.json holds against the committed tooling")
     raw = read(LIFECYCLE_PATH)
@@ -77,6 +73,10 @@ def main():
     for phase in life["phases"]:
         for token in re.findall(r"[\w./-]+\.(?:yml|py|md|json|rst)", phase["evidence"]):
             named.add(token)
+        # a phase that names the files its mechanism lives in must not name a
+        # file that has since been removed
+        for token in re.findall(r"[\w./-]+\.(?:py|json)", phase.get("mechanism", "")):
+            named.add(token)
     named.add(life["operator_runbook"]["page"])
     named.add("scripts/image_release.py")
     dev_images = life["channels"]["development"]["images"]["published_by"]
@@ -90,15 +90,24 @@ def main():
     check("the dispatch runs behind the declared environment",
           re.search(rf"environment: {re.escape(promote['environment'])}\b", wf),
           promote["environment"])
-    options = re.search(r"options: \[([^\]]*)\]", wf)
-    wf_modes = [m.strip() for m in options.group(1).split(",")] if options else []
-    check("dispatch_modes are exactly the workflow's choices",
-          set(wf_modes) == set(promote["dispatch_modes"]),
-          f"workflow={wf_modes} json={promote['dispatch_modes']}")
-    tool_subs = argparse_subcommands(ROOT / "scripts" / "release_promotion.py")
-    check("every dispatch mode is a real subcommand of the tool",
-          set(promote["dispatch_modes"]) <= tool_subs,
-          f"tool knows {sorted(tool_subs)}")
+    # The lifecycle names the mechanism rather than a mode list: there is no tool
+    # to dispatch any more, so the workflow's own job graph is what has to hold.
+    check("the promotion is one dispatch of jobs wired through needs, not a mode per step",
+          "workflow_dispatch:" in wf and "needs: verify" in wf
+          and "release_promotion.py" not in wf,
+          "no needs edge, or the workflow calls a promotion tool again")
+    # The publish input keeps publication off until #1799/#1800 wire their jobs in
+    # front of it, so its default - not a description that claims it - is what the
+    # lifecycle's "publishing" note depends on.
+    publish_input = re.search(r"^      publish:\n(?:^        .*\n)+", wf, re.MULTILINE)
+    check("the promotion writes with gh and git, and nothing is published by default",
+          "gh release create" in wf and "git tag" in wf
+          and bool(publish_input) and "default: false" in publish_input.group(0),
+          (publish_input.group(0)[-80:] if publish_input else "no publish input"))
+    check("the phase's declared mechanism names the files that actually decide it",
+          all(token in wf or (ROOT / token).exists()
+              for token in re.findall(r"[\w./-]+\.(?:py|json)", promote["mechanism"])),
+          promote["mechanism"])
 
     # --- image promotion is by digest through the committed tool ---------------
     check("image_release.py really carries the --promote path",

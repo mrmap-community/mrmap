@@ -1,141 +1,131 @@
 #!/usr/bin/env python3
-"""Offline checks for scripts/release_promotion (issue #1584, epic #1577).
+"""test_release_promotion: the native promotion workflow does what it claims.
 
-Runs without docker, without network and without a GitHub token: the tool is
-driven against throw-away git repositories whose "origin" is a local bare
-repository (the file transport the migration-graph suite already uses), and
-every GitHub fact answers from a `gh` shim that journals its calls to a file
-and keeps open PRs and published releases in a small JSON state. No check here
-pretends to talk to GitHub; `--git-bin`/`--gh-bin` are the same seams a real
-operator could point at a mirror, and the assertions read what the tool
-actually sent through them.
+Issue #1798 (epic #1577). The custom promotion orchestrator of #1584 is gone;
+.github/workflows/release-promotion.yml is now two jobs of shell - `verify`
+proves one commit is the reviewed release, `publish` tags it and creates its
+release behind the protected `release-stable` environment. The workflow IS the
+implementation, so the checks below run the workflow's own step scripts. They
+are read out of the YAML rather than copied: a suite holding its own copy of a
+step proves nothing about the file CI runs.
 
-The suite's duty is the issue's acceptance lines, red first: a candidate that
-was not planned, evidence of another sha, a frozen branch elsewhere, a master
-whose tree diverged from the tested one, a tag already standing on a foreign
-commit, a missing digest - each must be seen REFUSED, and refused BEFORE the
-tool touched a tag or a release. Then the same worlds run the promotion to
-green, and every step is re-run to prove the reconcile path ("already done"
-is a skip, never a duplicate).
+What is exercised, and how far it goes
+--------------------------------------
+The steps are driven with bash against a throw-away repository whose "origin"
+is a local bare repo, with the journaling `gh` shim the lifecycle dry run uses
+for the same reason: no network, no credential, and every GitHub answer a step
+needs comes from a table this file controls. Each refusal the criteria name is
+seen BEFORE a ref was written:
 
-Run from the repository root: `python3 scripts/test_release_promotion.py`.
-Exit 0 when every check passes, 1 with the failed ones listed.
+  no merged release PR                    verify refuses, publish publishes nothing
+  master's tip is not the merge commit    verify refuses (master moved on its own)
+  VERSION there is another version        verify refuses (not the prepared version)
+  gh answers no merge commit              verify refuses rather than guessing
+  the tag already stands elsewhere        verify refuses (a published tag never moves)
+
+and then the same world publishes: annotated tag on master's tip, one GitHub
+release standing on that commit, whose body carries the version, the changelog
+section of that commit, both image digests and the verified sha. Publication is
+still disabled upstream, so the rehearsal is pinned separately: `publish=false`
+writes no tag and no release yet prints both, which is what lets this workflow
+land while #1799 and #1800 wire their gates. A run whose approval queued behind
+something that moved master is checked as a refusal too, because the environment
+approval is granted before the write, not at it.
+
+Shape checks come last and are cheap: the triggers people and #1609/#1800 need,
+the single `needs` edge, the protected environment on the writing job and not on
+the reading one, the permissions each job actually uses, and the two upstream
+facts that make release-please's own `github-release` unusable here - measured
+in docs/source/development/release-promotion.rst, pinned so that swapping those
+commands back in without re-measuring goes red.
+
+Run from the repository root:  python3 scripts/test_release_promotion.py
+(also run by scripts/check_repo_tooling.sh). Standard library only; `yaml` is
+used for the shape checks and its absence skips those out loud. git and bash are
+required; docker, node and the network are not.
 """
-
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-PROMO = HERE / "release_promotion.py"
-TOOLS = ["release_promotion.py", "release_gates.py", "canonical_version.py"]
+REPO = HERE.parent
+WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
+RUNBOOK = REPO / "docs" / "source" / "administration" / "release-operator-runbook.rst"
+DESIGN = REPO / "docs" / "source" / "development" / "release-promotion.rst"
 
 RESULTS = []
 
 
 def check(name, ok, detail=""):
     RESULTS.append((name, bool(ok), detail))
+    return bool(ok)
 
 
-def promo_module():
-    """The tool as a module, for checks that need no repository at all."""
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("release_promotion", PROMO)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+def skip(name, detail):
+    RESULTS.append((name, None, detail))
 
 
-def canonical_module():
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "canonical_version", HERE / "canonical_version.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+GIT_ENV = dict(os.environ,
+               GIT_AUTHOR_NAME="release test", GIT_AUTHOR_EMAIL="ci@example.invalid",
+               GIT_COMMITTER_NAME="release test", GIT_COMMITTER_EMAIL="ci@example.invalid",
+               GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null",
+               GIT_TERMINAL_PROMPT="0")
 
 
-CANON = canonical_module()
-
-# ---------------------------------------------------------------- git plumbing
-
-GIT_ENV = dict(os.environ, GIT_CONFIG_GLOBAL="/dev/null",
-               GIT_CONFIG_SYSTEM="/dev/null")
+def git(*argv, cwd):
+    return subprocess.run(["git", *argv], cwd=str(cwd), env=GIT_ENV,
+                          capture_output=True, text=True)
 
 
-def git(*argv, cwd=None):
-    proc = subprocess.run(["git", *argv], cwd=str(cwd) if cwd else None,
-                          capture_output=True, text=True, env=GIT_ENV)
+def git_ok(*argv, cwd):
+    proc = git(*argv, cwd=cwd)
     if proc.returncode != 0:
         raise RuntimeError(f"git {' '.join(argv)}: {proc.stderr.strip()}")
     return proc.stdout.strip()
 
 
-def git_ok(*argv, cwd=None):
-    proc = subprocess.run(["git", *argv], cwd=str(cwd) if cwd else None,
-                          capture_output=True, text=True, env=GIT_ENV)
-    return proc.returncode
-
-
-def candidate_files(version, folded=True, projection=None, manifest=None):
-    """The five-file shape of a planned release, as path -> content."""
-    changelog = "# Changelog\n\n"
-    if folded:
-        changelog += f"## [{version}] - 2026-11-20\n\n### Added\n\n- work\n"
-    else:
-        changelog += "### Added\n\n- work\n"
-    return {
-        "VERSION": version + "\n",
-        "backend/MrMap/version.py": (
-            projection if projection is not None
-            else CANON.render_projection(version)),
-        ".release-please-manifest.json": json.dumps(
-            manifest or {".": version}) + "\n",
-        "CHANGELOG.md": changelog,
-        "app.txt": f"state of {version}\n",
-    }
-
-
-def write_files(root, files):
-    for rel, content in files.items():
-        path = Path(root) / rel
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
-
-
+# ------------------------------------------------------------------ gh shim
+#
+# The contract test_release_lifecycle_dry_run.py uses for the same reason: state
+# in a JSON file, every call appended to a journal, and an unhandled call is an
+# error rather than a silent success. `pr list` answers only the query the
+# workflow actually makes, so a step that asked GitHub something else gets an
+# empty answer and refuses - the honest direction for a promotion tool to fail.
 GH_SHIM = """#!/usr/bin/env python3
 import json, os, sys
 argv = sys.argv[1:]
-state_path = os.environ["GH_STATE"]
 with open(os.environ["GH_JOURNAL"], "a", encoding="utf-8") as fh:
     fh.write(json.dumps(argv) + "\\n")
-try:
-    state = json.load(open(state_path, encoding="utf-8"))
-except FileNotFoundError:
-    state = {"prs": [], "releases": []}
+state = json.load(open(os.environ["GH_STATE"], encoding="utf-8"))
+
 
 def flag(name):
     return argv[argv.index(name) + 1] if name in argv else None
 
-def save():
-    json.dump(state, open(state_path, "w", encoding="utf-8"))
 
 if argv[:2] == ["pr", "list"]:
-    out = [p for p in state["prs"]
-           if p["headRefName"] == flag("--head")
-           and p["baseRefName"] == flag("--base")]
-    print(json.dumps(out))
-elif argv[:2] == ["pr", "create"]:
-    n = 100 + len(state["prs"]) + 1
-    state["prs"].append({"number": n, "state": "OPEN",
-                         "headRefName": flag("--head"),
-                         "baseRefName": flag("--base"),
-                         "title": flag("--title")})
-    save()
-    print("https://github.example.test/pull/%d" % n)
+    want = (flag("--base"), flag("--head"), flag("--state"))
+    if want != ("master", "develop", "merged"):
+        sys.stderr.write("gh shim: unexpected pr list query %r\\n" % (want,))
+        sys.exit(1)
+    rows = state["merged_release_prs"]
+    if flag("--jq") is not None:
+        # answers the workflow's own jq program by reading the table rather than
+        # by reimplementing jq: a null mergeCommit is dropped, the newest
+        # mergedAt wins.
+        rows = [r for r in rows if (r.get("mergeCommit") or {}).get("oid")]
+        if not rows:
+            print("")
+        else:
+            latest = sorted(rows, key=lambda r: r["mergedAt"])[-1]
+            print("%d %s" % (latest["number"], latest["mergeCommit"]["oid"]))
+    else:
+        print(json.dumps(rows))
 elif argv[:2] == ["release", "view"]:
     tag = argv[2]
     found = next((r for r in state["releases"] if r["tagName"] == tag), None)
@@ -146,425 +136,515 @@ elif argv[:2] == ["release", "view"]:
         sys.exit(1)
 elif argv[:2] == ["release", "create"]:
     tag = argv[2]
-    state["releases"].append({"tagName": tag,
-                              "url": "https://github.example.test/r/" + tag})
-    save()
-    print("https://github.example.test/r/" + tag)
+    if any(r["tagName"] == tag for r in state["releases"]):
+        sys.stderr.write("gh shim: release %s already exists\\n" % tag)
+        sys.exit(1)
+    state["releases"].append({"tagName": tag, "target": flag("--target"),
+                              "title": flag("--title"),
+                              "notes_file": flag("--notes-file")})
+    json.dump(state, open(os.environ["GH_STATE"], "w", encoding="utf-8"))
+    print("https://github.example.test/releases/" + tag)
 else:
     sys.stderr.write("gh shim: unhandled call: " + " ".join(argv) + "\\n")
     sys.exit(1)
 """
 
+VERSION = "0.2.0"
+BACKEND_DIGEST = "sha256:" + "a" * 64
+FRONTEND_DIGEST = "sha256:" + "b" * 64
+ARTIFACTS = f"mrmap-backend={BACKEND_DIGEST}\nmrmap-frontend={FRONTEND_DIGEST}"
 
+CHANGELOG = """# Changelog
+
+## Unreleased
+
+### Added
+- Curated entry written by a human.
+
+## [0.2.0](https://github.example.test/compare/v0.1.0...v0.2.0) (2026-11-26)
+
+### Added
+
+* the first planned feature
+
+### Fixed
+
+* a repair worth a note
+
+## [0.1.0] - 2023-03-23
+
+### Added
+- The old released baseline.
+"""
+
+
+# ---------------------------------------------------------------- test world
 class World:
-    """A clone, its bare origin, and the journaling gh that answers for it."""
+    """One throw-away repository plus the GitHub answers the workflow reads.
 
-    def __init__(self, tmp, name, with_candidate=True):
-        self.dir = Path(tmp) / name
+    `origin` is a local bare repo, so no ref a run writes ever leaves the
+    temporary directory. `merged_release_prs` is what `gh pr list` answers, so
+    the state under test is exactly the state the step is being asked about.
+    """
+
+    def __init__(self, tmp):
+        self.dir = Path(tmp)
         origin = self.dir / "origin.git"
-        self.clone = self.dir / "clone"
+        self.repo = self.dir / "clone"
         self.gh = self.dir / "gh"
-        self.state = self.dir / "gh-state.json"
-        self.journal = self.dir / "gh-journal.jsonl"
-        self.dir.mkdir(parents=True)
+        self.state_path = self.dir / "gh-state.json"
+        self.journal_path = self.dir / "gh-journal.jsonl"
         self.gh.write_text(GH_SHIM, encoding="utf-8")
         self.gh.chmod(0o755)
-        self.state.write_text('{"prs": [], "releases": []}', encoding="utf-8")
-        git("init", "--bare", "--initial-branch=develop", str(origin))
-        git("clone", "-q", str(origin), str(self.clone))
-        for key, value in (("user.email", "t@t"), ("user.name", "t"),
+        self.state = {"merged_release_prs": [], "releases": []}
+        self.save()
+        self.journal_path.write_text("", encoding="utf-8")
+        git_ok("init", "--bare", "--initial-branch=develop", str(origin), cwd=self.dir)
+        git_ok("clone", "-q", str(origin), str(self.repo), cwd=self.dir)
+        for key, value in (("user.email", "ci@example.invalid"),
+                           ("user.name", "release test"),
                            ("commit.gpgsign", "false")):
-            git("config", key, value, cwd=self.clone)
-        write_files(self.clone, candidate_files("0.1.0", folded=False))
-        git("add", "-A", cwd=self.clone)
-        git("commit", "-qm", "base", cwd=self.clone)
-        self.base_sha = git("rev-parse", "HEAD", cwd=self.clone)
-        git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.clone)
-        git("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.clone)
-        if with_candidate:
-            self.candidate_sha = self.add_candidate("0.2.0")
-        else:
-            self.candidate_sha = None
+            git_ok("config", key, value, cwd=self.repo)
+        (self.repo / "VERSION").write_text("0.1.0\n", encoding="utf-8")
+        (self.repo / "CHANGELOG.md").write_text(CHANGELOG, encoding="utf-8")
+        (self.repo / "app.txt").write_text("baseline\n", encoding="utf-8")
+        git_ok("add", "-A", cwd=self.repo)
+        git_ok("commit", "-q", "-m", "chore: the shape of a deployment", cwd=self.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.repo)
+        self.release_pr_number = 1700
+        self.merge_commit = None
 
-    def add_candidate(self, version, **kwargs):
-        write_files(self.clone, candidate_files(version, **kwargs))
-        git("add", "-A", cwd=self.clone)
-        git("commit", "-qm", f"release {version}", cwd=self.clone)
-        git("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.clone)
-        return git("rev-parse", "HEAD", cwd=self.clone)
+    def save(self):
+        self.state_path.write_text(json.dumps(self.state), encoding="utf-8")
 
-    def journal_calls(self):
-        if not self.journal.exists():
-            return []
-        return [json.loads(line)
-                for line in self.journal.read_text().splitlines() if line]
+    def gh_state(self):
+        """Always re-read the file: the shim writes there, so the in-memory
+        dict is only what this world asked GitHub, never what it answered."""
+        return json.loads(self.state_path.read_text(encoding="utf-8"))
 
-    def remote_sha(self, ref):
-        out = git("ls-remote", "origin", ref, cwd=self.clone)
-        for line in out.splitlines():
+    # -- the history the planner and the reviewed merge would have produced --
+    def prepare_release_pr(self, version=VERSION):
+        git_ok("checkout", "-q", "-B", "develop", "origin/develop", cwd=self.repo)
+        (self.repo / "VERSION").write_text(version + "\n", encoding="utf-8")
+        git_ok("add", "-A", cwd=self.repo)
+        git_ok("commit", "-q", "-m", f"chore: release {version}", cwd=self.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/develop", cwd=self.repo)
+        return git_ok("rev-parse", "HEAD", cwd=self.repo)
+
+    def merge_to_master(self):
+        """The reviewed develop -> master merge, landed the way GitHub lands it:
+        a merge commit whose parents are master's tip and develop's tip, so
+        master carries the candidate's tree without being the candidate."""
+        git_ok("fetch", "-q", "origin", cwd=self.repo)
+        git_ok("checkout", "-q", "-B", "master", "origin/master", cwd=self.repo)
+        git_ok("merge", "--no-ff", "-q", "-m",
+               f"Merge pull request #{self.release_pr_number} from mrmap-community/develop",
+               "-m", "release: promote 0.2.0", "origin/develop", cwd=self.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=self.repo)
+        self.merge_commit = git_ok("rev-parse", "HEAD", cwd=self.repo)
+        self.state["merged_release_prs"] = [{
+            "number": self.release_pr_number,
+            "mergedAt": "2026-11-26T00:00:00Z",
+            "mergeCommit": {"oid": self.merge_commit},
+        }]
+        self.save()
+        return self.merge_commit
+
+    # -- the steps under test ----------------------------------------------
+    def run_step(self, doc, job, step_name, env_extra):
+        script = step_script(doc, job, step_name)
+        path = self.dir / f"{job}.sh"
+        path.write_text(script, encoding="utf-8")
+        env = dict(GIT_ENV,
+                   GH_TOKEN="",
+                   GITHUB_REPOSITORY="mrmap-community/mrmap",
+                   GITHUB_OUTPUT=str(self.dir / "gh-output"),
+                   RUNNER_TEMP=str(self.dir),
+                   PATH=f"{self.dir}" + os.pathsep + os.environ.get("PATH", ""))
+        env.update(GH_STATE=str(self.state_path), GH_JOURNAL=str(self.journal_path))
+        env.update(env_extra)
+        (self.dir / "gh-output").write_text("", encoding="utf-8")
+        proc = subprocess.run(["bash", str(path)], cwd=str(self.repo), env=env,
+                              capture_output=True, text=True, timeout=180)
+        outputs = {}
+        for line in (self.dir / "gh-output").read_text(encoding="utf-8").splitlines():
+            if "=" in line:
+                key, _, value = line.partition("=")
+                outputs[key] = value
+        return proc, outputs
+
+    def verify(self, doc, version=VERSION):
+        return self.run_step(doc, "verify",
+                             "Verify the reviewed release pull request",
+                             {"VERSION": version})
+
+    def publish(self, doc, outputs=None, version=VERSION, publish=True,
+                artifacts=ARTIFACTS):
+        outputs = outputs or {}
+        return self.run_step(doc, "publish",
+                             "Publish the tag and the GitHub release",
+                             {"VERSION": outputs.get("version", version),
+                              "MERGE_COMMIT": outputs.get("merge_commit",
+                                                          self.merge_commit or ""),
+                              "TAG": outputs.get("tag", f"v{version}"),
+                              "PUBLISH": "true" if publish else "false",
+                              "ARTIFACTS": artifacts})
+
+    # -- reading the world back --------------------------------------------
+    def journal(self):
+        return [json.loads(line) for line in
+                self.journal_path.read_text(encoding="utf-8").splitlines() if line]
+
+    def remote_ref(self, ref):
+        for line in git("ls-remote", "origin", ref, cwd=self.repo).stdout.splitlines():
             sha, name = line.split("\t", 1)
             if name == ref:
                 return sha
         return None
 
-    def promo(self, *argv):
-        env = dict(GIT_ENV, GH_STATE=str(self.state),
-                   GH_JOURNAL=str(self.journal))
-        cmd = [sys.executable, str(PROMO), "--root", str(self.clone),
-               "--gh-bin", str(self.gh), *argv]
-        return subprocess.run(cmd, capture_output=True, text=True, env=env)
+    def tag_commit(self, tag):
+        return (self.remote_ref(f"refs/tags/{tag}^{{}}")
+                or self.remote_ref(f"refs/tags/{tag}"))
+
+    def master(self):
+        return self.remote_ref("refs/heads/master")
+
+    def tags(self):
+        out = git("ls-remote", "--tags", "origin", cwd=self.repo)
+        return sorted(line.split("\t")[-1].replace("refs/tags/", "")
+                      for line in out.stdout.splitlines()
+                      if "->" not in line and not line.endswith("^{}"))
 
 
-def reports(tmpdir, version="0.2.0"):
-    """Synthetic gate reports in the shape release_gates promote reads."""
-    paths = {}
-    for name, extra in (("api", {}),
-                        ("version", {"candidate_version": version}),
-                        ("upgrade", {})):
-        path = Path(tmpdir) / f"{name}-report.json"
-        path.write_text(json.dumps({"gate": name, "ok": True,
-                                    "mode": "pre-baseline", **extra}),
-                        encoding="utf-8")
-        paths[name] = str(path)
-    return paths
+# ---------------------------------------------------------- workflow reading
+def load_workflow():
+    try:
+        import yaml
+    except ImportError:
+        return None
+    return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
 
-GREEN_CHECKS = [
-    {"name": "unit-tests", "conclusion": "success", "html_url": "u-tests"},
-    {"name": "acceptance-tests", "conclusion": "success",
-     "html_url": "u-accept"},
-    {"name": "sonarcloud", "conclusion": "success", "html_url": "u-sonar"},
-]
-BACKEND = "sha256:" + "a" * 64
-FRONTEND = "sha256:" + "b" * 64
-ARTIFACTS = ["--artifact=mrmap-backend=" + BACKEND,
-             "--artifact=mrmap-frontend=" + FRONTEND]
+def commands(job, step_name, doc):
+    """The step's script without its comment lines.
+
+    A check that a command is absent has to mean absent from what bash runs: the
+    header comments of these steps name the very commands they forbid, and a
+    substring test over the whole script would fail on the explanation.
+    """
+    script = step_script(doc, job, step_name)
+    return "\n".join(line for line in script.splitlines()
+                      if not line.lstrip().startswith("#"))
 
 
-def evidence_file(world, path, sha=None):
-    checks = Path(str(path) + ".checks.json")
-    checks.write_text(json.dumps(GREEN_CHECKS), encoding="utf-8")
-    proc = world.promo("evidence", "--sha", sha or world.candidate_sha,
-                       "--checks-file", str(checks),
-                       "--manual", "dependencies=https://deps.test/audit",
-                       *ARTIFACTS, "--output", str(path))
-    return proc
+def step_script(doc, job, step_name):
+    for step in doc["jobs"][job]["steps"]:
+        if step.get("name") == step_name:
+            return step["run"]
+    raise AssertionError(f"no step named {step_name!r} in job {job!r}")
 
 
-def human_merge_release_pr(world):
-    """What the acceptance criteria reserve to people, simulated here with
-    plain git: a merge commit onto master carrying the candidate. Where the
-    frozen release branch exists it is what gets merged; worlds that test
-    finalize without the open step merge the candidate sha directly - the
-    merge commit's tree is the point either way."""
-    git("fetch", "-q", "origin", cwd=world.clone)
-    git("checkout", "-q", "-B", "master", "origin/master", cwd=world.clone)
-    if world.remote_sha("refs/heads/release/v0.2.0"):
-        rev = "origin/release/v0.2.0"
-    else:
-        rev = world.candidate_sha
-    git("merge", "--no-ff", "-m", "chore: release v0.2.0", rev,
-        cwd=world.clone)
-    git("push", "-q", "origin", "master", cwd=world.clone)
-    return git("rev-parse", "master", cwd=world.clone)
+# ------------------------------------------------------------------- checks
+def shape_checks(doc):
+    triggers = doc.get("on", doc.get(True))
+    check("the workflow is dispatched by people and callable, never scheduled or push-triggered",
+          set(triggers) == {"workflow_dispatch", "workflow_call"}, str(sorted(triggers)))
+    check("dispatch requires the reviewed version and defaults publish to off",
+          triggers["workflow_dispatch"]["inputs"]["version"]["required"] is True
+          and triggers["workflow_dispatch"]["inputs"]["publish"]["default"] is False,
+          json.dumps(triggers["workflow_dispatch"]["inputs"]))
+    check("the callable inputs mirror the dispatch inputs, so #1609 and #1800 read one interface",
+          set(triggers["workflow_call"]["inputs"])
+          == set(triggers["workflow_dispatch"]["inputs"]),
+          str(sorted(triggers["workflow_call"]["inputs"])))
+    check("one promotion runs at a time and a re-dispatch never cancels a run that may have tagged",
+          doc["concurrency"] == {"group": "release-promotion",
+                                 "cancel-in-progress": False},
+          json.dumps(doc["concurrency"]))
+
+    jobs = doc["jobs"]
+    check("exactly two jobs, and the publisher needs the verifier",
+          set(jobs) == {"verify", "publish"} and jobs["publish"]["needs"] == "verify",
+          str(sorted(jobs)))
+    check("only the publishing job sits behind the protected environment",
+          jobs["publish"].get("environment") == "release-stable"
+          and "environment" not in jobs["verify"],
+          str({k: v.get("environment") for k, v in jobs.items()}))
+    check("least privilege: read at the top, write only where the tag and release are written",
+          doc["permissions"] == {"contents": "read"}
+          and jobs["verify"].get("permissions", {"contents": "read"}) == {"contents": "read"}
+          and jobs["publish"]["permissions"] == {"contents": "write"},
+          json.dumps({k: v.get("permissions") for k, v in jobs.items()}))
+    check("no job reads a deployment or registry secret",
+          not any("secrets." in json.dumps(job) for job in jobs.values()))
+
+    verify_script = commands("verify", "Verify the reviewed release pull request", doc)
+    publish_script = commands("publish", "Publish the tag and the GitHub release", doc)
+    check("verify asks GitHub for the merged develop -> master PR, the only head the policy admits",
+          all(part in verify_script for part in
+              ("--base master", "--head develop", "--state merged")))
+    check("verify reads master's tip and that commit's VERSION rather than trusting a ref name",
+          "refs/heads/master" in verify_script
+          and 'git show "$MERGE_COMMIT:VERSION"' in verify_script)
+    check("verify answers the immutable-tag conflict before writing anything",
+          "refs/tags/$TAG" in verify_script and "already stands on" in verify_script
+          and "git push" not in verify_script and "release create" not in verify_script)
+    check("verify needs no write permission to answer", "contents: write" not in verify_script)
+    check("publish re-reads master and the tag after the approval",
+          "refs/heads/master" in publish_script and "refs/tags/$TAG" in publish_script)
+    check("a stable release is never published without one digest per first-party image",
+          "mrmap-backend mrmap-frontend" in publish_script
+          and all(part in publish_script
+                  for part in ('for image in', 'exit 1', '"$PUBLISH" = "true"')))
+    check("publish pushes an annotated tag, never a forced one, and creates the release",
+          "git tag -a" in publish_script and "gh release create" in publish_script
+          and "--force" not in publish_script)
+    check("the rehearsal exits without writing when publish is off",
+          'if [ "$PUBLISH" != "true" ]' in publish_script)
+    check("the release body quotes the verified commit and the image digests",
+          'git show "$MERGE_COMMIT:CHANGELOG.md"' in publish_script
+          and "Published images" in publish_script)
+    both = verify_script + "\n" + publish_script
+    check("the mechanism is Actions, gh and git - no repository tool is called",
+          not any(f"{runner} scripts/" in both
+                  for runner in ("python3", "python", "bash", "sh"))
+          and "release_promotion" not in both,
+          [l for l in both.splitlines() if "scripts/" in l][:3])
 
 
-# ------------------------------------------------------------------ the checks
+def no_merged_pr(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-no-pr-"))
+    try:
+        proc, _ = w.verify(doc)
+        check("verify refuses when no release pull request was merged",
+              proc.returncode == 1 and "no merged develop -> master" in proc.stderr + proc.stdout,
+              proc.stderr[:200])
+        check("and names the human act that is missing",
+              "only a person may merge" in proc.stderr + proc.stdout, proc.stderr[:200])
+        proc, _ = w.publish(doc)
+        check("publish without a verified commit publishes nothing",
+              proc.returncode == 1 and w.tags() == [] and w.gh_state()["releases"] == [],
+              proc.stderr[:200])
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_plan_reads_a_planned_candidate(tmp):
-    w = World(tmp, "plan-ok")
-    proc = w.promo("plan")
-    check("plan: a planned candidate is read with its version and steps",
-          proc.returncode == 0
-          and "planned 0.2.0 release" in proc.stdout
-          and "changelog: [0.2.0] folded" in proc.stdout
-          and "manifest: 0.2.0" in proc.stdout, proc.stderr)
+def master_moved(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-moved-"))
+    try:
+        w.prepare_release_pr()
+        merge = w.merge_to_master()
+        git_ok("checkout", "-q", "-B", "master", "origin/master", cwd=w.repo)
+        (w.repo / "unreviewed.txt").write_text("landed on master alone\n", encoding="utf-8")
+        git_ok("add", "-A", cwd=w.repo)
+        git_ok("commit", "-q", "-m", "fix: merged straight to master", cwd=w.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=w.repo)
+        proc, _ = w.verify(doc)
+        check("verify refuses a master that moved without a reviewed release merge",
+              proc.returncode == 1 and "is not the merge commit" in proc.stderr + proc.stdout,
+              proc.stderr[:220])
+        check("and says plainly that it will not re-anchor onto it",
+              "Nothing here moves master" in proc.stderr + proc.stdout, proc.stderr[:220])
+        check("no tag was pushed for the unreviewed tip", w.tags() == [])
+        git_ok("update-ref", "refs/remotes/origin/master", merge, cwd=w.repo)
+        git_ok("push", "-q", "-f", "origin", f"{merge}:refs/heads/master", cwd=w.repo)
+        proc, out = w.verify(doc)
+        check("the same world verifies once master's tip is the reviewed merge again",
+              proc.returncode == 0 and out.get("merge_commit") == merge,
+              f"{proc.stderr[-200:]} {out}")
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_plan_refuses_unplanned_commits(tmp):
-    w = World(tmp, "plan-changelog")
-    sloppy = w.add_candidate("0.3.0", folded=False)
-    proc = w.promo("plan", "--sha", sloppy)
-    check("plan: a VERSION move without its folded changelog section is "
-          "refused", proc.returncode == 1
-          and "CHANGELOG.md" in proc.stderr, proc.stderr + proc.stdout)
-
-    w2 = World(tmp, "plan-manifest")
-    drift = w2.add_candidate("0.3.0", manifest={".": "0.1.0"})
-    proc = w2.promo("plan", "--sha", drift)
-    check("plan: VERSION moved while the release manifest stayed is refused",
-          proc.returncode == 1 and "manifest" in proc.stderr, proc.stderr)
-
-    w3 = World(tmp, "plan-projection")
-    drift = w3.add_candidate("0.3.0", projection="# not regenerated\n")
-    proc = w3.promo("plan", "--sha", drift)
-    check("plan: a projection that is not the projection of VERSION is "
-          "refused", proc.returncode == 1 and "projection" in proc.stderr,
-          proc.stderr)
-
-    w4 = World(tmp, "plan-side")
-    write_files(w4.clone, candidate_files("0.9.0"))
-    git("add", "-A", cwd=w4.clone)
-    git("commit", "-qm", "side", cwd=w4.clone)
-    side = git("rev-parse", "HEAD", cwd=w4.clone)
-    proc = w4.promo("plan", "--sha", side)
-    check("plan: a commit develop itself does not carry is refused",
-          proc.returncode == 1 and "reachable" in proc.stderr, proc.stderr)
-
-    w5 = World(tmp, "plan-expect")
-    proc = w5.promo("plan", "--expect-version", "9.9.9")
-    check("plan: the expected version must BE the candidate's version",
-          proc.returncode == 1 and "9.9.9" in proc.stderr, proc.stderr)
+def version_mismatch(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-version-"))
+    try:
+        w.prepare_release_pr()
+        w.merge_to_master()
+        proc, _ = w.verify(doc, version="9.9.9")
+        check("verify refuses a dispatch whose version the merged PR does not carry",
+              proc.returncode == 1 and "carries VERSION" in proc.stderr + proc.stdout,
+              proc.stderr[:220])
+        check("so a reviewed version cannot be published under another name",
+              w.tags() == [] and w.gh_state()["releases"] == [])
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_evidence_binds_ci_to_the_candidate(tmp):
-    w = World(tmp, "evidence")
-    checks = Path(w.dir) / "checks.json"
-    checks.write_text(json.dumps(GREEN_CHECKS), encoding="utf-8")
-    proc = w.promo("evidence", "--sha", w.candidate_sha,
-                   "--checks-file", str(checks),
-                   "--manual", "dependencies=https://deps.test/audit",
-                   *ARTIFACTS)
-    ok = proc.returncode == 0
-    evidence = json.loads(proc.stdout) if ok else {}
-    classes = evidence.get("checks", {})
-    check("evidence: green CI plus digests and manual dependencies assembles "
-          "all four required classes", ok
-          and all(name in classes for name in
-                  ("tests", "sonar", "dependencies", "artifacts"))
-          and classes.get("artifacts", {}).get("images", {}).get(
-              "mrmap-backend", {}).get("digest") == BACKEND, proc.stderr)
-
-    proc = w.promo("evidence", "--sha", w.candidate_sha,
-                   "--checks-file", str(checks), "--manual",
-                   "dependencies=https://deps.test/audit")
-    check("evidence: without artifact digests the collector reports the "
-          "missing class and exits 1", proc.returncode == 1
-          and "artifacts" in proc.stderr, proc.stderr)
+def malformed_merge_commit(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-malformed-"))
+    try:
+        w.prepare_release_pr()
+        w.merge_to_master()
+        w.state["merged_release_prs"] = [{"number": 1700,
+                                          "mergedAt": "2026-11-26T00:00:00Z",
+                                          "mergeCommit": None}]
+        w.save()
+        proc, _ = w.verify(doc)
+        check("verify refuses rather than guessing when GitHub answers no merge commit",
+              proc.returncode == 1 and "no merged develop -> master" in proc.stderr + proc.stdout,
+              proc.stderr[:200])
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_preflight_is_the_one_promoter(tmp):
-    w = World(tmp, "preflight")
-    ev = Path(w.dir) / "evidence.json"
-    proc = evidence_file(w, ev)
-    check("preflight: complete evidence of the candidate attests it",
-          proc.returncode == 0, proc.stderr)
-    rep = reports(w.dir)
-    att = Path(w.dir) / "attestation.json"
-    proc = w.promo("preflight", "--evidence", str(ev),
-                   "--report", f"api={rep['api']}",
-                   "--report", f"version={rep['version']}",
-                   "--report", f"upgrade={rep['upgrade']}",
-                   "--actor", "suite", "--output", str(att))
-    text = att.read_text(encoding="utf-8") if att.exists() else ""
-    check("preflight: release_gates promote is the attester and its shape "
-          "survives", proc.returncode == 0
-          and '"mrmap-release-candidate/1"' in text
-          and w.candidate_sha in text and '"0.2.0"' in text, proc.stderr)
-
-    proc = w.promo("preflight", "--evidence", str(ev),
-                   "--report", f"api={rep['api']}",
-                   "--report", f"upgrade={rep['upgrade']}")
-    check("preflight: a gate report that was never run stops the promotion",
-          proc.returncode == 1 and "version" in proc.stderr, proc.stderr)
-
-    ev2 = Path(w.dir) / "evidence-base.json"
-    evidence_file(w, ev2, sha=w.base_sha)
-    with open(ev2, encoding="utf-8") as fh:
-        other = json.load(fh)
-    other["candidate"] = {"sha": w.base_sha, "version": "0.2.0"}
-    with open(ev2, "w", encoding="utf-8") as fh:
-        json.dump(other, fh)
-    proc = w.promo("preflight", "--sha", w.base_sha, "--evidence", str(ev2),
-                   "--report", f"api={rep['api']}",
-                   "--report", f"version={rep['version']}",
-                   "--report", f"upgrade={rep['upgrade']}")
-    check("preflight: the base commit is not a planned candidate and is "
-          "refused before any attestation", proc.returncode == 1,
-          proc.stderr)
+def immutable_tag(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-foreign-tag-"))
+    try:
+        w.prepare_release_pr()
+        merge = w.merge_to_master()
+        # A tag of this name already standing on another commit: the conflict the
+        # criteria name, and it must be answered before anything is written.
+        git_ok("checkout", "-q", "-B", "elsewhere", merge + "^1", cwd=w.repo)
+        (w.repo / "other.txt").write_text("a different release\n", encoding="utf-8")
+        git_ok("add", "-A", cwd=w.repo)
+        git_ok("commit", "-q", "-m", "chore: an unrelated commit", cwd=w.repo)
+        foreign = git_ok("rev-parse", "HEAD", cwd=w.repo)
+        git_ok("tag", "-a", "-m", "v0.2.0", "v0.2.0", cwd=w.repo)
+        git_ok("push", "-q", "origin", "refs/tags/v0.2.0", cwd=w.repo)
+        proc, _ = w.verify(doc)
+        check("verify refuses to move a published tag that stands on another commit",
+              proc.returncode == 1 and "already stands on" in proc.stderr + proc.stdout,
+              proc.stderr[:220])
+        check("and it did not move it", w.tag_commit("v0.2.0") == foreign)
+        check("a re-run refuses too, so retrying cannot smuggle it through",
+              w.verify(doc)[0].returncode == 1)
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_open_release_pr_freezes_and_opens(tmp):
-    w = World(tmp, "open-pr")
-    proc = w.promo("open-release-pr")
-    frozen = w.remote_sha("refs/heads/release/v0.2.0")
-    created = [c for c in w.journal_calls() if c[:2] == ["pr", "create"]]
-    check("open-release-pr: the candidate is frozen at a release branch and "
-          "one PR to master is opened", proc.returncode == 0
-          and frozen == w.candidate_sha
-          and len(created) == 1
-          and created[0][created[0].index("--base") + 1] == "master",
-          proc.stderr + str(created))
-    proc = w.promo("open-release-pr")
-    created = [c for c in w.journal_calls() if c[:2] == ["pr", "create"]]
-    check("open-release-pr: re-running finds the open PR and opens nothing "
-          "twice", proc.returncode == 0 and "already open" in proc.stdout
-          and len(created) == 1, proc.stdout + proc.stderr)
+def green_publish(doc):
+    w = World(tempfile.mkdtemp(prefix="mrmap-1798-green-"))
+    try:
+        w.prepare_release_pr()
+        merge = w.merge_to_master()
+        proc, out = w.verify(doc)
+        check("verify passes on the reviewed state", proc.returncode == 0,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+        check("verify reports the merge commit, the version and the tag as job outputs",
+              out.get("merge_commit") == merge and out.get("version") == VERSION
+              and out.get("tag") == "v0.2.0", str(out))
+        check("the facts a reviewer needs are on the run's own output, not in a file",
+              merge[:12] in proc.stdout and "release PR #1700" in proc.stdout,
+              proc.stdout[-200:])
 
-    w2 = World(tmp, "open-pr-conflict")
-    git("push", "-q", "origin",
-        f"{w2.base_sha}:refs/heads/release/v0.2.0", cwd=w2.clone)
-    proc = w2.promo("open-release-pr")
-    check("open-release-pr: a release branch already standing at another "
-          "commit is a conflict the tool refuses, never a move",
-          proc.returncode == 1 and "never moves" in proc.stderr, proc.stderr)
+        proc, _ = w.publish(doc, out, publish=False)
+        check("the rehearsal writes no tag and no release",
+              proc.returncode == 0 and w.tags() == [] and w.gh_state()["releases"] == [],
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+        check("the rehearsal says that it withheld",
+              "rehearsal" in proc.stdout and "nothing was written" in proc.stdout,
+              proc.stdout[-200:])
+        check("and prints the tag and the body it would have written",
+              "v0.2.0" in proc.stdout and BACKEND_DIGEST in proc.stdout,
+              proc.stdout[-300:])
 
+        proc, _ = w.publish(doc, out, publish=True)
+        check("publish tags master's tip",
+              proc.returncode == 0 and w.tag_commit("v0.2.0") == merge,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+        tag_object = w.remote_ref("refs/tags/v0.2.0")
+        check("with an annotated tag, so the tag object carries the release",
+              tag_object is not None and tag_object != merge, f"{tag_object} vs {merge}")
+        releases = w.gh_state()["releases"]
+        check("and creates exactly one GitHub release standing on that commit",
+              [r["tagName"] for r in releases] == ["v0.2.0"]
+              and releases[0]["target"] == merge, json.dumps(releases))
+        notes = Path(releases[0]["notes_file"]).read_text(encoding="utf-8")
+        check("the release body carries the version, that commit's changelog section, "
+              "both digests and the verified sha",
+              "[0.2.0]" in notes and "the first planned feature" in notes
+              and "a repair worth a note" in notes
+              and BACKEND_DIGEST in notes and FRONTEND_DIGEST in notes
+              and merge in notes, notes[:300])
+        check("and invents nothing from the unreleased window into it",
+              "Curated entry written by a human" not in notes, notes[:200])
+        check("every GitHub call the steps made is journaled, so the run is auditable",
+              any(c[:2] == ["release", "create"] for c in w.journal()),
+              str(w.journal())[:200])
 
-def test_finalize_before_and_after_the_merge(tmp):
-    w = World(tmp, "finalize")
-    proc = w.promo("finalize", *ARTIFACTS)
-    check("finalize: before a person merged, master does not carry the "
-          "candidate and publishing is refused", proc.returncode == 1
-          and "unmerged" in proc.stderr, proc.stderr)
+        proc, _ = w.publish(doc, out, publish=True)
+        check("re-running publish is a skip and never a duplicate",
+              proc.returncode == 0 and "nothing to do" in proc.stdout
+              and [r["tagName"] for r in w.gh_state()["releases"]] == ["v0.2.0"],
+              proc.stdout[-200:])
+        check("and the tag still stands where it was written",
+              w.tag_commit("v0.2.0") == merge)
 
-    proc = w.promo("finalize", "--alias", "latest", *ARTIFACTS)
-    check("finalize: rolling aliases stay refused while no reviewed alias "
-          "ledger exists", proc.returncode == 1 and "alias" in proc.stderr.lower(),
-          proc.stderr)
-
-    tip = human_merge_release_pr(w)
-    proc = w.promo("finalize", *ARTIFACTS)
-    tagged = w.remote_sha("refs/tags/v0.2.0")
-    released = [c for c in w.journal_calls()
-                if c[:2] == ["release", "create"]]
-    check("finalize: after the reviewed merge the tree check passes, the "
-          "annotated tag stands on master's tip and the release is published",
-          proc.returncode == 0 and tagged is not None
-          and w.remote_sha("refs/tags/v0.2.0^{}") == tip
-          and len(released) == 1, proc.stderr + str(released))
-
-    proc = w.promo("finalize", *ARTIFACTS)
-    released = [c for c in w.journal_calls()
-                if c[:2] == ["release", "create"]]
-    check("finalize: re-running skips the tag and leaves the release body "
-          "untouched - nothing is published twice", proc.returncode == 0
-          and "already at the expected commit" in proc.stdout
-          and "already exists" in proc.stdout and len(released) == 1,
-          proc.stdout + proc.stderr)
-
-    proc = w.promo("finalize", "--artifact=mrmap-backend=nonsense",
-                   "--artifact=mrmap-frontend=" + FRONTEND)
-    check("finalize: a digest that is not sha256:<64 hex> is refused",
-          proc.returncode == 1 and "sha256:" in proc.stderr, proc.stderr)
-
-    proc = w.promo("gate")
-    check("gate: with tag, release and merged tree all in place the "
-          "promotion answers green", proc.returncode == 0
-          and '"status": "green"' in proc.stdout, proc.stderr + proc.stdout)
-
-    w2 = World(tmp, "finalize-nodigest")
-    human_merge_release_pr(w2)
-    proc = w2.promo("finalize")
-    check("finalize: missing artifact digests stop the run BEFORE any tag "
-          "was pushed", proc.returncode == 1
-          and "mrmap-backend" in proc.stderr
-          and w2.remote_sha("refs/tags/v0.2.0") is None, proc.stderr)
-
-    w3 = World(tmp, "finalize-foreign-tag")
-    human_merge_release_pr(w3)
-    git("tag", "-a", "-m", "standing elsewhere", "v0.2.0", w3.base_sha,
-        cwd=w3.clone)
-    git("push", "-q", "origin", "refs/tags/v0.2.0", cwd=w3.clone)
-    proc = w3.promo("finalize", *ARTIFACTS)
-    check("finalize: a tag already standing on a foreign commit is a "
-          "conflict; the tool never moves it", proc.returncode == 1
-          and "never moves a tag" in proc.stderr
-          and w3.remote_sha("refs/tags/v0.2.0^{}") == w3.base_sha,
-          proc.stderr)
-
-    w4 = World(tmp, "finalize-diverged")
-    human_merge_release_pr(w4)
-    (Path(w4.clone) / "late").write_text("hot on master\n", encoding="utf-8")
-    git("add", "-A", cwd=w4.clone)
-    git("commit", "-qm", "commit after the merge", cwd=w4.clone)
-    git("push", "-q", "origin", "master", cwd=w4.clone)
-    proc = w4.promo("finalize", *ARTIFACTS)
-    check("finalize: a master whose tip tree diverged from the tested "
-          "candidate tree refuses the release", proc.returncode == 1
-          and "candidate's tree" in proc.stderr
-          and w4.remote_sha("refs/tags/v0.2.0") is None, proc.stderr)
+        # The approval queued behind something that moved master.
+        git_ok("checkout", "-q", "-B", "master", "origin/master", cwd=w.repo)
+        (w.repo / "late.txt").write_text("merged after the approval\n", encoding="utf-8")
+        git_ok("add", "-A", cwd=w.repo)
+        git_ok("commit", "-q", "-m", "fix: landed while this run was approved", cwd=w.repo)
+        git_ok("push", "-q", "origin", "HEAD:refs/heads/master", cwd=w.repo)
+        proc, _ = w.publish(doc, out, publish=True)
+        check("publish re-checks master after the approval and refuses a moved tip",
+              proc.returncode == 1 and "moved away from the verified" in proc.stderr + proc.stdout,
+              proc.stderr[:220])
+        check("so nothing is published onto a commit that was never the reviewed merge",
+              w.tag_commit("v0.2.0") == merge)
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
 
 
-def test_sync_and_status(tmp):
-    w = World(tmp, "sync")
-    proc = w.promo("sync")
-    check("sync: while develop already contains master no sync PR is owed",
-          proc.returncode == 0 and "no sync PR owed" in proc.stdout,
-          proc.stderr)
-    human_merge_release_pr(w)
-    evidence_file(w, Path(w.dir) / "ev.json")
-    rep = reports(w.dir)
-    w.promo("preflight", "--evidence", str(Path(w.dir) / "ev.json"),
-            "--report", f"api={rep['api']}",
-            "--report", f"version={rep['version']}",
-            "--report", f"upgrade={rep['upgrade']}",
-            "--output", str(Path(w.dir) / "att.json"))
-    w.promo("finalize", *ARTIFACTS)
-    proc = w.promo("sync")
-    opened = [c for c in w.journal_calls()
-              if c[:2] == ["pr", "create"]
-              and c[c.index("--base") + 1] == "develop"]
-    check("sync: after the release the master -> develop sync PR is opened "
-          "from a branch at master's tip", proc.returncode == 0
-          and len(opened) == 1
-          and w.remote_sha("refs/heads/master-sync-v0.2.0")
-          == w.remote_sha("refs/heads/master"), proc.stderr + str(opened))
-    proc = w.promo("sync")
-    opened = [c for c in w.journal_calls()
-              if c[:2] == ["pr", "create"]
-              and c[c.index("--base") + 1] == "develop"]
-    check("sync: re-running finds the open sync PR and stacks nothing",
-          proc.returncode == 0 and "already open" in proc.stdout
-          and len(opened) == 1, proc.stdout + proc.stderr)
-    proc = w.promo("status")
-    check("status: the reconcile view names every step and where it stands",
-          proc.returncode == 0 and "at-master-tip" in proc.stdout
-          and "github_release" in proc.stdout and "exists" in proc.stdout,
-          proc.stdout + proc.stderr)
-    proc = w.promo("gate", "--simulate")
-    check("gate --simulate: the dry-run answer says simulated and touches "
-          "no remote", proc.returncode == 0
-          and '"simulated"' in proc.stdout
-          and w.remote_sha("refs/tags/v0.2.0") is not None, proc.stdout)
-
-
-def test_tool_shape(tmp):
-    m = promo_module()
-    check("tool: one SemVer grammar is shared with release_gates",
-          m.SEMVER_RE is m.release_gates.SEMVER_RE)
-    check("tool: the required image set is the one image_release publishes",
-          m.REQUIRED_IMAGES == m.release_gates.REQUIRED_IMAGES,
-          str(m.REQUIRED_IMAGES))
+def measured_and_documented(doc):
+    """The two measurements that decide this design, pinned so a swap back to
+    release-please's own github-release has to be re-measured, not asserted."""
+    design = DESIGN.read_text(encoding="utf-8")
+    check("the rehearsal and the two upstream facts are documented",
+          "github-release" in design and "skip-github-release" in design
+          and "base branch" in design, design[:120])
+    check("the runbook still sends an operator to the release-stable environment",
+          "release-stable" in RUNBOOK.read_text(encoding="utf-8"))
+    check("nothing still ships the superseded promotion tool or its registry entry",
+          not (REPO / "scripts" / "release_promotion.py").exists()
+          and "release_promotion.py" not in
+              (REPO / "scripts" / "release_lifecycle.json").read_text(encoding="utf-8"))
+    check("and the lifecycle still names the workflow as the promotion mechanism",
+          "release-promotion.yml" in
+          (REPO / "scripts" / "release_lifecycle.json").read_text(encoding="utf-8"))
 
 
 def main():
-    tmp = tempfile.mkdtemp(prefix="test_release_promotion.",
-                           dir=os.environ.get("TMPDIR", "/tmp"))
-    tmp = Path(tmp)
-    for fn in (
-            test_plan_reads_a_planned_candidate,
-            test_plan_refuses_unplanned_commits,
-            test_evidence_binds_ci_to_the_candidate,
-            test_preflight_is_the_one_promoter,
-            test_open_release_pr_freezes_and_opens,
-            test_finalize_before_and_after_the_merge,
-            test_sync_and_status,
-            test_tool_shape,
-    ):
-        try:
-            fn(tmp)
-        except Exception as exc:  # a broken world is a failed check, not a crash
-            check(f"{fn.__name__} raised", False, repr(exc))
-    failed = 0
+    if not shutil.which("git") or not shutil.which("bash"):
+        print("SKIP  git or bash is unavailable; the promotion checks need both")
+        print("OK (0 of 0 checks passed)")
+        return 0
+    try:
+        doc = load_workflow()
+    except Exception as exc:            # a workflow that will not parse is red
+        check("the promotion workflow parses as YAML", False, str(exc))
+        print("FAIL  the promotion workflow parses as YAML - " + str(exc))
+        print("FAILED (1 of 1 checks passed)")
+        return 1
+    if doc is None:
+        skip("workflow shape checks", "PyYAML is not importable on this runner")
+    else:
+        shape_checks(doc)
+        for name, fn in (("no merged release PR", no_merged_pr),
+                         ("master moved on its own", master_moved),
+                         ("version mismatch", version_mismatch),
+                         ("malformed merge commit", malformed_merge_commit),
+                         ("immutable tag conflict", immutable_tag),
+                         ("green publish, rehearsal and rerun", green_publish)):
+            try:
+                fn(doc)
+            except Exception as exc:
+                check(name, False, f"raised {type(exc).__name__}: {exc}")
+        measured_and_documented(doc)
+
+    failed = [r for r in RESULTS if r[1] is False]
+    skipped = [r for r in RESULTS if r[1] is None]
     for name, ok, detail in RESULTS:
-        if not ok:
-            failed += 1
-        print(f"{'PASS' if ok else 'FAIL'}  {name}"
-              + (f"  [{detail[:400]}]" if detail and not ok else ""))
-    print(f"{len(RESULTS) - failed}/{len(RESULTS)} checks passed")
-    import shutil
-    shutil.rmtree(tmp, ignore_errors=True)
+        label = "SKIP" if ok is None else ("PASS" if ok else "FAIL")
+        line = f"{label}  {name}"
+        if ok is not True and detail:
+            line += f"  - {detail}"
+        print(line)
+    passed = [r for r in RESULTS if r[1] is True]
+    print(f'{"FAILED" if failed else "OK"} ({len(passed)}/'
+          f"{len(RESULTS) - len(skipped)} checks passed)")
     return 1 if failed else 0
 
 

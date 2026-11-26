@@ -23,8 +23,12 @@ permission, so that no single one of them can produce a release alone:
     candidate-images    release-promotion           release-promotion
         |                   |                           |
         v                   v                           v
-    candidate-<sha>  ->  preflight/gate  ->  v<X.Y.Z> version tag, GitHub release
-    + evidence file      (release-stable)      by image_release.py --promote
+    candidate-<sha>  ->  preflight/gate  ->  v<X.Y.Z> git tag + GitHub release
+    + evidence file      (release-stable)      by release_promotion.py finalize
+
+                                             and, by hand, the version tag of the
+                                             same version in the registry:
+                                             image_release.py --promote (#1581)
 
 This page is about the first column: what a candidate is, how one gets built,
 what the run publishes, and what an operator does when a run goes red.
@@ -40,9 +44,13 @@ under a tag that names that commit:
     ghcr.io/mrmap-community/mrmap-backend:candidate-8a57e9a78f5f
     ghcr.io/mrmap-community/mrmap-frontend:candidate-8a57e9a78f5f
 
-It is not a release. Only ``scripts/image_release.py --promote`` creates a version
-tag, it runs from ``release-promotion.yml`` behind the protected ``release-stable``
-environment, and a human has to approve that dispatch (#1609). There is
+It is not a release. Only ``scripts/image_release.py --promote`` creates a
+version tag in the registry, and no workflow dispatches it: an operator runs it by
+hand, because the protected trigger that would is #1581's and #1586's to record and
+the readiness gates #1798..#1801 and #1610 still stand between this tool and a
+first tag. The protected ``release-stable`` environment of
+``release-promotion.yml`` (#1609) gates the *git* tag and the GitHub release, not
+this push. There is
 deliberately no input to the candidate workflow that could name a version tag: the
 build is always ``--kind candidate``, so the failure this whole design is built
 around - an automation publishing a release nobody approved - has no code path
@@ -344,10 +352,12 @@ are the same either way.
 What is still not wired
 =======================
 
-* **The promotion is still a human act.** The version tag is written only by
-  ``image_release.py --promote`` from ``release-promotion.yml`` behind
-  ``release-stable`` (#1609). This workflow cannot reach it, and no input here can
-  ask it to.
+* **The registry push is still a human act.** The version tag is written only by
+  ``image_release.py --promote``, and no workflow dispatches that flag today - an
+  operator runs it, by hand, against the digest the evidence file names. Wiring
+  the dispatch behind ``release-stable`` is #1581's and #1586's decision to
+  record, not something to invent here. This workflow cannot reach ``--promote``,
+  and no input here can ask it to.
 * **No rolling aliases.** Q1 of #1578 approved no alias (ADR-0002), ``--kind
   candidate`` refuses them, and ``release_promotion.py finalize`` refuses
   ``--alias`` until a reviewed alias ledger exists.

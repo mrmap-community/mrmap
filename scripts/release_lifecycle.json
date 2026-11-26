@@ -23,11 +23,11 @@
         "publisher_tool": "scripts/image_release.py",
         "promotion_mode": "--promote by digest; the tested bytes are tagged, never rebuilt",
         "stable_alias_rule": "a stable version tag never moves once written",
-        "published_by": ".github/workflows/release-promotion.yml",
+        "published_by": "operator dispatch of scripts/image_release.py --promote",
         "candidate_publisher": ".github/workflows/candidate-images.yml",
         "candidate_tag_pattern": "^candidate-[0-9a-f]{12}$",
         "candidate_evidence": "mrmap-candidate-images/1",
-        "note": "candidate images are published by candidate-images.yml (#1799), which cannot write a version tag; the version tag itself is written only by image_release.py --promote, dispatched from the protected release-promotion workflow behind release-stable (#1584)"
+        "note": "candidate images are published by candidate-images.yml (#1799), which cannot write a version tag; the version tag itself is written only by image_release.py --promote, which no workflow dispatches yet - an operator runs it by hand until the protected trigger of #1581/#1586 exists (#1584)"
       },
       "documentation_versions": {
         "tool": "sphinx_multiversion",

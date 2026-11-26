@@ -15,9 +15,9 @@ any deployment, and the only registry it will push to is the one named by
 and publish ONE explicitly selected candidate under isolated candidate tags and
 to write the evidence file of that run (#1799); what that workflow may never do
 is point a stable version tag at anything, because the tool creates a version tag
-only through ``--promote``, and ``--promote`` is a human dispatch of
-``.github/workflows/release-promotion.yml`` behind the ``release-stable``
-environment. Q1 and Q4 of #1578 are answered policy now (first published tag
+only through ``--promote`` - a flag no workflow dispatches today, so an operator
+runs it by hand and the protected trigger behind ``release-stable`` is #1581/#1586
+to design. Q1 and Q4 of #1578 are answered policy now (first published tag
 `v0.2.0`, tag shape `vMAJOR.MINOR.PATCH`, no version for a docs-only window -
 ADR-0002), and an answered question publishes nothing by itself: publishing a
 stable release stays a human act on a project's own package namespace. The
@@ -1233,8 +1233,8 @@ def inventory_lines(root, registry_base=REGISTRY_BASE):
     lines.append("  .github/workflows/candidate-images.yml publishes the CANDIDATE tags of")
     lines.append("  one explicitly selected, reviewed commit and writes this tool's")
     lines.append("  evidence file (#1799); nothing else writes a version tag, because only")
-    lines.append("  --promote creates one and --promote runs behind the release-stable")
-    lines.append("  environment of .github/workflows/release-promotion.yml. Q1/Q4 of #1578")
+    lines.append("  --promote creates one and no workflow dispatches that flag - an operator")
+    lines.append("  runs it, until #1581/#1586 wire the protected trigger. Q1/Q4 of #1578")
     lines.append("  are answered policy, not a publisher (ADR-0002): publishing a release")
     lines.append("  stays a human act, and dev-images.yml on the #959 dependency contract")
     lines.append("  is the only other publisher in the repository.")

@@ -257,10 +257,12 @@ Not wired on purpose
   candidate build. ``.github/workflows/candidate-images.yml``
   (:ref:`release-candidate-images`) publishes candidate tags for one dispatched,
   reviewed commit and cannot write a version tag - the tag is created only by
-  ``--promote``, from the protected ``release-promotion.yml`` dispatch behind
-  ``release-stable``, where a person approves. The trigger design belongs to
-  #1581/#1586. Q1 (start version and tag shape) and Q4 (a docs-only window
-  consumes no version) of #1578 are answered policy now (ADR-0002), and a
+  ``--promote``, which no workflow dispatches yet: an operator runs it by hand,
+  and the protected trigger behind ``release-stable`` is #1581/#1586's to design.
+  What ``release-promotion.yml`` gates today is the git tag and the GitHub
+  release, not the registry push. Q1 (start version and tag shape) and Q4 (a
+  docs-only window consumes no version) of #1578 are answered policy now
+  (ADR-0002), and a
   recorded answer publishes nothing by itself: the readiness gates #1798..#1801
   and #1610 stand between this tool and a first tag. What is here is everything a
   workflow would need to *decide*: names, tags, labels, the immutability rule,

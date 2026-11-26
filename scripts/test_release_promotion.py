@@ -31,6 +31,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PROMO = HERE / "release_promotion.py"
+ROOT = HERE.parent
 TOOLS = ["release_promotion.py", "release_gates.py", "canonical_version.py"]
 
 RESULTS = []
@@ -529,6 +530,219 @@ def test_sync_and_status(tmp):
           and w.remote_sha("refs/tags/v0.2.0") is not None, proc.stdout)
 
 
+def candidate_evidence_file(world, path, sha, version, images=None):
+    """An `mrmap-candidate-images/1` document in the shape --attest writes.
+
+    Built here rather than by calling --attest, because the registry is the one
+    thing this suite must never ask: what is under test is how the promotion
+    READS the file, and the shape is the contract between the two tools.
+    """
+    m = promo_module()
+    base = m.image_release.REGISTRY_BASE
+    document = {
+        "evidence": m.image_release.CANDIDATE_EVIDENCE,
+        "generated_by": "test",
+        "candidate": {"sha": sha, "version": version, "kind": "candidate"},
+        "registry_base": base,
+        "images": {},
+    }
+    for image, digest in (("backend", BACKEND), ("frontend", FRONTEND)):
+        if images and image not in images:
+            continue
+        document["images"][image] = {
+            "repository": m.image_release.IMAGES[image]["repository"],
+            "repository_ref": f"{base}/{m.image_release.IMAGES[image]['repository']}",
+            "candidate_ref": (f"{base}/{m.image_release.IMAGES[image]['repository']}"
+                              f":candidate-{sha[:12]}"),
+            "digest": digest,
+            "identity": [digest],
+            "labels": {"org.opencontainers.image.version": version,
+                       "org.opencontainers.image.revision": sha},
+        }
+    Path(path).write_text(json.dumps(document) + "\n", encoding="utf-8")
+    return str(path)
+
+
+def workflow_step(name):
+    """The `run:` body of a step of candidate-images.yml, as the runner sees it.
+
+    Extracted from the committed workflow rather than restated, so this check
+    fails when the workflow changes and nobody noticed - the review of #1799
+    found a step whose argv argparse had been rejecting since it was written,
+    green through every suite because no suite ever ran the string.
+    """
+    text = (ROOT / ".github" / "workflows" / "candidate-images.yml").read_text(
+        encoding="utf-8")
+    lines = text.splitlines()
+    try:
+        start = next(i for i, line in enumerate(lines)
+                     if line.strip() == f"- name: {name}")
+    except StopIteration:
+        raise AssertionError(f"step {name!r} is not in the workflow")
+    run_at = next(i for i in range(start, len(lines))
+                  if lines[i].strip() == "run: |")
+    key_indent = len(lines[run_at]) - len(lines[run_at].lstrip())
+    body = []
+    for line in lines[run_at + 1:]:
+        if not line.strip():
+            body.append("")
+            continue
+        if len(line) - len(line.lstrip()) <= key_indent:
+            break
+        body.append(line[key_indent + 2:])
+    return "\n".join(body)
+
+
+def test_gate_reports_the_digests_it_read(tmp):
+    """The digest half of the #1609 contract, in BOTH answers.
+
+    A gate that reads the candidate's artifacts and reports them nowhere lets a
+    `green` answer say nothing about which bytes it was green for, so the field
+    is asserted where a caller actually consumes it.
+    """
+    w = World(tmp, "gate-digests")
+    human_merge_release_pr(w)
+    # A green gate needs the tag and the release the protected path publishes;
+    # without them the tool answers `pending` and the contract under test -
+    # whether the answer names the digests - could not be read from it.
+    fin = w.promo("finalize", *ARTIFACTS)
+    assert fin.returncode == 0, fin.stdout + fin.stderr
+    evidence = candidate_evidence_file(w, Path(tmp) / "gate-digests.json",
+                                       w.candidate_sha, "0.2.0")
+
+    proc = w.promo("gate", "--simulate", "--candidate-evidence", evidence)
+    answer = json.loads(proc.stdout) if proc.returncode == 0 else {}
+    check("gate --simulate: the answer names the digests it read",
+          proc.returncode == 0
+          and answer.get("artifacts") == {"mrmap-backend": BACKEND,
+                                          "mrmap-frontend": FRONTEND},
+          proc.stdout + proc.stderr)
+
+    proc = w.promo("gate", "--candidate-evidence", evidence)
+    answer = json.loads(proc.stdout) if proc.returncode == 0 else {}
+    check("gate: the real answer a caller decides from carries the same digests",
+          proc.returncode == 0 and answer.get("status") == "green"
+          and answer.get("artifacts") == {"mrmap-backend": BACKEND,
+                                          "mrmap-frontend": FRONTEND},
+          proc.stdout + proc.stderr)
+
+    proc = w.promo("gate")
+    answer = json.loads(proc.stdout) if proc.stdout.strip() else {}
+    check("gate: a candidate nobody attested reports absent digests rather "
+          "than inventing them", proc.returncode == 0
+          and "artifacts" in answer and answer["artifacts"] is None,
+          proc.stdout + proc.stderr)
+
+    # The partial file of an `images: backend` debug run is honest evidence and
+    # dishonest for a release: it must stop the promotion, not half-promote it.
+    partial = candidate_evidence_file(
+        w, Path(tmp) / "gate-partial.json", w.candidate_sha, "0.2.0",
+        images=["backend"])
+    proc = w.promo("gate", "--simulate", "--candidate-evidence", partial)
+    check("gate: evidence of one image cannot promote a release of two",
+          proc.returncode == 1 and "frontend" in proc.stderr
+          and "every image of the release" in proc.stderr, proc.stderr)
+
+    proc = w.promo("gate", "--simulate", "--candidate-evidence", evidence,
+                   "--artifact=mrmap-backend=" + FRONTEND)
+    check("gate: an --artifact line that contradicts the build's file is a "
+          "conflict, not an override", proc.returncode == 1
+          and "contradicts" in proc.stderr, proc.stderr)
+
+
+def test_workflow_invocations_reach_the_tool(tmp):
+    """The argv the two release workflows assemble is the argv that works.
+
+    `--root`, `--develop-ref` and `--master-ref` are tool-wide options, and the
+    two workflows have always handed them down on opposite sides of the
+    subcommand. That is legal for the tool and was not: the review of #1799
+    reproduced `unrecognized arguments` and exit 2 from BOTH spellings, which
+    every offline suite missed because each of them passes the flags itself.
+    """
+    step = workflow_step("hand the digests to the promotion")
+    check("the candidate workflow's hand-over step exists and runs the gate "
+          "as a dry run", "release_promotion.py" in step
+          and "--simulate" in step and "gate" in step, step[:400])
+
+    w = World(tmp, "workflow-argv")
+    sandbox = Path(tmp) / "workflow-run"
+    sandbox.mkdir()
+    (sandbox / "scripts").symlink_to(ROOT / "scripts")
+    evidence = candidate_evidence_file(w, sandbox / "candidate-images.json",
+                                       w.candidate_sha, "0.2.0")
+    env = dict(GIT_ENV, CANDIDATE_SHA=w.candidate_sha,
+               CANDIDATE_VERSION="0.2.0",
+               REGISTRY_BASE=promo_module().image_release.REGISTRY_BASE,
+               GH_STATE=str(w.state), GH_JOURNAL=str(w.journal))
+    proc = subprocess.run(["bash", "-c", step], cwd=str(sandbox),
+                          capture_output=True, text=True, env=env)
+    check("the candidate workflow's hand-over step runs as written",
+          proc.returncode == 0 and BACKEND in proc.stdout
+          and FRONTEND in proc.stdout,
+          f"rc={proc.returncode} {proc.stdout[:300]} {proc.stderr[:300]}")
+
+    # The same tool-wide options on the other side of the subcommand, which is
+    # how release-promotion.yml has always assembled them.
+    for spelling, argv in (
+            ("globals before the subcommand",
+             ["--root", str(sandbox), "--develop-ref", "origin/develop",
+              "--master-ref", "origin/master", "gate", "--sha", w.candidate_sha,
+              "--version", "0.2.0", "--candidate-evidence", evidence,
+              "--simulate"]),
+            ("globals after the subcommand",
+             ["gate", "--sha", w.candidate_sha, "--version", "0.2.0",
+              "--candidate-evidence", evidence, "--root", str(sandbox),
+              "--develop-ref", "origin/develop", "--master-ref",
+              "origin/master", "--simulate"])):
+        proc = w.promo(*argv)
+        check(f"release_promotion accepts the tool-wide options {spelling}",
+              proc.returncode == 0 and "unrecognized" not in proc.stderr,
+              f"rc={proc.returncode} {proc.stderr[:300]}")
+
+    # The single-image dispatch modes the documentation advertises have to
+    # survive the evidence job: an attest that always asked for both images made
+    # `images: backend` refuse the candidate it had never pushed and write no
+    # file at all. Run the step's own shell against a stubbed tool, so the
+    # `case` that carries the selection is tested rather than read.
+    attest_step = workflow_step("ask the registry what the candidate is")
+    for images, expect in (("backend", ["--image", "backend"]),
+                           ("frontend", ["--image", "frontend"]),
+                           ("both", [])):
+        stub = Path(tmp) / f"stub-{images}"
+        (stub / "scripts").mkdir(parents=True)
+        (stub / "scripts" / "image_release.py").write_text(
+            "import json, sys\n"
+            "args = sys.argv[1:]\n"
+            "print(' '.join(args))\n"
+            "out = args[args.index('--attest') + 1]\n"
+            "json.dump({'evidence': 'x'}, open(out, 'w'))\n", encoding="utf-8")
+        env = dict(GIT_ENV, CANDIDATE_SHA=w.candidate_sha, IMAGES=images,
+                   REGISTRY_BASE="172.16.0.5:5000/mrmap-community",
+                   GITHUB_STEP_SUMMARY=str(stub / "summary.md"))
+        proc = subprocess.run(["bash", "-c", attest_step], cwd=str(stub),
+                              capture_output=True, text=True, env=env)
+        want = " ".join(expect)
+        check(f"the attest step passes the dispatch's image selection through "
+              f"(images: {images})",
+              proc.returncode == 0
+              and (want in proc.stdout if want
+                   else "--image" not in proc.stdout),
+              f"rc={proc.returncode} argv: {proc.stdout[:200]} {proc.stderr[:200]}")
+
+    handover = (ROOT / ".github" / "workflows" / "candidate-images.yml"
+                ).read_text(encoding="utf-8")
+    check("the digest hand-over runs only for a full dispatch, so a one-image "
+          "debug run is not failed by a refusal it earned",
+          "if: inputs.images == 'both'" in handover)
+
+    promotion = (ROOT / ".github" / "workflows"
+                 / "release-promotion.yml").read_text(encoding="utf-8")
+    check("release-promotion.yml passes the mode after the tool-wide options "
+          "(the spelling its step has always used)",
+          'python3 scripts/release_promotion.py "$MODE" "${args[@]}"' in promotion
+          and 'args=(--root . --develop-ref origin/develop' in promotion)
+
+
 def test_tool_shape(tmp):
     m = promo_module()
     check("tool: one SemVer grammar is shared with release_gates",
@@ -550,6 +764,8 @@ def main():
             test_open_release_pr_freezes_and_opens,
             test_finalize_before_and_after_the_merge,
             test_sync_and_status,
+            test_gate_reports_the_digests_it_read,
+            test_workflow_invocations_reach_the_tool,
             test_tool_shape,
     ):
         try:

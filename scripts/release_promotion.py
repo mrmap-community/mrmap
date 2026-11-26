@@ -701,6 +701,11 @@ def cmd_gate(args):
         "master": {"tip": gitlet(args, root, "rev-parse", args.master_ref),
                    "carries_candidate": steps["master_carries_candidate"]},
         "tag": steps["tag"], "github_release": steps["github_release"],
+        # In the real answer too, not only in `--simulate`: this JSON is the
+        # callable contract of #1609, and a caller decides from it. A gate that
+        # reads the candidate's artifacts and reports them nowhere lets a
+        # `green` answer say nothing about which bytes it was green for.
+        "artifacts": digests or None,
     }, indent=2))
     return EXIT_OK if green else EXIT_FAIL
 
@@ -708,21 +713,54 @@ def cmd_gate(args):
 # ---------------------------------------------------------------------------
 
 
-def main(argv=None):
+# The tool-wide options, and the default each carries. They are accepted on
+# either side of the subcommand, which is not argparse's default behaviour and
+# has to be asked for on purpose: `release-promotion.yml` has always assembled
+# `--root . … gate` and `candidate-images.yml` assembles `gate … --root .`
+# (#1799), and a caller should not have to know which half of a parser a flag
+# was declared on. Declaring them plainly on both sides would be a trap - a
+# subparser writes its own defaults over whatever the main parser collected -
+# so the subparser copies default to SUPPRESS and stay out of the way, and the
+# real defaults live on the main parser alone.
+GLOBAL_OPTIONS = (
+    ("--root", dict(type=Path, default=Path("."))),
+    ("--remote", dict(default="origin")),
+    ("--repository", dict(default="mrmap-community/mrmap")),
+    ("--develop-ref", dict(default="origin/develop")),
+    ("--master-ref", dict(default="origin/master")),
+    ("--git-bin", dict(default="git")),
+    ("--gh-bin", dict(default="gh")),
+)
+
+
+def add_global_opts(parser, defaults=True):
+    for flag, kwargs in GLOBAL_OPTIONS:
+        kwargs = dict(kwargs)
+        if not defaults:
+            kwargs["default"] = argparse.SUPPRESS
+        parser.add_argument(flag, **kwargs)
+
+
+def build_parser():
     parser = argparse.ArgumentParser(
         prog="release_promotion",
         description=__doc__.splitlines()[0],
         epilog="exit 0 done or already done, 1 the step is decided against "
                "the candidate, 2 the step could not run")
-    parser.add_argument("--root", type=Path, default=Path("."))
-    parser.add_argument("--remote", default="origin")
-    parser.add_argument("--repository",
-                        default="mrmap-community/mrmap")
-    parser.add_argument("--develop-ref", default="origin/develop")
-    parser.add_argument("--master-ref", default="origin/master")
-    parser.add_argument("--git-bin", default="git")
-    parser.add_argument("--gh-bin", default="gh")
+    add_global_opts(parser)
     sub = parser.add_subparsers(dest="command", required=True)
+
+    def subcommand(name):
+        """A subcommand that also accepts the tool-wide options.
+
+        ``defaults=False`` is what makes this work: a subparser parses into the
+        namespace the main parser already filled, and an ordinary option would
+        write its own default over a value given before the subcommand. SUPPRESS
+        keeps a subparser silent about an option it was not handed.
+        """
+        sp = sub.add_parser(name)
+        add_global_opts(sp, defaults=False)
+        return sp
 
     def common(sp):
         sp.add_argument("--sha", default=None)
@@ -751,17 +789,17 @@ def main(argv=None):
                              "written for (default: the release registry of "
                              "image_release.py)")
 
-    sp = sub.add_parser("plan")
+    sp = subcommand("plan")
     common(sp)
     sp.set_defaults(func=cmd_plan)
-    sp = sub.add_parser("evidence")
+    sp = subcommand("evidence")
     common(sp)
     sp.add_argument("--checks-file", default=None)
     artifacts_opt(sp)
     sp.add_argument("--manual", action="append", default=[])
     sp.add_argument("--output", default=None)
     sp.set_defaults(func=cmd_evidence)
-    sp = sub.add_parser("preflight")
+    sp = subcommand("preflight")
     common(sp)
     sp.add_argument("--evidence", required=True)
     sp.add_argument("--report", action="append", default=[])
@@ -769,28 +807,32 @@ def main(argv=None):
     sp.add_argument("--actor", default=None)
     sp.add_argument("--output", default=None)
     sp.set_defaults(func=cmd_preflight)
-    sp = sub.add_parser("open-release-pr")
+    sp = subcommand("open-release-pr")
     common(sp)
     sp.set_defaults(func=cmd_open_release_pr)
-    sp = sub.add_parser("finalize")
+    sp = subcommand("finalize")
     common(sp)
     artifacts_opt(sp)
     sp.add_argument("--attestation", default=None)
     sp.add_argument("--alias", action="append", default=[])
     sp.set_defaults(func=cmd_finalize)
-    sp = sub.add_parser("sync")
+    sp = subcommand("sync")
     common(sp)
     sp.set_defaults(func=cmd_sync)
-    sp = sub.add_parser("status")
+    sp = subcommand("status")
     common(sp)
     sp.set_defaults(func=cmd_status)
-    sp = sub.add_parser("gate")
+    sp = subcommand("gate")
     common(sp)
     artifacts_opt(sp)
     sp.add_argument("--simulate", action="store_true")
     sp.set_defaults(func=cmd_gate)
 
-    args = parser.parse_args(argv)
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
     try:
         return args.func(args)
     except PromotionRefused as exc:

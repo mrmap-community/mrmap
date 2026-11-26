@@ -4,11 +4,12 @@ name: Candidate images
 #
 # What this workflow may do fits in one sentence: it publishes CANDIDATE tags and
 # nothing else. A version tag, a prerelease tag and a rolling alias are created
-# only by `scripts/image_release.py --promote`, which runs from
-# .github/workflows/release-promotion.yml behind the protected `release-stable`
-# environment, after a person has approved it. There is deliberately no input
-# here that could name a version tag: the build is always `--kind candidate`, so
-# the tag is always `candidate-<12 hex of the candidate>`, in the release
+# only by `scripts/image_release.py --promote`, a flag no workflow dispatches: an
+# operator runs it by hand, against the digest this workflow's evidence file
+# names, until #1581/#1586 record the protected trigger that would. There is
+# deliberately no input here that could name a version tag: the build is always
+# `--kind candidate`, so the tag is always `candidate-<12 hex of the candidate>`,
+# in the release
 # repositories (`mrmap-backend`, `mrmap-frontend`) and never the `-dev`
 # dependency repositories of #959. The failure this workflow exists to prevent -
 # an automation publishing a release nobody approved - therefore has no code path
@@ -42,8 +43,13 @@ name: Candidate images
 # the same digest twice with `--provenance=false`. A candidate whose digest moves
 # when nothing about it changed is a candidate a promotion cannot check, so the
 # build pushes no provenance and the attestation job adds it afterwards, without
-# rewriting a byte. `id-token: write` therefore appears only on that job, and
-# `packages: write` only on the build job - no job in this workflow holds both.
+# rewriting a byte. `id-token: write` therefore appears only on that job - the one
+# job in which no build runs - and `packages: write` on the two jobs that touch
+# the registry: the build that pushes a candidate, and the attestation, because
+# `push-to-registry: true` attaches its bundle with a registry write. What the
+# split really guarantees, and what makes `--provenance=false` safe, is that no
+# job both builds and holds the token: a build cannot mint an attestation of its
+# own choosing, and the job that mints one builds nothing.
 # The OCI labels answer which commit and version the bytes claim to be, and
 # `scripts/image_release.py --verify` is what asks the artifact - not the file -
 # those questions again.
@@ -94,10 +100,12 @@ concurrency:
   group: candidate-images-${{ inputs.sha }}
   cancel-in-progress: false
 
-# The dispatch itself needs no write permission at all. `packages: write` and
-# `id-token: write` appear on the build job alone - least privilege of the
-# acceptance criteria, and the shape dev-images.yml already holds: read-only
-# everywhere except the one job that publishes.
+# The dispatch itself needs no write permission at all. `packages: write` appears
+# on the two jobs that touch the registry - the build that pushes a candidate and
+# the attestation that attaches its bundle - and `id-token: write` on the
+# attestation alone, so no job both builds and holds the token. That is the
+# least privilege of the acceptance criteria, and the shape dev-images.yml already
+# holds: read-only everywhere except the jobs that publish.
 permissions:
   contents: read
 
@@ -273,8 +281,10 @@ jobs:
     permissions:
       contents: read
       # Attesting an artifact attaches a reference to a digest; it cannot move a
-      # tag. This is the only job that asks for id-token, and the build job is the
-      # only one that asks for packages:write - no job holds both.
+      # tag. This is the only job that asks for id-token, and it asks for
+      # packages: write because `push-to-registry: true` pushes the bundle itself
+      # - so this job holds both grants and builds nothing, which is the pair the
+      # split is about: no job in this workflow builds and holds the token.
       packages: write
       id-token: write
     strategy:
@@ -329,6 +339,7 @@ jobs:
       CANDIDATE_SHA: ${{ inputs.sha }}
       CANDIDATE_VERSION: ${{ inputs.version }}
       REGISTRY_BASE: ${{ inputs.registry_base }}
+      IMAGES: ${{ inputs.images }}
     steps:
       - name: checkout the release tool
         uses: actions/checkout@v7
@@ -340,6 +351,16 @@ jobs:
         # the SHA under review - a stale candidate left by an older run of this
         # workflow, or a re-run of an outdated build - when it carries no version
         # label at all, or when the digest does not resolve on its own.
+        #
+        # The image selection travels with the dispatch. Attesting every image of
+        # the release regardless would ask this registry for a candidate a
+        # `images: backend` run never pushed, so the debug mode the documentation
+        # advertises could not produce evidence for the image it did build - and
+        # `if-no-files-found: error` would turn a useful partial answer into a red
+        # run with no digests at all. A file that names one image is therefore the
+        # honest answer of a one-image run, and it still cannot promote:
+        # validate_candidate_evidence() asks for both images of a release, so the
+        # partial file stops at the gate rather than releasing half a release.
         run: |
           set -eu
           args=(--attest candidate-images.json
@@ -347,6 +368,9 @@ jobs:
                 --revision "$CANDIDATE_SHA"
                 --kind candidate
                 --actor "${GITHUB_ACTOR:-unknown}")
+          case "$IMAGES" in
+            backend|frontend) args+=(--image "$IMAGES");;
+          esac
           [ -z "${CANDIDATE_VERSION:-}" ] || args+=(--version "$CANDIDATE_VERSION")
           python3 scripts/image_release.py "${args[@]}"
           {
@@ -354,6 +378,14 @@ jobs:
             cat candidate-images.json
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$IMAGES" != "both" ]; then
+            echo "::notice::partial evidence - this run built only $IMAGES, so the" \
+              "file names one image and release_promotion.py will refuse it at the" \
+              "gate; a release is dispatched with images: both"
+            echo "**Partial evidence:** only \`$IMAGES\` was built, so this file" \
+              "cannot be promoted. Use it to debug one Dockerfile." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: hand the digests to the promotion
         # The promotion's own reader, on the candidate's own file, before anybody
@@ -362,8 +394,20 @@ jobs:
         # candidate run. `gate --simulate` consults no remote and releases nothing,
         # which is what keeps this a contract check rather than a rehearsal of a
         # release; the digests it reports are the ones the file names.
+        #
+        # Only a full dispatch is contract-checkable. A `images: backend` run
+        # produced honest evidence for the one image it built, and the promotion
+        # rightly refuses that file - so running the check here would turn the
+        # debug mode red for doing its job. The refusal is what a promotion does
+        # with a partial file, and that is tested offline, not rehearsed here.
+        if: inputs.images == 'both'
         run: |
           set -eu
+          # The tool-wide options travel with the subcommand. `--root`,
+          # `--develop-ref` and `--master-ref` are declared on both sides of the
+          # parser exactly so that this step and the step in
+          # .github/workflows/release-promotion.yml, which have always assembled
+          # them differently, both reach the tool instead of argparse (#1799).
           args=(gate --sha "$CANDIDATE_SHA"
                 --candidate-evidence candidate-images.json
                 --registry-base "$REGISTRY_BASE"

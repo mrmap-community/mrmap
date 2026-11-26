@@ -18,6 +18,7 @@ Run from the repository root: `python3 scripts/test_release_lifecycle.py`.
 Exit 0 when every check passes, 1 with the failed ones listed.
 """
 
+import argparse
 import json
 import re
 import sys
@@ -52,7 +53,23 @@ def doc_labels():
 
 
 def argparse_subcommands(path):
-    return set(re.findall(r'add_parser\("([\w-]+)"', read(path)))
+    """The subcommands a tool really accepts.
+
+    Asked of the live parser rather than of the source text: a tool that builds
+    its subcommands through a helper no longer spells `add_parser("name")` for a
+    regex to find, and a check that silently matched nothing would pass while
+    proving nothing.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if not hasattr(module, "build_parser"):
+        return set(re.findall(r'add_parser\("([\w-]+)"', read(path)))
+    for action in module.build_parser()._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            return set(action.choices)
+    return set()
 
 
 def main():
@@ -83,6 +100,88 @@ def main():
     named.add(dev_images)
     for rel in sorted(named):
         check(f"named file exists: {rel}", (ROOT / rel).is_file())
+
+    # --- the stable channel's publisher claims are checked, not believed -------
+    # `published_by` is the #1585 interface the documentation automation generates
+    # from, so a value that reads like a workflow and is not one is the failure
+    # this issue's review found: the manifest said release-promotion.yml publishes
+    # the version tag while no workflow invokes `--promote` at all. Every
+    # publisher-ish field of the stable channel is therefore resolved against the
+    # repository here - a named file must exist AND actually do what the field
+    # says, and a named command must exist AND really be undispatched.
+    import importlib.util
+
+    def tool(name):
+        spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / name)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    image_release = tool("image_release.py")
+    stable = life["channels"]["stable"]["images"]
+
+    # Only what a workflow RUNS counts as a claim. Its header comments name the
+    # flags it must never reach, so matching those would report the candidate
+    # publisher as a dispatcher of the very flag it is reviewed for not holding.
+    def runnable(text):
+        # Collapsed so a shell continuation cannot hide a flag from these checks:
+        # the build step spells `--kind candidate` across a backslash.
+        return " ".join(line.strip() for line in text.splitlines()
+                        if not line.strip().startswith("#"))
+
+    workflows = {p.relative_to(ROOT).as_posix():
+                 runnable(p.read_text(encoding="utf-8"))
+                 for p in (ROOT / ".github" / "workflows").glob("*.yml")}
+
+    published_by = stable["published_by"]
+    if published_by.endswith(".yml"):
+        check(f"stable published_by names a workflow that publishes ({published_by})",
+              published_by in workflows
+              and "image_release.py" in workflows[published_by]
+              and "--promote" in workflows[published_by],
+              f"{published_by} does not invoke image_release.py --promote")
+    else:
+        tool_and_flag = re.search(r"(image_release\.py)\s+(--[a-z-]+)", published_by)
+        check("stable published_by names a real tool and flag",
+              tool_and_flag is not None, published_by)
+        if tool_and_flag:
+            flag = tool_and_flag.group(2)
+            check(f"{flag} is a real option of the named tool",
+                  flag in read(ROOT / "scripts" / tool_and_flag.group(1)),
+                  flag)
+            # The claim is that NOTHING dispatches it yet. A workflow gaining the
+            # flag without the manifest gaining a name is the drift this prevents.
+            dispatchers = sorted(name for name, text in workflows.items()
+                                 if "image_release.py" in text and flag in text)
+            check(f"stable published_by stays true: no workflow dispatches {flag}",
+                  not dispatchers, f"dispatched by {dispatchers}; update published_by")
+
+    candidate_publisher = stable["candidate_publisher"]
+    check("candidate_publisher is a workflow that publishes candidate tags",
+          candidate_publisher in workflows
+          and "--kind candidate" in workflows[candidate_publisher],
+          f"{candidate_publisher} does not build --kind candidate")
+    check("the candidate publisher cannot write a version tag",
+          "--promote" not in workflows[candidate_publisher],
+          "the candidate workflow holds the flag that creates a version tag")
+
+    candidate_tags, _ = image_release.tags_for(
+        "backend", "0.2.0", "a" * 40, "candidate", [], "ghcr.io/mrmap-community")
+    stable_tags, _ = image_release.tags_for("backend", "0.2.0", "a" * 40, "stable")
+    check("candidate_tag_pattern matches the tag the tool actually writes",
+          re.match(stable["candidate_tag_pattern"],
+                   candidate_tags[0].rsplit(":", 1)[-1]) is not None,
+          f"pattern={stable['candidate_tag_pattern']} "
+          f"tag={candidate_tags[0]}")
+    check("candidate_tag_pattern does not match a version tag",
+          re.fullmatch(stable["candidate_tag_pattern"],
+                       stable_tags[0].rsplit(":", 1)[-1]) is None,
+          f"a pattern that accepts {stable_tags[0]} cannot tell a candidate "
+          "from a release")
+    check("candidate_evidence is the document the tool writes",
+          stable["candidate_evidence"] == image_release.CANDIDATE_EVIDENCE,
+          f"json={stable['candidate_evidence']} "
+          f"tool={image_release.CANDIDATE_EVIDENCE}")
 
     # --- the promotion workflow is what the phases claim -----------------------
     wf = read(PROMOTION_WORKFLOW)

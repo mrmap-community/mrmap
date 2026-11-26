@@ -40,4 +40,5 @@ validation is prose, not a contract.
 | --- | --- | --- |
 | [ADR-0001](ADR-0001-autonomous-documentation-architecture-and-coverage-contract.md) | Proposed | Autonomous documentation architecture and coverage contract (epic #1589) |
 | [ADR-0002](ADR-0002-semantic-versioning-and-release-baseline-policy.md) | Accepted | Semantic versioning policy and release baseline (epic #1577, issue #1578) |
+| [ADR-0003](ADR-0003-low-overhead-observability.md) | Proposed | Low-overhead technical observability and safe diagnostic retirement (epic #1775, issue #1776) |
 

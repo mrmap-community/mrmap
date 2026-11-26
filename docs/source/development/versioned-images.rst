@@ -20,8 +20,11 @@ compute a value that somebody else could compute differently:
 
 Host Python, standard library only. It builds and pushes only what it is
 explicitly told to build, and only to the registry named on the command line.
-**No workflow calls it and nothing publishes a runtime image today** - see
-`Not wired on purpose`_.
+**One workflow calls it today**: ``.github/workflows/candidate-images.yml``
+(:ref:`release-candidate-images`, #1799) builds and publishes the *candidate* tags
+of one dispatched, reviewed commit and writes the digest evidence the promotion
+consumes. It still writes no version tag - ``--promote`` does that, from the
+protected promotion dispatch, and nothing else can. See `Not wired on purpose`_.
 
 The inventory
 =============
@@ -92,6 +95,14 @@ kind of build says what may be written under it:
      - movable: a dev revision is not a product. It can never carry an alias,
        which is the whole "dev and RC must not overwrite stable" rule in one
        line.
+   * - ``candidate``
+     - ``mrmap-backend:candidate-<12 hex of the commit>``
+     - the tag ``.github/workflows/candidate-images.yml`` publishes for one
+       dispatched, reviewed commit (#1799). Named by its commit like a dev build -
+       it is a build of a revision, not yet a release - but kept out of the
+       ``dev-`` namespace so a candidate is never mistaken for the movable build
+       of a branch, and refused every alias for the same reason. See
+       :ref:`release-candidate-images`.
 
 Build metadata is dropped from the tag and kept in the labels. ``0.1.0+9f8e7d6``
 is a valid SemVer version, but the distribution reference grammar allows
@@ -240,13 +251,17 @@ bytes rather than from the file being checked.
 Not wired on purpose
 =====================
 
-* **No publisher workflow, no production push.** #1582's scope says it, and
-  publishing to the project's own package namespace is a human act. The trigger
-  design belongs to #1581/#1586 and still waits on Q1 (start version and tag
-  shape) and Q4 (whether a docs-only window may consume a version) of #1578, which
-  are unanswered. What is here is everything a workflow would need to *decide*:
-  names, tags, labels, the immutability rule, the manifest.
-* **Rolling aliases exist as an option, not as a default**, for the same reason.
+* **No automatic publication of a version tag.** #1582's scope said the publisher
+  stays unwired, and #1799 wired the half of it that needs no approval: the
+  candidate build. ``.github/workflows/candidate-images.yml`` (:ref:`release-candidate-images`)
+  publishes candidate tags for one dispatched, reviewed commit and cannot write a
+  version tag - the tag is created only by ``--promote``, from the protected
+  ``release-promotion.yml`` dispatch behind ``release-stable``, where a person
+  approves. The trigger design of #1581/#1586 still waits on Q1 (start version and
+  tag shape) and Q4 (whether a docs-only window may consume a version) of #1578,
+  which are unanswered; nothing here presumes an answer.
+* **Rolling aliases exist as an option, not as a default**, for the same reason: a
+  candidate kind refuses them outright.
 * ``docker/docs/Dockerfile`` builds nothing and pulls nothing: no compose file,
   workflow or script names it (Read the Docs builds the docs through
   ``.readthedocs.yaml``). It is left in place and named here, because an
@@ -257,7 +272,7 @@ Not wired on purpose
 Guards
 ======
 
-``scripts/test_image_release.py`` (73 checks, host Python, offline, run by
+``scripts/test_image_release.py`` (117 checks, host Python, offline, run by
 ``scripts/check_repo_tooling.sh`` in the *script-tests* CI job) pins the policy
 and the refusals: build metadata never becomes a tag, a dev build never gets an
 alias, a prerelease never moves ``latest``, the fingerprint label is on the

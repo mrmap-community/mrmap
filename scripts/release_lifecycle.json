@@ -23,8 +23,11 @@
         "publisher_tool": "scripts/image_release.py",
         "promotion_mode": "--promote by digest; the tested bytes are tagged, never rebuilt",
         "stable_alias_rule": "a stable version tag never moves once written",
-        "published_by": null,
-        "note": "the publisher workflow is deliberately not wired yet (#1581); the tool and its policy are committed and tested today"
+        "published_by": ".github/workflows/release-promotion.yml",
+        "candidate_publisher": ".github/workflows/candidate-images.yml",
+        "candidate_tag_pattern": "^candidate-[0-9a-f]{12}$",
+        "candidate_evidence": "mrmap-candidate-images/1",
+        "note": "candidate images are published by candidate-images.yml (#1799), which cannot write a version tag; the version tag itself is written only by image_release.py --promote, dispatched from the protected release-promotion workflow behind release-stable (#1584)"
       },
       "documentation_versions": {
         "tool": "sphinx_multiversion",
@@ -51,8 +54,8 @@
     {
       "id": "build-and-gate",
       "actor": "ci",
-      "action": "images for the candidate are built and attested by digest; the contract, version and upgrade gates judge it",
-      "evidence": ".github/workflows/release-gates.yml",
+      "action": "images for the candidate are built once for the reviewed sha, published under candidate tags and attested by digest from the registry as an evidence file; the contract, version and upgrade gates judge it",
+      "evidence": ".github/workflows/candidate-images.yml and .github/workflows/release-gates.yml",
       "docs": "release-compatibility-gates"
     },
     {

@@ -9,13 +9,19 @@ same role ``scripts/dev_image_id.py`` holds for the dependency images of epic
 #959, for the same reason: a tag computed in two places drifts, so nothing else
 may compute it.
 
-What it does NOT do is publish anything to a public registry. No workflow calls
-this tool, it reads no credential of any deployment, and the only registry it
-will push to is the one named by ``--registry-base``. Publishing is a human act
-on a project's own package namespace; wiring an automatic publisher belongs to
-#1581/#1586 and still waits on Q1/Q4 of #1578. Everything that makes publication
-safe - names, tags, labels, the rule that a stable tag never moves, the manifest
-a deployment is pinned with - is here and testable today.
+What it does NOT do is decide what becomes a release. It reads no credential of
+any deployment, and the only registry it will push to is the one named by
+``--registry-base``. ``.github/workflows/candidate-images.yml`` calls it to build
+and publish ONE explicitly selected candidate under isolated candidate tags and
+to write the evidence file of that run (#1799); what that workflow may never do
+is point a stable version tag at anything, because the tool creates a version tag
+only through ``--promote``, and ``--promote`` is a human dispatch of
+``.github/workflows/release-promotion.yml`` behind the ``release-stable``
+environment. Publishing a stable release stays a human act on a project's own
+package namespace; the immutable-tag rule - and the refusal that backs it - is
+here either way. Everything that makes publication safe - names, tags, labels,
+the rule that a stable tag never moves, the manifest a deployment is pinned with
+- is here and testable today.
 
 The inventory this tool encodes (measured on develop, #1582)
 ------------------------------------------------------------
@@ -64,6 +70,16 @@ second constant:
              fingerprint has. Movable by design (a dev revision is not a
              product), but it can never carry an alias - which is the whole
              "dev and RC must not overwrite stable" rule in one line.
+  candidate  ``candidate-<12 hex of the commit>``. The tag of the candidate
+             that #1799's build workflow publishes for ONE explicitly selected,
+             reviewed commit: named by its commit like a dev build, because it
+             is a build of a revision and not yet a release, but kept apart from
+             the ``dev-`` namespace so a candidate is never mistaken for the
+             movable build of a branch, and refused every alias for the same
+             reason a dev build is. Two builders of one commit get one digest
+             here (SOURCE_DATE_EPOCH is the commit's own timestamp), which is
+             what lets a promotion compare what it is told with what the
+             registry serves.
 
 Rolling aliases (``latest``, ``stable``, ...) are opt-in, one ``--alias`` each,
 and the default is none: #1578's Q1 is unanswered and a rolling alias is a
@@ -121,6 +137,21 @@ passes. The label question is the one nothing else can answer: a promotion canno
 see that it was handed the previous release's bytes, and one hand-edited line is a
 backend and its worker on two versions against one database.
 
+The candidate evidence file
+---------------------------
+``--attest PATH`` writes the machine-readable answer of ``--verify`` instead of
+prose: one JSON document naming the candidate SHA, the version it claims, the
+registry it was published to and, per image, the candidate reference, the digest
+to promote, the artifact's child-manifest identity and the OCI labels the
+registry answers for it. It is what ``.github/workflows/candidate-images.yml``
+hands the promotion, so that a promotion never starts from a digest somebody
+pasted (issue #1799): the file is produced in the same run that pushed the
+candidate, and ``release_promotion.py`` re-reads every digest from the registry
+before it uses one. Like ``--verify`` it asks the registry rather than trusting
+what it is told, and refuses - a candidate whose artifact answers another
+revision than the SHA under review, a missing version label, an unpublished
+digest - because evidence that cannot fail is not evidence.
+
 OCI labels and reproducibility
 ------------------------------
 Every build carries ``org.opencontainers.image.{title,version,revision,source,
@@ -140,14 +171,17 @@ Usage
   python3 scripts/image_release.py --inventory
   python3 scripts/image_release.py --plan                    # what a release does
   python3 scripts/image_release.py --build --push --kind dev
+  python3 scripts/image_release.py --attest candidate.json --kind dev
   python3 scripts/image_release.py --promote --digest backend=sha256:...
   python3 scripts/image_release.py --manifest mrmap-0.2.0.yml --kind stable
   python3 scripts/image_release.py --check-manifest mrmap-0.2.0.yml --verify
 
 Exit codes
-  0  the plan, manifest or answer was produced, or the manifest is coherent
+  0  the plan, manifest, evidence file or answer was produced, or the manifest
+     is coherent
   1  refused: incoherent manifest, an immutable tag that already serves other
-     bytes, a missing or invalid VERSION, a build argument the build requires
+     bytes, a missing or invalid VERSION, a build argument the build requires,
+     an artifact whose labels contradict the candidate it attests
   2  usage error (argparse, before anything is read or run)
 """
 
@@ -159,6 +193,7 @@ import re
 import shlex
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -235,7 +270,7 @@ IMAGES = {
     },
 }
 
-KINDS = ("stable", "prerelease", "dev")
+KINDS = ("stable", "prerelease", "dev", "candidate")
 DIGEST_ARG_RE = re.compile(r'^(?P<image>[\w-]+)=(?P<digest>sha256:[0-9a-f]{64})$')
 
 
@@ -319,13 +354,13 @@ def tags_for(image, version, sha, kind="stable", aliases=(), registry_base=REGIS
     repo = repository(image, registry_base)
     _base, prerelease, _meta = split_version(version)
     aliases = list(aliases or [])
-    if kind == "dev":
+    if kind in ("dev", "candidate"):
         if aliases:
             raise ReleaseError(
-                f"--kind dev cannot carry the alias(es) {', '.join(aliases)}: a dev "
-                "build is a revision, not a release, and a rolling alias is the "
-                "promise that it is")
-        return [f"{repo}:dev-{short_sha(sha)}"], []
+                f"--kind {kind} cannot carry the alias(es) {', '.join(aliases)}: a "
+                f"{kind} build is a revision, not a release, and a rolling alias is "
+                "the promise that it is")
+        return [f"{repo}:{kind}-{short_sha(sha)}"], []
     if kind not in KINDS:
         raise ReleaseError(f"unknown kind {kind!r}; expected one of {', '.join(KINDS)}")
     if kind == "stable" and prerelease:
@@ -529,6 +564,60 @@ def existing_artifact(ref, root):
                                            "no such")):
             return None
         raise
+
+
+def build_plan(image, root, version, sha, kind, aliases, registry_base, env=None):
+    """What one image of one candidate IS, as data a builder may consume.
+
+    ``.github/workflows/candidate-images.yml`` reads this instead of computing a
+    tag, a label or a build arg itself: those are the policy of this module, and a
+    workflow that restated them would be a second place where the name of a
+    release image is decided - the failure #1582 exists to prevent. The keys are
+    exactly what ``docker/build-push-action`` is handed, and ``--print`` renders
+    each of them the way that action wants to read it, the same service
+    ``dev_image_id.py --print-build-args`` performs for the dependency images.
+    """
+    spec = IMAGES[image]
+    tags, alias_refs = tags_for(image, version, sha, kind, aliases, registry_base)
+    return {
+        "image": image,
+        "repository": repository(image, registry_base),
+        "dockerfile": spec["dockerfile"],
+        "context": spec["context"],
+        "services": list(spec["services"]),
+        "tags": tags + alias_refs,
+        "candidate_tag": tags[0].rsplit(":", 1)[-1],
+        "labels": labels_for(image, root, version, sha),
+        "build_args": build_args_for(image, root, env=env, sha=sha),
+        "source_date_epoch": git_output(root, "show", "-s", "--format=%ct", "HEAD"),
+    }
+
+
+# What `--print` renders, as the key a caller asks for -> (the key of the plan it
+# reads, how to print it). A builder asks for one key per call and gets one line,
+# so no step of a workflow has to parse JSON in a shell.
+PRINT_KEYS = {
+    "tags": ("tags", lambda value: ",".join(value)),
+    "candidate-tag": ("candidate_tag", lambda value: value),
+    "dockerfile": ("dockerfile", lambda value: value),
+    "context": ("context", lambda value: value),
+    "repository": ("repository", lambda value: value),
+    "labels": ("labels", lambda value: "\n".join(f"{k}={v}"
+                                                 for k, v in sorted(value.items()))),
+    "build-args": ("build_args", lambda value: ",".join(
+        f"{k}={v}" for k, v in sorted(value.items()))),
+    "source-date-epoch": ("source_date_epoch", lambda value: value),
+}
+
+
+def plan_value(image, root, version, sha, kind, aliases, registry_base, key):
+    """One key of the build plan, rendered for a shell to capture."""
+    if key not in PRINT_KEYS:
+        raise ReleaseError(f"--print {key!r} names no plan key; ask for "
+                           f"{', '.join(sorted(PRINT_KEYS))}")
+    plan_key, render = PRINT_KEYS[key]
+    return str(render(build_plan(image, root, version, sha, kind, aliases,
+                                 registry_base)[plan_key]))
 
 
 def plan_for(image, root, version, sha, kind, aliases, registry_base):
@@ -789,6 +878,214 @@ def secret_scan(text):
     return problems
 
 
+# ------------------------------------------------------- the candidate evidence
+
+
+# The shape of the file `--attest` writes and `release_promotion.py` reads. A
+# name, not a version number to bump: a promotion that accepted two shapes would
+# accept the one it was written for and quietly ignore the other.
+CANDIDATE_EVIDENCE = "mrmap-candidate-images/1"
+
+
+def attest_candidate(images, root, version, sha, kind, registry_base=REGISTRY_BASE,
+                     actor=None):
+    """Ask the registry what the candidate of this commit IS, as a document.
+
+    Every fact in the answer comes from the registry, not from the caller: the
+    digest a build printed to stdout is a claim, the digest the candidate tag
+    RESOLVES to is a fact, and the promotion has to be able to tell the two
+    apart. The labels are the second half of the answer - an artifact under the
+    right name that says it is somebody else's revision is exactly the stale
+    candidate a re-run of an old build leaves behind, and only the artifact
+    itself can say so.
+
+    Returns ``(document, problems)``; ``document`` is None when anything is
+    refused, so a caller cannot write a partial file by accident.
+    """
+    problems = []
+    entries = {}
+    for image in images:
+        tags, _aliases = tags_for(image, version, sha, kind, [], registry_base)
+        ref = tags[0]
+        try:
+            digest, identity = artifact_identity(ref, root)
+            _probe_digest, labels = artifact_info(ref, root)
+        except ReleaseError as error:
+            problems.append(f"{image}: the candidate {ref} could not be read "
+                            f"({error}); an artifact that cannot be looked at is "
+                            "not a candidate")
+            continue
+        answered = labels.get("org.opencontainers.image.version")
+        if answered is None:
+            problems.append(
+                f"{image}: {ref} carries no org.opencontainers.image.version "
+                "label, so it was not built by scripts/image_release.py and "
+                "cannot attest itself")
+            continue
+        if answered != version:
+            problems.append(f"{image}: {ref} answers version {answered!r} while the "
+                            f"candidate under review is {version}; this is the "
+                            "artifact of another build")
+            continue
+        revision = labels.get("org.opencontainers.image.revision")
+        if revision != sha:
+            problems.append(f"{image}: {ref} answers revision {revision!r}, not the "
+                            f"candidate {sha}; a stale candidate tag is not evidence "
+                            "for a commit it was not built from")
+            continue
+        entries[image] = {
+            "repository": IMAGES[image]["repository"],
+            "repository_ref": repository(image, registry_base),
+            "candidate_ref": ref,
+            "digest": digest,
+            "identity": list(identity),
+            "labels": {key: labels[key] for key in sorted(labels)},
+        }
+        try:
+            # Reading the digest as its own reference is the second of the two
+            # --verify questions, and the one a promotion depends on: it is what
+            # `--promote` will be handed, so it has to resolve on its own.
+            source_digest, _labels = artifact_info(
+                f"{repository(image, registry_base)}@{digest}", root)
+        except ReleaseError as error:
+            problems.append(f"{image}: the digest {digest} of {ref} does not resolve "
+                            f"on its own ({error}); promotion is by digest, so an "
+                            "unresolvable digest is nothing to promote")
+            continue
+        if source_digest != digest:
+            problems.append(f"{image}: {ref} resolves to {digest} but {source_digest} "
+                            "answers under that digest; the registry is giving two "
+                            "answers for one artifact")
+            continue
+    if problems:
+        return None, problems
+    document = {
+        "evidence": CANDIDATE_EVIDENCE,
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_by": actor or os.environ.get("GITHUB_ACTOR") or "unknown",
+        "candidate": {"sha": sha, "version": version, "kind": kind},
+        "registry_base": registry_base,
+        "images": {image: entries[image] for image in sorted(entries)},
+        "note": "what the registry answers for the candidate published by "
+                ".github/workflows/candidate-images.yml; the promotion re-reads "
+                "every digest here before it uses one, and a version tag is "
+                "created only by scripts/image_release.py --promote",
+    }
+    return document, []
+
+
+def validate_candidate_evidence(path, version=None, sha=None,
+                                registry_base=REGISTRY_BASE, images=None):
+    """Read an evidence file back and check everything the FILE can answer.
+
+    No registry is asked here, so this is the half a promotion may run host-side:
+    the shape, the binding to (sha, version), the registry it was written for and
+    the repository names. ``load_candidate_evidence`` adds the registry's own
+    answer on top. Splitting the two is what lets ``release_promotion.py`` refuse
+    a stale or hand-edited file without a container, while the tool that writes
+    the tag still asks the registry itself.
+
+    Returns ``(document, problems)``; problems is empty when the file is usable.
+    """
+    problems = []
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ReleaseError(f"the candidate evidence {path} could not be read: {error}")
+    except json.JSONDecodeError as error:
+        raise ReleaseError(f"the candidate evidence {path} is not JSON: {error}")
+    if document.get("evidence") != CANDIDATE_EVIDENCE:
+        raise ReleaseError(
+            f"the candidate evidence {path} declares {document.get('evidence')!r}, "
+            f"not {CANDIDATE_EVIDENCE!r}; a promotion reads one shape and refuses "
+            "every other, because a silently-unknown field is a silently-missing "
+            "check")
+    candidate = document.get("candidate") or {}
+    file_sha = candidate.get("sha")
+    file_version = candidate.get("version")
+    if sha and file_sha != sha:
+        problems.append(f"the evidence file is for {str(file_sha)[:12]}, not the "
+                        f"candidate {sha[:12]} - digests of another build cannot "
+                        "promote this one")
+    if version and file_version != version:
+        problems.append(f"the evidence file is for version {file_version!r}, not "
+                        f"{version!r}")
+    base = document.get("registry_base") or REGISTRY_BASE
+    if base != registry_base:
+        problems.append(f"the evidence file was published to {base}, not to "
+                        f"{registry_base}; a digest is only meaningful inside the "
+                        "registry that wrote it")
+    entries = document.get("images") or {}
+    wanted = list(images) if images else sorted(IMAGES)
+    for image in wanted:
+        entry = entries.get(image)
+        if not isinstance(entry, dict):
+            problems.append(f"the evidence file says nothing about {image}; every "
+                            "image of the release needs its own digest")
+            continue
+        if entry.get("repository") != IMAGES[image]["repository"]:
+            problems.append(f"{image}: the evidence names {entry.get('repository')!r}, "
+                            f"this release builds {IMAGES[image]['repository']!r}")
+            continue
+        digest = entry.get("digest", "")
+        if not DIGEST_RE.match(digest):
+            problems.append(f"{image}: {digest!r} is not sha256:<64 hex>")
+            continue
+        repo = repository(image, registry_base)
+        expected_ref = entry.get("repository_ref")
+        if expected_ref and expected_ref != repo:
+            problems.append(f"{image}: the evidence points at {expected_ref}, this "
+                            f"release builds {repo}")
+            continue
+    return document, problems
+
+
+def load_candidate_evidence(path, root, version=None, sha=None,
+                            registry_base=REGISTRY_BASE, images=None):
+    """The evidence file plus the registry's own answer about every line.
+
+    The file is the candidate's own claim; the registry answers the same question
+    independently, so a hand-edited digest, a candidate that has since been
+    rebuilt and a reference that never existed all end here with a refusal naming
+    the image, the value and the question it failed. Re-reading the registry
+    costs three requests; releasing the wrong bytes costs a database.
+    """
+    document, problems = validate_candidate_evidence(
+        path, version, sha, registry_base, images)
+    entries = document.get("images") or {}
+    wanted = list(images) if images else sorted(IMAGES)
+    for image in wanted:
+        entry = entries.get(image)
+        if not isinstance(entry, dict) or not DIGEST_RE.match(entry.get("digest", "")):
+            continue
+        if entry.get("repository") != IMAGES[image]["repository"]:
+            continue
+        digest = entry["digest"]
+        repo = repository(image, registry_base)
+        try:
+            served, labels = artifact_info(f"{repo}@{digest}", root)
+        except ReleaseError as error:
+            problems.append(f"{image}: {repo}@{digest} could not be read ({error}); "
+                            "promotion is by digest, so an unreadable digest is not "
+                            "an artifact")
+            continue
+        if served != digest:
+            problems.append(f"{image}: {repo}@{digest} answered {served}; the "
+                            "registry does not serve these bytes under this digest")
+            continue
+        answered = labels.get("org.opencontainers.image.version")
+        if version and answered != version:
+            problems.append(f"{image}: the artifact under {digest} answers version "
+                            f"{answered!r}, not {version!r}")
+            continue
+        revision = labels.get("org.opencontainers.image.revision")
+        if sha and revision != sha:
+            problems.append(f"{image}: the artifact under {digest} answers revision "
+                            f"{str(revision)[:12]}, not the candidate {sha[:12]} - "
+                            "these are the bytes of another commit")
+    return document, problems
+
+
 def verify_pinned_artifacts(services, expected, version, root):
     """Ask each pinned artifact which version it is, and compare what it answers.
 
@@ -928,13 +1225,16 @@ def inventory_lines(root, registry_base=REGISTRY_BASE):
         spec = IMAGES[image]
         lines.append(f"{image:<9} builds   {spec['dockerfile']} (context {spec['context']})")
         lines.append(f"{'':<9} names     {repository(image, registry_base)}"
-                     ":<version> | :dev-<sha>")
+                     ":<version> | :candidate-<sha> | :dev-<sha>")
         lines.append(f"{'':<9} serves   docker-compose.yml: {', '.join(spec['services'])}")
     lines.append("")
-    lines.append("  No workflow publishes either name today: .github/workflows/dev-images.yml")
-    lines.append("  is the only publisher in the repository and publishes the two")
-    lines.append("  dependency images below. Publishing a runtime image is a human act")
-    lines.append("  until #1581/#1586 wire this tool to a trigger (#1578's Q1/Q4 pending).")
+    lines.append("  .github/workflows/candidate-images.yml publishes the CANDIDATE tags of")
+    lines.append("  one explicitly selected, reviewed commit and writes this tool's")
+    lines.append("  evidence file (#1799); nothing else writes a version tag, because only")
+    lines.append("  --promote creates one and --promote runs behind the release-stable")
+    lines.append("  environment of .github/workflows/release-promotion.yml. Publishing a")
+    lines.append("  release stays a human act; the dependency images below are the only")
+    lines.append("  other publisher in the repository, and their contract is #959's.")
     lines.append("")
     lines.append("dev tooling only - contract of #959, untouched by a release:")
     lines.append("  ghcr.io/mrmap-community/mrmap-backend-dev:<fingerprint>")
@@ -992,12 +1292,21 @@ def build_parser():
                         metavar="IMAGE=sha256:...",
                         help="the digest of one image, repeated per image; needed by "
                              "--promote and --manifest unless the candidate is in the registry")
+    parser.add_argument("--candidate-evidence", metavar="PATH", default=None,
+                        dest="candidate_evidence",
+                        help="with --promote: read the digests to promote from the "
+                             "evidence file of --attest instead of pasting them, and "
+                             "re-ask the registry about every line before writing a "
+                             "tag; --digest entries override the file per image")
     parser.add_argument("--dry-run", action="store_true",
                         help="with --build/--promote: print the commands, run nothing")
     parser.add_argument("--push", action="store_true",
                         help="with --build: also publish the candidate tags this plan names")
     parser.add_argument("--verify", action="store_true",
                         help="with --check-manifest: ask each pinned artifact its own version")
+    parser.add_argument("--actor", default=None,
+                        help="with --attest: who produced this evidence (default: "
+                             "$GITHUB_ACTOR, then 'unknown')")
     parser.add_argument("--allow-tag-only", action="store_true", dest="allow_tag_only",
                         help="with --check-manifest: accept a manifest without digests")
     # Only the ACTIONS are mutually exclusive; --push/--verify/--allow-tag-only
@@ -1009,6 +1318,11 @@ def build_parser():
                       help="print the build commands and refs, change nothing (default)")
     mode.add_argument("--build", action="store_true",
                       help="build the candidate image(s) under their candidate tags")
+    mode.add_argument("--attest", metavar="PATH", default=None,
+                      help="write the registry's answer about the published "
+                           "candidate(s) of one commit as a JSON evidence file for "
+                           "the promotion; refuses when an artifact contradicts the "
+                           "candidate it is supposed to attest")
     mode.add_argument("--promote", action="store_true",
                       help="create the immutable version tag from a tested digest")
     mode.add_argument("--manifest", metavar="PATH", default=None,
@@ -1019,6 +1333,13 @@ def build_parser():
                       help="print the inventory of build and pull paths")
     mode.add_argument("--labels", action="store_true",
                       help="print the OCI labels of one image as JSON")
+    mode.add_argument("--print", metavar="KEY", default=None, dest="print_key",
+                      choices=sorted(PRINT_KEYS),
+                      help="print one key of what to build (tags, candidate-tag, "
+                           "repository, dockerfile, context, labels, build-args, "
+                           "source-date-epoch) - the machine read of --plan, so a "
+                           "builder consumes the tool's decision instead of "
+                           "computing its own")
     return parser
 
 
@@ -1056,7 +1377,19 @@ def main(argv=None):
         print(json.dumps(labels_for(images[0], root, version, sha), indent=2))
         return 0
 
+    if args.print_key:
+        if len(images) != 1:
+            raise ReleaseError("--print asks for one image; pass --image")
+        print(plan_value(images[0], root, version, sha, kind, args.aliases,
+                         args.registry_base, args.print_key))
+        return 0
+
     if args.manifest:
+        if args.candidate_evidence:
+            raise ReleaseError(
+                "--candidate-evidence belongs with --promote: a deployment manifest "
+                "pins what the release tag ANSWERS in the registry, which is not the "
+                "candidate digest an evidence file names")
         resolved = dict(digests)
         for image in images:
             if image in resolved:
@@ -1085,7 +1418,41 @@ def main(argv=None):
         print(f"image_release: wrote {args.manifest} for {version} ({kind})")
         return 0
 
+    if args.attest:
+        document, problems = attest_candidate(images, root, version, sha, kind,
+                                              args.registry_base, args.actor)
+        for problem in problems:
+            print(f"image_release: {problem}", file=sys.stderr)
+        if problems:
+            return 1
+        path = Path(args.attest)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+        answered = ", ".join(f"{image}@{document['images'][image]['digest'][:19]}..."
+                             for image in sorted(document["images"]))
+        print(f"image_release: attested {version} at {sha[:12]} from "
+              f"{args.registry_base}: {answered}")
+        print(f"image_release: wrote {args.attest}")
+        return 0
+
     if args.promote:
+        if args.candidate_evidence:
+            # The digests are not handed to this run by a person: they are read
+            # from the file the candidate build wrote and then RE-READ from the
+            # registry, so a stale, hand-edited or foreign artifact is refused
+            # here rather than becoming a released tag (#1799).
+            document, problems = load_candidate_evidence(
+                args.candidate_evidence, root, version, sha, args.registry_base,
+                images)
+            for problem in problems:
+                print(f"image_release: {problem}", file=sys.stderr)
+            if problems:
+                return 1
+            for image in images:
+                # An explicit --digest still wins: it is how an operator names a
+                # re-built candidate, and the identity checks in promote() then
+                # have to agree with the registry about it either way.
+                digests.setdefault(image, document["images"][image]["digest"])
         missing = [image for image in images if image not in digests]
         if missing:
             raise ReleaseError(

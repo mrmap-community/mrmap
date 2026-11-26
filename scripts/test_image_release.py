@@ -77,6 +77,9 @@ RESULTS = []
 FAKE = "sha256:" + "a" * 64
 FAKE2 = "sha256:" + "b" * 64
 SHA = "0123456789abcdef0123456789abcdef01234567"
+# An isolated namespace: the checks below never touch a registry, and naming one
+# that does not exist keeps a stub that leaked into a real request visible.
+REG = "reg.test:5000/mrmap-rehearsal"
 
 
 def check(name, ok, detail=""):
@@ -492,6 +495,245 @@ def verify_checks():
 # ------------------------------------------------- what Compose really renders
 
 
+def candidate_checks():
+    """The candidate kind, the evidence file and the plan a builder reads (#1799).
+
+    Everything the release path now depends on is checked with the registry door
+    stubbed: what a candidate tag is allowed to be named, what the build's own
+    evidence file has to answer, and what a promotion is refused when it does not.
+    The live half of this - a real registry, a real push, a real promotion - was
+    rehearsed against an isolated registry while the issue was implemented; what
+    lives here is the part that must keep holding without a network.
+    """
+    # --- the tag policy of a candidate -------------------------------------
+    tags, aliases = ir.tags_for("backend", "0.2.0", SHA, "candidate", [], REG)
+    check("a candidate is named by its commit, apart from a dev build",
+          tags == [f"{ir.repository('backend', REG)}:candidate-{SHA[:12]}"]
+          and aliases == [], str(tags))
+    refused("a candidate cannot carry a rolling alias",
+            lambda: ir.tags_for("backend", "0.2.0", SHA, "candidate", ["latest"], REG),
+            "cannot carry the alias")
+    check("--kind candidate is one of the kinds the tool names",
+          "candidate" in ir.KINDS and "candidate" in ir.__doc__, str(ir.KINDS))
+
+    # --- what the tool hands a builder -------------------------------------
+    check("--print renders the tag a builder must push",
+          ir.plan_value("backend", REPO, "0.2.0", SHA, "candidate", [], REG,
+                        "tags")
+          == f"{ir.repository('backend', REG)}:candidate-{SHA[:12]}")
+    check("one call prints one key, so no workflow parses JSON in a shell",
+          ir.plan_value("backend", REPO, "0.2.0", SHA, "candidate", [], REG,
+                        "candidate-tag") == f"candidate-{SHA[:12]}")
+    plan = ir.build_plan("backend", REPO, "0.2.0", SHA, "candidate", [], REG)
+    check("the plan is what docker/build-push-action is handed, in its keys",
+          set(plan) >= {"repository", "dockerfile", "context", "tags", "labels",
+                        "build_args", "source_date_epoch"}, str(sorted(plan)))
+    check("the plan carries the commit's own timestamp, which is what makes a "
+          "rebuild reproducible",
+          plan["source_date_epoch"].isdigit()
+          and plan["labels"]["org.opencontainers.image.revision"] == SHA,
+          str(plan["source_date_epoch"]))
+    check("every key --print offers has a plan entry behind it",
+          all(key in plan for _name, (key, _render) in ir.PRINT_KEYS.items()),
+          str(sorted(ir.PRINT_KEYS)))
+
+    # --- --attest: the registry's answer, or nothing -----------------------
+    repo = ir.repository("backend", REG)
+    cand = f"{repo}:candidate-{SHA[:12]}"
+    good_labels = {"org.opencontainers.image.version": "0.2.0",
+                   "org.opencontainers.image.revision": SHA}
+    real_info, real_identity = ir.artifact_info, ir.artifact_identity
+
+    def registry(digest=FAKE, labels=None, answer=None, digest_ref=None):
+        """A registry that answers for the candidate tag and for its digest."""
+        def info(ref, root):
+            if ref == cand:
+                if labels is None:
+                    raise ir.ReleaseError("no such manifest")
+                return digest, (answer if answer is not None else labels)
+            if ref == f"{repo}@{digest}":
+                return digest_ref or digest, (answer if answer is not None
+                                              else labels)
+            raise ir.ReleaseError(f"unknown reference {ref}")
+        return info
+
+    try:
+        ir.artifact_info = registry(labels=good_labels)
+        ir.artifact_identity = lambda ref, root: (FAKE, (FAKE2,))
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG, "releaser")
+        check("a candidate the registry agrees about is attested",
+              document is not None and problems == [], str(problems))
+        entry = (document or {}).get("images", {}).get("backend", {})
+        check("the evidence names the digest the TAG resolves to, with its "
+              "child-manifest identity and the labels the registry reports",
+              entry.get("digest") == FAKE
+              and entry.get("identity") == [FAKE2]
+              and entry.get("repository") == "mrmap-backend"
+              and entry.get("labels") == good_labels, str(entry))
+        check("the evidence declares its shape and binds the candidate it is for",
+              document["evidence"] == ir.CANDIDATE_EVIDENCE
+              and document["candidate"] == {"sha": SHA, "version": "0.2.0",
+                                            "kind": "candidate"}
+              and document["registry_base"] == REG
+              and document["generated_by"] == "releaser", str(document)[:200])
+
+        ir.artifact_info = registry(labels={**good_labels,
+                                            "org.opencontainers.image.revision":
+                                                "f" * 40})
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG)
+        check("a candidate tag whose artifact answers another revision is refused "
+              "- a stale candidate is not evidence",
+              document is None and any("answers revision" in p for p in problems),
+              str(problems))
+
+        ir.artifact_info = registry(labels={"org.opencontainers.image.version":
+                                            "0.1.9"})
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG)
+        check("an artifact of another build is refused by name",
+              document is None
+              and any("artifact of another build" in p for p in problems),
+              str(problems))
+
+        ir.artifact_info = registry(labels={"org.opencontainers.image.version":
+                                            "0.2.0"})
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG)
+        check("an artifact that cannot say which commit it is cannot attest itself",
+              document is None and any("revision" in p for p in problems),
+              str(problems))
+
+        ir.artifact_info = registry(labels=None)
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG)
+        check("an artifact that cannot be read is not a candidate",
+              document is None and any("could not be read" in p for p in problems),
+              str(problems))
+
+        def unresolvable(ref, root):
+            if ref == cand:
+                return FAKE, good_labels
+            raise ir.ReleaseError("not found")
+        ir.artifact_info = unresolvable
+        document, problems = ir.attest_candidate(
+            ["backend"], REPO, "0.2.0", SHA, "candidate", REG)
+        check("a digest that does not resolve on its own cannot be promoted, so "
+              "it is not attested",
+              document is None and any("does not resolve" in p for p in problems),
+              str(problems))
+
+        # --- the promotion's reader, with and without the registry ---------
+        ir.artifact_info = registry(labels=good_labels)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "candidate-images.json"
+
+            def write(document):
+                path.write_text(json.dumps(document) + "\n", encoding="utf-8")
+                return path
+
+            document, _ = ir.attest_candidate(["backend"], REPO, "0.2.0", SHA,
+                                              "candidate", REG)
+            _doc, problems = ir.validate_candidate_evidence(
+                write(document), "0.2.0", SHA, REG, ["backend"])
+            check("the promotion reads a good evidence file without asking a registry",
+                  problems == [], str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["candidate"]["sha"] = "f" * 40
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("digests of another build cannot promote this one",
+                  any("digests of another build" in p for p in problems),
+                  str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["candidate"]["version"] = "0.1.9"
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("an evidence file of another version is refused",
+                  any("not '0.2.0'" in p for p in problems), str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["registry_base"] = "ghcr.io/someone-else"
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("a digest is only meaningful inside the registry that wrote it",
+                  any("only meaningful inside the registry" in p for p in problems),
+                  str(problems))
+
+            other = json.loads(json.dumps(document))
+            other.pop("images")
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("an evidence file that says nothing about an image of the "
+                  "release is refused",
+                  any("says nothing about backend" in p for p in problems),
+                  str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["images"]["backend"]["digest"] = "sha256:short"
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("a digest that is not sha256:<64 hex never reaches a tag",
+                  any("sha256:<64 hex" in p for p in problems), str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["images"]["backend"]["repository"] = "mrmap-something-else"
+            _doc, problems = ir.validate_candidate_evidence(
+                write(other), "0.2.0", SHA, REG, ["backend"])
+            check("an evidence file naming a repository this release does not "
+                  "build is refused",
+                  any("this release builds" in p for p in problems), str(problems))
+
+            other = json.loads(json.dumps(document))
+            other["evidence"] = "mrmap-candidate-images/2"
+            refused("an unknown evidence shape is refused, not half-read",
+                    lambda: ir.validate_candidate_evidence(
+                        write(other), "0.2.0", SHA, REG, ["backend"]),
+                    "silently-unknown field")
+            path.write_text("{not json", encoding="utf-8")
+            refused("a file that is not JSON is refused",
+                    lambda: ir.validate_candidate_evidence(
+                        path, "0.2.0", SHA, REG, ["backend"]), "is not JSON")
+            refused("a missing file is refused",
+                    lambda: ir.validate_candidate_evidence(
+                        Path(tmp) / "absent.json", "0.2.0", SHA, REG, ["backend"]),
+                    "could not be read")
+
+            # the registry is asked again before a tag is written
+            _doc, problems = ir.load_candidate_evidence(
+                write(document), REPO, "0.2.0", SHA, REG, ["backend"])
+            check("the full reader accepts what the registry still serves",
+                  problems == [], str(problems))
+
+            ir.artifact_info = registry(labels=good_labels, answer={
+                "org.opencontainers.image.version": "0.1.9",
+                "org.opencontainers.image.revision": SHA})
+            _doc, problems = ir.load_candidate_evidence(
+                write(document), REPO, "0.2.0", SHA, REG, ["backend"])
+            check("a digest whose artifact now answers another version is refused",
+                  any("answers version" in p for p in problems), str(problems))
+
+            ir.artifact_info = registry(labels=good_labels, digest_ref=FAKE2)
+            _doc, problems = ir.load_candidate_evidence(
+                write(document), REPO, "0.2.0", SHA, REG, ["backend"])
+            check("a digest the registry serves as other bytes is refused",
+                  any("does not serve these bytes" in p for p in problems),
+                  str(problems))
+
+            def not_found(ref, root):
+                raise ir.ReleaseError("not found")
+            ir.artifact_info = not_found
+            _doc, problems = ir.load_candidate_evidence(
+                write(document), REPO, "0.2.0", SHA, REG, ["backend"])
+            check("a digest that resolves to nothing cannot be promoted",
+                  any("unreadable digest" in p for p in problems), str(problems))
+    finally:
+        ir.artifact_info, ir.artifact_identity = real_info, real_identity
+
+
 def cli_checks():
     """The flag combinations the docs promise parse.
 
@@ -507,6 +749,42 @@ def cli_checks():
     parsed = parser.parse_args(["--promote", "--digest", "backend=" + FAKE, "--alias", "latest"])
     check("--promote --digest --alias parses",
           parsed.promote and parsed.digests == ["backend=" + FAKE] and parsed.aliases == ["latest"])
+    # The two doors of #1799: the build's own file instead of pasted digests, on
+    # both ends of the release path.
+    parsed = parser.parse_args(["--attest", "candidate.json", "--kind", "candidate",
+                                "--revision", SHA, "--actor", "releaser"])
+    check("--attest with the candidate kind parses",
+          parsed.attest == "candidate.json" and parsed.kind == "candidate"
+          and parsed.actor == "releaser")
+    parsed = parser.parse_args(["--promote", "--candidate-evidence", "candidate.json"])
+    check("--promote --candidate-evidence parses",
+          parsed.promote and parsed.candidate_evidence == "candidate.json")
+    check("--promote --candidate-evidence --digest parses, the file losing per image",
+          parser.parse_args(["--promote", "--candidate-evidence", "c.json",
+                             "--digest", "backend=" + FAKE]).digests
+          == ["backend=" + FAKE])
+    parsed = parser.parse_args(["--print", "source-date-epoch", "--image", "backend"])
+    check("--print parses as its own action", parsed.print_key == "source-date-epoch")
+    try:
+        parser.parse_args(["--print", "not-a-key"])
+    except SystemExit:
+        check("--print refuses a key it does not render", True)
+    else:
+        check("--print refuses a key it does not render", False, "argparse accepted it")
+    try:
+        parser.parse_args(["--build", "--attest", "candidate.json"])
+    except SystemExit:
+        check("--attest is an action, not a modifier of --build", True)
+    else:
+        check("--attest is an action, not a modifier of --build", False,
+              "argparse accepted build and attest together")
+    # A deployment manifest pins what the RELEASE tag answers, which is not the
+    # candidate digest an evidence file names: reading one into the other would
+    # pin a deployment to bytes nobody released.
+    refused("--manifest with --candidate-evidence is refused",
+            lambda: ir.main(["--manifest", "m.yml", "--candidate-evidence",
+                             "c.json"]),
+            "--candidate-evidence belongs with --promote")
     try:
         parser.parse_args(["--build", "--promote"])
     except SystemExit:
@@ -612,6 +890,7 @@ def main():
         promote_checks()
         inspect_parsing_checks()
         verify_checks()
+        candidate_checks()
         cli_checks()
         compose_checks()
     except Exception as error:  # noqa: BLE001 - harness failure, not a check

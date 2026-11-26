@@ -1,0 +1,383 @@
+name: Candidate images
+
+# The reproducible candidate build of a release (#1799, epic #1577).
+#
+# What this workflow may do fits in one sentence: it publishes CANDIDATE tags and
+# nothing else. A version tag, a prerelease tag and a rolling alias are created
+# only by `scripts/image_release.py --promote`, which runs from
+# .github/workflows/release-promotion.yml behind the protected `release-stable`
+# environment, after a person has approved it. There is deliberately no input
+# here that could name a version tag: the build is always `--kind candidate`, so
+# the tag is always `candidate-<12 hex of the candidate>`, in the release
+# repositories (`mrmap-backend`, `mrmap-frontend`) and never the `-dev`
+# dependency repositories of #959. The failure this workflow exists to prevent -
+# an automation publishing a release nobody approved - therefore has no code path
+# here, rather than a check that somebody could edit away.
+#
+# Nothing is built on a merge or a push. A human dispatches it, names the exact
+# reviewed SHA, and the job refuses anything that is not what that answer
+# describes:
+#
+#   * the SHA must be 40 hex and a commit `develop` itself carries - the same
+#     carrier rule `release_promotion.py plan` applies, because a commit that is
+#     not on develop is not a candidate;
+#   * `VERSION` at that commit must equal the version that was named, because the
+#     OCI version label - what `--verify` and later an operator ask - has to be
+#     the version under review, not the version of whatever checkout the runner
+#     happened to have;
+#   * the build runs from a checkout AT that SHA, so the Dockerfiles, the
+#     requirement pins and the version the image carries are the candidate's own.
+#
+# Reproducibility is then two things and no more. `SOURCE_DATE_EPOCH` is the
+# commit's own timestamp, which the tool exports so that two builders of one
+# commit get one digest; and every third-party image is pinned in the Dockerfiles
+# themselves - which is why no step here names one, and why a build that needed
+# an unpinned base would fail rather than float.
+#
+# Provenance is raised as an attestation over the finished artifact, by the
+# maintained `actions/attest-build-provenance` in its own job, rather than by
+# buildx during the push. That choice was measured, not preferred: buildx embeds
+# its attestation in the pushed index, so two builds of one commit with the same
+# SOURCE_DATE_EPOCH answered two different digests with `--provenance=true` and
+# the same digest twice with `--provenance=false`. A candidate whose digest moves
+# when nothing about it changed is a candidate a promotion cannot check, so the
+# build pushes no provenance and the attestation job adds it afterwards, without
+# rewriting a byte. `id-token: write` therefore appears only on that job, and
+# `packages: write` only on the build job - no job in this workflow holds both.
+# The OCI labels answer which commit and version the bytes claim to be, and
+# `scripts/image_release.py --verify` is what asks the artifact - not the file -
+# those questions again.
+#
+# The digests are never typed by a person. The evidence job asks the registry what
+# it actually serves under those candidate tags, writes the answer as the
+# `mrmap-candidate-images/1` file and uploads it as a build artifact.
+# `release_promotion.py --candidate-evidence` and `image_release.py --promote
+# --candidate-evidence` are its consumers, and both re-read the registry instead
+# of trusting the file: a stale candidate, a hand-edited digest and a foreign
+# repository each stop with a refusal naming what disagreed.
+#
+# Nothing here releases or pushes to production. Point `registry_base` at an
+# isolated registry and the whole path - build, publish, attest, hand over - runs
+# end to end without touching the project namespace, which is how it is tested.
+# Operator recovery, and the upstream action this job's build step stands in
+# front of, are documented in docs/source/development/release-candidate-images.rst.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "the reviewed candidate SHA on develop (40 hex)"
+        required: true
+        type: string
+      version:
+        description: "the version this candidate claims, e.g. 0.2.0 (empty = VERSION at the SHA)"
+        required: false
+        type: string
+      images:
+        description: "which first-party image(s) to build"
+        required: false
+        type: choice
+        default: both
+        options: [both, backend, frontend]
+      registry_base:
+        description: "registry and namespace to publish into (an isolated one proves the whole path without a production push)"
+        required: false
+        type: string
+        default: ghcr.io/mrmap-community
+
+concurrency:
+  # One candidate build per commit at a time. Re-dispatch is the documented
+  # recovery step after a failed run, so nothing here may cancel a run that may
+  # already have pushed one of the two candidate tags: `cancel-in-progress: false`
+  # serialises them, and rebuilding an already-published candidate is a re-push of
+  # identical bytes under the same name, not the move of a release.
+  group: candidate-images-${{ inputs.sha }}
+  cancel-in-progress: false
+
+# The dispatch itself needs no write permission at all. `packages: write` and
+# `id-token: write` appear on the build job alone - least privilege of the
+# acceptance criteria, and the shape dev-images.yml already holds: read-only
+# everywhere except the one job that publishes.
+permissions:
+  contents: read
+
+env:
+  # The frontend bundle bakes its API address in at build time, which is why
+  # docker-compose.yml demands these three with `:?` and why image_release.py
+  # refuses to build a frontend whose address was never named (#1027). These are
+  # the CI values of the QA workflows, so a candidate built here is the standard
+  # artifact; an operator who needs a bundle bound to another host builds one with
+  # their own values, deliberately. No deployment secret appears here.
+  EXTERNAL_BASE_URL: localhost
+  EXTERNAL_PORT: 8000
+  EXTERNAL_SCHEME: http
+
+jobs:
+  candidate:
+    name: candidate / ${{ matrix.image }}
+    if: inputs.images == 'both' || inputs.images == matrix.image
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+      # No `id-token: write` here, deliberately. Provenance attestations are what
+      # that grant is for, and buildx embeds them in the pushed index: measured
+      # against an isolated registry, two builds of ONE commit with one
+      # SOURCE_DATE_EPOCH answered `sha256:3036fd70…` and `sha256:025a3062…` with
+      # `--provenance=true` and `sha256:ff729f08…` with `mode=min`, while
+      # `--provenance=false` answered the same digest twice. A candidate whose
+      # digest moves when it is rebuilt for no reason is a candidate a promotion
+      # cannot check, so reproducibility wins and the token goes unrequested.
+      # The provenance of a candidate is the evidence file plus this run: who
+      # dispatched it, from which reviewed SHA, under which labels.
+    strategy:
+      # backend and frontend are independent builds and one release needs both, so
+      # there is nothing to gain from letting a survivor publish beside a failure:
+      # fail-fast keeps a candidate either fully built or not built at all.
+      fail-fast: true
+      matrix:
+        image: [backend, frontend]
+    env:
+      # Every dispatch value reaches the shell as a variable, never as text pasted
+      # into a script: `sha` and `registry_base` are strings a person types, and a
+      # workflow that interpolated them into a `run:` block would be executing
+      # them.
+      CANDIDATE_SHA: ${{ inputs.sha }}
+      CANDIDATE_VERSION: ${{ inputs.version }}
+      REGISTRY_BASE: ${{ inputs.registry_base }}
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - name: checkout the repository
+        uses: actions/checkout@v7
+        with:
+          # The carrier check reads develop's history and the build checks out the
+          # candidate itself; neither works on a depth-1 checkout.
+          fetch-depth: 0
+
+      - name: check out the reviewed candidate
+        id: candidate
+        # The two answers this job must not get wrong are "which commit" and
+        # "which version", so both are settled from git before docker runs.
+        run: |
+          set -eu
+          if ! printf '%s' "$CANDIDATE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::the candidate SHA must be 40 hex characters - a short sha would be resolved by the runner rather than by develop"
+            exit 1
+          fi
+          git cat-file -e "${CANDIDATE_SHA}^{commit}" 2>/dev/null || {
+            echo "::error::$CANDIDATE_SHA is not an object of this repository"
+            exit 1
+          }
+          git fetch --no-tags --quiet origin develop
+          git merge-base --is-ancestor "$CANDIDATE_SHA" FETCH_HEAD || {
+            echo "::error::$CANDIDATE_SHA is not reachable from develop - a candidate is a commit develop itself carries, exactly as release_promotion.py plan requires"
+            exit 1
+          }
+          git checkout --quiet --detach "$CANDIDATE_SHA"
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [ -n "${CANDIDATE_VERSION:-}" ] && [ "$version" != "$CANDIDATE_VERSION" ]; then
+            echo "::error::VERSION at ${CANDIDATE_SHA:0:12} is $version but the dispatch claims $CANDIDATE_VERSION - the artifact's org.opencontainers.image.version would not be the version under review"
+            exit 1
+          fi
+          {
+            echo "sha=$CANDIDATE_SHA"
+            echo "version=$version"
+          } >> "$GITHUB_OUTPUT"
+          echo "candidate ${CANDIDATE_SHA:0:12} claims version $version" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: read what to build from the release tool
+        id: plan
+        # One read of the tool's own decision - context, Dockerfile, tags, labels,
+        # build args, SOURCE_DATE_EPOCH - the same service
+        # dev_image_id.py --print-build-args performs for the dependency images. A
+        # workflow that computed a tag itself would be a second place where the
+        # name of a release image is decided, which is the drift #1582 exists to
+        # prevent. The values reach the build through $GITHUB_OUTPUT only; the file
+        # is what the run uploads as evidence of what was asked for.
+        run: |
+          set -eu
+          ask() { python3 scripts/image_release.py --print "$1" --image "$IMAGE" \
+                    --kind candidate --revision "$CANDIDATE_SHA" \
+                    --registry-base "$REGISTRY_BASE"; }
+          {
+            echo "tags=$(ask tags)"
+            echo "candidate_tag=$(ask candidate-tag)"
+            echo "dockerfile=$(ask dockerfile)"
+            echo "context=$(ask context)"
+            echo "build_args=$(ask build-args)"
+            echo "source_date_epoch=$(ask source-date-epoch)"
+          } >> "$GITHUB_OUTPUT"
+          ask labels > "candidate-labels-$IMAGE.txt"
+          cat "candidate-labels-$IMAGE.txt" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: set up buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: log in to the registry
+        # Reached only on a build that pushes, and the push goes only to the
+        # namespace named on the dispatch.
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build and publish the candidate
+        # The tool rather than a hand-written build-push-action call: this is the
+        # same code path `--plan` prints and scripts/test_image_release.py holds,
+        # including the SOURCE_DATE_EPOCH of the commit, the OCI labels (the #959
+        # dependency fingerprint on the backend image, deliberately not on the
+        # frontend one) and the refusal to build a frontend bundle whose API
+        # address was never named. docs/source/development/release-candidate-images.rst
+        # records the maintained upstream action this step stands in front of and
+        # the plan keys it would be handed, so swapping the builder is a documented
+        # swap rather than a rewrite.
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.plan.outputs.source_date_epoch }}
+        run: |
+          set -eu
+          args=(--build --push
+                --image "$IMAGE"
+                --kind candidate
+                --revision "$CANDIDATE_SHA"
+                --registry-base "$REGISTRY_BASE")
+          [ -z "${CANDIDATE_VERSION:-}" ] || args+=(--version "$CANDIDATE_VERSION")
+          python3 scripts/image_release.py "${args[@]}"
+
+      - name: upload what the candidate was built from
+        if: always()
+        # The labels the image was told to carry and the canonical version file
+        # whose content decided them: a later question about a candidate starts
+        # from these rather than from the build log.
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-build-${{ inputs.sha }}-${{ matrix.image }}
+          if-no-files-found: error
+          path: |
+            candidate-labels-*.txt
+            VERSION
+
+  attest:
+    name: attest / ${{ matrix.image }}
+    needs: evidence
+    # GitHub only accepts OIDC attestations for ghcr.io, so a candidate published
+    # to an isolated registry - the documented way to rehearse this whole path -
+    # skips the attestation instead of failing on it. Everything else about that
+    # run is identical, which is the point of rehearsing it.
+    if: >-
+      (inputs.images == 'both' || inputs.images == matrix.image)
+      && startsWith(inputs.registry_base, 'ghcr.io')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Attesting an artifact attaches a reference to a digest; it cannot move a
+      # tag. This is the only job that asks for id-token, and the build job is the
+      # only one that asks for packages:write - no job holds both.
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [backend, frontend]
+    env:
+      CANDIDATE_SHA: ${{ inputs.sha }}
+      IMAGE: ${{ matrix.image }}
+    steps:
+      - name: download the candidate evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: candidate-images-${{ inputs.sha }}
+
+      - name: read the digest of this image out of the evidence
+        id: subject
+        # The digest an attestation is raised for comes from the file the registry
+        # was asked to write, never from a person or from a build log.
+        run: |
+          set -eu
+          python3 - candidate-images.json "$IMAGE" >> "$GITHUB_OUTPUT" << 'PYEOF'
+          import json, sys
+          entry = json.load(open(sys.argv[1], encoding="utf-8"))["images"][sys.argv[2]]
+          print("digest=" + entry["digest"])
+          print("name=" + entry["repository_ref"])
+          PYEOF
+
+      - name: attest the candidate digest
+        # The maintained upstream action for exactly this, and the reason the build
+        # step runs with `--provenance=false`: an attestation raised here binds
+        # the artifact WITHOUT rewriting it, so the candidate keeps the one digest
+        # its commit gives it. `docker/build-push-action`'s own provenance is
+        # per-build and changes that digest, which would make a re-run of this
+        # workflow look like a different candidate.
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.subject.outputs.name }}
+          subject-digest: ${{ steps.subject.outputs.digest }}
+          push-to-registry: true
+
+  evidence:
+    name: candidate evidence
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # Asking the registry needs no permission on this repository, and writing an
+      # artifact needs none either: this job publishes nothing.
+      contents: read
+    env:
+      CANDIDATE_SHA: ${{ inputs.sha }}
+      CANDIDATE_VERSION: ${{ inputs.version }}
+      REGISTRY_BASE: ${{ inputs.registry_base }}
+    steps:
+      - name: checkout the release tool
+        uses: actions/checkout@v7
+
+      - name: ask the registry what the candidate is
+        # --attest answers, per image: the digest the candidate tag resolves to,
+        # the artifact's child-manifest identity, and the OCI labels the registry
+        # reports for it. It refuses when an artifact answers another revision than
+        # the SHA under review - a stale candidate left by an older run of this
+        # workflow, or a re-run of an outdated build - when it carries no version
+        # label at all, or when the digest does not resolve on its own.
+        run: |
+          set -eu
+          args=(--attest candidate-images.json
+                --registry-base "$REGISTRY_BASE"
+                --revision "$CANDIDATE_SHA"
+                --kind candidate
+                --actor "${GITHUB_ACTOR:-unknown}")
+          [ -z "${CANDIDATE_VERSION:-}" ] || args+=(--version "$CANDIDATE_VERSION")
+          python3 scripts/image_release.py "${args[@]}"
+          {
+            echo '```json'
+            cat candidate-images.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: hand the digests to the promotion
+        # The promotion's own reader, on the candidate's own file, before anybody
+        # is waiting behind a protected environment: this proves both ends of the
+        # digest path agree, so a confusing promotion refusal becomes a red
+        # candidate run. `gate --simulate` consults no remote and releases nothing,
+        # which is what keeps this a contract check rather than a rehearsal of a
+        # release; the digests it reports are the ones the file names.
+        run: |
+          set -eu
+          args=(gate --sha "$CANDIDATE_SHA"
+                --candidate-evidence candidate-images.json
+                --registry-base "$REGISTRY_BASE"
+                --root . --develop-ref origin/develop --master-ref origin/master)
+          [ -z "${CANDIDATE_VERSION:-}" ] || args+=(--version "$CANDIDATE_VERSION")
+          python3 scripts/release_promotion.py "${args[@]}" --simulate
+
+      - name: upload the candidate evidence
+        # The artifact a promotion downloads. This is the "no manually pasted
+        # digests" of the acceptance criteria: the file is produced in the run that
+        # pushed the candidate and consumed by name, and both consumers re-ask the
+        # registry before acting on it.
+        uses: actions/upload-artifact@v7
+        with:
+          name: candidate-images-${{ inputs.sha }}
+          if-no-files-found: error
+          path: candidate-images.json

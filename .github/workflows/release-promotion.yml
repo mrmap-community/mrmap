@@ -53,6 +53,10 @@ on:
         description: "for finalize: name=sha256:<64 hex> lines, one per first-party image"
         required: false
         type: string
+      candidate_run:
+        description: "for gate/evidence/finalize: run id of the candidate-images.yml run for this sha; its candidate-images.json is downloaded and used INSTEAD of hand-pasted digests (#1799)"
+        required: false
+        type: string
 
 # One promotion runs at a time, and a re-dispatch never cancels the run that
 # may already have pushed a tag (serialized concurrency of the acceptance
@@ -74,18 +78,53 @@ jobs:
       # splitting the job, and one job is what the environment approval
       # covers.
       contents: write
+      # only so `candidate_run` can fetch the candidate evidence artifact that
+      # candidate-images.yml published; it reads, it cannot write an artifact
+      # or a workflow. Without that input nothing here needs it.
+      actions: read
     steps:
       - uses: actions/checkout@v7
         with:
           # finalize compares the candidate tree with master's tip; tags are
           # the planner's anchor. A depth-1 checkout sees neither.
           fetch-depth: 0
+
+      - name: check the dispatch asks for the evidence of a named candidate
+        # The artifact is named after the candidate, so a dispatch that asks for a
+        # candidate run without naming its sha would download a name nothing ever
+        # wrote. Fail here, in words, rather than in the artifact API.
+        if: inputs.candidate_run != ''
+        env:
+          CANDIDATE_SHA: ${{ inputs.sha }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+        run: |
+          set -eu
+          if [ -z "$CANDIDATE_SHA" ]; then
+            echo "::error::candidate_run $CANDIDATE_RUN names a candidate build, so sha must name the same candidate - the evidence artifact is named after its sha"
+            exit 1
+          fi
+
+      - name: fetch the candidate evidence of the candidate run
+        # The digests arrive as a file the build produced, not as text typed into
+        # a dispatch (#1799). Which run to take it from is the only thing an
+        # operator types; the tool then refuses the file unless it names THIS sha,
+        # this version and this registry, so a wrong run id is a refusal rather
+        # than a release of the wrong bytes.
+        if: inputs.candidate_run != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: candidate-images-${{ inputs.sha }}
+          run-id: ${{ inputs.candidate_run }}
+          github-token: ${{ github.token }}
+          path: candidate-evidence
+
       - name: Run the promotion step
         env:
           MODE: ${{ inputs.mode }}
           VERSION: ${{ inputs.version }}
           SHA: ${{ inputs.sha }}
           ARTIFACTS: ${{ inputs.artifacts }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
         run: |
           args=(--root . --develop-ref origin/develop --master-ref origin/master)
           [ -n "$VERSION" ] && args+=(--version "$VERSION" --expect-version "$VERSION")
@@ -94,5 +133,12 @@ jobs:
             while IFS= read -r line; do
               [ -n "$line" ] && args+=(--artifact "$line")
             done <<< "$ARTIFACTS"
+          fi
+          if [ -n "$CANDIDATE_RUN" ]; then
+            if [ ! -f candidate-evidence/candidate-images.json ]; then
+              echo "::error::run $CANDIDATE_RUN carried no candidate-images-<sha> artifact - the candidate build did not attest, so nothing here knows its digests"
+              exit 1
+            fi
+            args+=(--candidate-evidence candidate-evidence/candidate-images.json)
           fi
           python3 scripts/release_promotion.py "$MODE" "${args[@]}"

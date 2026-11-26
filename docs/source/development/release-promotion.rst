@@ -92,6 +92,35 @@ release exists); ``gate`` answers the callable contract #1609 asked for —
 frozen source/version, whether master really carries it — with `--simulate`
 for dry-run suites that must not touch a remote.
 
+Where the artifact digests come from
+====================================
+
+`evidence`, `gate` and `finalize` need the digest of each first-party image of
+the candidate, and they read it from a **file the build wrote** rather than from
+text typed into a dispatch (#1799):
+
+.. code:: console
+
+    $ python3 scripts/release_promotion.py gate --sha 8a57e9a78f5f… \
+        --candidate-evidence candidate-images.json --simulate
+
+That file is the `mrmap-candidate-images/1` evidence
+``scripts/image_release.py --attest`` produced for the candidate and
+`.github/workflows/candidate-images.yml` published as the
+`candidate-images-<sha>` artifact (:ref:`release-candidate-images`). The
+workflow exposes it as the ``candidate_run`` dispatch input: name the run, and
+the artifact is downloaded and passed as ``--candidate-evidence`` — the only
+thing an operator types about a digest.
+
+Both doors stay open, and they are not two ways to override each other. A
+``--artifact name=sha256:…`` line that contradicts the file is REFUSED as a
+conflict: two identities for one release means nobody knows which candidate is
+being published. The file itself is refused unless it names this sha, this
+version and this registry, and its digest is then re-read from the registry
+before anything is tagged — evidence of another build, of another version, of
+another namespace, or of bytes the registry no longer serves each fail with the
+image and the disagreement named.
+
 The protected environment
 =========================
 

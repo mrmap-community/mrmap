@@ -39,6 +39,15 @@ The tool therefore drives, never decides-for:
   evidence are collected from CI (`evidence`) and judged by
   `release_gates.py promote` (imported as a module, one promoter like one
   classifier); the attestation is that command's, unchanged.
+* it takes the artifact digests from the file that produced them. `--artifact`
+  stays for an operator, `--candidate-evidence` reads the
+  `mrmap-candidate-images/1` file `image_release.py --attest` wrote in the run
+  that published the candidate (#1799), so the digests of a release travel from
+  the build to the tag without being pasted by anybody. The file is checked
+  against the sha and version under review, a `--artifact` line that contradicts
+  it is a conflict rather than an override, and `image_release.py --promote
+  --candidate-evidence` re-reads every digest from the registry before it writes
+  a tag - the promotion never trusts a digest it was only told about.
 
 The steps, and why they are separate dispatches
 ------------------------------------------------
@@ -101,6 +110,10 @@ _spec = importlib.util.spec_from_file_location(
     "release_gates", SCRIPTS / "release_gates.py")
 release_gates = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(release_gates)
+_spec = importlib.util.spec_from_file_location(
+    "image_release", SCRIPTS / "image_release.py")
+image_release = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(image_release)
 
 EXIT_OK, EXIT_FAIL, EXIT_CANNOT = 0, 1, 2
 SEMVER_RE = release_gates.SEMVER_RE  # one SemVer grammar, #1579's
@@ -240,6 +253,64 @@ def cmd_plan(args):
 
 
 # ---------------------------------------------------------------------------
+# artifact digests: the file CI wrote, or a person's own lines
+
+
+def artifact_digests(args, sha=None, version=None):
+    """The artifact digests of THIS candidate, as ``{repository: digest}``.
+
+    Two doors, deliberately. ``--candidate-evidence`` reads the
+    ``mrmap-candidate-images/1`` file ``image_release.py --attest`` wrote in the
+    run that published the candidate, so the digests of a release travel from the
+    build to the tag without being pasted by anybody (#1799). ``--artifact``
+    stays for an operator naming a digest by hand. Both bind the answer to the
+    candidate, and an explicit line that contradicts the build's own file is a
+    conflict rather than an override - two identities for one release means
+    nobody knows which candidate is being published.
+
+    Only what the FILE can answer is checked here: shape, binding, registry and
+    repository names. Whether the registry still serves each digest is answered
+    by ``image_release.py`` itself, twice - by ``--attest`` when the file was
+    written, and by ``--promote --candidate-evidence`` when the tag is created.
+    That is why the promotion needs no docker of its own.
+    """
+    digests = {}
+    for spec in args.artifact or []:
+        if "=" not in spec:
+            raise PromotionCannotRun(f"--artifact {spec!r} is not name=sha256:...")
+        name, digest = spec.split("=", 1)
+        digests[name] = digest
+    path = getattr(args, "candidate_evidence", None)
+    if not path:
+        return digests
+    # The registry the file was written for has to be the registry this promotion
+    # promotes into: a digest only means anything inside the registry that wrote
+    # it. Both are usually the default, and pointing a candidate at an isolated
+    # registry - the documented way to rehearse the path (#1799) - names both.
+    registry_base = (getattr(args, "registry_base", None)
+                     or image_release.REGISTRY_BASE)
+    try:
+        document, problems = image_release.validate_candidate_evidence(
+            path, version, sha, registry_base, sorted(image_release.IMAGES))
+    except image_release.ReleaseError as exc:
+        raise PromotionRefused(f"candidate evidence: {exc}") from None
+    for problem in problems:
+        raise PromotionRefused(f"candidate evidence: {problem}")
+    for image in sorted(document.get("images") or {}):
+        entry = document["images"][image]
+        name = entry.get("repository") or image
+        digest = entry["digest"]
+        if digests.get(name) and digests[name] != digest:
+            raise PromotionRefused(
+                f"--artifact {name}={digests[name]} contradicts the candidate "
+                f"evidence, which says {digest} - the build's own file and the "
+                "hand-typed line are two identities for one release; resolve "
+                "which candidate this promotion is actually for")
+        digests[name] = digest
+    return digests
+
+
+# ---------------------------------------------------------------------------
 # evidence collection from CI, then the ONE promoter: release_gates promote
 
 
@@ -295,12 +366,7 @@ def cmd_evidence(args):
                 break
             value, idx = decoder.raw_decode(raw, idx)
             runs.append(value)
-    artifacts = {}
-    for spec in args.artifact or []:
-        if "=" not in spec:
-            raise PromotionCannotRun(f"--artifact {spec!r} is not name=sha256:...")
-        name, digest = spec.split("=", 1)
-        artifacts[name] = digest
+    artifacts = artifact_digests(args, sha, version)
     manual = {}
     for spec in args.manual or []:
         if "=" not in spec:
@@ -456,10 +522,7 @@ def cmd_finalize(args):
     # tag push is the point of no easy return, so a missing or malformed
     # digest must stop the run while it still can.
     digests = {}
-    for spec in args.artifact or []:
-        if "=" not in spec:
-            raise PromotionCannotRun(f"--artifact {spec!r} is not name=sha256:...")
-        name, digest = spec.split("=", 1)
+    for name, digest in sorted(artifact_digests(args, sha, version).items()):
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
             raise PromotionRefused(f"artifact {name} digest {digest!r} is not "
                                    "sha256:<64 hex> - digests are the whole "
@@ -604,12 +667,18 @@ def cmd_status(args):
 def cmd_gate(args):
     """The callable contract of #1609: what is frozen, what master carries."""
     root = Path(args.root)
+    # Read in both modes: `--simulate` promises that no REMOTE is consulted, not
+    # that the caller's file goes unread, and the contract asks for the digests of
+    # the candidate in either answer. Absent digests are reported as absent - a
+    # gate that invented them would be the hand-pasted digest again, one level up.
+    digests = artifact_digests(args, args.sha, args.version)
     if args.simulate:
         print(json.dumps({
             "gate": "release-promotion", "status": "simulated",
             "note": "a dry-run answer: nothing was read from a remote, the "
                     "documentation epic must not schedule real pages on it",
             "candidate": {"sha": args.sha, "version": args.version},
+            "artifacts": digests or None,
         }, indent=2))
         return EXIT_OK
     gitlet(args, root, "fetch", "--quiet", args.remote)
@@ -657,13 +726,35 @@ def main(argv=None):
         sp.add_argument("--version", default=None)
         sp.add_argument("--expect-version", default=None)
 
+    def artifacts_opt(sp):
+        """Where the artifact digests of the candidate come from.
+
+        Either door may be empty; ``artifact_digests`` merges them and refuses a
+        contradiction between the two rather than preferring one.
+        ``--registry-base`` belongs with them because a digest only means
+        anything inside the registry that wrote it, and a candidate rehearsed in
+        an isolated registry is the documented way to prove the path without a
+        production push (#1799).
+        """
+        sp.add_argument("--artifact", action="append", default=[])
+        sp.add_argument("--candidate-evidence", default=None, metavar="PATH",
+                        dest="candidate_evidence",
+                        help="the JSON evidence file image_release.py --attest "
+                             "wrote for THIS candidate; its digests are used "
+                             "instead of hand-pasted --artifact lines")
+        sp.add_argument("--registry-base", default=None, dest="registry_base",
+                        metavar="NAMESPACE",
+                        help="registry and namespace the evidence file was "
+                             "written for (default: the release registry of "
+                             "image_release.py)")
+
     sp = sub.add_parser("plan")
     common(sp)
     sp.set_defaults(func=cmd_plan)
     sp = sub.add_parser("evidence")
     common(sp)
     sp.add_argument("--checks-file", default=None)
-    sp.add_argument("--artifact", action="append", default=[])
+    artifacts_opt(sp)
     sp.add_argument("--manual", action="append", default=[])
     sp.add_argument("--output", default=None)
     sp.set_defaults(func=cmd_evidence)
@@ -680,7 +771,7 @@ def main(argv=None):
     sp.set_defaults(func=cmd_open_release_pr)
     sp = sub.add_parser("finalize")
     common(sp)
-    sp.add_argument("--artifact", action="append", default=[])
+    artifacts_opt(sp)
     sp.add_argument("--attestation", default=None)
     sp.add_argument("--alias", action="append", default=[])
     sp.set_defaults(func=cmd_finalize)
@@ -692,6 +783,7 @@ def main(argv=None):
     sp.set_defaults(func=cmd_status)
     sp = sub.add_parser("gate")
     common(sp)
+    artifacts_opt(sp)
     sp.add_argument("--simulate", action="store_true")
     sp.set_defaults(func=cmd_gate)
 

@@ -926,6 +926,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    // die kritischen Zustände der Bereitstellung über den Warteschlangen und
+    // dem Bestand (#1816): die Namen der Komponenten sind die Worte des
+    // Systemstatus, diese Karte sagt nur, wie viele von ihnen den Zustand haben
+    criticalAlerts: {
+      down: "%{smart_count} Komponente der Bereitstellung ist gestoppt |||| %{smart_count} Komponenten der Bereitstellung sind gestoppt",
+      degraded: "%{smart_count} Komponente der Bereitstellung ist eingeschränkt |||| %{smart_count} Komponenten der Bereitstellung sind eingeschränkt",
+    },
     kpi: {
       delta: "Veränderung %{delta}",
       percent: "%{percent} gegenüber Periodenanfang",
@@ -933,15 +940,31 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       noTrend: "Keine Bestandstrenddaten",
       sparkline: "Bestandstrend für %{resource}",
     },
+    // die kompakte Gesundheit der Bereitstellung: eine Zeile je Warteschlange,
+    // die ihren Zustand neben ihrer Zahl beantwortet (#1816). Keiner Zustand,
+    // der nicht gelesen werden durfte oder konnte, beantwortet ein Erfolgswort
     workQueue: {
-      title: "Wartende Arbeit",
-      scope: "Gezählt über alles, was Sie sehen dürfen",
-      alerts: "Dienste mit einer Meldung",
-      updateReviews: "Aktualisierungen zur Prüfung",
-      harvestAlerts: "Kataloge mit Harvesting-Meldungen",
-      runningWork: "Laufende Hintergrundarbeit",
-      runningHarvests: "Laufende Harvestings (alle Kataloge)",
-      failedWork: "Fehlgeschlagene Hintergrundarbeit",
+      scope: {
+        loading: "Die Warteschlangen der Bereitstellung werden gelesen ...",
+        down: "Die Mechanik der Bereitstellung läuft nicht",
+        partial: "Einige Warteschlangen konnten nicht gelesen werden, die übrigen gezählt über alles, was Sie sehen dürfen",
+        unreadable: "Keine der Warteschlangen konnte gelesen werden",
+        watch: "Etwas wartet auf Sie - gezählt über alles, was Sie sehen dürfen",
+        running: "Die Bereitstellung arbeitet - gezählt über alles, was Sie sehen dürfen",
+        healthy: "Nichts wartet - gezählt über alles, was Sie sehen dürfen",
+        idle: "Nichts läuft und nichts wartet - gezählt über alles, was Sie sehen dürfen",
+      },
+      runningWork: "Hintergrundverarbeitung",
+      runningHarvests: "Harvestings (alle Kataloge)",
+      updateReviews: "Updates (WMS/WFS/CSW)",
+      harvestAlerts: "Kataloge mit Harvesting-Warnungen",
+      failedWork: "Hintergrundarbeit mit Fehlern",
+      running: "Läuft",
+      waiting: "Wartend",
+      idle: "Ohne Arbeit",
+      none: "Keine",
+      notPermitted: "Nicht erlaubt",
+      unreadable: "Nicht lesbar",
     },
   },
   historyChart: {
@@ -1200,6 +1223,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
     viewAll: "Alle Hinweise anzeigen",
     viewCatalogueAlerts: "Hinweise der Kataloge anzeigen",
+    // der Abruf der Hinweise ist unterwegs: eine Karte, die einfach fehlt,
+    // würde als Bereitstellung ohne Hinweise gelesen (#1816)
+    checking: "Die Hinweise der Dienste werden geprüft…",
+    // der Abruf der Hinweise ist fehlgeschlagen: die Bereitstellung kann
+    // Hinweise haben, die gerade niemand zahlen kann, also sagt die Karte das
+    // statt eine Bereitstellung ohne Hinweise zu antworten (#1816)
+    loadError: "Die Hinweise konnten nicht geladen werden.",
     error: "Fehler",
     warning: "Warnung",
     categories: {

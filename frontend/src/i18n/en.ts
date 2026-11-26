@@ -942,6 +942,13 @@ const en = lodashMerge(
       },
     },
     dashboard: {
+      // the critical states of the deployment above the queues and the
+      // inventory (#1816): the names of the components are the words of the
+      // system status, this card only says how many of them carry the state
+      criticalAlerts: {
+        down: "%{smart_count} component of the deployment is down |||| %{smart_count} components of the deployment are down",
+        degraded: "%{smart_count} component of the deployment is degraded |||| %{smart_count} components of the deployment are degraded",
+      },
       kpi: {
         delta: "Change %{delta}",
         percent: "%{percent} from the period start",
@@ -949,15 +956,31 @@ const en = lodashMerge(
         noTrend: "No inventory trend",
         sparkline: "Inventory trend for %{resource}",
       },
+      // the compact health of the deployment: one row per queue, each answering
+      // its state beside its number (#1816). Nothing of a queue which was not
+      // read, may not be read or holds nothing answers a success word
       workQueue: {
-        title: "Work which waits",
-        scope: "Counted over everything you are allowed to see",
-        alerts: "Services with an alert",
-        updateReviews: "Updates awaiting review",
+        scope: {
+          loading: "Reading the queues of the deployment ...",
+          down: "The machinery of the deployment does not run",
+          partial: "Some queues could not be read, the rest counted over everything you are allowed to see",
+          unreadable: "None of the queues could be read",
+          watch: "Something waits for you - counted over everything you are allowed to see",
+          running: "The deployment is working - counted over everything you are allowed to see",
+          healthy: "Nothing waits - counted over everything you are allowed to see",
+          idle: "Nothing runs and nothing waits - counted over everything you are allowed to see",
+        },
+        runningWork: "Background processing",
+        runningHarvests: "Harvestings (all catalogues)",
+        updateReviews: "Updates (WMS/WFS/CSW)",
         harvestAlerts: "Catalogues with harvesting alerts",
-        runningWork: "Background work running",
-        runningHarvests: "Harvestings running (all catalogues)",
-        failedWork: "Background work failed",
+        failedWork: "Background work with errors",
+        running: "Running",
+        waiting: "Waiting",
+        idle: "Idle",
+        none: "None",
+        notPermitted: "Not permitted",
+        unreadable: "Unreadable",
       },
     },
     historyChart: {
@@ -1064,6 +1087,13 @@ const en = lodashMerge(
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
       viewCatalogueAlerts: "View catalogue alerts",
+      // the read of the alerts is out: a card which is simply absent would be
+      // read as a deployment without a problem (#1816)
+      checking: "Checking the alerts of the services…",
+      // the read of the alerts failed: the deployment may have alerts which
+      // nobody can count right now, so the card says so instead of answering
+      // a deployment without a problem (#1816)
+      loadError: "The alerts could not be loaded.",
       error: "Error",
       warning: "Warning",
       categories: {

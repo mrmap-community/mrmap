@@ -137,7 +137,15 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   same run, and `sync` opens the reviewed master→develop sync PR; it never pushes develop or
   master, never moves a tag that stands elsewhere, treats a candidate develop moved past as
   invalidated rather than re-anchorable, and refuses rolling aliases while no reviewed alias
-  ledger exists (Q1 of #1578 fixed the tag shape and approved no alias — ADR-0002). `.github/workflows/release-promotion.yml` dispatches the
+  ledger exists (Q1 of #1578 fixed the tag shape and approved no alias — ADR-0002). Two
+  invariants a future change can silently break: an attestation is verified for **provenance**
+  and not only shape — the required evidence classes (each `pass`, each for exactly the
+  candidate) and gate reports (each green) plus a named `generated_by` are what make "attested"
+  mean "written by the one promoter", so a hand-written file that merely agrees with what is
+  published must stay refused; and the PR's **head is compared only while the PR is open** — the
+  head of a merged develop→master PR is develop itself, so `gate` must never demand it still
+  point at the candidate (that would report a published version as not green forever), and
+  `stale@` stays reserved for the open case while a moved merged head reads `develop@`. `.github/workflows/release-promotion.yml` dispatches the
   steps behind the protected `release-stable` environment (an administrator must create it WITH
   required reviewers before the first run — GitHub auto-creates a missing environment unprotected);
   `python3 scripts/test_release_promotion.py` runs the 103-check offline suite (synthetic

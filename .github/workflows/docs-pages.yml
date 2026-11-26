@@ -1,0 +1,157 @@
+# Documentation Pages publication (#1608, epic #1589)
+#
+# The privileged publisher of ADR-0001 section 12: the one place that writes the
+# Pages tree, and the only documentation job with `contents: write`. It consumes
+# an artifact that another run already built and verified, and it never builds
+# anything - a run that can both generate the documentation and publish it is
+# the run that force-pushed gh-pages for five years.
+#
+# WHAT IS NOT HERE, AND WHY
+#
+#   * No push, pull_request, merge_group or schedule trigger. The release-only
+#     contract of the epic forbids publication on an ordinary change, and a
+#     documentation failure must block a release rather than slow development
+#     down. The only trigger is a person pressing the button, behind the
+#     `docs-pages` environment whose required reviewers ARE the approval.
+#   * No build. `docs.yml` builds the portal and uploads `documentation-portal`
+#     on every pull request; the artifact this job publishes is the one the
+#     release candidate's own run produced. `docs_publish.py` re-verifies every
+#     attested digest after the download and refuses an artifact that does not
+#     name the candidate it is published for, so "verified artifact reuse only
+#     when inputs match" is enforced by the tool rather than by the operator
+#     remembering to pick the right run.
+#   * No force-push, and not because somebody promised not to. The tool keeps
+#     the Pages branch in a private bare repository under the runner's temp
+#     directory, fetches the tip, and pushes one commit whose parent is that
+#     tip. There is no local branch to rewrite and no `--force` in the code.
+#     A publisher that raced another one is refused (`--expect-revision`), so a
+#     failed publication leaves the previous version served, which is what
+#     "recovery if Pages fails" and gate V-17 mean in working code.
+#   * No credential of its own beyond the token this job is given. The build
+#     job that produces an artifact needs `contents: read` only; `contents:
+#     write` sits on this job alone, behind the environment.
+#
+# BEFORE THE FIRST RUN (operator actions, none of them code)
+#
+#   1. Settings -> Pages: Source must be "Deploy from a branch", branch
+#      `gh-pages`, root `/`. This repository still carries that branch from the
+#      pre-epic force-push era, so it exists; if it were empty, `bootstrap`
+#      below creates the root selector once.
+#   2. Settings -> Environments: create `docs-pages` WITH required reviewers.
+#      GitHub auto-creates a referenced-but-missing environment UNPROTECTED on
+#      the first run, so a missing environment is an unprotected publisher
+#      rather than a blocked one. This is the same trap #1584 documents for
+#      `release-stable`, and the same reason it is called out here.
+#   3. `mode: plan` first. It reads the artifact and the Pages tip and reports
+#      per path what would be published or refused, and writes nothing. A
+#      reviewer who wants to know what a publication would do reads this.
+#
+# The dry run of the acceptance criteria is `mode: plan` plus `--dry-run` under
+# the hood, so nothing here publishes to the live site as part of #1608.
+name: Documentation Pages publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "what to do: plan or status read, publish writes"
+        required: true
+        type: choice
+        default: plan
+        options: [plan, publish, status, revisions, verify, archive, bootstrap, retire]
+      channel:
+        description: "which path family: develop preview, stable, or one version"
+        required: false
+        type: choice
+        default: develop
+        options: [develop, stable, version]
+      run_id:
+        description: "the run that uploaded the artifact (empty = download nothing)"
+        required: false
+        type: string
+      artifact_name:
+        description: "artifact name within that run"
+        required: false
+        type: string
+        default: documentation-portal
+      candidate:
+        description: "the frozen candidate sha the artifact must be built from"
+        required: false
+        type: string
+      digests:
+        description: "name=sha256:<64 hex> lines attested for the artifact files"
+        required: false
+        type: string
+
+# Serialized publication (the acceptance criterion): one publisher at a time,
+# and a re-dispatch never cancels the run that may already have pushed the
+# commit - cancelling a half-pushed publication is how docs get lost.
+concurrency:
+  group: docs-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: ${{ inputs.mode }} the documentation portal
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The manual approval gate of the acceptance criteria. An administrator
+    # creates it WITH required reviewers, exactly as release-stable must be.
+    environment: docs-pages
+    permissions:
+      # The publisher writes one commit to gh-pages. Nothing else here needs
+      # write access, and the build job of docs.yml keeps `contents: read`.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Plan, publish or report
+        env:
+          MODE: ${{ inputs.mode }}
+          CHANNEL: ${{ inputs.channel }}
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+          CANDIDATE: ${{ inputs.candidate }}
+          DIGESTS: ${{ inputs.digests }}
+        run: |
+          args=(--repository "$GITHUB_REPOSITORY"
+                --remote "https://github.com/${GITHUB_REPOSITORY}.git")
+          case "$MODE" in
+            plan)
+              args+=("plan" "--channel" "$CHANNEL") ;;
+            publish)
+              args+=("publish" "--channel" "$CHANNEL") ;;
+            status)
+              args+=("status" "--json") ;;
+            revisions)
+              args+=("revisions") ;;
+            verify)
+              args+=("verify" "--channel" "$CHANNEL") ;;
+            archive)
+              args+=("archive" "--channel" "$CHANNEL") ;;
+            bootstrap)
+              args+=("bootstrap") ;;
+            retire)
+              args+=("retire") ;;
+            *)
+              echo "unknown mode: $MODE" >&2
+              exit 1 ;;
+          esac
+          [ -n "$RUN_ID" ] && args+=(--run "$RUN_ID")
+          [ -n "$ARTIFACT_NAME" ] && args+=(--name "$ARTIFACT_NAME")
+          [ -n "$CANDIDATE" ] && args+=(--candidate "$CANDIDATE")
+          if [ -n "$DIGESTS" ]; then
+            while IFS= read -r line; do
+              [ -n "$line" ] && args+=(--digests "$line")
+            done <<< "$DIGESTS"
+          fi
+          python3 scripts/docs_publish.py "${args[@]}"
+
+      - name: What is published now
+        # Reported after every mode, so a reviewer sees the site state the run
+        # left behind rather than having to ask Pages.
+        if: always()
+        run: python3 scripts/docs_publish.py status --json

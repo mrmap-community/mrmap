@@ -39,7 +39,6 @@ Every knob is declared here and set from ``conf.py``.
 
 from __future__ import annotations
 
-import hashlib
 import importlib
 import json
 import os
@@ -52,6 +51,12 @@ from pathlib import Path
 
 from docutils import nodes
 from docutils.parsers.rst import Directive, directives
+
+# The identity of the documented tree is shared with `scripts/docs_gate.py`,
+# which re-computes it to check an artifact against the sources it claims to be
+# built from - two implementations of one digest would make that check mean
+# nothing. The module has no dependencies for exactly that reason.
+from mrmap_digests import source_digest
 
 #: Directives this module can stand in for while the backend is not importable.
 AUTO_DIRECTIVES = (
@@ -79,22 +84,6 @@ TOOLCHAIN = (
 AUTODOC_MODES = ("auto", "on", "off")
 DIAGRAM_MODES = ("static", "render")
 MERMAID_RENDERER_FILENAME = "mrmap-mermaid-vendored.mjs"
-
-
-def source_digest(root: Path, suffixes=(".rst", ".md", ".py")) -> str:
-    """Content digest of the documented sources, ordered by path.
-
-    Paths are digested as well as bytes: a rename that preserves every byte
-    still changes the identity, because the page's URL moved.
-    """
-    digest = hashlib.sha256()
-    for path in sorted(p for p in root.rglob("*")
-                       if p.suffix in suffixes and p.is_file()):
-        digest.update(str(path.relative_to(root)).encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(path.read_bytes())
-        digest.update(b"\0")
-    return "sha256:" + digest.hexdigest()
 
 
 def documented_commit(source_root: Path) -> str | None:

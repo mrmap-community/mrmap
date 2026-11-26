@@ -8,7 +8,8 @@ Documentation portal
 .. sidebar:: Issue #1597 (epic #1589)
 
    The build is ``.github/workflows/docs.yml``, the offline checks are
-   ``scripts/test_docs_build.py``, the generated section is
+   ``scripts/test_docs_build.py``, the publication decision is
+   ``scripts/docs_gate.py``, the generated section is
    ``scripts/gen_docs_design.py``. This page is the background: what one build
    produces, how to run it, what it refuses, and which part of it is generated
    rather than written.
@@ -264,6 +265,90 @@ commit answered. ``.github/workflows/docs.yml`` asserts the file exists and is
 complete, so an identity that stopped being written is a red build rather than a
 missing field. ``SOURCE_DATE_EPOCH`` is honoured, so two builders of one commit get
 one artifact.
+
+.. _docs-portal-gate:
+
+Publication gate
+================
+
+``scripts/docs_gate.py`` is the artifact that decides whether a candidate's
+documentation may be published. It runs the tools that already exist - the
+offline suite, Sphinx under ``-W --keep-going``, ``linkcheck``, the Mermaid CLI,
+JSON Schema - and adds the MrMap-specific questions no general tool can answer:
+does every generated page carry an evidence record, is every discovered surface
+still documented at its committed floor, does the corpus carry any unredacted
+credential, does the artifact name the revision it documents.
+
+.. code-block:: bash
+
+    python3 scripts/docs_gate.py evidence            # the evidence store alone
+    python3 scripts/docs_gate.py coverage            # every surface vs its floor
+    python3 scripts/docs_gate.py gate --target pr    # what an ordinary PR owes
+    python3 scripts/docs_gate.py gate --target release --sphinx /tmp/docsenv/bin/python
+
+Two targets, because an ordinary pull request and a release do not owe the same
+checks. ``pr`` runs the three targeted generator checks - the suite, the evidence
+store, coverage - and needs no build, no browser, no model and no network.
+``release`` adds the strict build, the identity of the artifact, and the optional
+``links``, ``diagrams`` and ``provider`` stages. Publishing to production is not a
+target either can name, and there is no scheduler: ``docs.yml`` calls the ``pr``
+target, and #1609 calls the release target from the release path.
+
+A stage is ``pass``, ``fail``, ``skipped`` or ``cannot-run``, and the report says
+which it is and why. The difference matters: a skipped stage names the reason it
+did not run ("optional stage of target release; not requested", "no model-written
+claim in this candidate"), and a required stage that cannot run - a release
+without ``--sphinx`` - is a failure, not a skip. A gate that reported its own
+absence as a pass would gate nothing.
+
+Retries are bounded by stage kind rather than by taste, per ADR-0001 section 8:
+one attempt for a deterministic stage, two for a browser-shaped one, three for a
+model-shaped one. A deterministic check that fails on the first run has not been
+the victim of chance, and retrying it only hides the failure for longer. The
+attempt log is written into the report, so a stage that passed on its second
+attempt is visible as exactly that.
+
+Red means no new publication, and the report says what stands in its place:
+
+.. code-block:: text
+
+    publication: retain-previous - stage evidence is fail
+    retaining: version 0.1.0 at ed59757495c7
+
+That is ADR-0001 section 11 in one artifact - whoever reads the refusal reads the
+identity of the documentation that remains live with it, rather than having to
+remember the rule or look it up. The gate writes no repair, runs no agent and
+asks no model to approve a fact: it validates and refuses. The repair is the
+author's, the next pull request's, or #1608's.
+
+Coverage is a measurement rather than a list. Each surface of ADR-0001 section 2
+- resource types, models, settings, management commands, tasks, the two compose
+files, the Behave features - has its denominator read out of the software that
+defines it, and its numerator counted over the corpus. The committed floors and
+the declared gaps live in ``scripts/docs_coverage_floors.json``, and regenerating
+them is a command (``coverage --write-baseline``) rather than a file edit, so a
+floor that moved without a re-measurement shows in the diff. New
+undocumented software is refused even where a floor would still clear, unless it
+is declared as a gap: the floor stops documentation being lost, the gap rule stops
+it never being written.
+
+The evidence store lives in ``docs/evidence/*.evidence.jsonl``, one JSON object
+per line. Each record names the page it evidences, the source files and blobs it
+was extracted from, and who produced it; ``docs_gate.py evidence --write``
+regenerates the records of the generated pages from the generator and its notes.
+The rules are mechanical and each one earned its place against a way a page could
+look evidenced and not be: an ``executed`` record has to carry its command, a zero
+exit code and the digest of what it printed, ``inferred`` prose may only cite facts
+it lists itself, and ``human`` evidence names its reviewer or is marked legacy.
+
+The gate validates its own report against ``scripts/docs_gate_schemas.json``
+before it exits, and refuses to publish one it cannot describe - the same rule
+that makes a stale evidence record stale. The validator implements the subset of
+JSON Schema it uses and raises on a keyword outside it, because a validator that
+quietly ignored ``dependentRequired`` would accept exactly what that keyword
+refuses.
+
+.. _docs-portal-version-nav:
 
 Version and language navigation
 ===============================

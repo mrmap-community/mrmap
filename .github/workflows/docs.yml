@@ -78,6 +78,31 @@ jobs:
       - name: Run the portal suite
         run: python scripts/test_docs_build.py
 
+      # The gate of ADR-0001, on the checks an ordinary pull request owes: the
+      # suite above, the evidence store, and coverage of every discovered
+      # surface against its committed floor. It runs the suite itself rather
+      # than trusting the step above - the report has to record all three
+      # stages, and a report with a stage it did not run is a report that
+      # claims something it does not know. Nothing here builds, browses, calls
+      # a model or reaches the network; that is the release target, which #1609
+      # wires into the release path.
+      #
+      # Red means no new documentation, and the report names the last verified
+      # publication it is retaining. That is the fail-closed half of the issue,
+      # and it is decided by the gate rather than by whoever runs the job.
+      - name: Run the documentation gate
+        run: >
+          python scripts/docs_gate.py gate --target pr
+          --report docs/build/docs-gate.json
+
+      - name: Publish the gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-gate-report
+          path: docs/build/docs-gate.json
+          retention-days: 14
+
       # -W makes every warning a failure; --keep-going lists all of them instead
       # of stopping at the first, which is what makes a red build readable.
       - name: Build the portal strictly

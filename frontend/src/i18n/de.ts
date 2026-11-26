@@ -933,6 +933,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       down: "%{smart_count} Komponente der Bereitstellung ist gestoppt |||| %{smart_count} Komponenten der Bereitstellung sind gestoppt",
       degraded: "%{smart_count} Komponente der Bereitstellung ist eingeschränkt |||| %{smart_count} Komponenten der Bereitstellung sind eingeschränkt",
     },
+    kpi: {
+      delta: "Veränderung %{delta}",
+      percent: "%{percent} gegenüber Periodenanfang",
+      noPercent: "Prozentsatz bei Null-Ausgangswert nicht verfügbar",
+      noTrend: "Keine Bestandstrenddaten",
+      sparkline: "Bestandstrend für %{resource}",
+    },
     workQueue: {
       title: "Wartende Arbeit",
       scope: "Gezählt über alles, was Sie sehen dürfen",

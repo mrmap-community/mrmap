@@ -1,7 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import Dashboard from "./Dashboard";
+
+const access = vi.hoisted(() => ({
+  isPending: false,
+  canAccess: Object.fromEntries([
+    "WebMapService", "Layer", "WebFeatureService", "FeatureType",
+    "CatalogueService", "DatasetMetadataRecord", "ServiceMetadataRecord",
+    "Organization", "User",
+  ].map(resource => [resource, true])) as Record<string, boolean>,
+}));
+
+vi.mock("react-admin", () => ({
+  useCanAccessResources: () => ({ canAccess: access.canAccess, isPending: access.isPending }),
+}));
 
 vi.mock("./Cards/CriticalAlerts", () => ({
   default: () => <div>critical</div>,
@@ -19,23 +32,30 @@ vi.mock("./Cards/ResourceListCard", () => ({
   default: ({
     resource,
     withList = true,
+    compact = false,
   }: {
     resource: string;
     withList?: boolean;
-  }) => <div>{`inventory ${resource} ${withList}`}</div>,
+    compact?: boolean;
+  }) => <div>{`inventory ${resource} ${withList} ${compact}`}</div>,
 }));
+
+beforeEach(() => {
+  access.isPending = false;
+  for (const key of Object.keys(access.canAccess)) access.canAccess[key] = true;
+});
 
 /** the inventory the dashboard asks, in the order it answers it */
 const inventory = [
-  "inventory WebMapService false",
-  "inventory Layer false",
-  "inventory WebFeatureService false",
-  "inventory FeatureType false",
-  "inventory CatalogueService false",
-  "inventory DatasetMetadataRecord false",
-  "inventory ServiceMetadataRecord false",
-  "inventory Organization true",
-  "inventory User true",
+  "inventory WebMapService false true",
+  "inventory Layer false true",
+  "inventory WebFeatureService false true",
+  "inventory FeatureType false true",
+  "inventory CatalogueService false true",
+  "inventory DatasetMetadataRecord false true",
+  "inventory ServiceMetadataRecord false true",
+  "inventory Organization false true",
+  "inventory User false true",
 ];
 
 const askedResources = () =>
@@ -53,7 +73,7 @@ describe("Dashboard", () => {
     expect(asked.slice(0, 3)).toEqual(["critical", "workQueue", "attention"]);
     for (const answeredFirst of ["critical", "workQueue", "attention"]) {
       expect(asked.indexOf(answeredFirst)).toBeLessThan(
-        asked.indexOf("inventory WebMapService false"),
+        asked.indexOf("inventory WebMapService false true"),
       );
     }
   });
@@ -65,19 +85,23 @@ describe("Dashboard", () => {
     expect(screen.getByText("attention")).toBeInTheDocument();
   });
 
-  it("answers the whole inventory in its known groups and order", () => {
+  it("answers the whole permitted inventory in its known order", () => {
     render(<Dashboard />);
     expect(askedResources()).toEqual(inventory);
   });
 
-  it("asks the compact cards without a list and accounts with one", () => {
+  it("never mounts an unauthorized organization or user list", () => {
+    access.canAccess.Organization = false;
+    access.canAccess.User = false;
     render(<Dashboard />);
-    const asked = askedResources();
-    expect(asked.every((entry) => entry.endsWith(" false"))).toBe(false);
-    expect(asked.filter((entry) => entry.endsWith(" true"))).toEqual([
-      "inventory Organization true",
-      "inventory User true",
-    ]);
+    expect(screen.queryByText(/Organization/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/User/)).not.toBeInTheDocument();
+  });
+
+  it("renders loading inventory skeletons while permissions are unresolved", () => {
+    access.isPending = true;
+    const { container } = render(<Dashboard />);
+    expect(container.querySelectorAll(".MuiSkeleton-root")).toHaveLength(9);
   });
 
   it("leaves no layout wrapper dividers or spacers of its own", () => {

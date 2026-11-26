@@ -949,6 +949,13 @@ const en = lodashMerge(
         down: "%{smart_count} component of the deployment is down |||| %{smart_count} components of the deployment are down",
         degraded: "%{smart_count} component of the deployment is degraded |||| %{smart_count} components of the deployment are degraded",
       },
+      kpi: {
+        delta: "Change %{delta}",
+        percent: "%{percent} from the period start",
+        noPercent: "Percentage unavailable at zero baseline",
+        noTrend: "No inventory trend",
+        sparkline: "Inventory trend for %{resource}",
+      },
       workQueue: {
         title: "Work which waits",
         scope: "Counted over everything you are allowed to see",

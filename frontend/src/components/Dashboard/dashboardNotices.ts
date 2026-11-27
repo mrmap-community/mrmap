@@ -171,15 +171,15 @@ export const dashboardNotices = (
   { limit = MAX_NOTICE_ROWS, quota = MAX_ROWS_PER_SOURCE }: NoticesOptions = {},
 ): Notices => {
   if (!sources.length) return { status: "unsupported" };
-  const answers = sources.map((source) => source.status);
+  const answers = new Set(sources.map((source) => source.status));
   const readable = sources.filter((source) => source.status === "ready");
   if (!readable.length) {
     // a read which merely failed is a problem of the deployment and says so; a
     // caller who may read nothing sees no table at all; a source which is out
     // is waited for before the table answers an empty deployment
-    if (answers.includes("error")) return { status: "error" };
-    if (answers.includes("loading")) return { status: "loading" };
-    if (answers.includes("forbidden")) return { status: "forbidden" };
+    if (answers.has("error")) return { status: "error" };
+    if (answers.has("loading")) return { status: "loading" };
+    if (answers.has("forbidden")) return { status: "forbidden" };
     return { status: "unsupported" };
   }
 
@@ -195,7 +195,8 @@ export const dashboardNotices = (
     const held = source.total ?? rows.length;
     if (held > rows.length || rows.length > quota) truncated = true;
   }
-  const rows = candidates.sort(byMoment).slice(0, limit);
+  candidates.sort(byMoment);
+  const rows = candidates.slice(0, limit);
   if (candidates.length > limit) truncated = true;
 
   return {

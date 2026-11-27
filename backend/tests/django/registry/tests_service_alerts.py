@@ -492,6 +492,10 @@ class ServiceAlertsApiTest(ServiceAlertsMixin, TestCase):
 
     def test_the_services_which_need_attention_can_be_filtered(self):
         self.monitoring_run(self.monitoring_setting(self.wms_one), False)
+        # `filter[hasAlert]` narrows by the stored rows of the alerts (#1824),
+        # which the periodic refresh writes - the same rows the cross-service
+        # endpoint of the alerts answers.
+        self.refresh_alerts()
         answered = self.services(
             WebMapService, **{"filter[hasAlert]": "true"})
         self.assertEqual(sorted(answered), [WMS_ONE])
@@ -1645,6 +1649,13 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
     the identifiers of the page, and the COUNT of the page may not ask for
     the attention at all unless the request filters by it. The answer of
     the endpoint has to stay what a plain read of the annotations answers.
+
+    A request which *filters* by an alert narrows by the stored rows of the
+    alerts since #1824 - the same decision, read from the table the refresh
+    writes - so those tests refresh the rows the way the beat schedule and the
+    invalidations do before they ask the list. The truth they compare against
+    stays a plain read of the annotations: `ServiceAlertRowsParityTest` pins
+    the stored rows against exactly those annotations.
     """
 
     #: services beyond the fixture, each with runs and jobs of its own, so
@@ -1696,6 +1707,10 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
         self.harvesting_job(service=self.csw, phase=Phase.ABORTED)
         self.harvesting_job(service=self.csw_population[1], import_errors=1)
         self.harvesting_job(service=self.csw_population[2])
+        # the tests which filter by an alert read the stored rows of the alerts
+        # (#1824): write them the way the beat schedule and the invalidations
+        # do, so the list narrows by the state this setup created
+        self.refresh_alerts()
 
     def list_page(self, route, fields, resource, **query):
         """One small page of a list which names the alerts among its fields.

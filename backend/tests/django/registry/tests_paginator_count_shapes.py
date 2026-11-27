@@ -12,10 +12,13 @@ regrow the pathology the audit feared:
   the COALESCE subqueries over the monitoring runs and update jobs appear in
   the page only, where the LIMIT bounds them. A cached count
   (``with_cached_count`` of #885) is therefore not needed for these shapes.
-* The alert FILTER legitimately carries the derivation in the COUNT's WHERE:
-  ``filter[has_alert]`` IS the derivation asked as a condition. Pinned as
-  exactly one COUNT, so the filter answers the number once instead of
-  re-evaluating the subqueries per row or per page.
+* The alert FILTER asks the STORED projection of the rules (#1030) instead of
+  the derivation: ``filter[has_alert]`` is the derivation asked as a
+  condition, and a condition is evaluated for every row the statement reads -
+  the page's ``LIMIT`` and the pagination's ``COUNT`` both come afterwards.
+  Deriving it there made one row of the alert tiles cost the whole service
+  table (#1824), so the WHERE names ``registry_servicealert`` only, which the
+  refresh of the alert rows keeps current. Pinned as exactly one COUNT.
 * The cross-service alert list reads the STORED projection of the rules
   (#1030), so its COUNT names the alert table only and its queries do not
   grow with the number of alert rows.
@@ -117,22 +120,52 @@ class AlertCountShapeTest(QueryMeasurementMixin, TestCase):
             'filter[search]': 'map'})
         self.assertNoDerivation(counts)
 
-    def test_filtering_by_an_alert_asks_the_derivation_exactly_once(self):
-        # filter[has_alert] IS the derivation as a condition, so the COUNT's
-        # WHERE legitimately carries the subqueries - pinned present, and
-        # pinned as ONE statement: the number is answered once over the
-        # whole filtered set, never re-evaluated per row or per page
+    def test_filtering_by_an_alert_asks_the_stored_rows_not_the_derivation(self):
+        # filter[has_alert] asks the derivation as a CONDITION, and a condition
+        # is answered for every row the statement reads - the COUNT of the
+        # pagination asks it over the whole table, before any LIMIT (#1824).
+        # The refresh of the alert rows stores the very decision per service,
+        # so the WHERE of the count names that table and none of the tables
+        # the derivation is built from. Pinned as ONE statement: the number is
+        # answered once over the filtered set, never per row or per page.
         counts = self.counts({
             'fields[WebMapService]': 'title,has_alert',
             'filter[has_alert]': 'true'})
         self.assertEqual(
             len(counts), 1,
             f'the alert filter answered {len(counts)} COUNT statements; the '
-            'derivation in the WHERE may be asked exactly once')
-        self.assertTrue(
-            any(table in counts[0].lower() for table in DERIVATION_TABLES),
-            'the alert filter COUNT lost the derivation which is the '
-            f'meaning of the filter: {counts[0][:400]}')
+            'number of the filter may be asked exactly once')
+        self.assertNoDerivation(counts)
+        self.assertIn(
+            'registry_servicealert', counts[0].lower(),
+            'the alert filter lost the stored rows which answer the meaning '
+            f'of the filter: {counts[0][:400]}')
+
+    def test_the_alert_filter_of_a_one_row_page_asks_no_derivation(self):
+        """The request the alert tiles of a service list send (#1824).
+
+        `page[size]=1` with `fields[WebMapService]=id` is what the tiles above
+        every service list ask - twice, once per state. Neither the COUNT nor
+        the page of that answer may carry the derivation: the 5.5 s the live
+        rig measured for it belonged to the COUNT of this request.
+        """
+        for value in ('true', 'false'):
+            _status, _body, queries = self.request(
+                '/api/registry/wms', user='user',
+                **{'page[size]': '1',
+                   'fields[WebMapService]': 'id',
+                   'filter[has_alert]': value})
+            self.assertEqual(
+                len(count_statements(queries, 'registry_webmapservice')), 1)
+            for sql in count_statements(queries, 'registry_webmapservice') \
+                    + page_statements(queries, 'registry_webmapservice'):
+                for table in DERIVATION_TABLES:
+                    self.assertNotIn(
+                        table, sql.lower(),
+                        msg=f'filter[has_alert]={value} derives the attention '
+                            f'over the service table (names {table}): '
+                            f'{sql[:400]}')
+                self.assertIn('registry_servicealert', sql.lower())
 
 
 class ServiceAlertListCountShapeTest(QueryMeasurementMixin, TestCase):

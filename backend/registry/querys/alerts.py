@@ -570,6 +570,67 @@ ALERT_CATEGORIES = {
 }
 
 
+#: the categories whose stored rows answer the `has_alert` attribute of a kind
+#: of service - the keys of `ALERT_CATEGORIES` which `alert_annotations()`
+#: puts into its disjunction. The table of the alerts keeps more states than
+#: that (a schedule which did not keep its time, a capabilities document the
+#: storage does not hold); a service does not call those its own attention, so
+#: `filter[has_alert]` must not answer them either (#1824).
+ALERT_CATEGORIES_OF_KIND = {
+    model: tuple(
+        category for category, (_severity, _at, target) in ALERT_CATEGORIES.items()
+        if target != 'HarvestingJob'
+        or SERVICE_KIND_OF[model].harvesting_job is not None)
+    for model in SERVICE_KIND_OF
+}
+
+
+def stored_has_alert(model):
+    """The attention of a service, as the refresh of the alert rows stored it.
+
+    `alert_annotations()` answers `has_alert` as the disjunction of its state
+    annotations, which are subqueries over the runs and jobs of a service.
+    That is the right answer for the rows a page shows - #1424 bounded it to
+    the page - but it is the wrong answer for a *condition*: an expression in
+    the `WHERE` of a statement is derived for every row the statement reads,
+    before the `LIMIT` of a page or the `COUNT(*)` of the pagination sees any
+    of them. `filter[has_alert]` therefore derived the attention of the whole
+    service table, which is what the alert tiles of a service list pay for a
+    single row of theirs (#1824: 5.5 s at 35k services).
+
+    The same decision is already stored, one row per problem, by
+    `refresh_service_alerts()`, and the rows of a service answer its
+    `has_alert` as soon as one of them exists. So the condition asks the
+    stored projection - one probe of the indexed `service` of
+    `registry_servicealert` - while a read of the *attributes* keeps the live
+    annotations, which answer the runs and jobs written after the last refresh
+    too. `registry/models/alerts.py` states the freshness contract of those
+    rows: beat and the invalidations of the states rewrite them, and
+    `ServiceAlertRowsParityTest` pins the rows against the annotations they
+    are written from.
+
+    The categories are narrowed to the ones `alert_annotations()` puts into
+    `has_alert`: the table of the alerts keeps the schedules which did not keep
+    their time and the capabilities documents the storage does not hold too,
+    and no service answers those as its own attention. A candidate of an
+    update answers no rows - `alert_branch()` writes the rows of the published
+    service only - and answers no alerts of its own, which is the same answer
+    its annotations give it.
+
+    Args:
+        model: the model of the kind of service the condition is asked of
+
+    Returns:
+        Q: the condition which answers the attention of the outer service
+    """
+    from registry.models.alerts import ServiceAlert
+
+    return Q(Exists(ServiceAlert.objects.filter(
+        service_type=model.__name__,
+        category__in=ALERT_CATEGORIES_OF_KIND[model],
+        service=Cast(OuterRef('pk'), CharField()))))
+
+
 #: the columns which `service_alert_rows()` answers, by the name which the
 #: table of the alerts keeps them under - the same projection of the
 #: annotations, which the services themselves answer, stored per row

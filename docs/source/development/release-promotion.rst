@@ -167,6 +167,6 @@ Deliberate limits, named
   down automatically; the shape validation (``sha256:<64 hex>``, both
   first-party images or nothing published) is what a typed-by-hand mistake
   still cannot survive.
-* **``wip done`` before the merge of anything** — the claim board rule
-  unaffected: an agent opens, a person reviews, merges and approves the
+* **No self-merge** — the rule the retired claim board carried, unaffected by
+  its removal: an agent opens, a person reviews, merges and approves the
   environment deployment.

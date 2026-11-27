@@ -926,15 +926,127 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     },
   },
   dashboard: {
+    activity: {
+      resourceNames: {
+        DatasetMetadataRecord: "Datenmetadatensätze",
+        ServiceMetadataRecord: "Dienstemetadatensätze",
+        Layer: "Ebenen",
+        FeatureType: "Objektarten",
+        Organization: "Organisationen",
+        User: "Benutzer",
+      },
+      title: "Änderungen an Diensten und Metadaten",
+      yAxis: "Anzahl Änderungen",
+      scope: "Neuaufnahmen, Aktualisierungen und Löschungen, pro Tag und je Ressource gezählt — Protokollereignisse, keine verschiedenen Objekte. Nur Ressourcen mit verifiziertem Dashboard-Verlauf werden dargestellt.",
+      period: "Zeitraum",
+      days: "Letzte %{days} Tage",
+      coverage: "Abdeckung des Verlaufs",
+      complete: "Vollständig für den gewählten Zeitraum",
+      unavailable: "%{resources} kann derzeit nicht antworten und wird nicht dargestellt.",
+      excluded: "Kein verifizierter Dashboard-Verlauf: %{resources}",
+      window: "%{from} – %{to} (%{days} Kalendertage, Europe/Berlin)",
+      events: "Ereignisse",
+      empty: "Keine Änderungen in diesem Zeitraum erfasst.",
+      noSeries: "Blenden Sie eine Ressource in der Legende ein, um das Diagramm anzuzeigen.",
+    },
+    // die kritischen Zustände der Bereitstellung über den Warteschlangen und
+    // dem Bestand (#1816): die Namen der Komponenten sind die Worte des
+    // Systemstatus, diese Karte sagt nur, wie viele von ihnen den Zustand haben
+    criticalAlerts: {
+      down: "%{smart_count} Komponente der Bereitstellung ist gestoppt |||| %{smart_count} Komponenten der Bereitstellung sind gestoppt",
+      degraded: "%{smart_count} Komponente der Bereitstellung ist eingeschränkt |||| %{smart_count} Komponenten der Bereitstellung sind eingeschränkt",
+    },
+    kpi: {
+      delta: "Veränderung %{delta}",
+      percent: "%{percent} gegenüber Periodenanfang",
+      noPercent: "Prozentsatz bei Null-Ausgangswert nicht verfügbar",
+      noTrend: "Keine Bestandstrenddaten",
+      sparkline: "Bestandstrend für %{resource}",
+    },
+    // die kompakte Meldungs- und Aktivitätstabelle des Dashboards (#1819): die
+    // Zeilen sind Datensätze der Meldungen und der Änderungshistorien, ihre
+    // Worte sind also die dieser Screens - diese Karte nennt nur die Zustände,
+    // die eine Quelle der Tabelle beantworten kann, von denen keiner „keine
+    // Meldungen dieser Art“ bedeutet
+    notices: {
+      title: "Letzte Meldungen und Aktivitäten",
+      window: "Neueste Meldungen vom %{from} bis %{to} (%{days} Tage) — nicht die gesamte Historie",
+      truncated: "Die neuesten %{rows} Meldungen der Bereitstellung",
+      loading: "Die Meldungen der Bereitstellung werden gelesen ...",
+      loadError: "Die Meldungen konnten nicht gelesen werden.",
+      empty: "Keine Meldungen in diesem Zeitraum.",
+      unsupported: "Keine Meldung der Bereitstellung kann gelesen werden.",
+      noTime: "ohne Datum",
+      noDetail: "Die Api beantwortet keine Beschreibung für diese Meldung.",
+      loadingSource: "%{resource}: die Meldungen werden noch gelesen.",
+      errorSource: "%{resource}: die Meldungen konnten nicht gelesen werden.",
+      forbiddenSource: "%{resource}: Sie dürfen diese Meldungen nicht lesen.",
+      unsupportedSource: "%{resource}: für diese Ressource werden keine Meldungen beantwortet.",
+      viewHistory: "Alle Änderungen an %{resource}",
+      columns: {
+        time: "Zeit",
+        type: "Art",
+        description: "Beschreibung",
+        target: "Betroffener Dienst / Datensatz",
+      },
+    },
+    // die kompakte Gesundheit der Bereitstellung: eine Zeile je Warteschlange,
+    // die ihren Zustand neben ihrer Zahl beantwortet (#1816). Keiner Zustand,
+    // der nicht gelesen werden durfte oder konnte, beantwortet ein Erfolgswort
     workQueue: {
-      title: "Wartende Arbeit",
-      scope: "Gezählt über alles, was Sie sehen dürfen",
-      alerts: "Dienste mit einer Meldung",
-      updateReviews: "Aktualisierungen zur Prüfung",
-      harvestAlerts: "Kataloge mit Harvesting-Meldungen",
-      runningWork: "Laufende Hintergrundarbeit",
-      runningHarvests: "Laufende Harvestings (alle Kataloge)",
-      failedWork: "Fehlgeschlagene Hintergrundarbeit",
+      scope: {
+        loading: "Die Warteschlangen der Bereitstellung werden gelesen ...",
+        down: "Die Mechanik der Bereitstellung läuft nicht",
+        partial: "Einige Warteschlangen konnten nicht gelesen werden, die übrigen gezählt über alles, was Sie sehen dürfen",
+        unreadable: "Keine der Warteschlangen konnte gelesen werden",
+        watch: "Etwas wartet auf Sie - gezählt über alles, was Sie sehen dürfen",
+        running: "Die Bereitstellung arbeitet - gezählt über alles, was Sie sehen dürfen",
+        healthy: "Nichts wartet - gezählt über alles, was Sie sehen dürfen",
+        idle: "Nichts läuft und nichts wartet - gezählt über alles, was Sie sehen dürfen",
+      },
+      runningWork: "Hintergrundverarbeitung",
+      runningHarvests: "Harvestings (alle Kataloge)",
+      updateReviews: "Updates (WMS/WFS/CSW)",
+      harvestAlerts: "Kataloge mit Harvesting-Warnungen",
+      failedWork: "Hintergrundarbeit mit Fehlern",
+      running: "Läuft",
+      waiting: "Wartend",
+      idle: "Ohne Arbeit",
+      none: "Keine",
+      notPermitted: "Nicht erlaubt",
+      unreadable: "Nicht lesbar",
+    },
+    // die kompakte Tabelle der Arbeit der Bereitstellung, unten rechts auf dem
+    // Dashboard (#1815). Die Zeilen sind ein begrenzter Blick auf die Fenster
+    // des Hintergrund-Job-Centers, deshalb behauptet der Text nie mehr, als
+    // diese Fenster beantworten können - und kein Zustand einer Lesart antwortet
+    // ein Erfolgswort, denn eine unlesbare Bereitstellung darf nie leer aussehen
+    backgroundProcesses: {
+      title: "Aktive Hintergrundprozesse",
+      type: "Prozess",
+      status: "Status",
+      started: "Start",
+      progress: "Fortschritt",
+      scope: {
+        loading: "Die Arbeit der Bereitstellung wird gelesen ...",
+        forbidden: "Sie dürfen die Hintergrundprozesse dieser Bereitstellung nicht sehen",
+        error: "Die Hintergrundprozesse konnten nicht gelesen werden",
+        partial: "Nur ein Teil der Arbeit konnte gelesen werden, die Tabelle antwortet nur diesen Teil",
+        empty: "Nichts läuft und nichts wartet",
+        running: "Die Bereitstellung arbeitet",
+        waiting: "Arbeit wartet auf eine Worker",
+        history: "Gerade läuft nichts, die Zeilen unten haben kürzlich entschieden",
+      },
+      none: "Nichts zu tun",
+      justFailed: "Gerade fehlgeschlagen: %{count}",
+      partialBadge: "Unvollständige Antwort",
+      bounded: "%{shown} von %{total} Prozessen angezeigt",
+      unknown: "unbekannt",
+      notReported: "nicht gemeldet",
+      notStarted: "nicht gestartet",
+      noMoment: "kein Zeitpunkt gemeldet",
+      failedBefore: "früher fehlgeschlagen",
+      decidedBefore: "früher entschieden",
     },
   },
   historyChart: {
@@ -1037,6 +1149,7 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     noRecentEvents: "Für diesen Dienst wurde noch keine Aktualisierung ausgeführt.",
   },
   resources: {
+
     ServiceAlert: {
       name: "Handlungsbedarf",
       fields: {
@@ -1193,6 +1306,13 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     count: "%{smart_count} Hinweis |||| %{smart_count} Hinweise",
     viewAll: "Alle Hinweise anzeigen",
     viewCatalogueAlerts: "Hinweise der Kataloge anzeigen",
+    // der Abruf der Hinweise ist unterwegs: eine Karte, die einfach fehlt,
+    // würde als Bereitstellung ohne Hinweise gelesen (#1816)
+    checking: "Die Hinweise der Dienste werden geprüft…",
+    // der Abruf der Hinweise ist fehlgeschlagen: die Bereitstellung kann
+    // Hinweise haben, die gerade niemand zahlen kann, also sagt die Karte das
+    // statt eine Bereitstellung ohne Hinweise zu antworten (#1816)
+    loadError: "Die Hinweise konnten nicht geladen werden.",
     error: "Fehler",
     warning: "Warnung",
     categories: {

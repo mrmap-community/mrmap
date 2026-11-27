@@ -254,7 +254,7 @@ def test_real_repository_is_clean():
 
 def test_guard_paths_is_the_backend_code_list_for_both_stages():
     paths = ["backend/registry/views.py", "backend/AGENTS.md", "backend/README.rst",
-             "frontend/src/App.tsx", "scripts/wip", "docs/x.rst"]
+             "frontend/src/App.tsx", "scripts/pr_classify", "docs/x.rst"]
     # one list for both stages: the push stage used to get a bool here and the
     # caller iterated it, which killed every backend push with a TypeError
     selected = hooks.xml_guard_paths(paths)

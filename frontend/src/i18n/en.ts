@@ -942,15 +942,126 @@ const en = lodashMerge(
       },
     },
     dashboard: {
+      activity: {
+        resourceNames: {
+          DatasetMetadataRecord: "Dataset metadata records",
+          ServiceMetadataRecord: "Service metadata records",
+          Layer: "Layers",
+          FeatureType: "Feature types",
+          Organization: "Organizations",
+          User: "Users",
+        },
+        title: "Changes to services and metadata",
+        yAxis: "Number of changes",
+        scope: "Additions, updates and deletions counted per day for each resource — audit events, never distinct objects. Only resources with verified dashboard history are drawn.",
+        period: "Period",
+        days: "Last %{days} days",
+        coverage: "History coverage",
+        complete: "Complete for the selected period",
+        unavailable: "%{resources} cannot answer right now and is not drawn.",
+        excluded: "No verified dashboard history: %{resources}",
+        window: "%{from} – %{to} (%{days} calendar days, Europe/Berlin)",
+        events: "Events",
+        empty: "No changes recorded in this period.",
+        noSeries: "Unhide a resource in the legend to display the chart.",
+      },
+      // the critical states of the deployment above the queues and the
+      // inventory (#1816): the names of the components are the words of the
+      // system status, this card only says how many of them carry the state
+      criticalAlerts: {
+        down: "%{smart_count} component of the deployment is down |||| %{smart_count} components of the deployment are down",
+        degraded: "%{smart_count} component of the deployment is degraded |||| %{smart_count} components of the deployment are degraded",
+      },
+      kpi: {
+        delta: "Change %{delta}",
+        percent: "%{percent} from the period start",
+        noPercent: "Percentage unavailable at zero baseline",
+        noTrend: "No inventory trend",
+        sparkline: "Inventory trend for %{resource}",
+      },
+      // the compact notices and activity table of the dashboard (#1819): rows
+      // are records of the alerts and of the changelogs, so their words are the
+      // words of those screens - this card only names the states a source of
+      // the table can answer, none of which reads as "no notices of that kind"
+      notices: {
+        title: "Recent notices and activity",
+        window: "Latest notices from %{from} to %{to} (%{days} days) — not the whole history",
+        truncated: "Showing the newest %{rows} notices of the deployment",
+        loading: "Reading the notices of the deployment ...",
+        loadError: "The notices could not be loaded.",
+        empty: "No notices in this period.",
+        unsupported: "None of the notices of the deployment can be read.",
+        noTime: "no date",
+        noDetail: "The api answers no description for this notice.",
+        loadingSource: "%{resource}: the notices are still being read.",
+        errorSource: "%{resource}: the notices could not be read.",
+        forbiddenSource: "%{resource}: you are not allowed to read these notices.",
+        unsupportedSource: "%{resource}: no notices are answered for this resource.",
+        viewHistory: "All changes to %{resource}",
+        columns: {
+          time: "Time",
+          type: "Type",
+          description: "Description",
+          target: "Affected service / record",
+        },
+      },
+      // the compact health of the deployment: one row per queue, each answering
+      // its state beside its number (#1816). Nothing of a queue which was not
+      // read, may not be read or holds nothing answers a success word
       workQueue: {
-        title: "Work which waits",
-        scope: "Counted over everything you are allowed to see",
-        alerts: "Services with an alert",
-        updateReviews: "Updates awaiting review",
+        scope: {
+          loading: "Reading the queues of the deployment ...",
+          down: "The machinery of the deployment does not run",
+          partial: "Some queues could not be read, the rest counted over everything you are allowed to see",
+          unreadable: "None of the queues could be read",
+          watch: "Something waits for you - counted over everything you are allowed to see",
+          running: "The deployment is working - counted over everything you are allowed to see",
+          healthy: "Nothing waits - counted over everything you are allowed to see",
+          idle: "Nothing runs and nothing waits - counted over everything you are allowed to see",
+        },
+        runningWork: "Background processing",
+        runningHarvests: "Harvestings (all catalogues)",
+        updateReviews: "Updates (WMS/WFS/CSW)",
         harvestAlerts: "Catalogues with harvesting alerts",
-        runningWork: "Background work running",
-        runningHarvests: "Harvestings running (all catalogues)",
-        failedWork: "Background work failed",
+        failedWork: "Background work with errors",
+        running: "Running",
+        waiting: "Waiting",
+        idle: "Idle",
+        none: "None",
+        notPermitted: "Not permitted",
+        unreadable: "Unreadable",
+      },
+      // the compact table of the work the deployment is doing, bottom-right of
+      // the dashboard (#1815). The rows are a bounded view onto the windows of
+      // the Background Job Center, so the wording never claims more than those
+      // windows can answer - and none of the states of a read answers a success
+      // word, because an unreadable deployment must never look idle
+      backgroundProcesses: {
+        title: "Active background processes",
+        type: "Process",
+        status: "Status",
+        started: "Started",
+        progress: "Progress",
+        scope: {
+          loading: "Reading the work of the deployment ...",
+          forbidden: "You are not allowed to see the background processes of this deployment",
+          error: "The background processes could not be read",
+          partial: "Only part of the work could be read, the table answers that part alone",
+          empty: "Nothing runs and nothing waits",
+          running: "The deployment is working",
+          waiting: "Work is waiting for a worker",
+          history: "Nothing runs right now, the rows below decided recently",
+        },
+        none: "Nothing to do",
+        justFailed: "Just failed: %{count}",
+        partialBadge: "Incomplete answer",
+        bounded: "%{shown} of %{total} processes shown",
+        unknown: "unknown",
+        notReported: "not reported",
+        notStarted: "not started",
+        noMoment: "no moment reported",
+        failedBefore: "failed earlier",
+        decidedBefore: "decided earlier",
       },
     },
     historyChart: {
@@ -1057,6 +1168,13 @@ const en = lodashMerge(
       count: "%{smart_count} alert |||| %{smart_count} alerts",
       viewAll: "View all alerts",
       viewCatalogueAlerts: "View catalogue alerts",
+      // the read of the alerts is out: a card which is simply absent would be
+      // read as a deployment without a problem (#1816)
+      checking: "Checking the alerts of the services…",
+      // the read of the alerts failed: the deployment may have alerts which
+      // nobody can count right now, so the card says so instead of answering
+      // a deployment without a problem (#1816)
+      loadError: "The alerts could not be loaded.",
       error: "Error",
       warning: "Warning",
       categories: {
@@ -1495,6 +1613,7 @@ const en = lodashMerge(
       },
     },
     resources: {
+
       ServiceAlert: {
         name: "Attention required",
         fields: {

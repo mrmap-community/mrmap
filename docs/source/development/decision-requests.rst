@@ -44,8 +44,8 @@ The schema
 Everything the protocol writes is a normal GitHub comment or issue body, and
 everything machine-read is delimited by an HTML comment marker. The audit
 trail comments are the truth; the register table in the issue body is a
-generated view of them — the same relationship the claim comments have to the
-WIP board.
+generated view of them — the same relationship the retired claim comments
+had to the retired WIP board.
 
 **Request comment** — first line is the marker
 ``<!-- decision-request {"v":1,"id":"dr-…","client":"…","issue":N,"asks":[…],"rx":bool,

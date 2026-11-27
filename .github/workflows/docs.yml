@@ -75,7 +75,16 @@ jobs:
           /tmp/docsenv/bin/python -m pip install -r backend/.requirements/docs.txt
 
       # Offline structural facts about the portal, held without building it.
+      #
+      # MRMAP_DOCS_PYTHON hands the suite the pinned interpreter it just
+      # installed, which is what lets it demonstrate that the strict build's own
+      # exit status really decides (see test_the_strict_build_is_the_gate). Run
+      # without it - a contributor's venv, scripts/check_repo_tooling.sh, which
+      # has no docs environment at all - the same suite holds every structural
+      # check and skips only that demonstration, out loud.
       - name: Run the portal suite
+        env:
+          MRMAP_DOCS_PYTHON: /tmp/docsenv/bin/python
         run: python scripts/test_docs_build.py
 
       # -W makes every warning a failure; --keep-going lists all of them instead

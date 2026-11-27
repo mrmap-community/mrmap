@@ -22,14 +22,17 @@ const state = vi.hoisted(() => ({
     data: [] as BackgroundJobRecord[],
     isPending: false,
     error: null as Error | null,
+    total: undefined as number | undefined,
     refetch: vi.fn(),
   },
   terminal: {
     data: [] as BackgroundJobRecord[],
     isPending: false,
     error: null as Error | null,
+    total: undefined as number | undefined,
     refetch: vi.fn(),
   },
+  authenticated: true,
   subscriptions: new Map<string, Set<Handler>>(),
   // the topics the provider asked the dataProvider to (un)subscribe: the
   // counting specs below assert the frames a progression costs (#1462)
@@ -61,7 +64,7 @@ vi.mock("react-admin", () => {
     },
   };
   return {
-    useAuthState: () => ({ authenticated: true }),
+    useAuthState: () => ({ authenticated: state.authenticated }),
     useDataProvider: () => provider,
     useGetList: (_resource: string, params: { filter: { status: string } }) =>
       params.filter.status === "pending,running"
@@ -105,6 +108,27 @@ const Probe = () => {
   );
 };
 
+/** reads what the compact table of the dashboard reads: the two windows with
+ *  the outcome of their reads, their totals and whether there is a session
+ *  which may ask at all (#1815) */
+const WindowProbe = () => {
+  const { windows, totals, hydrated } = useBackgroundJobCenter();
+  return (
+    <span data-testid="windows">
+      {JSON.stringify({
+        hydrated,
+        active: windows.active,
+        recent: windows.recent,
+        totals,
+      })}
+    </span>
+  );
+};
+
+/** the answer of the provider about the two windows it hydrates from */
+const windowsAnswer = () =>
+  JSON.parse(screen.getByTestId("windows").textContent ?? "{}");
+
 /** registers on the failure seam (#1461) and records every batch it is told */
 const FailureProbe = () => {
   const { subscribeFailed } = useBackgroundJobCenter();
@@ -122,16 +146,19 @@ const rendered = () => screen.getByTestId("probe").textContent;
 
 beforeEach(() => {
   state.ready = 1;
+  state.authenticated = true;
   state.active = {
     data: [],
     isPending: false,
     error: null,
+    total: undefined,
     refetch: vi.fn(),
   };
   state.terminal = {
     data: [],
     isPending: false,
     error: null,
+    total: undefined,
     refetch: vi.fn(),
   };
   state.subscriptions = new Map();
@@ -359,6 +386,68 @@ describe("BackgroundJobCenterProvider", () => {
     );
     expect(state.active.refetch).toHaveBeenCalledTimes(1);
     expect(state.terminal.refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers the dashboard with the two windows and the outcome of their reads", () => {
+    // #1815: the compact table of the dashboard reads the windows and not only
+    // the store, because a bounded store cannot tell an unread window from a
+    // deployment without work
+    state.active.data = [job({ id: 1 })];
+    state.terminal.data = [
+      job({ id: 5, status: "completed", state: "completed" }),
+    ];
+    state.active.total = 4;
+    state.terminal.total = 40;
+    render(
+      <BackgroundJobCenterProvider>
+        <WindowProbe />
+      </BackgroundJobCenterProvider>,
+    );
+    const answer = windowsAnswer();
+    expect(answer.hydrated).toBe(true);
+    expect(answer.active.records.map((record: { id: number }) => record.id)).toEqual([1]);
+    expect(answer.recent.records.map((record: { id: number }) => record.id)).toEqual([5]);
+    // the totals are what tells a bounded view apart from the whole answer of
+    // the api, so they travel with the windows
+    expect(answer.totals).toEqual({ active: 4, recent: 40 });
+  });
+
+  it("answers the dashboard with the window it could not read", () => {
+    // a read which is on its way and a read the api refused are both answered
+    // as themselves: the card decides from them, the store cannot
+    state.active.isPending = true;
+    state.terminal.error = { status: 500 } as unknown as Error;
+    render(
+      <BackgroundJobCenterProvider>
+        <WindowProbe />
+      </BackgroundJobCenterProvider>,
+    );
+    const answer = windowsAnswer();
+    expect(answer.active.isPending).toBe(true);
+    expect(answer.active.records).toEqual([]);
+    expect(answer.recent.isPending).toBe(false);
+    // the error travels with the window, so the card can tell a broken api
+    // apart from a refused read instead of reading an empty store
+    expect(answer.recent.error).toEqual({ status: 500 });
+    // totals of a read which never answered stay unanswered, so a card cannot
+    // print a bounded number out of nothing
+    expect(answer.totals.active).toBeUndefined();
+    expect(answer.totals.recent).toBeUndefined();
+  });
+
+  it("answers that there is no session to ask with", () => {
+    // #833: without a session the reads are never fired, so `isPending` of them
+    // would never settle - `hydrated` is what says so and keeps a card from
+    // hanging in "loading" forever
+    state.authenticated = false;
+    state.active.isPending = true;
+    state.terminal.isPending = true;
+    render(
+      <BackgroundJobCenterProvider>
+        <WindowProbe />
+      </BackgroundJobCenterProvider>,
+    );
+    expect(windowsAnswer().hydrated).toBe(false);
   });
 
   it("polls both windows while the bus stays down", () => {

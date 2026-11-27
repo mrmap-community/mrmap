@@ -19,6 +19,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -231,6 +232,102 @@ def test_celery_summary():
     assert row["evidence"] == ["measured"]
     assert row["end_to_end_p95"] == 3.0
     assert OB.celery_summary([]) == {}
+
+
+@check("fault-injected records never enter a baseline row")
+def test_celery_summary_excludes_injections():
+    # task_perf_bench.py uses "arm" for the injected fault (#1778); averaging a
+    # deliberately degraded workload into the cost of a profiler is not a
+    # baseline, so the rows must carry the clean workload and say what is out.
+    clean = {"family": "housekeeping.system", "scale": "typical", "arm": "a",
+             "repeat": 1,
+             "durations": {"active": {"samples": [0.5], "evidence": "measured"}},
+             "outcomes": {"success": {"count": 1}},
+             "sql": {"statements": {"value": 2, "evidence": "measured"}}}
+    slow = dict(clean, repeat=2,
+                durations={"active": {"samples": [9.0], "evidence": "measured"}},
+                quality={"injection": {"installed": ["slow-body"],
+                                       "arm": "slow-body"}})
+    other = dict(clean, repeat=3, family="housekeeping.system",
+                 scale="large",
+                 durations={"active": {"samples": [7.0], "evidence": "measured"}},
+                 quality={"injection": {"arm": "baseline"}})
+    rows = OB.celery_summary([clean, slow, other])
+    typical = rows["housekeeping.system/typical"]
+    assert typical["samples"] == 1, "the injected repeat leaked into the baseline"
+    assert typical["active_p50"] == 0.5
+    assert typical["injected_records_excluded"] == 1
+    # a record which names the baseline arm of the injector is not injected
+    assert rows["housekeeping.system/large"]["samples"] == 1
+    assert rows["housekeeping.system/large"]["injected_records_excluded"] == 0
+    # an injected row loses its records, and the count lands on ITS row
+    only_injected = OB.celery_summary([slow])
+    assert only_injected == {}, "an injected-only group must not produce a row"
+
+
+@check("an occupied address is refused before the stack is started")
+def test_occupied_address_refused():
+    # the load of an http cell goes to a host port, and only one publisher can
+    # hold one: measuring whatever else answers there is the wrong arm
+    original = OB.listening
+    OB.listening = lambda url: "HTTP 404 gunicorn" if url.startswith(
+        "http://127.0.0.1:8001") else None
+    os.environ["COMPOSE_PROJECT_NAME"] = "mrmap-issue-1777-check"
+    try:
+        with compose_env():
+            OB.cmd_run(args(arm="diagnostics-off", cell="service-list",
+                            out=os.path.join(tempfile.gettempdir(), "obs1777-occ"),
+                            stack_tree=str(ROOT)),
+                       OB.load_arms(str(ARMS)))
+        raise AssertionError("run loaded an address a foreign server holds")
+    except OB.BenchError as error:
+        assert "gunicorn" in str(error), error
+    finally:
+        OB.listening = original
+        os.environ.pop("COMPOSE_PROJECT_NAME", None)
+        shutil.rmtree(os.path.join(tempfile.gettempdir(), "obs1777-occ"),
+                      ignore_errors=True)
+
+
+@check("the run pins the project compose resolves, not the tree's .env")
+def test_compose_project_is_pinned():
+    # the workload runner of the measured tree composes without -p, so the
+    # environment has to carry this run's project or it boots the developer's
+    stack_tree = tempfile.mkdtemp()
+    Path(os.path.join(stack_tree, ".env")).write_text(
+        "\n".join("%s=who-else" % name for name in OB.REQUIRED_ENV)
+        + "\nCOMPOSE_PROJECT_NAME=mrmap-developer-stack\n")
+    os.environ.pop("COMPOSE_PROJECT_NAME", None)
+    try:
+        OB.prepare_environment(stack_tree, "mrmap-issue-1777-mine")
+        assert os.environ["COMPOSE_PROJECT_NAME"] == "mrmap-issue-1777-mine", (
+            "compose would resolve the tree's own stack: %s"
+            % os.environ["COMPOSE_PROJECT_NAME"])
+        # a value the run does not own still comes from the deployment file
+        assert os.environ["DJANGO_SECRET_KEY"] == "who-else"
+    finally:
+        os.environ.pop("COMPOSE_PROJECT_NAME", None)
+        shutil.rmtree(stack_tree, ignore_errors=True)
+
+
+@check("a compose which resolves a foreign project is refused")
+def test_check_project_refuses_foreign_resolution():
+    stack = OB.Stack(str(ROOT), "mrmap-issue-1777-mine", ["docker-compose.yml"],
+                     {"name": "diagnostics-off"})
+    original = OB.run
+    try:
+        OB.run = lambda *a, **k: subprocess.CompletedProcess(
+            [], 0, json.dumps({"name": "mrmap-developer-stack"}), "")
+        try:
+            stack.check_project()
+            raise AssertionError("a foreign resolved project was accepted")
+        except OB.BenchError as error:
+            assert "mrmap-developer-stack" in str(error), error
+        OB.run = lambda *a, **k: subprocess.CompletedProcess(
+            [], 0, json.dumps({"name": "mrmap-issue-1777-mine"}), "")
+        stack.check_project()
+    finally:
+        OB.run = original
 
 
 @check("http rows read the record http_process_bench actually writes")
@@ -628,6 +725,10 @@ def main():
     test_budget_shape()
     test_statistics()
     test_celery_summary()
+    test_celery_summary_excludes_injections()
+    test_occupied_address_refused()
+    test_compose_project_is_pinned()
+    test_check_project_refuses_foreign_resolution()
     test_http_summary()
     test_memory_summary()
     test_artifact_naming()

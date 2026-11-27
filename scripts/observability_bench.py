@@ -245,7 +245,7 @@ def read_env_file(path):
     return values
 
 
-def prepare_environment(stack_tree):
+def prepare_environment(stack_tree, project):
     """Guarantee every variable compose interpolates, or refuse.
 
     Values already in the environment win - that is how a run overrides one
@@ -253,6 +253,12 @@ def prepare_environment(stack_tree):
     way ``docker compose`` itself would. Nothing is invented: a name which is
     in neither is a refusal, because an empty credential builds a stack which
     cannot boot, and the run would read that as a measurement problem.
+
+    ``COMPOSE_PROJECT_NAME`` is the one name which is *set* rather than
+    defaulted: the stack tree carries its own deployment file for the
+    developer's stack, and a helper the run calls - the workload runner of
+    the measured tree composes without -p - would otherwise bring up and
+    measure that other stack, whose containers are not the arm.
     """
     file_values = {}
     env_file = os.path.join(stack_tree, ".env")
@@ -265,6 +271,7 @@ def prepare_environment(stack_tree):
                          " carries them" % (", ".join(missing), env_file))
     for name in REQUIRED_ENV:
         os.environ.setdefault(name, file_values.get(name, ""))
+    os.environ["COMPOSE_PROJECT_NAME"] = project
 
 
 def run(command, check=True, cwd=None, env=None, timeout=3600):
@@ -431,6 +438,35 @@ class Stack:
             handle.write("\n".join(lines) + "\n")
         self.override = path
         return path
+
+    def check_project(self):
+        """Ask compose which project the run's own files resolve to.
+
+        ``-p`` makes the intent explicit, but a docker CLI which does not pass
+        the environment through (a sudo wrapper, for one) and a stack tree
+        whose ``.env`` names the developer's project both make compose answer
+        with someone else's project, and the run would then measure and remove
+        that stack. One ``config`` call is cheap next to the measurement.
+        """
+        command = ["docker", "compose"]
+        for path in self.files + ([self.override] if self.override else []):
+            command += ["-f", path]
+        completed = run(command + ["-p", self.project, "config", "--format",
+                                   "json"], check=False, cwd=self.tree,
+                        timeout=180)
+        if completed is None or completed.returncode != 0:
+            raise BenchError("compose will not resolve the files of this run (%s)"
+                             % ((completed.stderr if completed else "docker"
+                                 " unavailable") or "")[:400])
+        try:
+            resolved = json.loads(completed.stdout).get("name")
+        except ValueError:
+            raise BenchError("compose did not answer the project question in JSON")
+        if resolved != self.project:
+            raise BenchError("compose resolves the project to %r, not the %r this"
+                             " run owns: the deployment file of %s names another"
+                             " stack, and the run would measure and remove that"
+                             " one instead" % (resolved, self.project, self.tree))
 
     def compose(self, *args, check=True, timeout=1800):
         command = ["docker", "compose"]
@@ -633,7 +669,7 @@ def cmd_run(args, data):
         raise BenchError("--stack-tree %s is not a checkout (no backend/); a run"
                          " measures the source of the tree it is given" % stack_tree)
 
-    prepare_environment(stack_tree)
+    prepare_environment(stack_tree, project)
     # --compose-file overrides the profile list for a caller who must run the
     # protocol against a prebuilt image instead of a locally built stack; the
     # files come from the arms file otherwise, so a plain run names them.
@@ -671,6 +707,8 @@ def cmd_run(args, data):
     else:
         os.makedirs(out, exist_ok=True)
     stack.write_override(out)
+    # before anything is started or removed: the run may only touch what it owns
+    stack.check_project()
 
     say("arm=%s profile=%s project=%s" % (arm["name"], args.profile, project))
     say("stack tree=%s  out=%s" % (stack_tree, out))

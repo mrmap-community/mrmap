@@ -181,7 +181,33 @@ INSTALLED_APPS = [
     "pgtrigger",
 ]
 
-MIDDLEWARE = [
+# Whether the legacy slow-request detector of ``system.logging`` belongs to the
+# chain. It was the one piece of the legacy observability stack without a knob -
+# it is simply listed below - so the matched benchmark of #1777 could not read a
+# "diagnostics off" web tier without forking these settings. Named as a knob
+# instead, like every other flag of that stack, so the arm which measures the
+# detector's absence boots the same application it is compared against.
+MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING = _flag_from_env(
+    os.environ, "MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING", True)
+
+#: the middleware the knob above removes, spelled once
+SLOW_REQUEST_LOGGING_MIDDLEWARE = "system.logging.middleware.LogSlowRequestsMiddleware"
+
+
+def _middleware_from_env(chain, slow_request_logging: bool) -> list:
+    """The chain of a deployment: the shipped chain minus what a knob turns off.
+
+    A function of its two inputs rather than an ``if`` below the list, so the
+    decision is testable without re-importing the module - the same shape as
+    ``_secret_key_from_env``. Removing the entry from the literal instead would
+    make the shipped chain depend on the default of one runner.
+    """
+    if slow_request_logging:
+        return list(chain)
+    return [entry for entry in chain if entry != SLOW_REQUEST_LOGGING_MIDDLEWARE]
+
+
+_MIDDLEWARE_CHAIN = [
     # First, ahead of ``SecurityMiddleware``: the response phase of this
     # middleware is what answers the Content-Security-Policy of every backend
     # answer (#1473), and a middleware only sees the responses of the ones
@@ -211,6 +237,9 @@ MIDDLEWARE = [
     "simple_history.middleware.HistoryRequestMiddleware",
     "system.logging.middleware.LogSlowRequestsMiddleware",
 ]
+
+MIDDLEWARE = _middleware_from_env(
+    _MIDDLEWARE_CHAIN, MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING)
 
 TEMPLATE_LOADERS = "django.template.loaders.app_directories.Loader"
 

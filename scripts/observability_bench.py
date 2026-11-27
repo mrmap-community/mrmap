@@ -38,12 +38,13 @@ Two kinds of cell, because the shipped tooling of the work differs:
     against the web tier of a production-shape stack: latency p50/p95/p99,
     requests per second, the cheap peer of #1032, and - for a cell with
     ``websocket_count`` - held authenticated websockets beside the load. The
-    reference arm additionally boots the web tier with
-    ``--legacy-off-settings-module``, which drops
-    ``system.logging.middleware.LogSlowRequestsMiddleware`` out of the
-    middleware chain: that middleware is the legacy HTTP detector, and no knob
-    turns its per-request SQL capture off, so a "diagnostics off" reading of
-    the web tier has to say so in its own definition.
+    reference arm additionally boots the web tier with the
+    ``MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING`` knob off, which drops
+    ``system.logging.middleware.LogSlowRequestsMiddleware`` - the legacy HTTP
+    detector, the one piece of that stack whose per-request SQL capture used to
+    have no switch - out of the middleware chain. An arm which claims the
+    removal without turning the knob off is refused before docker is asked
+    anything.
 
 A third column belongs to every cell rather than being a cell of its own: the
 size and file count of the directories the observability chain writes
@@ -71,7 +72,6 @@ Usage::
                                             [--repeats N] [--seed N]
                                             [--out DIR] [--artifacts DIR]
                                             [--stack-tree DIR] [--no-sample]
-                                            [--legacy-off-settings-module M]
     scripts/observability_bench.py report   --in DIR
     scripts/observability_bench.py baseline --in DIR [--budget-file F]
     scripts/observability_bench.py verify   --in DIR
@@ -112,6 +112,11 @@ REQUIRED_ENV = (
     "GRAFANA_ADMIN_USER", "GRAFANA_ADMIN_PASSWORD", "PGADMIN_USER",
     "PGADMIN_PASSWORD")
 
+#: how a generated override takes a mapping away again: compose's own
+#: ``!reset`` tag, which has to be the tag of the empty sequence itself - as a
+#: sequence *item* it is not a reset and compose keeps the shipped mapping.
+RESET_PORTS = "!reset []"
+
 RUN_SCHEMA = "mrmap.observability-bench.v1"
 BASELINE_SCHEMA = "mrmap.observability-baseline.v1"
 PROJECT_PREFIX = "mrmap-"
@@ -128,6 +133,10 @@ LEGACY_TASK_KNOBS = (
     "MRMAP_TASK_PERFORMANCE_EXPORT_MAX_BUCKETS",
     "MRMAP_TASK_PERFORMANCE_POLICIES",
     "MRMAP_CAPACITY_TELEMETRY", "MRMAP_CAPACITY_TELEMETRY_COLLECT_ANY_PROCESS")
+
+#: the web-tier sibling of those knobs: the legacy slow-request detector has
+#: exactly one, and the reference arm has to turn it off by name.
+LEGACY_SLOW_REQUEST_KNOB = "MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING"
 
 
 class BenchError(Exception):
@@ -347,13 +356,12 @@ def owned_or_die(project):
 class Stack:
     """The compose project of one run: bring it up, ask it, take it away."""
 
-    def __init__(self, tree, project, files, arm, legacy_off_module="",
+    def __init__(self, tree, project, files, arm,
                  host_port=None, loader="host"):
         self.tree = tree
         self.project = project
         self.files = list(files)
         self.arm = arm
-        self.legacy_off_module = legacy_off_module
         self.host_port = host_port
         #: "host" loads against the published port, "stack" from inside the
         #: backend container (see --loader); "auto" resolves on the first cell
@@ -362,6 +370,7 @@ class Stack:
         self.loader_staging = None
         self.override = None
         self._token = None
+        self._resolved = None
 
     # ------------------------------------------------------- the load driver
     def resolve_loader(self):
@@ -479,12 +488,19 @@ class Stack:
         # docker-compose.prebuilt.yml resets that name; this does the same.
         backend = {"container_name": "%s-backend" % self.project}
         if self.loader_mode == "stack" and not self.host_port:
-            # the shipped dev file publishes 0.0.0.0:8001 and :8002, and a host
-            # port has one owner: a second stack which asks for the same pair
-            # never comes up. The stack loader does not use the mapping at all,
-            # so the run resets it and cannot collide with a neighbour - which
-            # is also why it is the default mode.
-            backend["ports"] = ["!reset []"]
+            # a host port has exactly one owner, and the shipped dev files
+            # publish five of them (the web tier, its websocket port, postgis,
+            # redis, mapserver, flower): a second stack on one host then dies
+            # with "Bind for 0.0.0.0:5556 failed" before anything is measured.
+            # Nothing in stack mode reaches the stack through the host, so the
+            # run publishes nothing at all and cannot collide with a neighbour -
+            # which is also why stack loading is the default.
+            for service, spec in sorted(
+                    self.shipped_config().get("services", {}).items()):
+                if spec.get("ports"):
+                    # setdefault, so an arm which deliberately publishes
+                    # something keeps its own mapping
+                    services.setdefault(service, {})["ports"] = RESET_PORTS
         if self.host_port:
             # the shipped dev file publishes 0.0.0.0:8001 and the edge routes
             # /ws to 8002, and a host port can only be held by one publisher -
@@ -492,19 +508,10 @@ class Stack:
             # instead of failing to come up beside whatever else owns 8001
             backend["ports"] = ["0.0.0.0:%d:8001" % self.host_port,
                                 "0.0.0.0:%d:8002" % (self.host_port + 1)]
-        environment = {}
-        if self.legacy_off_module:
-            # under environment, not as a bare service key: compose validates a
-            # service against its schema, and a container variable belongs in
-            # the environment map - which an override merges into what the
-            # shipped file already passes rather than replacing it
-            environment["DJANGO_SETTINGS_MODULE"] = self.legacy_off_module
         if self.arm.get("backend_command"):
             backend["command"] = self.arm["backend_command"]
-        if environment:
-            backend["environment"] = environment
         if backend:
-            services["backend"] = dict(services.get("backend", {}), **backend)
+            services["backend"] = dict(backend, **services.get("backend", {}))
         lines = ["# generated by scripts/observability_bench.py - the service",
                  "# overrides of arm %r. The arms file is the input and this file"
                  % self.arm["name"],
@@ -519,8 +526,21 @@ class Stack:
                     # environment merges: an override which named the whole map
                     # would drop every variable the shipped file passes
                     lines.append("    %s:" % key)
-                    lines.extend("      %s: %s" % (name, json.dumps(str(item)))
-                                 for name, item in sorted(value.items()))
+                    for name, item in sorted(value.items()):
+                        if item == "":
+                            # a name with no value passes the variable through
+                            # only when the environment of the compose run
+                            # carries it, which is how the shipped file itself
+                            # hands a knob to settings.py; quoting it would set
+                            # it to the empty string, and a reader of a
+                            # three-state knob reads that as a decision (#1473)
+                            lines.append("      %s:" % name)
+                        else:
+                            lines.append("      %s: %s"
+                                         % (name, json.dumps(str(item))))
+                elif value == RESET_PORTS:
+                    # a tagged empty sequence, unquoted - see RESET_PORTS
+                    lines.append("    %s: %s" % (key, RESET_PORTS))
                 elif isinstance(value, list):
                     lines.append("    %s:" % key)
                     for item in value:
@@ -537,6 +557,38 @@ class Stack:
         self.override = path
         return path
 
+    def ask_config(self, include_override=False):
+        """What compose resolves the run's files to, as a document.
+
+        ``config`` is the only way to learn what the shipped files actually
+        publish after every profile merged; guessing the publishers from the
+        file text would drift the day the stack publishes something new. The
+        override stays out unless asked for, because the port reset below needs
+        what the *shipped* stack publishes.
+        """
+        command = ["docker", "compose"]
+        paths = list(self.files)
+        if include_override and self.override:
+            paths.append(self.override)
+        for path in paths:
+            command += ["-f", path]
+        completed = run(command + ["-p", self.project, "config", "--format",
+                                   "json"], check=False, cwd=self.tree,
+                        timeout=180)
+        if completed is None or completed.returncode != 0:
+            raise BenchError("compose will not resolve the files of this run (%s)"
+                             % ((completed.stderr if completed
+                                 else "docker unavailable") or "")[:400])
+        try:
+            return json.loads(completed.stdout)
+        except ValueError:
+            raise BenchError("compose did not answer the project question in JSON")
+
+    def shipped_config(self):
+        if self._resolved is None:
+            self._resolved = self.ask_config()
+        return self._resolved
+
     def check_project(self):
         """Ask compose which project the run's own files resolve to.
 
@@ -546,20 +598,7 @@ class Stack:
         with someone else's project, and the run would then measure and remove
         that stack. One ``config`` call is cheap next to the measurement.
         """
-        command = ["docker", "compose"]
-        for path in self.files + ([self.override] if self.override else []):
-            command += ["-f", path]
-        completed = run(command + ["-p", self.project, "config", "--format",
-                                   "json"], check=False, cwd=self.tree,
-                        timeout=180)
-        if completed is None or completed.returncode != 0:
-            raise BenchError("compose will not resolve the files of this run (%s)"
-                             % ((completed.stderr if completed else "docker"
-                                 " unavailable") or "")[:400])
-        try:
-            resolved = json.loads(completed.stdout).get("name")
-        except ValueError:
-            raise BenchError("compose did not answer the project question in JSON")
+        resolved = self.ask_config(include_override=True).get("name")
         if resolved != self.project:
             raise BenchError("compose resolves the project to %r, not the %r this"
                              " run owns: the deployment file of %s names another"
@@ -736,6 +775,27 @@ def cmd_plan(args, data):
 # ---------------------------------------------------------------------------
 # run
 # ---------------------------------------------------------------------------
+def check_reference_arm_knobs(arm):
+    """Refuse an arm which claims the web tier without its legacy detector.
+
+    The arm definition is what the run boots, so the claim inside it is checked
+    before anything starts: an arm which says it measures the diagnostics-off
+    web tier but never turns the detector off would compare the shipped chain
+    with itself. The knob is the only honest way to express the removal - a
+    forked settings module would measure a different application than the arm
+    it is compared with.
+    """
+    if not arm.get("needs_legacy_off_module"):
+        return
+    environment = ((arm.get("services") or {}).get("backend") or {}).get(
+        "environment") or {}
+    if environment.get(LEGACY_SLOW_REQUEST_KNOB) != "False":
+        raise BenchError("arm %r claims to boot the web tier without the legacy"
+                         " slow-request middleware but does not set %s=False on"
+                         " the backend service"
+                         % (arm.get("name"), LEGACY_SLOW_REQUEST_KNOB))
+
+
 def cmd_run(args, data):
     arm = arm_of(data, args.arm)
     cells = select_cells(data, args.cell, args.kind)
@@ -767,18 +827,7 @@ def cmd_run(args, data):
         raise BenchError("--no-sample with arm %r cannot answer the storage"
                          " question: the dumps and the profile rows are the effect"
                          " being measured" % arm["name"])
-    # an arm which boots without the legacy detector names its own settings
-    # module, so a protocol run is reproducible without a command-line flag;
-    # the flag overrides it for whoever wants to see what the removal is worth.
-    args.legacy_off_settings_module = (
-        args.legacy_off_settings_module
-        or arm.get("legacy_off_settings_module") or "")
-    if arm.get("needs_legacy_off_module") and not args.legacy_off_settings_module:
-        raise BenchError("arm %r boots the web tier without the legacy slow-request"
-                         " middleware, which needs --legacy-off-settings-module"
-                         " <importable module name> (or"
-                         " legacy_off_settings_module in the arm definition)"
-                         % arm["name"])
+    check_reference_arm_knobs(arm)
     stack_tree = os.path.abspath(args.stack_tree)
     if not os.path.isdir(os.path.join(stack_tree, "backend")):
         raise BenchError("--stack-tree %s is not a checkout (no backend/); a run"
@@ -812,8 +861,7 @@ def cmd_run(args, data):
                 " with --loader stack" % (base, occupant, cell["name"]))
     owned_or_die(project)
     stack = Stack(stack_tree, project, files, arm,
-                  args.legacy_off_settings_module, args.host_port,
-                  args.loader)
+                  args.host_port, args.loader)
     # resolved before the override is written: whether the run publishes the
     # web tier at all follows from where its load is going to come from
     stack.resolve_loader()
@@ -1104,7 +1152,6 @@ def write_manifest(args, data, arm, cells, project, stack_tree, started, failure
             ("warmup_requests", getattr(args, "warmup", None)),
             ("concurrency", getattr(args, "concurrency", None)),
             ("repeats", args.repeats)) if value},
-        "legacy_off_settings_module": args.legacy_off_settings_module or None,
         "loader": getattr(args, "loader", None),
         "loader_mode": getattr(stack, "loader_mode", None),
         "protocol": data["protocol"],
@@ -1737,7 +1784,6 @@ def parser():
                              " instead, which works only when this host is the"
                              " docker host. Both arms of one baseline must use"
                              " the same mode - verify refuses a mismatch")
-    runner.add_argument("--legacy-off-settings-module", default="")
     runner.add_argument("--no-sample", dest="sample", action="store_false")
     runner.set_defaults(sample=True)
 

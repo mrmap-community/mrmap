@@ -447,6 +447,12 @@ Used to configure the url of the mapservice instance.
 Used to configure the map file for security proxy. This file needed to be installed on the used mapserver which is configured by ``MAPSERVER_URL``.
 
 
+``MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING``
+********************************************
+
+Whether ``system.logging.middleware.LogSlowRequestsMiddleware`` belongs to the middleware chain at all. ``True`` (the default, and what an empty value means) boots the legacy detector, which captures every statement of every request and reports the ones past ``MRMAP_SLOW_REQUEST_THRESHOLD_MS``; ``False`` takes the middleware out of the chain, so the capture does not happen. The only spelling which reads as on is ``True`` - everything else turns the detector off - and the matched benchmark of #1777 measures its web tier with it off, which is why it is passed through by docker-compose.yml.
+
+
 ``MRMAP_SLOW_REQUEST_THRESHOLD_MS``
 ***********************************
 

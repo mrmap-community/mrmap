@@ -83,7 +83,6 @@ def args(**values):
                 profile="production", repeats=None, seed=None, requests=None, warmup=None, concurrency=None, host_port=None, out=None,
                 artifacts="", stack_tree=str(ROOT), compose_file=None,
                 base_url="", ws_base_url="", loader="host",
-                legacy_off_settings_module="",
                 sample=True, budget_file=str(BUDGETS), out_file="")
     base.update(values)
     return argparse.Namespace(**base)
@@ -144,15 +143,44 @@ def test_legacy_knobs_exist():
     assert not reference.get("celery_env"), \
         "the reference arm is defined by what it does NOT enable"
     assert reference.get("needs_legacy_off_module"), \
-        "the HTTP tier's detector has no knob, so the reference must boot without it"
-    module = (ROOT / "backend" / "MrMap"
-              / ("%s.py" % reference["legacy_off_settings_module"].split(".")[-1]))
-    assert module.is_file(), "the reference arm names a settings module which is not there"
-    body = module.read_text()
-    assert "LogSlowRequestsMiddleware" in body, \
-        "the module must remove the legacy HTTP detector, and nothing else"
-    assert "from MrMap.settings import *" in body, \
+        "the reference must boot the web tier without the legacy detector"
+    # the detector is removed by the same kind of knob as its task-side
+    # siblings, on the backend service of the arm - not by a forked settings
+    # module, which would measure a different application than it compares
+    backend_env = ((reference.get("services") or {}).get("backend") or {}).get(
+        "environment") or {}
+    assert backend_env.get(OB.LEGACY_SLOW_REQUEST_KNOB) == "False", \
+        "the reference arm must turn %s off on the backend" % (
+            OB.LEGACY_SLOW_REQUEST_KNOB,)
+    assert '"%s"' % OB.LEGACY_SLOW_REQUEST_KNOB in settings, \
+        "%s is not read by settings.py" % OB.LEGACY_SLOW_REQUEST_KNOB
+    assert "from MrMap.settings import *" not in (
+        (ROOT / "backend" / "MrMap" / "settings.py").read_text()), \
         "an arm which forks the settings would measure a different application"
+
+
+@check("an arm claiming the detector is off without the knob is refused")
+def test_reference_arm_without_knob_is_refused():
+    """The claim in the arm definition is what the run boots, so it is checked.
+
+    An arm which says it measures the web tier without the legacy detector but
+    never turns it off reads as a diagnostics-off row while running the shipped
+    chain - the one failure mode of this protocol which would still print two
+    verdicts and a comparison.
+    """
+    arm = OB.arm_of(OB.load_arms(str(ARMS)), "diagnostics-off")
+    assert arm.get("needs_legacy_off_module"), "the arm must still claim the removal"
+    OB.check_reference_arm_knobs(arm)
+    for services in ({}, {"backend": {}},
+                     {"backend": {"environment": {
+                         OB.LEGACY_SLOW_REQUEST_KNOB: "True"}}}):
+        crippled = dict(arm, services=services)
+        try:
+            OB.check_reference_arm_knobs(crippled)
+            raise AssertionError("an arm without the knob was accepted: %r"
+                                 % (services,))
+        except OB.BenchError as error:
+            assert OB.LEGACY_SLOW_REQUEST_KNOB in str(error), error
 
 
 @check("every budget metric resolves in a run whose tables are populated")
@@ -314,6 +342,9 @@ def test_occupied_address_loads_in_stack():
         return real_run(command, check=check, cwd=cwd, env=env, timeout=timeout)
 
     OB.run = fake_run
+    # ownership of the project is a separate guard with its own check; here it
+    # would need a live docker daemon, which this suite promises not to require
+    OB.owned_or_die = lambda project: None
     stack_out = os.path.join(tempfile.gettempdir(), "obs1777-stackload")
     outcome = []
     try:
@@ -360,11 +391,26 @@ def test_stack_loader_argv():
         raise AssertionError("a path outside the bind mount was accepted")
     except OB.BenchError:
         pass
-    # stack mode publishes nothing, so it cannot collide with a neighbour
+    # an arm which passes a knob through with no value of its own must not have
+    # it quoted into the empty string - that would set it, and a three-state
+    # reader would read the setting instead of the default
+    passing = OB.Stack(str(ROOT), "mrmap-issue-1777-pass", ["docker-compose.yml"],
+                       {"name": "diagnostics-off", "services": {"backend": {
+                           "environment": {"MRMAP_A_KNOB": ""}}}},
+                       None, "host")
+    body = open(passing.write_override(tempfile.mkdtemp())).read()
+    assert "      MRMAP_A_KNOB:\n" in body, body
+    assert 'MRMAP_A_KNOB: ""' not in body, body
+    # stack mode publishes nothing, so it cannot collide with a neighbour - and
+    # it resets what the shipped files publish, whatever those are
+    stack._resolved = {"services": {"backend": {"ports": ["8001"]},
+                                    "redis": {"ports": ["5556"]},
+                                    "postgis": {}}}
     override = stack.write_override(tempfile.mkdtemp())
     with open(override) as handle:
         body = handle.read()
-    assert "ports:" in body and "!reset []" in body, body
+    assert body.count("ports: %s" % OB.RESET_PORTS) == 2, body
+    assert "  redis:" in body and "  postgis:" not in body, body
     # host mode is untouched by any of this
     stack.loader_mode = "host"
     assert stack.load_argv("/x/bench.py", "load") == [sys.executable,
@@ -429,7 +475,7 @@ def test_manifest_unions_partial_runs():
         with open(os.path.join(out, name), "w") as handle:
             handle.write(body)
     namespace = args(arm="legacy-shipped", out=out, profile="dev", sample=True,
-                     loader="stack", legacy_off_settings_module="")
+                     loader="stack")
     data = OB.load_arms(str(ARMS))
 
     class _Stack:
@@ -864,8 +910,6 @@ def write_synthetic_run(directory):
             "cells": [cell["name"] for cell in data["cells"]],
             "repeats": data["protocol"]["repeats"],
             "seed": data["protocol"]["seed"], "sampled": True,
-            "legacy_off_settings_module": (name == "diagnostics-off")
-            and "MrMap.settings_observability_baseline_off" or None,
             "protocol": data["protocol"], "arm_definition": arm,
             "duration_seconds": 60.0, "failed_cells": [],
             "host": {"machine": "Linux", "release": "test", "cores": 8},
@@ -879,6 +923,7 @@ def main():
     test_arms_file()
     test_celery_cells_measured()
     test_legacy_knobs_exist()
+    test_reference_arm_without_knob_is_refused()
     test_budget_metrics_resolve()
     test_budget_shape()
     test_statistics()

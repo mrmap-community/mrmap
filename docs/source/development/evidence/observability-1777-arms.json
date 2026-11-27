@@ -31,11 +31,16 @@
     {
       "name": "diagnostics-off",
       "role": "reference",
-      "definition": "Nothing of the technical observability is enabled: no task profiler (#1389), no performance recorder (#1391), no exporter (#1392), no capacity telemetry (#1401). For the web-tier cells the arm additionally boots the backend with legacy_off_settings_module, which drops system.logging.middleware.LogSlowRequestsMiddleware out of the chain - there is no knob which turns that middleware's per-request SQL capture off, so an honest 'diagnostics off' reading of the HTTP tier has to remove it rather than claim it is idle.",
+      "definition": "Nothing of the technical observability is enabled: no task profiler (#1389), no performance recorder (#1391), no exporter (#1392), no capacity telemetry (#1401). For the web-tier cells the arm additionally turns MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING off on the backend, which drops system.logging.middleware.LogSlowRequestsMiddleware out of the chain - that middleware is the legacy HTTP detector, and an honest 'diagnostics off' reading of the HTTP tier has to remove it rather than claim it is idle.",
       "celery_env": {},
-      "legacy_off_settings_module": "MrMap.settings_observability_baseline_off",
       "needs_legacy_off_module": true,
-      "services": {}
+      "services": {
+        "backend": {
+          "environment": {
+            "MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING": "False"
+          }
+        }
+      }
     },
     {
       "name": "legacy-shipped",

@@ -16,6 +16,10 @@ vi.mock("react-admin", () => ({
   useCanAccessResources: () => ({ canAccess: access.canAccess, isPending: access.isPending }),
 }));
 
+vi.mock("./Cards/BackgroundProcessesCard", () => ({
+  default: () => <div>backgroundProcesses</div>,
+}));
+
 vi.mock("./Cards/ActivityChart", () => ({
   default: ({ resources }: { resources: string[] }) => <div data-testid="activity-chart">{resources.join(",")}</div>,
 }));
@@ -131,6 +135,43 @@ describe("Dashboard", () => {
     expect(screen.getByTestId("activity-chart")).not.toHaveTextContent("CatalogueService");
     expect(screen.getByTestId("activity-chart")).not.toHaveTextContent("User");
     expect(screen.getByTestId("activity-chart")).toHaveTextContent("DatasetMetadataRecord");
+  });
+
+  it("answers the running background processes in the bottom-right of the screen", () => {
+    const { container } = render(<Dashboard />);
+    const processes = screen.getByText("backgroundProcesses");
+    const chart = screen.getByTestId("activity-chart");
+    // the table of the work is a row of its own, below the row of the chart ...
+    const row = processes.parentElement as HTMLElement;
+    expect(row).not.toBe(chart.parentElement);
+    // the row of the table follows the row of the chart in the document
+    expect(
+      container.querySelector(".MuiBox-root:last-of-type")?.contains(row),
+    ).toBe(true);
+    // ... and takes the right half of it, which is where the mockup places it
+    // (#1815): the item is offset by half of the twelve columns at `md`
+    const offsetRules = Array.from(document.querySelectorAll("style"))
+      .map((style) => style.textContent ?? "")
+      .join(" ")
+      .match(/@media \(min-width:900px\)\{\.css-[\w-]+\{margin-left:/g);
+    expect(offsetRules).toHaveLength(1);
+    expect(
+      Array.from(document.querySelectorAll("style"))
+        .map((style) => style.textContent ?? "")
+        .join(" "),
+    ).toMatch(/margin-left:calc\(100% \* 6 \/ var\(--Grid-parent-columns\)/);
+    expect(row.classList.contains("MuiGrid-root")).toBe(true);
+    // the table asks nothing of its own: the card reads the store of the job
+    // center, so no list controller of BackgroundProcess is mounted here
+    expect(
+      screen.queryByText(/inventory BackgroundProcess/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not mount the processes table while permissions are unresolved", () => {
+    access.isPending = true;
+    render(<Dashboard />);
+    expect(screen.queryByText("backgroundProcesses")).not.toBeInTheDocument();
   });
 
   it("leaves no layout wrapper dividers or spacers of its own", () => {

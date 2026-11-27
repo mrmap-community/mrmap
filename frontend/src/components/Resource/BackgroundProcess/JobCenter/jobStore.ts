@@ -52,6 +52,9 @@ export const TERMINAL_STATES: readonly JobState[] = [
 ];
 export const WAITING_STATES: readonly JobState[] = ["queued"];
 export const FAILED_STATES: readonly JobState[] = ["failed", "aborted"];
+/** the states of the work which moves: a process which retries is still at
+ *  work, which is why a bar without a denominator may move for it (#1207) */
+export const MOVING_STATES: readonly JobState[] = ["running", "retrying"];
 
 /** the state contract's words mapped onto the status names of an api which
  *  does not answer `state` yet - an older deployment's payload stays readable */
@@ -299,6 +302,126 @@ export const clearCompleted = (state: JobStoreState): JobStoreState => {
  *  its total is indeterminate, and no percentage may be invented for it */
 export const hasProgressTotal = (record: BackgroundJobRecord): boolean =>
   typeof record.totalSteps === "number" && record.totalSteps > 0;
+
+/** what the bounded store answers about the work of the deployment: the states
+ *  of a read are kept apart from the states of the work, because a screen which
+ *  answers "nothing runs" on a store which was not filled yet, on a refused read
+ *  or on a window which only holds history says something it does not know */
+export type ProcessesAnswer =
+  | "loading"
+  | "forbidden"
+  | "error"
+  | "partial"
+  | "empty"
+  | "running"
+  | "waiting"
+  | "history";
+
+/** whether a read of the collection was refused because the caller may not see
+ *  the records at all - the same reading of the http status by which `Count`
+ *  and the context of the system status decide (#833, #1816) */
+export const isReadForbidden = (error: unknown): boolean => {
+  const e = error as { status?: number; response?: { status?: number } };
+  const status = e?.status ?? e?.response?.status;
+  return status === 401 || status === 403;
+};
+
+/** one window of the store together with the outcome of the read which fills it */
+export interface StoreWindow {
+  isPending: boolean;
+  error: unknown;
+  records: BackgroundJobRecord[];
+}
+
+/**
+ * The one answer of the bounded store about the work of the deployment.
+ *
+ * The two windows the store is hydrated from - the work which did not end yet
+ * and the work which decided recently - are answered together with the outcome
+ * of their reads, in the order of their severity:
+ *
+ * - while a window is still on its way nothing is answered, because "nothing
+ *   runs" is exactly what an unread window cannot tell;
+ * - a window which was refused is answered apart from a window whose api
+ *   failed, so a missing permission never reads as a broken api and neither of
+ *   them ever reads as a deployment without work;
+ * - a window which could not be read beside one which could answers `partial`
+ *   and never the whole answer of the readable one, which is the false green
+ *   this rule exists to prevent (#1816);
+ * - the states of the work are distinguished from each other: work which moves,
+ *   work which waits and a store which only holds what already decided - the
+ *   failures of the latter are history and must not read as live failures.
+ */
+export const processesAnswer = (windows: StoreWindow[]): ProcessesAnswer => {
+  if (windows.some((window) => window.isPending)) return "loading";
+  const unreadable = windows.filter(
+    (window) => window.error !== null && window.error !== undefined,
+  );
+  if (unreadable.length === windows.length) {
+    // nothing could be read at all: a broken api answers itself, because the
+    // api is what is broken, and only a refusal which stands alone answers the
+    // missing permission - a half read still says so with `partial` below
+    return unreadable.every((window) => isReadForbidden(window.error))
+      ? "forbidden"
+      : "error";
+  }
+  if (unreadable.length > 0) return "partial";
+  const records = windows.flatMap((window) => window.records);
+  if (records.length === 0) return "empty";
+  if (records.some((record) => MOVING_STATES.includes(jobStateOf(record)))) {
+    return "running";
+  }
+  if (records.some((record) => WAITING_STATES.includes(jobStateOf(record)))) {
+    return "waiting";
+  }
+  return "history";
+};
+
+/** whether the work of a process still moves, which is the only case in which a
+ *  bar without a denominator may move at all (#1207) */
+export const isMovingJob = (record: BackgroundJobRecord): boolean =>
+  MOVING_STATES.includes(jobStateOf(record));
+
+/** whether the process waits for a worker instead of working, which is the case
+ *  in which no moment of a start can be reported yet */
+export const isWaitingJob = (record: BackgroundJobRecord): boolean =>
+  WAITING_STATES.includes(jobStateOf(record));
+
+/** the order the compact overview of the deployment answers its rows in: work
+ *  which moves before work which waits, the decided work behind both */
+const ROW_ORDER: Record<JobState, number> = {
+  running: 0,
+  retrying: 0,
+  queued: 1,
+  failed: 2,
+  aborted: 2,
+  completed: 3,
+};
+
+const byNewest = (a: BackgroundJobRecord, b: BackgroundJobRecord): number =>
+  String(b.dateCreated ?? "").localeCompare(String(a.dateCreated ?? ""));
+
+/**
+ * The rows a compact view of the work answers with, bounded by `limit`.
+ *
+ * The work which moves comes first, then the work which waits, then the work
+ * which decided - newest first within each group - so the few rows a compact
+ * card can show always answer the work which still can be acted upon. The
+ * complete history stays on the list screen of the resource, which the card
+ * links to.
+ */
+export const overviewRows = (
+  state: JobStoreState,
+  limit: number,
+): BackgroundJobRecord[] => {
+  if (limit <= 0) return [];
+  return Object.values(state.jobs)
+    .sort(
+      (a, b) =>
+        ROW_ORDER[jobStateOf(a)] - ROW_ORDER[jobStateOf(b)] || byNewest(a, b),
+    )
+    .slice(0, limit);
+};
 
 /** whether the process planned metadata references: the counters answer only
  *  a registration, every other process leaves them empty - and only a plan

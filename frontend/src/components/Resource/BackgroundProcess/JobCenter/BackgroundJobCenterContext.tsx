@@ -30,6 +30,7 @@ import {
   trim,
   type BackgroundJobRecord,
   type JobStoreState,
+  type StoreWindow,
   MAX_TRACKED_JOBS,
 } from "./jobStore";
 
@@ -59,6 +60,21 @@ const COMPLETION_QUIET_MILLISECONDS = 3000;
 export interface BackgroundJobCenterContextValue {
   /** the bounded store of tracked processes */
   state: JobStoreState;
+  /**
+   * the two windows the store is hydrated from, each with the outcome of the
+   * read which fills it (#1815). A screen which answers the work of the whole
+   * deployment - the compact table of the dashboard - reads its answer from
+   * here and never from the store alone: a store which was not filled yet, a
+   * window the caller may not read and a window whose api failed all look like
+   * an empty store, and none of them is a deployment without work.
+   */
+  windows: { active: StoreWindow; recent: StoreWindow };
+  /** the totals the two hydrate reads answered, which is what tells a bounded
+   *  view apart from the complete answer of the api (#1815) */
+  totals: { active?: number; recent?: number };
+  /** whether the caller has a session at all: without one the store is never
+   *  hydrated and the work of the deployment is not answered (#833) */
+  hydrated: boolean;
   /** whether the drawer is open */
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -392,15 +408,61 @@ export const BackgroundJobCenterProvider = ({
     commit(clearCompletedFrom(stateRef.current));
   }, [commit]);
 
+  // the windows the compact table of the dashboard reads (#1815): the reads
+  // themselves, not only what the store kept of them, because a bounded store
+  // cannot tell an unread window from a deployment without work. `isPending`
+  // of a disabled read never settles - the caller has no session to ask with -
+  // which is what `hydrated` says, so a card cannot hang in "loading".
+  const windows = useMemo(
+    () => ({
+      active: {
+        isPending: activeProcesses.isPending,
+        error: activeProcesses.error,
+        records: activeProcesses.data ?? [],
+      },
+      recent: {
+        isPending: recentTerminal.isPending,
+        error: recentTerminal.error,
+        records: recentTerminal.data ?? [],
+      },
+    }),
+    [
+      activeProcesses.isPending,
+      activeProcesses.error,
+      activeProcesses.data,
+      recentTerminal.isPending,
+      recentTerminal.error,
+      recentTerminal.data,
+    ],
+  );
+  const totals = useMemo(
+    () => ({
+      active: activeProcesses.total,
+      recent: recentTerminal.total,
+    }),
+    [activeProcesses.total, recentTerminal.total],
+  );
+
   const value = useMemo<BackgroundJobCenterContextValue>(
     () => ({
       state,
+      windows,
+      totals,
+      hydrated: Boolean(authenticated),
       open,
       setOpen,
       clearCompleted,
       subscribeFailed,
     }),
-    [state, open, clearCompleted, subscribeFailed],
+    [
+      state,
+      windows,
+      totals,
+      authenticated,
+      open,
+      clearCompleted,
+      subscribeFailed,
+    ],
   );
 
   return (

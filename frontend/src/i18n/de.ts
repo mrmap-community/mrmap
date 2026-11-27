@@ -989,6 +989,38 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       notPermitted: "Nicht erlaubt",
       unreadable: "Nicht lesbar",
     },
+    // die kompakte Tabelle der Arbeit der Bereitstellung, unten rechts auf dem
+    // Dashboard (#1815). Die Zeilen sind ein begrenzter Blick auf die Fenster
+    // des Hintergrund-Job-Centers, deshalb behauptet der Text nie mehr, als
+    // diese Fenster beantworten können - und kein Zustand einer Lesart antwortet
+    // ein Erfolgswort, denn eine unlesbare Bereitstellung darf nie leer aussehen
+    backgroundProcesses: {
+      title: "Aktive Hintergrundprozesse",
+      type: "Prozess",
+      status: "Status",
+      started: "Start",
+      progress: "Fortschritt",
+      scope: {
+        loading: "Die Arbeit der Bereitstellung wird gelesen ...",
+        forbidden: "Sie dürfen die Hintergrundprozesse dieser Bereitstellung nicht sehen",
+        error: "Die Hintergrundprozesse konnten nicht gelesen werden",
+        partial: "Nur ein Teil der Arbeit konnte gelesen werden, die Tabelle antwortet nur diesen Teil",
+        empty: "Nichts läuft und nichts wartet",
+        running: "Die Bereitstellung arbeitet",
+        waiting: "Arbeit wartet auf eine Worker",
+        history: "Gerade läuft nichts, die Zeilen unten haben kürzlich entschieden",
+      },
+      none: "Nichts zu tun",
+      justFailed: "Gerade fehlgeschlagen: %{count}",
+      partialBadge: "Unvollständige Antwort",
+      bounded: "%{shown} von %{total} Prozessen angezeigt",
+      unknown: "unbekannt",
+      notReported: "nicht gemeldet",
+      notStarted: "nicht gestartet",
+      noMoment: "kein Zeitpunkt gemeldet",
+      failedBefore: "früher fehlgeschlagen",
+      decidedBefore: "früher entschieden",
+    },
   },
   historyChart: {
     partial: "Unvollständige Statistik für diesen Zeitraum.",

@@ -1,0 +1,43 @@
+# Build-Cache-Verdrahtung fuer die QA-Laeufe in
+# .github/workflows/quality-assurance.yml — nur fuer CI, lokal unbenutzt.
+#
+# Compose reicht cache_from/cache_to durch den Bake-Begleiter ein (COMPOSE_BAKE=true),
+# und der dafuer/noetige BuildKit-Treiber ist der docker-container-Treiber, den der
+# Workflow mit setup-buildx-action setzt.
+#
+# GitHub persistiert type=gha-Schreibvorgaenge nur fuer Laeufe auf dem
+# Standard-Branch. Ein Pull-Request-Lauf liest den Cache des Standard-Branches und
+# schreibt nichts dazu — genau die gewollte Aufteilung: Der Regelfall (die
+# Abhaengigkeitsschichten sind schon gebaut) ist in jedem PR ein Cache-Treffer, und
+# nur neue Schichten warten auf den Merge.
+#
+# Ein Scope fuer die ganze Backend-Familie, weil diese Dienste dasselbe Dockerfile
+# und denselben Kontext teilen (siehe AGENTS.md): mehrere Scopes wuerden einander aus
+# dem 10-GB-Cache-Budget des Repos verdraengen. mode=min haelft den Cache klein.
+name: mrmap-ci-cache
+
+services:
+  backend:
+    build:
+      cache_from:
+        - type=gha,scope=qa-backend
+      cache_to:
+        - type=gha,scope=qa-backend,mode=min
+  django-tests:
+    build:
+      cache_from:
+        - type=gha,scope=qa-backend
+      cache_to:
+        - type=gha,scope=qa-backend,mode=min
+  behave:
+    build:
+      cache_from:
+        - type=gha,scope=qa-backend
+      cache_to:
+        - type=gha,scope=qa-backend,mode=min
+  pre-commit-check:
+    build:
+      cache_from:
+        - type=gha,scope=qa-backend
+      cache_to:
+        - type=gha,scope=qa-backend,mode=min

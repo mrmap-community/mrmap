@@ -265,8 +265,12 @@ An artifact that cannot say what it was built from cannot be reviewed, and an
 operator reading a page about their own deployment is entitled to know which
 commit answered. ``.github/workflows/docs.yml`` asserts the file exists and is
 complete, so an identity that stopped being written is a red build rather than a
-missing field. ``SOURCE_DATE_EPOCH`` is honoured, so two builders of one commit get
-one artifact.
+missing field. ``.github/workflows/docs-release-gate.yml`` (#1609) reads it back
+as the answer of a release build: that workflow builds one named revision strictly
+and refuses a provenance that does not name the revision it was told to document,
+which is what lets the promotion refuse a portal of another tree
+(:ref:`docs-hosting-release-gate`). ``SOURCE_DATE_EPOCH`` is honoured, so two
+builders of one commit get one artifact.
 
 Version and language navigation
 ===============================

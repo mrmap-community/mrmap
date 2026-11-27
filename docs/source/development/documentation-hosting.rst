@@ -183,6 +183,38 @@ integration**, which is the connection the issue asks to validate; a webhook
 from a legacy OAuth integration delivers no file list, so the filter would
 silently never match and no rule would ever fire.
 
+.. _docs-hosting-release-gate:
+
+The gate that runs before any of this
+-------------------------------------
+
+Nothing on this page publishes a *release* documentation set from an untested
+tree, because the release never reaches this far without a green build in front
+of it. ``.github/workflows/docs-release-gate.yml`` is that build: one job,
+callable rather than scheduled, which checks out the exact reviewed master merge
+SHA the promotion verified and runs the portal strictly -
+``-m sphinx -b html -E -W --keep-going``, the one pin file, no credential and no
+network - so the build's own exit status is the gate
+(:ref:`docs-portal-identity` for why a warning is a failure here too). Its
+``release`` output is the answer ``publish`` of
+``.github/workflows/release-promotion.yml`` re-reads before writing a tag: a
+portal whose ``provenance.json`` names another revision is refused, which is the
+half ``needs`` alone cannot prove once a run has queued behind an approval.
+
+What that build *does not* do is the point of this page. It uploads nothing
+anywhere but its own reviewable artifact, it never touches a site, and it starts
+no hosted build: the artifact of a gate is evidence, not a publication. The
+public version of a release comes into being one step later and somewhere else -
+rule 1 above activates and builds the approved tag, natively, in the service.
+The two halves are deliberately owned by different mechanisms, and the seam
+between them is the tag: the repository proves a revision is documentable, the
+service publishes the documentation of the revision a release approved (#1609).
+
+An operator can ask the same question the release asks, without releasing, by
+dispatching that workflow with a SHA: it answers whether the portal of that exact
+revision builds strictly, and names the commit and release the artifact
+documents.
+
 Manual setup an administrator has to do
 =======================================
 

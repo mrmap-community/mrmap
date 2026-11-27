@@ -81,8 +81,13 @@ sys.path.insert(0, str(HERE))
 import workflow_steps
 LIFECYCLE = HERE / "release_lifecycle.json"
 PROMOTION_WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
+# The documentation gate the promotion calls for its required portal build (#1609).
+DOCS_GATE_WORKFLOW = REPO / ".github" / "workflows" / "docs-release-gate.yml"
 VERIFY_STEP = "Verify the reviewed release pull request"
 PUBLISH_STEP = "Publish the tag and the GitHub release"
+GATE_REVISION_STEP = "Refuse a release build that cannot name its revision"
+GATE_NAME_STEP = "Name the build"
+GATE_PROVENANCE_STEP = "Assert the build documented the reviewed revision"
 TIME_BUDGET_S = float(os.environ.get("RELEASE_DRY_RUN_TIMEOUT_S", "600"))
 TOOLS = ["release_gates.py", "canonical_version.py",
          "pr_classify", "migration_graph_smoke.py",
@@ -447,14 +452,14 @@ class DryRun:
     # point of #1798 - the two facts that decide publication are GitHub's and
     # git's, and this walk can only supply them the way the runner does.
 
-    def _step(self, job, step_name, env_extra):
+    def _step(self, job, step_name, env_extra, workflow=PROMOTION_WORKFLOW):
         # scripts/workflow_steps.py reads the `run:` block: PyYAML is no stdlib
         # dependency and no runner has it, which is how this walk once failed
         # shut in CI. A step that is not there is an error from the reader, not
         # a silently empty script.
         script = workflow_steps.step_script(
-            PROMOTION_WORKFLOW.read_text(encoding="utf-8"), job, step_name)
-        path = self.dir / f"step-{job}.sh"
+            workflow.read_text(encoding="utf-8"), job, step_name)
+        path = self.dir / f"step-{job}-{abs(hash(step_name))}.sh"
         path.write_text(script, encoding="utf-8")
         env = dict(GIT_ENV, GH_TOKEN="",
                    GITHUB_REPOSITORY="mrmap-community/mrmap",
@@ -476,16 +481,71 @@ class DryRun:
     def verify_step(self, version):
         return self._step("verify", VERIFY_STEP, {"VERSION": version})
 
-    def publish_step(self, verified, publish=True, artifacts=None):
+    def gate_step(self, step_name, env_extra):
+        """One shell step of the documentation gate's portal job (#1609)."""
+        return self._step("portal", step_name, env_extra,
+                          workflow=DOCS_GATE_WORKFLOW)
+
+    def docs_gate(self, sha, tag, release):
+        """Drive the gate the promotion calls, for one revision (#1609).
+
+        The gate is one callable job whose strict build IS the release gate, so
+        the walk runs its own shell rather than describing it: the refusal of a
+        call that cannot name its revision, the naming of the build, and the
+        provenance assertion. Sphinx itself is not run offline - that is the
+        pinned toolchain of the portal job, and it is listed as blocked - so the
+        artifact a build leaves behind is handed over in exactly the shape the
+        project's own Sphinx extension writes it
+        (docs/source/_ext/mrmap_docs.py).
+        """
+        base = {"MRMAP_DOCS_PYTHON": sys.executable,
+                "GITHUB_EVENT_NAME": "workflow_call",
+                "INPUT_TAG": tag}
+        proc, _ = self.gate_step(GATE_REVISION_STEP, dict(base, REVISION=sha))
+        expect(proc.returncode == 0, "promote",
+               f"the gate refused the revision it was called with: "
+               f"{proc.stdout}{proc.stderr}")
+        proc, named = self.gate_step(GATE_NAME_STEP, base)
+        expect(proc.returncode == 0 and named.get("tag") == tag, "promote",
+               f"the gate did not name the build for {tag}: {named}")
+        self.write_portal(sha, release)
+        proc, proven = self.gate_step(GATE_PROVENANCE_STEP, dict(base, REVISION=sha))
+        expect(proc.returncode == 0
+               and proven.get("documented_commit") == sha, "promote",
+               f"the gate refused its own portal: {proc.stdout}{proc.stderr}")
+        return named, proven
+
+    def write_portal(self, sha, release):
+        """The artifact a strict portal build leaves behind, in the shape the
+        project's own Sphinx extension writes (docs/source/_ext/mrmap_docs.py)."""
+        build = self.repo / "docs" / "build" / "html"
+        build.mkdir(parents=True, exist_ok=True)
+        (build / "provenance.json").write_text(json.dumps({
+            "schema": "mrmap.docs.provenance.v1", "builder": "html",
+            "version": release, "release": release,
+            "documented_commit": sha, "toolchain": {"sphinx": "8.2.3"},
+            "source_digest": "sha256:" + "0" * 64,
+        }), encoding="utf-8")
+
+    def publish_step(self, verified, publish=True, artifacts=None,
+                     docs_commit=None, docs_release=None):
         if artifacts is None:
             artifacts = "\n".join(
                 line.removeprefix("--artifact=") for line in ARTIFACTS)
+        merge = verified.get("merge_commit", "")
+        version = verified.get("version", "")
         return self._step("publish", PUBLISH_STEP, {
-            "VERSION": verified.get("version", ""),
-            "MERGE_COMMIT": verified.get("merge_commit", ""),
+            "VERSION": version,
+            "MERGE_COMMIT": merge,
             "TAG": verified.get("tag", ""),
             "PUBLISH": "true" if publish else "false",
-            "ARTIFACTS": artifacts})
+            "ARTIFACTS": artifacts,
+            # The two outputs the required documentation job hands down (#1609).
+            # Green by default - the gate built the candidate - so every existing
+            # world keeps testing what it tested; pass another answer for a
+            # refusal.
+            "DOCS_COMMIT": merge if docs_commit is None else docs_commit,
+            "DOCS_RELEASE": version if docs_release is None else docs_release})
 
     # -- repo moves --------------------------------------------------------
 
@@ -903,6 +963,23 @@ def phase_promote(w, lifecycle):
              "the verify step of .github/workflows/release-promotion.yml",
              f"the job would run behind environment {env}")
 
+    # The required documentation build of the run (#1609): the promotion calls the
+    # committed gate workflow with the commit verify proved, and publish needs the
+    # answer. Driven here through the gate's own shell, because the gate is that
+    # shell plus the pinned strict Sphinx build.
+    named, portal = w.docs_gate(verified["merge_commit"], verified["tag"],
+                               verified["version"])
+    check("promote: the documentation gate names the build for the release tag",
+          named.get("tag") == verified["tag"]
+          and portal.get("release") == verified["version"],
+          f"{named} {portal}")
+    w.record("promote", "ok",
+             "the required documentation job builds the portal strictly from the "
+             "verified merge commit and answers with its provenance",
+             "the portal job of .github/workflows/docs-release-gate.yml, called by "
+             "the docs job of .github/workflows/release-promotion.yml",
+             "the strict Sphinx run itself belongs to the pinned docs toolchain")
+
     # Publication stays disabled until #1799/#1800 wire their gates: the
     # approved job rehearses and writes no ref, which is what lets the workflow
     # exist before the gates do.
@@ -1115,6 +1192,77 @@ def scenario_evidence_red(tmp):
     check("the aggregation refuses evidence of a foreign sha",
           proc.returncode == 1 and "gathered for sha" in proc.stderr,
           proc.stderr[:200])
+
+
+def scenario_docs_gate_red(tmp):
+    """A portal that is not the candidate's stops the release (#1609).
+
+    `needs` proves the documentation job was green; only the answer it hands
+    `publish` proves it was green for the commit being tagged. Both halves of
+    that are driven here: the gate refusing a call that cannot name its
+    revision, and the promotion refusing a portal of another tree - each read
+    before a ref was written.
+    """
+    w = DryRun(tmp, "docs-gate-red")
+    w.advance()
+    w.merge_release_pr(w.candidate_version)
+    proc, verified = w.verify_step(w.candidate_version)
+    expect(proc.returncode == 0, "red: docs gate",
+           f"verify refused the reviewed merge: {proc.stdout} {proc.stderr}")
+
+    base = {"MRMAP_DOCS_PYTHON": sys.executable,
+            "GITHUB_EVENT_NAME": "workflow_call", "INPUT_TAG": verified["tag"]}
+    proc, _ = w.gate_step(GATE_REVISION_STEP, dict(base, REVISION=""))
+    check("the gate refuses a call that cannot name the revision to document",
+          proc.returncode == 1 and "cannot name" in proc.stdout + proc.stderr,
+          stdout_head(proc.stdout))
+    proc, _ = w.gate_step(GATE_REVISION_STEP, dict(base, REVISION="a" * 39))
+    check("and a revision that is not a full sha",
+          proc.returncode == 1, stdout_head(proc.stdout))
+
+    # The gate built, but built something else: the strict run is the pinned
+    # toolchain's, so the artifact is handed over in the shape the project's own
+    # Sphinx extension writes it, with another revision recorded in it.
+    w.write_portal("f" * 40, w.candidate_version)
+    proc, _ = w.gate_step(GATE_PROVENANCE_STEP,
+                          dict(base, REVISION=verified["merge_commit"]))
+    check("the gate refuses a portal of another tree, naming both revisions",
+          proc.returncode == 1 and "not the reviewed" in proc.stdout + proc.stderr
+          and "f" * 12 in proc.stdout + proc.stderr,
+          stdout_head(proc.stdout))
+    (w.repo / "docs" / "build" / "html" / "provenance.json").unlink()
+    proc, _ = w.gate_step(GATE_PROVENANCE_STEP,
+                          dict(base, REVISION=verified["merge_commit"]))
+    check("and a build that cannot say what it documented",
+          proc.returncode == 1 and "cannot say what it built"
+          in proc.stdout + proc.stderr, stdout_head(proc.stdout))
+
+    # The promotion's own half: an answer of the wrong shape or of the wrong
+    # tree is refused before a tag or a release exists.
+    for label, kwargs, needle in (
+            ("no answer", {"docs_commit": ""}, "no 40-hex documented_commit"),
+            ("another commit's answer", {"docs_commit": "e" * 40},
+             "not of the reviewed"),
+            ("another version's answer", {"docs_release": "9.9.9"},
+             "disagree about the version")):
+        proc, _ = w.publish_step(verified, **kwargs)
+        check(f"publish refuses the documentation gate's {label}",
+              proc.returncode == 1 and needle in proc.stdout + proc.stderr,
+              stdout_head(proc.stdout))
+        check(f"and wrote nothing for {label}",
+              w.remote_tags() == [] and w.gh_state()["releases"] == [],
+              f"{w.remote_tags()} {w.gh_state()['releases']}")
+
+    # The green path of the same world, so the refusals above are read as the
+    # difference rather than as a broken step.
+    named, portal = w.docs_gate(verified["merge_commit"], verified["tag"],
+                                verified["version"])
+    proc, _ = w.publish_step(verified, publish=False)
+    check("with the portal of the candidate the rehearsal is green again",
+          proc.returncode == 0 and named.get("tag") == verified["tag"]
+          and portal.get("documented_commit") == verified["merge_commit"]
+          and w.remote_tags() == [],
+          f"{proc.stdout[-160:]} {named} {portal}")
 
 
 def scenario_publish_red(tmp):
@@ -1464,6 +1612,7 @@ SCENARIOS = [("no release from class-less changes", scenario_no_release_changes)
              ("VERSION move without its fold", scenario_missing_changelog),
              ("incomplete or foreign evidence", scenario_evidence_red),
              ("publish's refusals", scenario_publish_red),
+             ("a portal that is not the candidate's", scenario_docs_gate_red),
              ("a range that owes its migration notes",
               scenario_missing_migration_notes),
              ("prerelease carries no stable publication", scenario_prerelease),

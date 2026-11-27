@@ -51,9 +51,9 @@
     {
       "id": "build-and-gate",
       "actor": "ci",
-      "action": "images for the candidate are built and attested by digest; the contract, version and upgrade gates judge the exact master merge commit (#1799/#1800)",
-      "evidence": ".github/workflows/release-gates.yml",
-      "docs": "release-compatibility-gates"
+      "action": "images for the candidate are built and attested by digest; the portal is built strictly from the exact master merge commit by the required documentation job, whose native build status gates the release; the contract, version and upgrade gates judge the same commit (#1799/#1800, #1609)",
+      "evidence": ".github/workflows/release-gates.yml and the docs job of .github/workflows/release-promotion.yml calling .github/workflows/docs-release-gate.yml",
+      "docs": ["release-compatibility-gates", "docs-hosting-release-gate"]
     },
     {
       "id": "promote",
@@ -62,7 +62,7 @@
       "evidence": ".github/workflows/release-promotion.yml",
       "environment": "release-stable",
       "mechanism": "native Actions jobs, needs and concurrency plus gh and git; the steps are written in the workflow itself and scripts/test_release_promotion.py runs them out of the workflow text, so no promotion tool exists to drift",
-      "publishing": "disabled until the build and gate jobs of #1799/#1800 are wired in front of it: the approved job rehearses and writes nothing",
+      "publishing": "disabled until the build and gate jobs of #1799/#1800 are wired in front of it: the approved job rehearses and writes nothing (the documentation build of #1609 is wired there already, and publish refuses a portal that does not document the verified commit)",
       "docs": "release-promotion"
     },
     {

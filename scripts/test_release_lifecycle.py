@@ -184,9 +184,13 @@ def main():
     for phase in life["phases"]:
         check(f"phase {phase['id']} has a permitted actor",
               phase["actor"] in allowed_actors, phase["actor"])
-        if "docs" in phase:
-            check(f"phase {phase['id']} links a label that exists",
-                  phase["docs"] in labels, phase["docs"])
+        # A phase may feed one page or the two it belongs to (build-and-gate is
+        # judged by the compatibility gates AND documented by the portal's own
+        # page, since #1609 wired its documentation gate into it).
+        for label in ([phase["docs"]] if isinstance(phase.get("docs"), str)
+                      else phase.get("docs") or []):
+            check(f"phase {phase['id']} links a label that exists: {label}",
+                  label in labels, label)
     humans = {p["id"] for p in life["phases"] if p["actor"] == "human"}
     check("humans hold the cut, the promotion dispatch and the post-release",
           {"cut", "promote", "post-release"} == humans, str(sorted(humans)))

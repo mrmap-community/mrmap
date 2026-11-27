@@ -1,0 +1,256 @@
+name: Documentation release gate
+
+# WHY THIS JOB EXISTS (#1609, epic #1589).
+#
+# The revised epic (scope reset 2026-11-26) asks two different questions of the
+# documentation in a release, and they have different owners:
+#
+#   * BEFORE a stable release is authorized, the exact reviewed master merge SHA
+#     passes a plain strict Sphinx build, and that build's native exit status is
+#     the gate - a red build prevents the release. That is this workflow.
+#   * AFTER the release is authorized, the approved tag is built and published by
+#     the managed service configured in `.readthedocs.yaml`, natively. That is
+#     configuration an administrator sets - activate a version on a SemVer tag and
+#     trigger a build for it - and it is written down in
+#     `docs/source/development/documentation-hosting.rst` (#1608). Nothing here
+#     reaches into the service, publishes a site, or keeps a build as a second
+#     source of truth.
+#
+# WHAT MAKES THIS A GATE AND NOT A REPORT
+#
+# `verify` of .github/workflows/release-promotion.yml proves one commit is the
+# reviewed release; `publish` writes the tag and the GitHub release behind the
+# protected `release-stable` environment. Promotion calls this workflow as its
+# required build job, so its `portal` job sits in front of `publish` through native
+# `needs`: no green portal build, no publishing job. `publish` does not stop at
+# that edge - an approved run may queue for hours - and re-reads the answer this
+# job returns, refusing a portal whose provenance names another revision.
+#
+# WHAT THIS IS NOT
+#
+# * Not the portal check of a pull request: that is `.github/workflows/docs.yml`,
+#   which runs on every pull request and on develop. This workflow is reachable
+#   only from a release or from an operator, so an ordinary commit spends nothing
+#   here - the epic's "no full docs jobs for ordinary PR/develop pushes", held by a
+#   trigger list rather than by a condition inside a job.
+# * Not an orchestrator: one job, one input naming the revision, one answer. No
+#   dispatch of another workflow, no state between runs, no manifest, no evidence
+#   schema of our own, no retry engine, no CLI. Where GitHub Actions has a native
+#   primitive - `needs` for a gate, job outputs for an answer, a job artifact for a
+#   reviewable build - this file uses that primitive.
+# * Not a publisher: it writes no ref, uploads nothing anywhere but its own
+#   reviewable artifact, and touches no live site.
+#
+# The environment is the one committed pin file, `backend/.requirements/docs.txt`,
+# on the interpreter that pin was frozen with - the same install
+# `.github/workflows/docs.yml` makes - so a release is never gated on a toolchain
+# the pull-request path has not already exercised. The build is offline (no
+# application import, no GDAL, no database, no network) and needs no credential.
+
+on:
+  # The release path calls this workflow and consumes its job result natively.
+  workflow_call:
+    inputs:
+      sha:
+        description: >-
+          the exact reviewed commit to document - the master merge commit
+          release-promotion.yml verified. Required rather than defaulted: a job
+          that documents "whatever this run checked out" cannot say which revision
+          it tested, and that is the one fact a release gate exists to answer.
+        required: true
+        type: string
+      tag:
+        description: >-
+          the release tag this build is the documentation of, e.g. v0.2.0; it names
+          the run and its artifact and decides nothing else
+        required: false
+        type: string
+        default: ""
+    outputs:
+      # A reusable workflow hands its answer out of a JOB output, never out of a
+      # step: the step context does not exist at this level, and naming one here
+      # is an empty answer a caller could only discover in a release.
+      documented_commit:
+        description: "the 40-hex revision the built portal documents"
+        value: ${{ jobs.portal.outputs.documented_commit }}
+      release:
+        description: "the release string the built portal carries"
+        value: ${{ jobs.portal.outputs.release }}
+  # The one trigger beyond the release path: an operator answering "does the
+  # portal of THIS exact revision build strictly?" before a release is authorized.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "the exact revision to document (defaults to the revision of this run)"
+        required: false
+        type: string
+        default: ""
+      tag:
+        description: "optional release tag to name the build for, e.g. v0.2.0"
+        required: false
+        type: string
+        default: ""
+
+# One gate per revision, and a re-run never cancels the run whose result a waiting
+# promotion may already have been approved against.
+concurrency:
+  group: docs-release-gate-${{ inputs.sha || github.sha }}
+  cancel-in-progress: false
+
+# The job reads the repository, builds HTML and uploads a reviewable artifact.
+# Least privilege is the default here, not a grant.
+permissions:
+  contents: read
+
+jobs:
+  portal:
+    name: build the portal of the reviewed candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      documented_commit: ${{ steps.provenance.outputs.documented_commit }}
+      release: ${{ steps.provenance.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # One expression decides what this job documents, everywhere: the
+          # checkout, the revision named for the build, and the assertion below all
+          # read the same value. The empty dispatch default belongs to a manual run,
+          # where the revision of the run itself is the honest answer; a called
+          # workflow must name one, and the next step refuses an empty one before
+          # anything is built.
+          ref: ${{ inputs.sha || github.sha }}
+          # The release string and the multiversion tag selection of
+          # docs/source/conf.py are answered against the tag set, and naming the
+          # build below asks git which tag this very revision carries.
+          fetch-depth: 0
+
+      - name: Refuse a release build that cannot name its revision
+        env:
+          REVISION: ${{ inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # A required workflow_call input can still arrive empty - a caller whose
+          # context is missing hands over the empty string - and a manual run has no
+          # required input at all. Half of this gate is knowing which revision was
+          # documented, so it fails closed rather than building whatever else the
+          # runner happens to hold.
+          if ! printf '%s\n' "${REVISION}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::the documentation gate has no 40-hex revision to document (${GITHUB_EVENT_NAME}): a release never publishes documentation whose revision it cannot name."
+            exit 1
+          fi
+          echo "documenting ${REVISION} for ${GITHUB_EVENT_NAME}"
+
+      - name: Name the build
+        id: name
+        env:
+          # Passed in, not interpolated inside the script: the offline suite runs
+          # this very step under bash, and `${{ }}` is not a thing bash expands.
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          # The tag an approved release is named for, never invented here: the
+          # caller's input, or the tag this very revision carries, or nothing.
+          # Historical version matrices are the managed service's business, built
+          # from the tags it activates (#1608) - not something this job assembles.
+          TAG="${INPUT_TAG:-}"
+          if [ -z "$TAG" ]; then
+            TAG=$(git describe --tags --exact-match HEAD 2>/dev/null || true)
+          fi
+          if [ -n "$TAG" ] && ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::warning::ignoring ${TAG} as a release name: not a vMAJOR.MINOR.PATCH tag (ADR-0002, scripts/release_lifecycle.json)"
+            TAG=""
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "documentation build named for: ${TAG:-the reviewed master commit, no tag yet}"
+
+      - uses: actions/setup-python@v7
+        with:
+          # The docs toolchain is pinned in backend/.requirements/docs.txt; this
+          # is the interpreter that pin was frozen with.
+          python-version: '3.13'
+
+      - name: Install the pinned docs environment
+        run: |
+          python -m venv /tmp/docsenv
+          /tmp/docsenv/bin/python -m pip install --upgrade pip
+          /tmp/docsenv/bin/python -m pip install -r backend/.requirements/docs.txt
+
+      # -W makes every warning a failure, --keep-going lists all of them instead of
+      # stopping at the first, -E builds from scratch rather than trusting a cache
+      # this runner cannot have: the same builder, flags, pin file and interpreter
+      # as the portal job of a pull request, so the release is gated on a build the
+      # ordinary path already knows how to run.
+      #
+      # Both revision names are set to the revision this job documents. The
+      # ambient GITHUB_SHA of a *called* workflow is the caller's run revision, not
+      # the one checked out here, and docs/source/_ext/mrmap_docs.py reads it
+      # first: left alone, the portal of the candidate would record the promotion's
+      # dispatch SHA and the assertion below would refuse its own build.
+      - name: Build the portal strictly
+        env:
+          GITHUB_SHA: ${{ inputs.sha || github.sha }}
+          MRMAP_DOCS_REVISION: ${{ inputs.sha || github.sha }}
+        run: |
+          /tmp/docsenv/bin/python -m sphinx -b html -E -W --keep-going -d /tmp/doctrees docs/source docs/build/html
+
+      # The identity of the artifact IS the gate's answer, so it is asserted here
+      # rather than reviewed later. provenance.json is written by the project's own
+      # Sphinx extension (docs/source/_ext/mrmap_docs.py); binding the revision it
+      # records to the revision this job was told to document is what stops the
+      # release path consuming a build of some other tree.
+      - name: Assert the build documented the reviewed revision
+        id: provenance
+        env:
+          REVISION: ${{ inputs.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # MRMAP_DOCS_PYTHON is the hook scripts/test_docs_build.py already uses
+          # to run the pinned build's own exit status with the interpreter a host
+          # has: the same name, for the same reason - the assertions below are the
+          # gate, and a suite must be able to execute them rather than quote them.
+          DOCS_PYTHON=${MRMAP_DOCS_PYTHON:-/tmp/docsenv/bin/python}
+          "$DOCS_PYTHON" - <<'PYTHON'
+          import json, os, pathlib, re, sys
+          path = pathlib.Path("docs/build/html/provenance.json")
+          if not path.is_file():
+              sys.exit("provenance.json was not written: the build cannot say what it built")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          problems = []
+          if data.get("schema") != "mrmap.docs.provenance.v1":
+              problems.append(f"schema: {data.get('schema')!r}")
+          documented = str(data.get("documented_commit") or "")
+          if not re.fullmatch(r"[0-9a-f]{40}", documented):
+              problems.append(f"documented_commit: {data.get('documented_commit')!r}")
+          elif documented != os.environ["REVISION"]:
+              # The exit status of the strict build above is the gate; this is its
+              # identity half. A portal that built cleanly from another tree proves
+              # nothing about the candidate, so it is a refusal and not a warning.
+              problems.append(
+                  f"documents {documented}, not the reviewed {os.environ['REVISION']}")
+          for key in ("builder", "release", "toolchain", "source_digest"):
+              if not data.get(key):
+                  problems.append(f"{key} missing")
+          if not data["toolchain"].get("sphinx"):
+              problems.append("toolchain.sphinx missing")
+          if problems:
+              sys.exit("provenance.json is not complete: " + "; ".join(problems))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"documented_commit={documented}\n")
+              handle.write(f"release={data['release']}\n")
+          print(f"the built portal documents {documented[:12]} as release {data['release']}")
+          PYTHON
+
+      # The reviewer's entry point and the evidence of the gate. Not a publication
+      # artifact: nothing downstream deploys it, and the public site is the managed
+      # service's own build of the approved tag (#1608).
+      - name: Publish the artifact for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-release-gate${{ steps.name.outputs.tag && format('-{0}', steps.name.outputs.tag) || '' }}
+          path: docs/build/html
+          retention-days: 14
+          # A red build may never have created the directory; the log is the
+          # evidence then, and a missing upload is not a second failure.
+          if-no-files-found: ignore

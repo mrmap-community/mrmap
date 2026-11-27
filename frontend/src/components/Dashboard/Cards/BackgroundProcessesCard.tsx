@@ -54,18 +54,21 @@ const SCOPE_KEYS: Record<ProcessesAnswer, string> = {
 
 /** the answers which are about the read and not about the work: they replace the
  *  table, because rows of a read which never happened would be rows of nothing */
-const UNANSWERED: ProcessesAnswer[] = [
+const UNANSWERED = new Set<ProcessesAnswer>([
   "loading",
   "forbidden",
   "error",
   "partial",
-];
+]);
 
 /** the color of the sentence which replaces a table the card cannot answer: a
  *  broken api is an error, a half read answer a warning, a refused read plain
  *  information - the caller is not at fault for a permission it never had */
-const severityOf = (answer: ProcessesAnswer): "info" | "warning" | "error" =>
-  answer === "error" ? "error" : answer === "partial" ? "warning" : "info";
+const severityOf = (answer: ProcessesAnswer): "info" | "warning" | "error" => {
+  if (answer === "error") return "error";
+  if (answer === "partial") return "warning";
+  return "info";
+};
 
 /** the columns of the compact table, in the order the mockup reads them */
 const COLUMNS: { key: string; align: TableCellProps["align"] }[] = [
@@ -237,6 +240,92 @@ const ProcessRow = ({
 };
 
 /**
+ * The body of the card: the skeleton of a read which is on its way, the sentence
+ * of a read which cannot be answered, the word of a deployment without work, and
+ * the table of the work itself.
+ *
+ * Extracted from the card because which of the four the card answers is decided
+ * by the answer of the two windows, and a body which is answered by a chain of
+ * conditions reads better as those conditions themselves.
+ */
+const CardBody = ({
+  answer,
+  rows,
+  decidedIds,
+}: {
+  answer: ProcessesAnswer;
+  rows: BackgroundJobRecord[];
+  /** the ids of the recently decided window, whose failures are history and are
+   *  therefore marked as such in their row (#1815) */
+  decidedIds: Set<string>;
+}): ReactNode => {
+  const translate = useTranslate();
+
+  if (answer === "loading") {
+    return (
+      <Box sx={{ px: 1, py: 0.5 }}>
+        <Skeleton variant="text" width="55%" />
+        <Skeleton variant="text" width="80%" />
+      </Box>
+    );
+  }
+  // rows of a read which never happened would be rows of nothing, so a read
+  // which is unreadable replaces the table instead of emptying it
+  if (UNANSWERED.has(answer)) {
+    return (
+      <Alert
+        severity={severityOf(answer)}
+        variant="outlined"
+        role="status"
+        sx={{ my: 0.5, mx: 1, py: 0.25 }}
+      >
+        {translate(SCOPE_KEYS[answer])}
+      </Alert>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        role="status"
+        sx={{ px: 1, py: 1 }}
+      >
+        {translate("backgroundActivity.empty")}
+      </Typography>
+    );
+  }
+  return (
+    <TableContainer sx={{ maxHeight: 216 }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            {COLUMNS.map((column) => (
+              <TableCell
+                key={column.key}
+                align={column.align}
+                sx={{ py: 0.25, fontWeight: 600 }}
+              >
+                {translate(column.key)}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((record) => (
+            <ProcessRow
+              key={String(record.id)}
+              record={record}
+              isHistory={decidedIds.has(String(record.id))}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+};
+
+/**
  * The work the deployment is doing, in the bottom-right of the dashboard.
  *
  * One compact table of the processes which did not end yet, with the recently
@@ -272,7 +361,6 @@ const BackgroundProcessesCard = (): ReactNode => {
   if (!hydrated) return null;
 
   const answer = processesAnswer([windows.active, windows.recent]);
-  const unanswered = UNANSWERED.includes(answer);
   const rows = overviewRows(state, MAX_ROWS);
   const decidedIds = new Set(
     windows.recent.records.map((record) => String(record.id)),
@@ -365,57 +453,7 @@ const BackgroundProcessesCard = (): ReactNode => {
       }
       footerProps={{ sx: { px: 0, py: 0.75, minHeight: 40 } }}
     >
-      {answer === "loading" ? (
-        <Box sx={{ px: 1, py: 0.5 }}>
-          <Skeleton variant="text" width="55%" />
-          <Skeleton variant="text" width="80%" />
-        </Box>
-      ) : unanswered ? (
-        <Alert
-          severity={severityOf(answer)}
-          variant="outlined"
-          role="status"
-          sx={{ my: 0.5, mx: 1, py: 0.25 }}
-        >
-          {translate(SCOPE_KEYS[answer])}
-        </Alert>
-      ) : rows.length === 0 ? (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          role="status"
-          sx={{ px: 1, py: 1 }}
-        >
-          {translate("backgroundActivity.empty")}
-        </Typography>
-      ) : (
-        <TableContainer sx={{ maxHeight: 216 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                {COLUMNS.map((column) => (
-                  <TableCell
-                    key={column.key}
-                    align={column.align}
-                    sx={{ py: 0.25, fontWeight: 600 }}
-                  >
-                    {translate(column.key)}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((record) => (
-                <ProcessRow
-                  key={String(record.id)}
-                  record={record}
-                  isHistory={decidedIds.has(String(record.id))}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
+      <CardBody answer={answer} rows={rows} decidedIds={decidedIds} />
     </SimpleCard>
   );
 };

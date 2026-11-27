@@ -9,6 +9,9 @@ worst failure this file can produce).
 """
 
 from io import StringIO
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.management import CommandError, call_command
 from django.test import SimpleTestCase
@@ -90,12 +93,62 @@ class ModuleOfTest(SimpleTestCase):
 
 
 class CommandTest(SimpleTestCase):
-    def test_one_shard_names_the_whole_suite(self):
-        # The default of a single shard must be the whole suite, because that is
-        # what every local `docker compose run django-tests` still does.
+    """End to end against real discovery, on one package instead of the whole suite.
+
+    The whole suite would be the honest scope, and it is what CI discovers anyway,
+    but this runs *inside* a test run: naming every module here means importing
+    every test module a second time to prove a property the shard jobs already
+    measure. The package below is wide enough to catch the failure that matters -
+    a command that answers with something the runner would not accept.
+    """
+
+    TOP = "tests.django.accounts"
+
+    def test_one_shard_names_the_whole_package(self):
+        # The default of a single shard must be everything below --top, because that
+        # is what every local `docker compose run django-tests` still does.
         out = StringIO()
-        call_command("list_test_shards", of=1, shard=0, top="tests.django", stdout=out)
+        call_command("list_test_shards", of=1, shard=0, top=self.TOP, stdout=out)
 
         labels = [line for line in out.getvalue().splitlines() if line.strip()]
-        self.assertGreater(len(labels), 50)
-        self.assertTrue(all(label.startswith("tests.django.") for label in labels))
+        self.assertGreater(len(labels), 5)
+        self.assertTrue(all(label.startswith(self.TOP + ".") for label in labels), labels)
+
+    def test_the_file_holds_the_labels_and_nothing_else(self):
+        # A shell capture of stdout is what the first CI run used, and it handed the
+        # words of a printed warning to the test runner as labels. The file is the
+        # fix, so the file has to be exactly the labels and stdout, if used at all,
+        # has to stay empty when the file is asked for.
+        with TemporaryDirectory(prefix="mrmap-shard-") as tmp:
+            path = Path(tmp) / "labels"
+            out = StringIO()
+            call_command("list_test_shards", of=2, shard=1, top=self.TOP,
+                         output=str(path), stdout=out)
+
+            self.assertEqual(out.getvalue(), "", "stdout must stay empty when --output is used")
+            written = [line for line in path.read_text().splitlines() if line.strip()]
+
+        self.assertTrue(written, "an empty label file would run a shard of nothing")
+        self.assertTrue(all(label.startswith(self.TOP + ".") for label in written), written)
+        self.assertEqual(written, sorted(set(written)), "a label twice would run its tests twice")
+
+    def test_the_balance_is_said_where_ci_keeps_the_log(self):
+        # Reviewing a matrix afterwards means knowing what each runner carried, and
+        # the shard jobs are the only place that number is ever computed. It goes to
+        # stderr so stdout remains the labels alone.
+        out, err = StringIO(), StringIO()
+        call_command("list_test_shards", of=2, shard=0, top=self.TOP, stdout=out, stderr=err)
+
+        self.assertIn(f"list_test_shards: shard 0 of 2 under {self.TOP!r} carries",
+                      err.getvalue())
+        self.assertNotIn("list_test_shards:", out.getvalue())
+
+    def test_a_label_a_shell_cannot_split_refuses(self):
+        # The labels become shell words by unquoted expansion, so a module name that
+        # contains whitespace would arrive as two labels. Discovery cannot produce
+        # one today; the refusal is here so that it stays that way.
+        with patch("MrMap.management.commands.list_test_shards.module_of",
+                   return_value="tests.django.test a"):
+            with self.assertRaises(CommandError) as caught:
+                call_command("list_test_shards", of=1, shard=0, top=self.TOP)
+        self.assertIn("whitespace", str(caught.exception))

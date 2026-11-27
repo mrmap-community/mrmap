@@ -22,6 +22,14 @@ Discovery, not a checked-in list: a list that nobody regenerates is a list that
 quietly stops covering new files, and a shard that runs nothing is green. The
 command therefore refuses to answer when it found no tests at all, and when the
 modules it is about to name hold fewer tests than discovery counted.
+
+The labels are handed over through ``--output`` in CI, and that is a lesson rather
+than a style choice: the first run captured stdout in a shell substitution and the
+test runner was given half a sentence - a module imported during discovery prints,
+and a capture cannot tell that prose from a label. ``unittest.loader`` made
+``_FailedTest`` entries out of the words, which is at least loud. A file this
+command writes by itself is the answer; the summary of the split goes to stderr so
+that stdout, if used, stays exactly the labels.
 """
 
 from django.conf import settings
@@ -99,6 +107,11 @@ class Command(BaseCommand):
                             help="total number of shards; 1 means the whole suite")
         parser.add_argument("--top", default="tests",
                             help="package to discover below (default: tests)")
+        parser.add_argument("--output", default=None,
+                            help="write the labels to this file instead of stdout, one per line; "
+                                 "use this from a shell that captures the answer, because test "
+                                 "modules print during import and that prose would arrive as "
+                                 "test labels")
 
     def handle(self, *args, **options):
         shard, of, top = options["shard"], options["of"], options["top"]
@@ -121,4 +134,20 @@ class Command(BaseCommand):
                 f"{suite.countTestCases()}; the shard would run an unknown share")
 
         labels = shard_labels(counts, shard, of)
-        self.stdout.write("\n".join(labels))
+        for label in labels:
+            if label.split() != [label]:
+                raise CommandError(f"the label {label!r} contains whitespace, which a shell "
+                                   "splitting the answer into arguments cannot survive")
+
+        # The balance of a run is only reviewable afterwards, and the shard jobs are the only
+        # place it is ever computed: say it where CI keeps the log, on stderr, so the answer
+        # on stdout stays exactly the labels.
+        self.stderr.write(f"list_test_shards: shard {shard} of {of} under {top!r} carries "
+                          f"{len(labels)} modules and {sum(counts[label] for label in labels)} "
+                          f"of {counted} tests\n")
+
+        if options["output"]:
+            with open(options["output"], "w", encoding="utf-8") as handle:
+                handle.write("\n".join(labels) + "\n")
+        else:
+            self.stdout.write("\n".join(labels))

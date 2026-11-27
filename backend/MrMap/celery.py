@@ -5,8 +5,9 @@ import os
 import sys
 
 from celery import Celery
-from celery.signals import (after_setup_logger, celeryd_after_setup,
-                            task_postrun, task_prerun)
+from celery.signals import (after_setup_logger, beat_init, celeryd_after_setup,
+                            task_postrun, task_prerun, worker_process_init,
+                            worker_process_shutdown)
 from django.db import close_old_connections, connections
 
 # the "celery" tree of the LOGGING config of MrMap/settings.py, so the line
@@ -116,3 +117,48 @@ def check_consumed_queues(sender=None, **kwargs):
                 name, ", ".join(tasks_routed_to(name))
                 or "(nothing routes to it yet)")
             for name in missing))
+
+
+# ---------------------------------------------------------------------------
+# the telemetry of a worker process (#1779)
+# ---------------------------------------------------------------------------
+# Upstream's own guidance for the Celery instrumentor is that it must run in the
+# process which *executes* the task, and the fork-safety rule of ADR-0003 says the
+# same thing from the other side: nothing which owns a thread may exist in the
+# prefork parent. So the SDK of a worker child is created at
+# ``worker_process_init`` - the same seam #1330's attempt collector gates on - and
+# not at import, not in ``AppConfig.ready``, and not in the parent. Beat is not a
+# worker: it publishes, so it asks for the producer side explicitly at its own
+# start-up. Both calls are no-ops while ``MRMAP_OTEL_MODE`` is off.
+@worker_process_init.connect
+def init_telemetry_for_worker(**kwargs):
+    """One SDK for this worker child: providers, exporter threads, receivers."""
+    from MrMap.telemetry import lifecycle
+
+    if not lifecycle.is_enabled():
+        return
+    if lifecycle.initialize_for_process(role=lifecycle.ROLE_WORKER) is None:
+        return
+    import atexit
+    atexit.register(lifecycle.shutdown, "worker process exit")
+
+
+@worker_process_shutdown.connect
+def shutdown_telemetry_for_worker(**kwargs):
+    """One bounded drain before the child goes away; never a blocking flush."""
+    from MrMap.telemetry import lifecycle
+
+    lifecycle.shutdown("worker process shutdown")
+
+
+@beat_init.connect
+def init_telemetry_for_beat(**kwargs):
+    """The producer side of the beat process, so a scheduled run has a root."""
+    from MrMap.telemetry import lifecycle
+
+    if not lifecycle.is_enabled():
+        return
+    if lifecycle.initialize_for_process(role=lifecycle.ROLE_BEAT) is None:
+        return
+    import atexit
+    atexit.register(lifecycle.shutdown, "beat exit")

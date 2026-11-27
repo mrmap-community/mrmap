@@ -62,3 +62,19 @@ autobahn>=26.10.2,<27.0.0
 pygeofilter==0.4.0
 pygml==0.3.2
 django-epsg-cache==0.2.1
+
+# Optional OpenTelemetry integration of #1779 (epic #1775, ADR-0003). The pins
+# are the evaluated set of ADR-0003; MRMAP_OTEL_MODE=off (the shipped default)
+# imports none of them, so the cost of the switch being off is the download and
+# not the runtime. psycopg/Redis instrumentation stays deferred per the ADR and
+# is not installed here.
+opentelemetry-api==1.45.2
+opentelemetry-sdk==1.45.2
+opentelemetry-semantic-conventions==0.66b2
+opentelemetry-exporter-otlp-proto-http==1.45.2
+opentelemetry-instrumentation==0.66b2
+opentelemetry-instrumentation-django==0.66b2
+opentelemetry-instrumentation-celery==0.66b2
+opentelemetry-instrumentation-requests==0.66b2
+opentelemetry-instrumentation-asgi==0.66b2
+opentelemetry-instrumentation-wsgi==0.66b2

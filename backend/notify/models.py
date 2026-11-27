@@ -949,20 +949,23 @@ class OperationalIncident(models.Model):
             models.Index(
                 fields=["dedup_key"],
                 name="opinc_dedup_idx"),
-            # one active incident per problem, enforced by the database:
-            # the history of a resolved key may keep its rows, but a
-            # recurrence never finds an open slot twice. The partial unique
-            # index is a UniqueConstraint over the active rows - ``Index``
-            # carries no uniqueness
-            models.UniqueConstraint(
-                fields=["dedup_key"],
-                condition=Q(status=IncidentStatusEnum.ACTIVE.value),
-                name="opinc_active_dedup_uniq"),
             models.Index(
                 fields=["resolved_at"],
                 name="opinc_resolved_at_idx"),
         ]
         constraints = [
+            # one active incident per problem, enforced by the database: the
+            # history of a resolved key may keep its rows, but a recurrence
+            # never finds an open slot twice. Declared among the constraints
+            # and not among the indexes: ``Index`` carries no uniqueness, and
+            # only the constraints list reaches the schema editor's constraint
+            # path - the index path of Django 6.1 hands `concurrently` to
+            # `UniqueConstraint.create_sql`, which does not accept it, so a
+            # generated `AddIndex` over this object fails to apply.
+            models.UniqueConstraint(
+                fields=["dedup_key"],
+                condition=Q(status=IncidentStatusEnum.ACTIVE.value),
+                name="opinc_active_dedup_uniq"),
             models.CheckConstraint(
                 condition=_at_most_one_resource_check(
                     INCIDENT_RESOURCE_FIELDS),

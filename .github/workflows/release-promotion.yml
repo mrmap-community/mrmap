@@ -69,6 +69,25 @@
 # `needs` and is green for this exact commit. Until then a green run here means
 # "the rehearsal passed", never "a release exists".
 #
+# THE DOCUMENTATION GATE IS WIRED HERE (#1609, epic #1589)
+#
+# `docs` is that required build job for the portal: it calls
+# .github/workflows/docs-release-gate.yml with the merge commit `verify` proved,
+# which checks that revision out in its own job and builds the Sphinx portal
+# strictly - `-W --keep-going`, the pinned docs requirements, offline - so the
+# build's native exit status gates the release. `publish` needs it, and re-reads
+# its answer at the moment of writing rather than trusting the edge: the artifact
+# the gate job published says which revision it documents (provenance.json, written
+# by docs/source/_ext/mrmap_docs.py), and `publish` refuses a documented commit
+# that is missing, malformed or not the commit it is about to tag. A release whose
+# documentation was not built from the tested tree is therefore not a release, and
+# nothing custom does the gating: `needs` for the ordering, a job output for the
+# answer, the artifact for the evidence.
+#
+# Publishing the built site stays the managed service's act on the approved tag
+# (#1608), so nothing here uploads a portal anywhere: see
+# docs/source/development/documentation-hosting.rst and ADR-0001 section 12.
+#
 # Design and the measurements behind it:
 # docs/source/development/release-promotion.rst
 name: Release promotion
@@ -95,7 +114,7 @@ on:
           image, as #1799's build job outputs them
         required: false
         type: string
-  # The same two jobs as an ordinary callable workflow, so the documentation
+  # The same jobs as an ordinary callable workflow, so the documentation
   # automation (#1609) and the gate wiring (#1800) consume one mechanism and
   # never a second copy of it. Job outputs are the interface; nothing is
   # written to disk and nothing is read back from a previous run.
@@ -239,9 +258,25 @@ jobs:
 
           echo "verified: release PR #$PR merged as ${MERGE_COMMIT:0:12}, master's tip, VERSION $VERSION, tag $TAG"
 
+  # The required documentation build of the release (#1609, epic #1589): the same
+  # callable workflow the operator dispatches, called with the commit `verify`
+  # proved, so the portal is built from the exact reviewed tree and its native exit
+  # status decides. `publish` needs this job; a red or missing portal is not a
+  # release. Nothing is read back from a previous run and nothing is cached: the
+  # build happens in this run, for this commit, or publication does not happen.
+  docs:
+    name: build the portal of the reviewed candidate
+    needs: verify
+    uses: ./.github/workflows/docs-release-gate.yml
+    with:
+      sha: ${{ needs.verify.outputs.merge_commit }}
+      tag: ${{ needs.verify.outputs.tag }}
+
   publish:
     name: publish the reviewed release
-    needs: verify
+    needs:
+      - verify
+      - docs
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: release-stable
@@ -264,6 +299,11 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
           ARTIFACTS: ${{ inputs.artifacts }}
           PUBLISH: ${{ inputs.publish }}
+          # The answer of the documentation gate this job needs (#1609): what the
+          # strict portal build of this run recorded as the revision and the
+          # release it documented. Job outputs, no file of our own in between.
+          DOCS_COMMIT: ${{ needs.docs.outputs.documented_commit }}
+          DOCS_RELEASE: ${{ needs.docs.outputs.release }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -287,6 +327,28 @@ jobs:
               exit 1
             fi
           fi
+
+          # The documentation gate of #1609 answered through its job output: the
+          # portal of THIS commit built strictly, and said so in its provenance.
+          # `needs: docs` already means the build was green - Actions refuses to
+          # schedule this job otherwise - so anything but the commit under release
+          # here means the gate built something else, and a release whose
+          # documentation was not built from the tested tree is a release nobody
+          # can attribute. Refused for a rehearsal too: rehearsing a broken release
+          # proves nothing about it.
+          if ! printf '%s\n' "${DOCS_COMMIT:-}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::the documentation gate produced no 40-hex documented_commit (${DOCS_COMMIT:-empty}): the portal build of ${MERGE_COMMIT:0:12} cannot be attributed, so nothing is published. See the portal job of this run."
+            exit 1
+          fi
+          if [ "$DOCS_COMMIT" != "$MERGE_COMMIT" ]; then
+            echo "::error::the documentation gate built the portal of ${DOCS_COMMIT:0:12}, not of the reviewed ${MERGE_COMMIT:0:12}. A release is never published over documentation of another tree; dispatch the promotion against the commit the portal was built from."
+            exit 1
+          fi
+          if [ -n "${DOCS_RELEASE:-}" ] && [ "$DOCS_RELEASE" != "$VERSION" ]; then
+            echo "::error::the documentation gate built a portal for release ${DOCS_RELEASE}, not ${VERSION}: the reviewed candidate and its documentation disagree about the version."
+            exit 1
+          fi
+          echo "documentation gate green: portal of ${DOCS_COMMIT:0:12} (release ${DOCS_RELEASE:-unversioned}) built strictly"
 
           # One digest per first-party image, or nothing is published. #1799 is
           # the job that builds and smoke-tests these images and hands their

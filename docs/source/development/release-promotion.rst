@@ -10,16 +10,17 @@ build, the approval and the publication all bound to that pull request's
 **merge commit**, and no orchestrator of our own in between. The planner
 (#1581, :ref:`release-planning`) prepares the version on ``develop``; the
 gates (#1583, :ref:`release-compatibility-gates`) judge a candidate; this is
-what happens once a person has merged, and it is two jobs of one workflow.
+what happens once a person has merged, and it is three jobs of one workflow.
 
-The mechanism is `.github/workflows/release-promotion.yml`: ``verify`` and
-``publish``, wired through ``needs``, guarded by one ``concurrency`` group and
-one protected environment, written with nothing but the ``git`` and ``gh``
-CLIs that already run on a runner. ``workflow_dispatch`` is the only trigger
-that can promote, and ``workflow_call`` exposes the same two jobs to the
-consumers of #1609 and #1800 so nobody maintains a second copy of them. There
-is no promotion script, no subcommand to run host-side, no state file and no
-journal: the run list is the record, and re-dispatching is the retry story.
+The mechanism is `.github/workflows/release-promotion.yml`: ``verify``, the
+required documentation build ``docs`` and ``publish``, wired through ``needs``,
+guarded by one ``concurrency`` group and one protected environment, written with
+nothing but the ``git`` and ``gh`` CLIs that already run on a runner.
+``workflow_dispatch`` is the only trigger that can promote, and
+``workflow_call`` exposes the same jobs to the consumers of #1609 and #1800 so
+nobody maintains a second copy of them. There is no promotion script, no
+subcommand to run host-side, no state file and no journal: the run list is the
+record, and re-dispatching is the retry story.
 
 Why there is no orchestrator
 ============================
@@ -76,8 +77,8 @@ changelog, the release pull request and the merge. Only the tag and the GitHub
 release are written here, with ``git tag`` and ``gh release create``, standing
 on the commit ``verify`` proved.
 
-The two jobs
-============
+The three jobs
+==============
 
 ``verify`` answers, in order, and stops on the first no:
 
@@ -92,11 +93,32 @@ The two jobs
    commit. Anywhere else is a conflict, and a published tag is never moved.
 
 It writes nothing. Its outputs — merge commit, version, tag — are what
-``publish`` receives through ``needs``.
+``docs`` and ``publish`` receive through ``needs``.
 
-``publish`` runs behind the protected environment and re-reads ``master`` and
-the tag rather than trusting what ``verify`` saw minutes or hours earlier:
+``docs`` is the required documentation build of the release (#1609, epic #1589):
+it calls `.github/workflows/docs-release-gate.yml` with the commit ``verify``
+proved, which checks that revision out in its own job and builds the portal
+strictly — ``-m sphinx -b html -E -W --keep-going``, the one pin file
+``backend/.requirements/docs.txt``, offline and without a credential — so the
+build's native exit status is the gate. It is a ``uses:`` of the workflow an
+operator can dispatch by hand, not a copy of its steps: one build to fix when
+the portal breaks. It publishes nothing; the public documentation of a release
+is the managed service's own build of the approved tag
+(:ref:`docs-hosting-release-gate`).
 
+``publish`` runs behind the protected environment and re-reads ``master``, the
+tag and the documentation gate rather than trusting what they looked like
+minutes or hours earlier:
+
+* it requires the gate's answer for the commit it is about to tag — a
+  ``documented_commit`` that is missing, malformed, or names another revision
+  than the verified merge, or a portal built for another version, is a refusal.
+  ``needs`` already proves the build was green; this is the half that proves it
+  was green *for this tree*, and it cannot be delegated to the edge because an
+  approved run may have queued behind anything. A release whose documentation
+  was not built from the tested tree is not a release, and the refusal is
+  enforced for a rehearsal too — a rehearsal that green-lights a broken release
+  teaches an operator to trust one;
 * with ``publish`` false, the default, it is a **rehearsal**: it builds the
   release body, prints it, and writes no ref;
 * with ``publish`` true it requires one ``sha256:<64 hex>`` digest per
@@ -126,9 +148,10 @@ Two facts before the first run, because GitHub cannot know them:
   exactly the hole this issue exists to close;
 * publication stays rehearsing until the required build and gate jobs of #1799
   and #1800 sit in front of ``publish`` through ``needs`` and are green for the
-  exact commit. Flipping the input is the deliberate act, and it belongs to
-  that wiring, not to an operator's convenience. Until then a green run here
-  means "the rehearsal passed", never "a release exists".
+  exact commit — the documentation build of #1609 is wired there already, the
+  image build and its attestation are not. Flipping the input is the deliberate
+  act, and it belongs to that wiring, not to an operator's convenience. Until
+  then a green run here means "the rehearsal passed", never "a release exists".
 
 Offline checks
 ==============
@@ -146,8 +169,11 @@ release pull request, ``master`` moved after the merge, the version the commit
 does not carry, the tag on a foreign commit, the malformed or missing digest,
 the unfolded changelog section — seen REFUSED with nothing written, then the
 same worlds promoted to green, with the re-run proving that "already published"
-is a skip. `scripts/test_release_lifecycle_dry_run.py` drives the same scripts
-through the whole lifecycle. Both run in `scripts/check_repo_tooling.sh`.
+is a skip. The steps of the documentation gate are read and executed the same
+way, so a gate that stopped checking the revision it documented fails here
+rather than in a release. `scripts/test_release_lifecycle_dry_run.py` drives the
+same scripts through the whole lifecycle, including a portal that is not the
+candidate's. Both run in `scripts/check_repo_tooling.sh`.
 
 Deliberate limits, named
 ========================

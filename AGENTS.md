@@ -107,7 +107,11 @@ the official GitHub Pages artifact/deploy actions as a fallback already requires
 the stop rule above: a demonstrated upstream gap and an explicit maintainer
 decision. The rules an administrator sets are listed in
 `docs/source/development/documentation-hosting.rst`; building the portal stays
-`docs/source/development/documentation-portal.rst`.
+`docs/source/development/documentation-portal.rst`. The pre-release documentation
+gate is `.github/workflows/docs-release-gate.yml` (#1609): one callable job that
+builds the exact reviewed revision strictly so its exit status gates a release,
+and it uploads a reviewable artifact only - extending it into a publisher, a
+version matrix or a hosted-build trigger would cross the line above.
 
 ## Project structure
 

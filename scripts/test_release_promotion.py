@@ -58,6 +58,7 @@ REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 import workflow_steps
 WORKFLOW = REPO / ".github" / "workflows" / "release-promotion.yml"
+DOCS_GATE = REPO / ".github" / "workflows" / "docs-release-gate.yml"
 RUNBOOK = REPO / "docs" / "source" / "administration" / "release-operator-runbook.rst"
 DESIGN = REPO / "docs" / "source" / "development" / "release-promotion.rst"
 
@@ -279,16 +280,29 @@ class World:
                              {"VERSION": version})
 
     def publish(self, text, outputs=None, version=VERSION, publish=True,
-                artifacts=ARTIFACTS):
+                artifacts=ARTIFACTS, docs_commit=None, docs_release=None):
         outputs = outputs or {}
+        merge = outputs.get("merge_commit", self.merge_commit or "")
         return self.run_step(text, "publish",
                              "Publish the tag and the GitHub release",
                              {"VERSION": outputs.get("version", version),
-                              "MERGE_COMMIT": outputs.get("merge_commit",
-                                                          self.merge_commit or ""),
+                              "MERGE_COMMIT": merge,
                               "TAG": outputs.get("tag", f"v{version}"),
                               "PUBLISH": "true" if publish else "false",
-                              "ARTIFACTS": artifacts})
+                              "ARTIFACTS": artifacts,
+                              # What the `docs` job of the run hands `publish`
+                              # through its outputs (#1609). The gate built the
+                              # candidate by default; the worlds below pass
+                              # another answer to test the refusals.
+                              "DOCS_COMMIT": (merge if docs_commit is None
+                                              else docs_commit),
+                              "DOCS_RELEASE": (version if docs_release is None
+                                               else docs_release)})
+
+    # -- the documentation gate job of the same run -------------------------
+    def docs_step(self, job, step_name, env_extra):
+        return self.run_step(DOCS_GATE.read_text(encoding="utf-8"),
+                             job, step_name, env_extra)
 
     # -- reading the world back --------------------------------------------
     def journal(self):
@@ -344,6 +358,29 @@ def step_script(text, job, step_name):
     return workflow_steps.step_script(text, job, step_name)
 
 
+def needs_of(block):
+    """The `needs:` of a job block, whether written as one job name or a list.
+
+    Actions accepts both shapes; the checks about the gate wiring have to read
+    both, because a `needs` nobody parses reads as "nothing is required".
+    """
+    lines = block.splitlines() if isinstance(block, str) else list(block)
+    for index, line in enumerate(lines):
+        if line.strip() == "needs:" and (len(line) - len(line.lstrip(" "))) == 4:
+            out = []
+            for follow in lines[index + 1:]:
+                if not follow.strip():
+                    continue
+                if (len(follow) - len(follow.lstrip(" "))) <= 4:
+                    break
+                out.append(follow.strip().lstrip("- ").strip())
+            return out
+        if line.strip().startswith("needs:") \
+                and (len(line) - len(line.lstrip(" "))) == 4:
+            return [line.split(":", 1)[1].strip().strip("'\"")]
+    return []
+
+
 # ------------------------------------------------------------------- checks
 def shape_checks(text):
     """The wiring the criteria depend on, read out of the file CI runs.
@@ -387,13 +424,23 @@ def shape_checks(text):
 
     jobs = workflow_steps.keys(workflow_steps.region(text, "jobs", 0), 2)
     blocks = {job: workflow_steps.job_block(text, job) for job in jobs}
-    check("exactly two jobs, and the publisher needs the verifier",
-          set(jobs) == {"verify", "publish"}
-          and reads(blocks["publish"], "needs", 4) == "verify",
-          str(sorted(jobs)))
+    check("verify, the documentation gate and publish, each needing what it needs",
+          set(jobs) == {"verify", "docs", "publish"}
+          and needs_of(blocks["docs"]) == ["verify"]
+          and sorted(needs_of(blocks["publish"])) == ["docs", "verify"],
+          str({job: needs_of(block) for job, block in blocks.items()}))
+    # The documentation gate of #1609 is a reusable job and not a second copy of
+    # the portal steps: the release consumes the same callable workflow an operator
+    # dispatches, so there is one build to fix when the portal breaks.
+    check("the documentation job calls the committed gate workflow with the verified commit",
+          "uses: ./.github/workflows/docs-release-gate.yml" in blocks["docs"]
+          and "sha: ${{ needs.verify.outputs.merge_commit }}" in blocks["docs"]
+          and "runs-on" not in blocks["docs"] and "steps." not in blocks["docs"],
+          blocks["docs"][:200])
     check("only the publishing job sits behind the protected environment",
           reads(blocks["publish"], "environment", 4) == "release-stable"
-          and "environment" not in blocks["verify"],
+          and "environment" not in blocks["verify"]
+          and "environment" not in blocks["docs"],
           str({job: ("release-stable" if "environment" in block else None)
                for job, block in blocks.items()}))
     check("least privilege: read at the top, write only where the tag and release are written",
@@ -429,6 +476,20 @@ def shape_checks(text):
     check("publish pushes an annotated tag, never a forced one, and creates the release",
           "git tag -a" in publish_script and "gh release create" in publish_script
           and "--force" not in publish_script)
+    # The documentation gate of #1609: `needs: docs` gives the ordering, and this
+    # is the part that cannot be delegated to the edge - an approved run may have
+    # queued behind anything, and the portal must be the one built from the commit
+    # this job is about to tag.
+    check("publish demands the documentation gate's answer about the same commit",
+          'DOCS_COMMIT: ${{ needs.docs.outputs.documented_commit }}'
+          in blocks["publish"]
+          and '"$DOCS_COMMIT" != "$MERGE_COMMIT"' in publish_script
+          and '"$DOCS_RELEASE" != "$VERSION"' in publish_script,
+          [l for l in publish_script.splitlines() if "DOCS_" in l][:4])
+    check("the documentation gate is answered before anything is written",
+          publish_script.index('"$DOCS_COMMIT"')
+          < publish_script.index('git tag -a'),
+          "the portal answer is checked after the tag is pushed")
     check("the rehearsal exits without writing when publish is off",
           'if [ "$PUBLISH" != "true" ]' in publish_script)
     check("the release body quotes the verified commit and the image digests",
@@ -440,6 +501,249 @@ def shape_checks(text):
                   for runner in ("python3", "python", "bash", "sh"))
           and "release_promotion" not in both,
           [l for l in both.splitlines() if "scripts/" in l][:3])
+
+
+def docs_gate_shape_checks(text=""):
+    """The gate workflow of #1609, read out of the file CI runs.
+
+    The promotion consumes this workflow, so its contract is part of the release:
+    what may trigger it, what it builds with, what it refuses, and - the boundary
+    the revised epic #1589 draws - what it must never do, which is publish.
+    """
+    if not DOCS_GATE.is_file():
+        check("the documentation gate workflow exists", False, str(DOCS_GATE))
+        return ""
+    text = DOCS_GATE.read_text(encoding="utf-8")
+
+    on = workflow_steps.region(text, "on", 0)
+    check("the gate is callable and operator-dispatched, never scheduled or push-triggered",
+          set(workflow_steps.keys(on, 2)) == {"workflow_call", "workflow_dispatch"},
+          str(workflow_steps.keys(on, 2)))
+    called = workflow_steps.region(on, "workflow_call", 2)
+    call_inputs = workflow_steps.region(called, "inputs", 4)
+    check("a release build must name the revision it documents",
+          "sha" in workflow_steps.keys(call_inputs, 6)
+          and workflow_steps.scalar(
+              workflow_steps.region(call_inputs, "sha", 6), "required", 8) == "true",
+          str(workflow_steps.keys(call_inputs, 6)))
+    check("the answer a caller reads is the provenance, not a file on disk",
+          "documented_commit" in workflow_steps.keys(
+              workflow_steps.region(called, "outputs", 4), 6),
+          str(workflow_steps.keys(workflow_steps.region(called, "outputs", 4), 6)))
+
+    jobs = workflow_steps.keys(workflow_steps.region(text, "jobs", 0), 2)
+    check("one job, so the gate is the build", jobs == ["portal"], str(jobs))
+    check("least privilege: the gate reads the repository and writes nothing",
+          workflow_steps.scalar(workflow_steps.region(text, "permissions", 0),
+                                "contents", 2) == "read"
+          and "contents: write" not in text,
+          "the portal job has no reason to write")
+    check("one gate per revision, and a re-run never cancels a waiting promotion",
+          workflow_steps.scalar(workflow_steps.region(text, "concurrency", 0),
+                                "cancel-in-progress", 2) == "false"
+          and "docs-release-gate-" in workflow_steps.scalar(
+              workflow_steps.region(text, "concurrency", 0), "group", 2),
+          workflow_steps.region(text, "concurrency", 0)[:3])
+
+    scripts = workflow_steps.scripts_of(text, "portal")
+    build = [line for line in scripts.splitlines() if "-m sphinx" in line]
+    check("the gate builds the portal strictly, with the portal job's own flags",
+          any(all(flag in line for flag in
+                  ("-b html", "-E", "-W", "--keep-going")) for line in build),
+          "; ".join(build) or "no sphinx invocation")
+    check("the release build installs the one pinned docs environment",
+          "backend/.requirements/docs.txt" in scripts
+          and "pip install -r" in scripts and "apt" not in scripts,
+          "the pin file is the whole toolchain")
+    check("the gate needs no credential, database or container",
+          "secrets." not in text and "docker compose" not in text
+          and "POSTGRES" not in text,
+          "the docs environment is the one pin file")
+    # One expression names the revision everywhere, so the checkout, the
+    # provenance and the assertion cannot drift to three different answers.
+    revision_reads = [line.strip() for line in text.splitlines()
+                      if "${{ inputs.sha || github.sha }}" in line]
+    check("every revision the job reads comes from the one expression",
+          len(revision_reads) >= 3
+          and any(l.startswith("ref:") for l in revision_reads)
+          and any(l.startswith("MRMAP_DOCS_REVISION:") for l in revision_reads)
+          and any(l.startswith("REVISION:") for l in revision_reads),
+          str(revision_reads))
+    # The provenance of a *called* workflow would otherwise record the caller's
+    # dispatch SHA (docs/source/_ext/mrmap_docs.py reads GITHUB_SHA first), so the
+    # build has to name the revision it checked out under both names the extension
+    # reads - otherwise the gate refuses its own correct build, and only in a
+    # release.
+    check("the strict build names the documented revision under both spellings",
+          all(f"{name}: ${{{{ inputs.sha || github.sha }}}}" in text
+              for name in ("GITHUB_SHA", "MRMAP_DOCS_REVISION")),
+          [l.strip() for l in text.splitlines()
+           if "MRMAP_DOCS_REVISION" in l or "GITHUB_SHA" in l])
+    # The boundary of #1589 and #1608: a gate builds, the managed service hosts.
+    published = [needle for needle in
+                 ("actions/deploy-pages", "upload-pages-artifact", "gh-pages",
+                  "sphinx-multiversion", "docker build", "rsync", "curl ",
+                  "readthedocs")
+                 if needle in scripts]
+    check("the gate publishes nothing, in either dialect of that word",
+          not published, ", ".join(published))
+    # `uses:` is step metadata, not script, so this reads the file: exactly the
+    # three ordinary actions of a build, and the artifact stays an artifact - the
+    # gate neither downloads a build to consume it nor uploads it anywhere a
+    # deployment reads.
+    check("the only things it uses are checkout, python and its own artifact",
+          len([l for l in text.splitlines() if "uses:" in l]) == 3
+          and text.count("uses: actions/upload-artifact@v4") == 1
+          and "uses: actions/checkout@v7" in text
+          and "uses: actions/setup-python@v7" in text
+          and "download-artifact" not in text
+          and "uses: actions/" not in scripts,
+          [l.strip() for l in text.splitlines() if "uses:" in l])
+    check("a build that cannot name its revision fails the job rather than the review",
+          'grep -Eq \'^[0-9a-f]{40}$\'' in scripts
+          and "cannot name" in scripts
+          and "continue-on-error" not in text,
+          "a reported-only gate is not a gate")
+    return text
+
+
+def docs_gate_steps(text=""):
+    """The gate's two shell steps, executed rather than quoted.
+
+    Same convention as the promotion steps: what the runner runs is read out of
+    the YAML and run under bash, so a check cannot pass against a copy.
+    `MRMAP_DOCS_PYTHON` is the workflow's own hook for the interpreter, the one
+    scripts/test_docs_build.py uses for the same reason.
+    """
+    w = World(tempfile.mkdtemp(prefix="mrmap-1609-gate-"))
+    try:
+        w.prepare_release_pr()
+        merge = w.merge_to_master()
+        good = {"MRMAP_DOCS_PYTHON": sys.executable,
+                "GITHUB_EVENT_NAME": "workflow_call"}
+
+        proc, _ = w.docs_step("portal",
+                              "Refuse a release build that cannot name its revision",
+                              dict(good, REVISION=merge))
+        check("the gate accepts a build that names its revision",
+              proc.returncode == 0 and merge[:12] in proc.stdout,
+              f"{proc.stdout[-160:]} {proc.stderr[-160:]}")
+        proc, _ = w.docs_step("portal",
+                              "Refuse a release build that cannot name its revision",
+                              dict(good, REVISION=""))
+        check("the gate refuses a call whose revision is empty",
+              proc.returncode == 1 and "cannot name" in proc.stdout + proc.stderr,
+              f"{proc.stdout[-160:]} {proc.stderr[-160:]}")
+        proc, _ = w.docs_step("portal",
+                              "Refuse a release build that cannot name its revision",
+                              dict(good, REVISION="not-a-sha"))
+        check("and refuses a revision that is not one",
+              proc.returncode == 1, proc.stdout[-160:])
+
+        proc, named = w.docs_step("portal", "Name the build",
+                                  dict(good, INPUT_TAG="v0.2.0"))
+        check("the build carries the release tag its caller named",
+              proc.returncode == 0 and named.get("tag") == "v0.2.0", str(named))
+        proc, named = w.docs_step("portal", "Name the build",
+                                  dict(good, INPUT_TAG="latest"))
+        check("a name that is not a release tag names nothing",
+              proc.returncode == 0 and named.get("tag") == "", str(named))
+        proc, named = w.docs_step("portal", "Name the build", dict(good, INPUT_TAG=""))
+        check("and no input invents a tag the commit does not carry",
+              proc.returncode == 0 and named.get("tag") == "", str(named))
+
+        def provenance(**over):
+            record = {"schema": "mrmap.docs.provenance.v1", "builder": "html",
+                      "release": VERSION, "documented_commit": merge,
+                      "toolchain": {"sphinx": "8.2.3"},
+                      "source_digest": "sha256:" + "0" * 64}
+            record.update(over)
+            out = w.repo / "docs" / "build" / "html"
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "provenance.json").write_text(json.dumps(record), encoding="utf-8")
+
+        provenance()
+        proc, out = w.docs_step("portal",
+                                "Assert the build documented the reviewed revision",
+                                dict(good, REVISION=merge))
+        check("a portal built from the reviewed revision answers with its identity",
+              proc.returncode == 0 and out.get("documented_commit") == merge
+              and out.get("release") == VERSION,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]} {out}")
+
+        provenance(documented_commit="f" * 40)
+        proc, _ = w.docs_step("portal",
+                              "Assert the build documented the reviewed revision",
+                              dict(good, REVISION=merge))
+        check("a portal of another tree is refused, and both shas are named",
+              proc.returncode == 1 and "not the reviewed" in proc.stdout + proc.stderr
+              and "f" * 12 in proc.stdout + proc.stderr,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+
+        provenance(documented_commit=None)
+        proc, _ = w.docs_step("portal",
+                              "Assert the build documented the reviewed revision",
+                              dict(good, REVISION=merge))
+        check("a portal that cannot say what it built is refused",
+              proc.returncode == 1, f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+
+        provenance(toolchain={})
+        proc, _ = w.docs_step("portal",
+                              "Assert the build documented the reviewed revision",
+                              dict(good, REVISION=merge))
+        check("a portal without its toolchain is refused",
+              proc.returncode == 1 and "sphinx" in proc.stdout + proc.stderr,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+
+        (w.repo / "docs" / "build" / "html" / "provenance.json").unlink()
+        proc, _ = w.docs_step("portal",
+                              "Assert the build documented the reviewed revision",
+                              dict(good, REVISION=merge))
+        check("no provenance at all is refused too",
+              proc.returncode == 1 and "cannot say what it built"
+              in proc.stdout + proc.stderr,
+              f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+    finally:
+        shutil.rmtree(w.dir, ignore_errors=True)
+
+
+def publish_refuses_an_unattributed_portal(text=""):
+    """`publish` re-reads the gate's answer rather than trusting the `needs` edge.
+
+    The edge proves the build was green; only this proves it was green FOR the
+    commit being tagged - which is the one thing a release of documentation
+    claims. Each refusal is read BEFORE a ref was written.
+    """
+    for label, kwargs, needle in (
+            ("no answer at all", {"docs_commit": ""}, "no 40-hex documented_commit"),
+            ("the answer of another commit", {"docs_commit": "e" * 40},
+             "not of the reviewed"),
+            ("an answer shaped wrongly", {"docs_commit": "abc"},
+             "no 40-hex documented_commit"),
+            ("an answer about another version", {"docs_release": "9.9.9"},
+             "disagree about the version")):
+        w = World(tempfile.mkdtemp(prefix=f"mrmap-1609-{abs(hash(label)) % 1000}-"))
+        try:
+            w.prepare_release_pr()
+            w.merge_to_master()
+            proc, out = w.verify(text)
+            check(f"the world of {label} verifies", proc.returncode == 0,
+                  f"{proc.stdout[-160:]} {proc.stderr[-160:]}")
+            proc, _ = w.publish(text, out, **kwargs)
+            check(f"publish refuses a documentation gate with {label}",
+                  proc.returncode == 1 and needle in proc.stdout + proc.stderr,
+                  f"{proc.stdout[-200:]} {proc.stderr[-200:]}")
+            check(f"and nothing is written for {label}",
+                  w.tags() == [] and w.gh_state()["releases"] == [],
+                  f"{w.tags()} {w.gh_state()['releases']}")
+            # A rehearsal is not exempt: a release whose documentation is not the
+            # candidate's must read red in the rehearsal too, or the rehearsal
+            # teaches an operator to trust a broken release.
+            proc, _ = w.publish(text, out, publish=False, **kwargs)
+            check(f"the rehearsal refuses it too, for {label}",
+                  proc.returncode == 1 and w.tags() == [], proc.stdout[-160:])
+        finally:
+            shutil.rmtree(w.dir, ignore_errors=True)
 
 
 def no_merged_pr(text):
@@ -664,9 +968,17 @@ def main():
                      ("version mismatch", version_mismatch),
                      ("malformed merge commit", malformed_merge_commit),
                      ("immutable tag conflict", immutable_tag),
-                     ("green publish, rehearsal and rerun", green_publish)):
+                     ("green publish, rehearsal and rerun", green_publish),
+                     ("documentation gate shape", docs_gate_shape_checks),
+                     ("documentation gate steps", docs_gate_steps),
+                     ("publish without an attributed portal",
+                      publish_refuses_an_unattributed_portal)):
         try:
             fn(text)
+        except workflow_steps.WorkflowReadingError as exc:
+            # The gate workflow is part of the release contract too: unreadable
+            # steps there are as much a failure as unreadable steps here.
+            check(f"{name} reads the committed workflow", False, str(exc))
         except Exception as exc:
             check(name, False, f"raised {type(exc).__name__}: {exc}")
     measured_and_documented(text)

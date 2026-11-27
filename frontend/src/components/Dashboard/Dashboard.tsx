@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useCanAccessResources } from "react-admin";
 
 import { Box, Grid, Skeleton, Stack } from "@mui/material";
@@ -6,6 +6,7 @@ import { Box, Grid, Skeleton, Stack } from "@mui/material";
 import ActivityChart from "./Cards/ActivityChart";
 import BackgroundProcessesCard from "./Cards/BackgroundProcessesCard";
 import CriticalAlerts from "./Cards/CriticalAlerts";
+import RecentNoticesCard from "./Cards/RecentNoticesCard";
 import ResourceListCard from "./Cards/ResourceListCard";
 import ServiceAttentionCard from "./Cards/ServiceAttentionCard";
 import WorkQueueCard from "./Cards/WorkQueueCard";
@@ -43,6 +44,10 @@ const Dashboard = (): ReactNode => {
     action: "list",
     resources: [...inventoryResources],
   });
+  // the end of the bounded window the notices table reads, fixed for the mount:
+  // a window read from the clock of every render would key a new request per
+  // render and never let the bounded page of a source settle (#1819)
+  const [noticesNow] = useState(() => Date.now());
 
   return (
     <Box sx={{ py: 2 }}>
@@ -85,11 +90,16 @@ const Dashboard = (): ReactNode => {
           <ActivityChart resources={inventoryResources.filter(resource => canAccess?.[resource] === true)} />
         </Grid>
       </Grid>}
+      {/* the notices of the deployment answer the lower left of the mockup, beside
+          the processes which run (#1815) and below the charts (#1820) */}
       {!isPending && <Grid container spacing={2} sx={{ mt: 2 }}>
-        {/* the bottom row of the mockup: the notices of the registry answer the
-            left half (#1819), the work the deployment is doing answers the
-            right one and asks nothing of its own (#1815) */}
-        <Grid size={{ xs: 12, md: 6 }} offset={{ md: 6 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <RecentNoticesCard
+            resources={inventoryResources.filter(resource => canAccess?.[resource] === true)}
+            now={noticesNow}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
           <BackgroundProcessesCard />
         </Grid>
       </Grid>}

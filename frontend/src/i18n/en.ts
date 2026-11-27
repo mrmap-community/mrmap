@@ -979,6 +979,32 @@ const en = lodashMerge(
         noTrend: "No inventory trend",
         sparkline: "Inventory trend for %{resource}",
       },
+      // the compact notices and activity table of the dashboard (#1819): rows
+      // are records of the alerts and of the changelogs, so their words are the
+      // words of those screens - this card only names the states a source of
+      // the table can answer, none of which reads as "no notices of that kind"
+      notices: {
+        title: "Recent notices and activity",
+        window: "Latest notices from %{from} to %{to} (%{days} days) — not the whole history",
+        truncated: "Showing the newest %{rows} notices of the deployment",
+        loading: "Reading the notices of the deployment ...",
+        loadError: "The notices could not be loaded.",
+        empty: "No notices in this period.",
+        unsupported: "None of the notices of the deployment can be read.",
+        noTime: "no date",
+        noDetail: "The api answers no description for this notice.",
+        loadingSource: "%{resource}: the notices are still being read.",
+        errorSource: "%{resource}: the notices could not be read.",
+        forbiddenSource: "%{resource}: you are not allowed to read these notices.",
+        unsupportedSource: "%{resource}: no notices are answered for this resource.",
+        viewHistory: "All changes to %{resource}",
+        columns: {
+          time: "Time",
+          type: "Type",
+          description: "Description",
+          target: "Affected service / record",
+        },
+      },
       // the compact health of the deployment: one row per queue, each answering
       // its state beside its number (#1816). Nothing of a queue which was not
       // read, may not be read or holds nothing answers a success word

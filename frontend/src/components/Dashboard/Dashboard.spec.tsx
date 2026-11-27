@@ -32,6 +32,10 @@ vi.mock("./Cards/WorkQueueCard", () => ({
   default: () => <div>workQueue</div>,
 }));
 
+vi.mock("./Cards/RecentNoticesCard", () => ({
+  default: ({ resources }: { resources: string[] }) => <div data-testid="notices">{resources.join(",")}</div>,
+}));
+
 vi.mock("./Cards/ServiceAttentionCard", () => ({
   default: () => <div>attention</div>,
 }));
@@ -148,19 +152,12 @@ describe("Dashboard", () => {
     expect(
       container.querySelector(".MuiBox-root:last-of-type")?.contains(row),
     ).toBe(true);
-    // ... and takes the right half of it, which is where the mockup places it
-    // (#1815): the item is offset by half of the twelve columns at `md`
-    const offsetRules = Array.from(document.querySelectorAll("style"))
-      .map((style) => style.textContent ?? "")
-      .join(" ")
-      .match(/@media \(min-width:900px\)\{\.css-[\w-]+\{margin-left:/g);
-    expect(offsetRules).toHaveLength(1);
-    expect(
-      Array.from(document.querySelectorAll("style"))
-        .map((style) => style.textContent ?? "")
-        .join(" "),
-    ).toMatch(/margin-left:calc\(100% \* 6 \/ var\(--Grid-parent-columns\)/);
-    expect(row.classList.contains("MuiGrid-root")).toBe(true);
+    // The notices occupy the left half; processes follow in the right half.
+    const notices = screen.getByTestId("notices").parentElement as HTMLElement;
+    expect(row.parentElement).toBe(notices.parentElement);
+    expect(row.previousElementSibling).toBe(notices);
+    expect(notices).toHaveClass("MuiGrid-grid-md-6");
+    expect(row).toHaveClass("MuiGrid-grid-md-6");
     // the table asks nothing of its own: the card reads the store of the job
     // center, so no list controller of BackgroundProcess is mounted here
     expect(

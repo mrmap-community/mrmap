@@ -78,7 +78,7 @@ class compose_env:
 
 def args(**values):
     base = dict(arms_file=str(ARMS), arm=None, cell=None, kind=None,
-                profile="production", repeats=None, seed=None, out=None,
+                profile="production", repeats=None, seed=None, requests=None, warmup=None, concurrency=None, host_port=None, out=None,
                 artifacts="", stack_tree=str(ROOT), compose_file=None,
                 base_url="", ws_base_url="", legacy_off_settings_module="",
                 sample=True, budget_file=str(BUDGETS), out_file="")
@@ -507,7 +507,7 @@ def test_no_application_imports():
         assert "backend" not in stripped, stripped
         assert "django" not in stripped.lower(), stripped
     allowed = {"argparse", "hashlib", "json", "math", "os", "re", "shutil",
-               "subprocess", "sys", "time"}
+               "subprocess", "sys", "time", "urllib"}
     import ast
     tree = ast.parse(text)
     for node in ast.walk(tree):

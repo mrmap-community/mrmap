@@ -134,8 +134,27 @@ services:
     # in backend/setup.cfg, both facts are pinned by scripts/test_coverage_parallel_data.py.
     # The optional docker-compose.test-low-memory.yml supplies MRMAP_TEST_WORKERS=1.
     # $$ defers expansion to the container shell, including `run -e` overrides.
+    # MRMAP_TEST_SHARDS splits the suite over several CI runners; the shard index
+    # MRMAP_TEST_SHARD then names the coverage files, because three runners writing
+    # .coverage.unit each into this one bind mount would overwrite each other and
+    # backend-coverage would combine whatever landed last while every job still read
+    # green. With the default of one shard nothing is renamed: local runs and the
+    # artifact contract of the workflow stay exactly as they were.
+    # The labels come from `manage.py list_test_shards`, which discovers them the way
+    # the test runner does - a checked-in list would silently stop covering new files,
+    # and a shard that runs nothing is green. They are read back from a file instead of a
+    # command substitution, because modules imported during discovery print: a capture
+    # hands that prose to the test runner as labels, which is how the first CI run of this
+    # command ended up loading `server` and `reachable` as tests. The single-shard branch
+    # never calls the command and still names /opt/mrmap/tests/, so `docker compose run
+    # django-tests` is what it always was - scripts/test_test_memory_mode.py asserts the
+    # command line of exactly that branch. $$ defers all of this to the container shell.
     command: >
-      /bin/sh -c "COVERAGE_FILE=.coverage.unit python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput --parallel=$${MRMAP_TEST_WORKERS:-4} && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
+      /bin/sh -c "S=$${MRMAP_TEST_SHARD:-0}; N=$${MRMAP_TEST_SHARDS:-1};
+      if [ \"$${N}\" -gt 1 ]; then python manage.py list_test_shards --shard \"$${S}\" --of \"$${N}\" --output /tmp/mrmap-test-shard-$${S}.labels || exit 1;
+      L=$$(cat /tmp/mrmap-test-shard-$${S}.labels); F=.coverage.unit.$${S}; X=unit-tests-coverage-report-$${S}.xml;
+      else L=/opt/mrmap/tests/; F=.coverage.unit; X=unit-tests-coverage-report.xml; fi;
+      COVERAGE_FILE=$${F} python -m coverage run --data-file=$${F} ./manage.py test -v 3 $${L} --noinput --parallel=$${MRMAP_TEST_WORKERS:-4} && python -m coverage xml --data-file=$${F} -o $${X}"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind

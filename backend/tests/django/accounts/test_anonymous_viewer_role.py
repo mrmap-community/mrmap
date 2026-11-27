@@ -3,15 +3,15 @@
 Decision Q2 of #727: public is an explicit grant, never a side effect. The
 grant needs something to be granted TO, and that something is this role: the
 ``anonymous_viewer`` definition of the catalogue (#731), a PLATFORM-scope
-``Role`` with its group (0009 seeds both), and guardian's anonymous user row
+``Role`` with its group (0004 seeds both), and guardian's anonymous user row
 as the group's only member - so every anonymous permission check, mapped to
 that row, reads exactly the grants which say "the public may view this".
 
 Three things are pinned here:
 
-* the frozen copy in migration 0009 and the live catalogue of
+* the frozen copy in migration 0004 and the live catalogue of
   ``sync_role_definitions`` agree - the same guard ``test_role_definitions.py``
-  runs for 0005, because a drift would make an upgraded instance mean
+  runs for 0002, because a drift would make an upgraded instance mean
   something else than a fresh install;
 * ``ensure_anonymous_viewer`` recreates what a truncation removed and does it
   twice without duplicating anything - guardian 3.5.2 only *reads* its
@@ -42,7 +42,7 @@ from registry.models.service import WebMapService
 #: the migration whose frozen copy is pinned against the live catalogue
 MIGRATION = importlib.import_module(
     "accounts.migrations."
-    "0009_the_anonymous_viewer_role_group_is_seeded")
+    "0004_the_anonymous_viewer_role_group_is_seeded")
 
 #: the catalogue entry the migration mirrors
 SPEC = next(spec for spec in BUILTIN_ROLES
@@ -136,7 +136,7 @@ class EnsureAnonymousViewerTestCase(TestCase):
 
         The guard runs the way the ``post_migrate`` hook runs it - on a
         database which still holds the catalogue (the builtin definitions are
-        protected) but no longer the rows 0009 wrote beside it.
+        protected) but no longer the rows 0004 wrote beside it.
         """
         role = Role.objects.with_definition(ANONYMOUS_VIEWER_ROLE).get()
         name = role.group.name

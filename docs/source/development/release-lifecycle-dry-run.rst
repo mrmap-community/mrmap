@@ -8,7 +8,8 @@ Release lifecycle dry run
 
    Part of epic #1577 (release management), issue #1586: validate the complete
    release lifecycle in a dry run. The promotion that acts on the lifecycle is
-   :ref:`release-promotion` (#1584), the gates a candidate passes are
+   :ref:`release-promotion` (#1798, which replaced the orchestrator #1584 had
+   shipped), the gates a candidate passes are
    :ref:`release-compatibility-gates` (#1583) and the planner that proposes the
    version is :ref:`release-planning` (#1581); the lifecycle itself is
    ``scripts/release_lifecycle.json``, described for operators in
@@ -29,7 +30,9 @@ Why it exists
 
 Each tool of the release path has its own suite: ``scripts/test_release_lifecycle.py``
 holds the lifecycle description against the files it names, the suites of #1584
-prove the promotion steps and those of #1583 prove the gates. None of those
+prove the promotion steps and those of #1583 prove the gates. The promotion
+steps are read out of the committed workflow YAML and run, so what the walk
+drives is what CI runs. None of those
 answers the question of #1586: do the phases, the actors they name and the
 systems they depend on fit together for one complete release, and what blocks a
 dry run? That is a question about the sequence, so it needs a run of the
@@ -98,49 +101,53 @@ The phases and what each one proves
    once the reviewed ``release-gates: empty-operations`` marker names it.
 
 ``cut`` (actor: human)
-   The Version Release PR onto develop. The walk starts where develop starts,
-   checks that the merged release files carry the class the range earned, and
-   then asks the promotion tool what it sees: ``plan`` names the version,
-   ``status`` reports the candidate planned but not frozen, no pull request, no
-   tag.
+   The Version Release PR onto develop. The walk starts where develop starts and
+   checks that the merged release files carry the class the range earned. Then it
+   runs the promotion's own ``verify`` step against that develop and asserts the
+   refusal: with no merged ``develop`` -> ``master`` pull request there is nothing
+   to publish, which is the develop-first rule proven rather than claimed.
 
 ``build-and-gate`` (actor: CI)
-   ``preflight`` on the candidate with the report files of #1583 - the
-   composition #1584 defines. Red half on a version move without its folded
-   changelog section: the candidate is refused and writes no attestation. Green
-   half: the attestation binds the candidate SHA, and the version identity check
+   ``release_gates.py promote`` on the candidate with the report files of #1583 -
+   the one attester of the evidence binding, whose digest and provenance contract
+   #1799 and #1800 own. Red half on a version move without its folded changelog
+   section: ``publish`` refuses the candidate and writes no tag and no release.
+   Green half: the attestation binds the candidate SHA, and the version identity check
    of the candidate document is asserted from both sides - the candidate's own
    document passes, a document that says another version is refused. That second
    half is the mock documentation gate contract the scope boundary of #1586
    names.
 
 ``promote`` (actor: human, protected environment ``release-stable``)
-   ``open-release-pr`` freezes ``release/v<version>`` at the candidate and opens
-   one pull request to master; the gate stays ``pending`` while that pull request
-   is unmerged; ``finalize`` refuses to tag a master that does not carry the
-   candidate; the step is idempotent. Then the walk performs the merge on behalf
-   of a person and checks that master carries the candidate's tree while the gate
-   still reports no tag. Red half: evidence with a missing class, and evidence
-   gathered for another SHA.
+   The walk performs the reviewed ``develop`` -> ``master`` merge on behalf of a
+   person and checks that master carries the candidate's tree without being the
+   candidate. Then the ``verify`` step of the workflow accepts the merge - its
+   merge commit is master's tip and carries the dispatched version - and the
+   ``publish`` step rehearses: with publication disabled, the default until
+   #1799/#1800 wire their jobs in front of it, it writes no tag and no release.
+   Red half: evidence with a missing class, and evidence gathered for another SHA.
 
 ``verify-on-master`` (actor: CI)
-   ``finalize`` in the one run #1584 requires: the tree of master is compared
-   with the tested candidate, and only once that is empty does the run push the
-   annotated tag and create the GitHub release, so the tag stands on master's
-   tip and the release names the candidate it came from. The run then re-reads
-   the world it produced: the upgrade gate runs again with master's migrations,
-   which is the action the lifecycle names for this phase, and ``gate``
-   answers green for a frozen candidate whose tag is at master and whose release
-   exists. The release body carries both image digests and, when an attestation
-   was passed in, the attestation itself. Red half: a master whose tree diverged
-   from the tested candidate, a release missing one of the two image digests,
-   and a rolling alias while no reviewed alias ledger exists (Q1 of #1578 fixed
-   the tag shape and approved no alias - ADR-0002) - each refused before a tag
-   was pushed, which the check after them proves by finding no tag at all.
+   The ``publish`` step with publication on, in the one run the workflow
+   requires: the annotated tag is pushed at the verified merge commit and the
+   GitHub release created for it in the same run, since a ``GITHUB_TOKEN`` push of
+   a tag emits no event anything could catch later. The walk then checks what it
+   produced: the tag is annotated and stands on master's tip, the release stands
+   on the same commit, and the body carries the reviewed changelog section, both
+   image digests and the commit itself. The upgrade gate runs again with master's
+   migrations, which is the action the lifecycle names for this phase, and
+   ``verify`` re-run answers that the release is already published. Red half: a
+   master that moved after the reviewed merge, a digest that is not a digest, a
+   changelog whose section was never folded, and a prerelease version - each
+   refused before a tag was pushed, which the check after them proves by finding
+   no tag and no release at all.
 
 ``post-release`` (actor: human)
-   ``sync`` opens the master to develop pull request and leaves it open for a
-   person to merge; the journal proves no issue-closing call was made.
+   The master to develop sync opens as the ordinary reviewed pull request it is -
+   the mechanism is ``gh pr create``, not the promotion - and stays open for a
+   person to merge; the journal proves no issue-closing call was made. The tag the
+   promotion pushed is still at master's tip, which is the anchor the planner
+   re-anchors its next window on.
 
 The version policy, which needs a released baseline
 ===================================================
@@ -174,20 +181,20 @@ Concurrency, prereleases and what stays refused
 ===============================================
 
 Two runs that both believe they hold the candidate of one version is not a race
-the tool resolves by last-write-wins: the second freeze is refused as a conflict,
-and the check that follows proves nothing moved - the frozen branch still points
-where the first freeze put it, and there is still no tag and no release. Three
-attempts at the freeze cost one pull request, which is what the journal counts.
-The promotion stays resumable afterwards: the merge and the publication of the
-run that owns the freeze are unaffected by the refused attempt.
+any mechanism here resolves by last-write-wins. The native mechanism owns no
+branch, so the race is the tag: the run that wrote the name first owns it, and
+the second run is refused as a conflict with the tag standing where the first
+published it and the release still the one it created. A re-run of the refused
+dispatch refuses too, so retrying cannot smuggle the move through, and the
+journal proves the refused run cost no tag and no release.
 
-A prerelease is not refused: the walk cuts ``0.2.0-rc.1`` on its own release
-branch and publishes it under ``v0.2.0-rc.1``, because #1579 added the
-prerelease suffix to the accepted grammar on purpose and ``scripts/image_release.py``
-tags candidates that way. What it never gets is the stable identity of its line -
-the walk asserts the stable ``v0.2.0`` is absent afterwards - and the three
-places that decide a published identity agree on that without talking to each
-other: the top-level ``tag_pattern`` of the lifecycle, which the stable channel
+A prerelease is refused: the walk dispatches ``0.2.0-rc.1`` at the promotion and
+``verify`` stops it, because a stable identity is what this mechanism writes and
+#1579's prerelease grammar belongs to the planner and to
+``scripts/image_release.py``, not to a stable tag; what it never gets is the
+stable identity of its line, which the walk proves by finding no tag and no
+release at all. The three places that decide a published identity agree on that
+without talking to each other: the top-level ``tag_pattern`` of the lifecycle, which the stable channel
 of ``master`` publishes under, matches ``vX.Y.Z`` only, the multiversion
 whitelist of ``docs/source/conf.py`` excludes the prerelease pattern, and
 ``release_gates.py`` refuses a prerelease as the ``version`` of a ``released``
@@ -201,7 +208,7 @@ What a dry run cannot decide offline
 
 The second half of the report, which the acceptance criteria require. Nothing in
 it is a hardcoded list: every entry is derived from a constant of the tooling -
-``release_gates.REQUIRED_EVIDENCE``, ``release_promotion.CHECK_CLASSES``, the
+``release_gates.REQUIRED_EVIDENCE``, the CI job names of the walk's payload, the
 images whose digests the attestation binds, the gate reports the promoter
 demands, the protected environment of the lifecycle's own ``promote`` phase and
 the oldest supported baseline of the #1180 constraint file. A mechanism that
@@ -218,15 +225,15 @@ instead of sitting there unnoticed.
    * - Runtime evidence of the promotion gate
      - The candidate OpenAPI document needs GDAL and ``manage.py spectacular``,
        and the evidence classes come from real CI runs; the walk feeds a saved
-       payload through the tool's own ``--checks-file`` seam.
+       payload through ``release_gates.py promote``'s own ``--evidence`` seam.
      - the CI jobs behind those classes - today ``unit-tests``,
        ``acceptance-tests``, ``sonarcloud`` and ``SonarCloud Code Analysis``,
-       the names ``release_promotion.CHECK_CLASSES`` maps
+       the names the walk's payload carries
    * - The built images the attestation binds
      - The digests of ``mrmap-backend`` and ``mrmap-frontend`` are published by
-       CI; well-formed digests pass the same ``--artifact`` seam but cannot be
-       pulled here.
-     - ``scripts/image_release.py``
+       #1799; well-formed digests pass the workflow's own ``artifacts`` input
+       but cannot be pulled here.
+     - #1799 (build and promote images by digest)
    * - The CI upgrade run from the oldest supported baseline
      - The upgrade gate checks the migration graph and the #1180 boundaries
        offline; migrating a deployment needs PostgreSQL.
@@ -273,18 +280,23 @@ true, because nothing in a temp directory can hold them for the real one:
 
 - ``master`` and ``develop`` are permanent branches: never deleted, renamed,
   force-pushed or rebased, as ``AGENTS.md`` states, and only a person merges into
-  them. ``finalize`` moves a tag and a release onto a master it believes was
-  reached by a merge it did not perform, so the protection of those branches is
-  part of the promotion's safety, not an unrelated housekeeping rule.
+  them. ``publish`` writes a tag and a release onto a master it believes was
+  reached by a reviewed merge it did not perform, so the protection of those
+  branches - and the branch protection that makes a required check unskippable -
+  is part of the promotion's safety, not an unrelated housekeeping rule.
 - the promotion workflow is dispatched behind the protected environment
   ``release-stable`` **with required reviewers**. GitHub creates a missing
   environment unprotected, so an administrator has to create it before the first
   run; the lifecycle JSON names the environment and the suites assert that the
   phase carries it, but no offline run can assert that the reviewers exist.
-- the release branches that ``open-release-pr`` freezes, ``release/v<version>``,
-  are never moved afterwards. A re-run of the step reports the branch that stands
-  rather than moving it, which is what the walk asserts; on the real repository
-  that behaviour is only useful if nothing else moves the branch either.
+- the tags that ``publish`` pushes, ``v<version>``, are never moved afterwards.
+  A re-run reports the tag that stands rather than moving it, which is what the
+  walk asserts; on the real repository that behaviour is only useful if nothing
+  else moves or deletes the tag either.
+- ``publish`` keeps rehearsing - the input defaults to false - until the required
+  build and gate jobs of #1799 and #1800 sit in front of it through ``needs`` and
+  are green for the exact commit. Flipping the default is the deliberate act, and
+  no offline run can assert that the wiring happened.
 
 The version identities the release tools check are ``VERSION``, its projection
 ``backend/MrMap/version.py``, ``.release-please-manifest.json``, and

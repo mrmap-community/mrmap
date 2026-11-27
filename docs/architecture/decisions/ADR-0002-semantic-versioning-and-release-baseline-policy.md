@@ -209,8 +209,9 @@ gates of #1798 (promotion reconciled with the develop-first policy), #1799
 verification including the oldest supported baseline, and complete promotion
 evidence), #1801 (end-to-end validation of the first `v0.2.0` candidate) and
 #1610 (the release documentation gate). The tooling keeps its refusals while
-those are open: `scripts/release_promotion.py` and `scripts/image_release.py`
-still refuse rolling aliases without a reviewed alias ledger, and
+those are open: `scripts/image_release.py` still refuses rolling aliases
+without a reviewed alias ledger (as does the promotion workflow, which writes
+no alias of any kind), and
 `scripts/release_contract_baseline.json` stays in `pre-baseline` mode until the
 first release's own reviewed pull request replaces it.
 
@@ -228,14 +229,14 @@ rather than disagreeing with a paragraph.
 | V-4 | A `docs`/`chore`-only window prepares no pull request and no version. | `scripts/test_release_planning_synthetic.py`, scenario `docs and chore windows prepare nothing` | pinned |
 | V-5 | A breaking marker below 1.0.0 yields MINOR, never a major. | `scripts/test_release_planning.py` (config key) + `scripts/test_release_planning_synthetic.py` (measured bump) | `0.1.0 → 0.2.0` |
 | V-6 | The classification of a pull request is decidable from its title, and an unknown class is reported unclassifiable. | `.github/workflows/pr-classification.yml`, `scripts/test_pr_classify.py` | strict mode from `STRICT_FROM` |
-| V-7 | No tag and no GitHub release exists on `develop`; the only tag writer is the promotion `finalize` step on `master`, behind the protected `release-stable` environment. | `.github/workflows/release-planning.yml` checks (`skip-github-release`, no `environment:`/`secrets.`/`deploy:` there), `scripts/test_release_promotion.py` | **0 tags, 0 releases** |
-| V-8 | A published tag is never moved: `finalize` refuses when the tag stands elsewhere, refuses a diverged master tree, and refuses to publish before a human merged the candidate. | `scripts/test_release_promotion.py`, `scripts/test_release_lifecycle_dry_run.py` | refusals green |
+| V-7 | No tag and no GitHub release exists on `develop`; the only tag writer is the `publish` job of `.github/workflows/release-promotion.yml`, behind the protected `release-stable` environment, and it tags `master`'s tip and never `develop` (#1798). | `.github/workflows/release-planning.yml` checks (`skip-github-release`, no `environment:`/`secrets.`/`deploy:` there), `scripts/test_release_promotion.py` | **0 tags, 0 releases** |
+| V-8 | A published tag is never moved: `publish` re-reads the tag at the moment of writing and refuses one that stands elsewhere, refuses a `master` that moved after the reviewed merge, and publishes nothing before a human merged the release pull request. | `scripts/test_release_promotion.py`, `scripts/test_release_lifecycle_dry_run.py` | refusals green |
 | V-9 | Rolling aliases are refused while no reviewed alias ledger exists, and no stable version tag moves once written. | `scripts/test_release_promotion.py`, `scripts/test_release_lifecycle_dry_run.py`, `scripts/test_image_release.py` | refused |
 | V-10 | The versioned-docs tag selection documents `vMAJOR.MINOR.PATCH` and stays equal to the machine-readable lifecycle. | `scripts/test_release_lifecycle.py` against `docs/source/conf.py` and `scripts/release_lifecycle.json` | `^v\d+(\.\d+){1,2}$` |
 | V-11 | The upgrade ledger keeps the #1180 boundary: protected nodes exist, no retired app is referenced as an application, marker migration named. | `scripts/release_gates.py upgrade`, `scripts/test_release_gates.py` | ledger committed |
 | V-12 | The contract gate refuses to treat an undeclared `pre-baseline` as an anything-goes window: `reviewed_0_x` plus `declared_on` are required, and `version`/`upgrade` still enforce what a breaking change owes. | `scripts/test_release_gates.py` | enforced |
 | V-13 | The decision audit trail exists on #1578 for Q1..Q6 with the maintainer source recorded, and the register of the ADR page agrees with it. | `scripts/decisions scan --issue 1578` (a human run; the tool verifies `author_association`) | Q1–Q6 Accepted, Q5 qualified |
-| V-14 | Every first-release readiness gate is closed before a tag exists; no recorded answer substitutes for one. | #1798, #1799, #1800, #1801, #1610; promotion `preflight` refuses incomplete evidence | all five open |
+| V-14 | Every first-release readiness gate is closed before a tag exists; no recorded answer substitutes for one. | #1798, #1799, #1800, #1801, #1610; `publish` refuses a release without both image digests and without its reviewed changelog section | all five open |
 
 ## Consequences
 
@@ -284,10 +285,10 @@ by a test that fails when the tool fixes it.
 | #1581 (landed) | `release-please-config.json`, the bump and suppression reading (V-2, V-4, V-5) |
 | #1582 | versioned application images and the deployment manifest for a tag |
 | #1583 (landed) | `scripts/release_gates.py` and the reviewed baseline/ledger files (V-11, V-12) |
-| #1584 (landed) | `scripts/release_promotion.py`, the only tag writer (V-7, V-8, V-9) |
+| #1584 (superseded by #1798) | the promotion orchestrator and the frozen release branch it pushed, removed once the same guarantees lived in `.github/workflows/release-promotion.yml` (V-7, V-8, V-9) |
 | #1585 (landed) | `scripts/release_lifecycle.json`, the versioned-docs tag selection, the operator runbook (V-10) |
 | #1586 (landed) | the offline lifecycle dry run (V-4 … V-9 against synthetic histories) |
-| #1798 | promotion reconciled with the develop-first policy before the first candidate |
+| #1798 (landed) | `.github/workflows/release-promotion.yml`, the only tag writer - `verify` plus `publish` over the reviewed develop -> master merge commit (V-7, V-8, V-9) |
 | #1799 | reproducible candidate image build and digest-based publication |
 | #1800 | verifies the oldest supported upgrade baseline and completes the promotion evidence (V-13 is a precondition, V-14 is its gate) |
 | #1801 | end-to-end validation of the first `v0.2.0` candidate |

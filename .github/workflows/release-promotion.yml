@@ -1,33 +1,73 @@
-# Release promotion (#1584, epic #1577)
+# Release promotion (#1798, epic #1577)
 #
-# The protected path a planned version of develop takes onto master as a
-# stable release. The tool it dispatches, scripts/release_promotion.py, is
-# the brain - five idempotent steps, each its own run, each refusing to
-# repeat or overwrite what is already in place. This workflow is deliberately
-# almost nothing: a human dispatch with a reviewed version, one job behind
-# the `release-stable` environment whose required reviewers ARE the manual
-# approval gate, no scheduled or push trigger that could promote anything on
-# its own.
+# The protected path a planned version of develop takes onto master as a stable
+# release, in the primitives GitHub Actions already has: two jobs, `needs`, one
+# `concurrency` group, one protected environment, plain `git` and `gh`. No
+# promotion tool, no state between runs, no orchestrator — the run list is the
+# record, and re-running the workflow is the retry story.
 #
-# Two facts an operator must know before the first run:
+# WHY THERE IS NO ORCHESTRATOR (the acceptance criteria of #1798)
 #
-#   * The environment must EXIST before this workflow is first used, created
-#     by an administrator with "required reviewers" set, because GitHub
-#     auto-creates a referenced-but-missing environment UNPROTECTED on the
-#     first run. The dispatch answer that reveals the gap: Settings ->
-#     Environments -> release-stable must name at least one required
-#     reviewer before any mode is dispatched.
-#   * GITHUB_TOKEN pushes of tags emit no workflow_run/workflow_dispatch
-#     events, so nothing here may hinge on the tag the finalize step pushes;
-#     the release body, the digests and the attestation are all written in
-#     the SAME run that pushes the tag, and the planner re-anchors on the tag
-#     itself (docs/source/development/release-planning.rst), not on an event.
+#   * one dispatch answers and, when approved, publishes, so nothing sits
+#     half-done waiting for a later dispatch. `verify` decides one question about
+#     one commit and `publish` consumes its answer through `needs`;
+#   * the facts that decide publication are GitHub's own facts, read through
+#     `gh`: the reviewed release pull request into master is MERGED, and master's
+#     tip IS that pull request's merge commit. Nothing is remembered anywhere, so
+#     nothing can go stale — which is what a state machine had to keep
+#     reconciling;
+#   * a required check cannot be bypassed, because the only way a pull request
+#     becomes merged is through branch protection, which refuses the merge while
+#     a required check is missing, pending or red. `merged` with a `mergeCommit`
+#     therefore IS the evidence that the candidate was tested, and this workflow
+#     re-implements none of it. Binding the specific job names and the built
+#     image digests to that commit is #1800, and the build that produces them is
+#     #1799;
+#   * approval is the environment, and the environment covers the one job that
+#     writes. Splitting the write across jobs would mean either an approval per
+#     job (a person clicking twice for one act) or a job that writes without one.
 #
-# `evidence` and `preflight` are deliberately NOT modes here: they consume
-# what release-gates.yml produces (gate report artifacts, CI conclusions) and
-# belong where those run; the attestation file they print is an INPUT to
-# finalize (the operator pastes its path), and finalizing without one still
-# publishes digests, so the audit trail names what was attested where.
+# WHAT WAS MEASURED, AND WHY `verify` IS A STEP AND NOT release-please
+#
+# release-please's own `github-release` command is the supported way to turn a
+# merged release pull request into a tag and a release, and it was rehearsed here
+# end to end before deciding (docs/source/development/release-promotion.rst,
+# "What the rehearsal measured"). Two upstream facts make it unusable for this
+# repository:
+#
+#   * it creates the tag on the release pull request's BASE branch — `develop`,
+#     because #1581 plans on develop — so it can only tag develop, which is the
+#     one thing #1577 and #1581 forbid. Measured: `--target-branch master` finds
+#     no releases to build and POSTs no ref, because master carries no release
+#     pull request of its own;
+#   * with `skip-github-release: true`, which #1581 sets precisely so develop
+#     stays tag-free, it builds no release at all. Measured: 0 refs and 0
+#     releases POSTed for a merged release pull request.
+#
+# So the tag and the release are written here with `git tag` and
+# `gh release create`, standing on the commit `verify` proved. Everything else
+# stays upstream's and people's: the plan, the version, the changelog, the
+# release pull request, the merge.
+#
+# TWO FACTS AN OPERATOR MUST KNOW BEFORE THE FIRST RUN
+#
+#   * the environment must EXIST before this workflow is first used, created by
+#     an administrator with "required reviewers" set, because GitHub auto-creates
+#     a referenced-but-missing environment UNPROTECTED on the first run. Settings
+#     → Environments → release-stable must name at least one required reviewer;
+#   * `GITHUB_TOKEN` pushes of tags emit no workflow_run or workflow_dispatch
+#     event, so nothing may hinge on catching the tag later: the release body and
+#     its digests are written in the same run that pushes the tag, and the planner
+#     re-anchors on the tag itself (release-planning.rst), not on an event.
+#
+# PUBLISHING STAYS DISABLED UNTIL THE GATES ARE WIRED (#1799, #1800)
+#
+# `publish` defaults to false, which makes the approved job a rehearsal: it prints
+# the tag and the release body it would write and writes nothing. Flipping it is
+# the deliberate act that turns publication on, and it belongs to the run where
+# every required build and gate job of #1799/#1800 sits in front of `publish` via
+# `needs` and is green for this exact commit. Until then a green run here means
+# "the rehearsal passed", never "a release exists".
 #
 # Design and the measurements behind it:
 # docs/source/development/release-promotion.rst
@@ -36,63 +76,299 @@ name: Release promotion
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: "promotion step to run"
-        required: true
-        type: choice
-        options: [plan, status, gate, open-release-pr, finalize, sync]
       version:
-        description: "the reviewed version, e.g. 0.2.0 (empty = VERSION of the candidate)"
-        required: false
+        description: "the reviewed version, e.g. 0.2.0 (what the merged release PR prepared)"
+        required: true
         type: string
-      sha:
-        description: "candidate sha on develop (empty = current develop tip)"
+      publish:
+        description: >-
+          write the tag and the GitHub release. false (the default) rehearses: the
+          approved job prints what it would write and writes nothing. Flip this
+          only once the build and gate jobs of #1799/#1800 are wired in front of
+          publish and green for this exact commit.
         required: false
-        type: string
+        type: boolean
+        default: false
       artifacts:
-        description: "for finalize: name=sha256:<64 hex> lines, one per first-party image"
+        description: >-
+          for the release body: name=sha256:<64 hex> lines, one per first-party
+          image, as #1799's build job outputs them
+        required: false
+        type: string
+  # The same two jobs as an ordinary callable workflow, so the documentation
+  # automation (#1609) and the gate wiring (#1800) consume one mechanism and
+  # never a second copy of it. Job outputs are the interface; nothing is
+  # written to disk and nothing is read back from a previous run.
+  workflow_call:
+    inputs:
+      version:
+        description: "the reviewed version, e.g. 0.2.0"
+        required: true
+        type: string
+      publish:
+        description: "write the tag and the release; false rehearses"
+        required: false
+        type: boolean
+        default: false
+      artifacts:
+        description: "name=sha256:<64 hex> lines for the release body"
         required: false
         type: string
 
-# One promotion runs at a time, and a re-dispatch never cancels the run that
-# may already have pushed a tag (serialized concurrency of the acceptance
-# criteria).
+# One promotion at a time, and a re-dispatch never cancels the run that may
+# already have pushed a tag: cancel-in-progress is off, so a second approval
+# queues behind the first instead of racing it.
 concurrency:
   group: release-promotion
   cancel-in-progress: false
 
+# Nothing gets more than it uses; the publishing job asks for write itself.
 permissions:
   contents: read
 
 jobs:
-  promote:
+  verify:
+    name: verify the reviewed release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      # The one commit every later step is about, and what a person reads off the
+      # run page. Ordinary job outputs — no artifact, no state file.
+      merge_commit: ${{ steps.verify.outputs.merge_commit }}
+      version: ${{ steps.verify.outputs.version }}
+      tag: ${{ steps.verify.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # VERSION is read at the verified commit, and the tag conflict is
+          # answered against the real tag set. A shallow, tagless clone can
+          # answer neither, and answering them wrongly is how a version gets
+          # published twice or a tag gets moved.
+          fetch-depth: 0
+
+      - name: Verify the reviewed release pull request
+        id: verify
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # A prerelease is never a promotion candidate. The grammar is the one
+          # ADR-0002 and the lifecycle registry agree on, and it is checked
+          # before anything is read from GitHub so an rc never reaches the tag
+          # name below and never gets a stable identity.
+          if ! printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$VERSION is not a reviewed MAJOR.MINOR.PATCH version; a prerelease is cut behind its own identity, never promoted to a stable one."
+            exit 1
+          fi
+
+          # The reviewed release pull request is the merged develop -> master PR
+          # (the only head branch-policy.yml admits onto master, #1798). `gh`
+          # answers which one and what its merge commit was, sorted by the merge
+          # time rather than by gh's default listing order; this step asserts the
+          # shape of the answer and invents none of it.
+          ANSWER=$(
+            gh pr list --repo "$GITHUB_REPOSITORY" --base master --head develop \
+              --state merged --json number,mergedAt,mergeCommit --limit 100 \
+              --jq 'map(select(.mergeCommit.oid != null)) | sort_by(.mergedAt) | last
+                    | if . == null then "" else "\(.number) \(.mergeCommit.oid)" end'
+          )
+          read -r PR MERGE_COMMIT <<< "$ANSWER"
+
+          if [ -z "${PR:-}" ] || ! [[ "${MERGE_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::no merged develop -> master release pull request found for ${VERSION}: publish the reviewed release PR first, and only a person may merge it."
+            exit 1
+          fi
+
+          # master's tip must BE that merge commit. A master that moved on its
+          # own — even by another merge — is not the reviewed act, and the tag
+          # must stand on the commit that was tested, not beside it.
+          MASTER=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ -z "$MASTER" ]; then
+            echo "::error::master does not exist; the release branch is cut by a person merging the release pull request."
+            exit 1
+          fi
+          if [ "$MASTER" != "$MERGE_COMMIT" ]; then
+            echo "::error::master's tip ${MASTER:0:12} is not the merge commit ${MERGE_COMMIT:0:12} of release PR #$PR — master moved after the reviewed merge (or a newer merge landed). Nothing here moves master or re-anchors onto it."
+            exit 1
+          fi
+
+          # The reviewed version must be what that commit actually carries.
+          # VERSION is the canonical source (#1579); a version the planner did
+          # not prepare cannot be published under this workflow.
+          git fetch -q origin "refs/heads/master:refs/remotes/origin/master"
+          CARRIED=$(git show "$MERGE_COMMIT:VERSION" | tr -d '[:space:]')
+          if [ "$CARRIED" != "$VERSION" ]; then
+            echo "::error::${MERGE_COMMIT:0:12} carries VERSION ${CARRIED}, not the reviewed ${VERSION}. Dispatch the version the merged release pull request prepared."
+            exit 1
+          fi
+
+          TAG="v$VERSION"
+          # Immutable tag, answered before anything is written and answered from
+          # the remote: the checkout's own tag set is as of the fetch, and a tag
+          # somebody else pushed in the meantime is exactly the conflict this is
+          # here to catch. ^{} asks the remote to peel the tag to its commit, so
+          # an annotated tag is compared by the commit it points at; the fallback
+          # covers a lightweight tag, which has nothing to peel.
+          STANDING=$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)
+          if [ -z "$STANDING" ]; then
+            STANDING=$(git ls-remote origin "refs/tags/$TAG" | cut -f1)
+          fi
+          if [ -n "$STANDING" ]; then
+            if [ "$STANDING" != "$MERGE_COMMIT" ]; then
+              echo "::error::tag $TAG already stands on ${STANDING:0:12}, not on ${MERGE_COMMIT:0:12}. A published tag is never moved; investigate the tag instead of re-running this."
+              exit 1
+            fi
+            echo "tag $TAG already stands on the verified commit"
+          fi
+
+          # The tag name is what the planner re-anchors on (#1581), so a tag
+          # whose shape the planner would not recognise is a bug caught here
+          # rather than a release nobody can find.
+          if ! printf '%s\n' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$TAG is not a vMAJOR.MINOR.PATCH tag; see ADR-0002 and scripts/release_lifecycle.json."
+            exit 1
+          fi
+
+          {
+            echo "merge_commit=$MERGE_COMMIT"
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "verified: release PR #$PR merged as ${MERGE_COMMIT:0:12}, master's tip, VERSION $VERSION, tag $TAG"
+
+  publish:
+    name: publish the reviewed release
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: release-stable
     permissions:
-      # finalize pushes a tag and creates the release; everything else could
-      # do with less, but splitting the permission across modes would mean
-      # splitting the job, and one job is what the environment approval
-      # covers.
+      # The only job that writes: the annotated tag and the GitHub release, both
+      # standing on the commit verify proved.
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          # finalize compares the candidate tree with master's tip; tags are
-          # the planner's anchor. A depth-1 checkout sees neither.
+          # The tag must stand on master's tip and the release body quotes the
+          # changelog of that commit; a depth-1 checkout sees neither the
+          # history nor the existing tags.
           fetch-depth: 0
-      - name: Run the promotion step
+
+      - name: Publish the tag and the GitHub release
         env:
-          MODE: ${{ inputs.mode }}
-          VERSION: ${{ inputs.version }}
-          SHA: ${{ inputs.sha }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          MERGE_COMMIT: ${{ needs.verify.outputs.merge_commit }}
+          TAG: ${{ needs.verify.outputs.tag }}
           ARTIFACTS: ${{ inputs.artifacts }}
+          PUBLISH: ${{ inputs.publish }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          args=(--root . --develop-ref origin/develop --master-ref origin/master)
-          [ -n "$VERSION" ] && args+=(--version "$VERSION" --expect-version "$VERSION")
-          [ -n "$SHA" ] && args+=(--sha "$SHA")
-          if [ "$MODE" = "finalize" ] || [ "$MODE" = "evidence" ]; then
-            while IFS= read -r line; do
-              [ -n "$line" ] && args+=(--artifact "$line")
-            done <<< "$ARTIFACTS"
+          set -euo pipefail
+
+          # Re-read the two facts at the moment of writing, not at the moment
+          # the approval was granted: an approved run may have queued behind
+          # something else, and a tag pushed in the meantime belongs to a
+          # release somebody else already made.
+          MASTER=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ "$MASTER" != "$MERGE_COMMIT" ]; then
+            echo "::error::master's tip ${MASTER:0:12} moved away from the verified ${MERGE_COMMIT:0:12} since the approval. This run publishes nothing; verify the new state and dispatch again."
+            exit 1
           fi
-          python3 scripts/release_promotion.py "$MODE" "${args[@]}"
+          STANDING=$(git ls-remote origin "refs/tags/$TAG^{}" | cut -f1)
+          if [ -z "$STANDING" ]; then
+            STANDING=$(git ls-remote origin "refs/tags/$TAG" | cut -f1)
+          fi
+          if [ -n "$STANDING" ]; then
+            if [ "$STANDING" != "$MERGE_COMMIT" ]; then
+              echo "::error::$TAG was pushed to ${STANDING:0:12} while this run waited. A published tag is never moved."
+              exit 1
+            fi
+          fi
+
+          # One digest per first-party image, or nothing is published. #1799 is
+          # the job that builds and smoke-tests these images and hands their
+          # digests down as job outputs; a release whose body carries no digest
+          # is an audit trail that dead-ends, so this step refuses it rather
+          # than publishing a release nobody can trace to the bytes it shipped.
+          if [ "$PUBLISH" = "true" ]; then
+            for image in mrmap-backend mrmap-frontend; do
+              if ! grep -Eq "^${image}=sha256:[0-9a-f]{64}$" <<< "${ARTIFACTS:-}"; then
+                echo "::error::$image has no sha256:<64 hex> digest in the artifacts input. Publish the images #1799 built from this commit and pass their digests; a stable release is never published without the digest it stands for."
+                exit 1
+              fi
+            done
+          fi
+
+          # The release body is the changelog section of the verified commit
+          # plus the image digests — the audit trail an operator reads, written
+          # in the run that pushes the tag because a GITHUB_TOKEN tag push emits
+          # no event anything could catch later.
+          {
+            git show "$MERGE_COMMIT:CHANGELOG.md" \
+              | awk -v heading="## [$VERSION]" '
+                  index($0, heading) == 1 {keep = 1; print; next}
+                  keep && /^## / {exit}
+                  keep {print}
+                '
+            if [ -n "${ARTIFACTS:-}" ]; then
+              printf '\n### Published images\n\n'
+              printf '%s\n' "$ARTIFACTS" | while IFS= read -r line; do
+                [ -n "$line" ] && printf -- '- `%s`\n' "$line"
+              done
+            fi
+            printf '\nReleased from %s by .github/workflows/release-promotion.yml (reviewed version %s).\n' \
+              "$MERGE_COMMIT" "$VERSION"
+          } > "${RUNNER_TEMP:-/tmp}/release-notes.md"
+
+          # Fail closed on the body. The reviewed notes ARE the release body, so a
+          # verified commit whose changelog has no section for this version means
+          # the planner's entry was lost on the way to master - publishing an
+          # empty body would hide that from every later reader.
+          if ! grep -q "^## \[$VERSION\]" "${RUNNER_TEMP:-/tmp}/release-notes.md"; then
+            echo "::error::CHANGELOG.md at ${MERGE_COMMIT:0:12} carries no '## [$VERSION]' section; the release notes a person reviewed are the release body, so nothing is published without them."
+            exit 1
+          fi
+
+          # What "already published" means is decided here, at the moment of
+          # writing, and never carried in from verify: an approval can sit in the
+          # queue for hours, and a tag somebody pushed in that window is a release
+          # somebody else already made - not a skip this run may complete.
+          if [ -n "$STANDING" ]; then
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "release $TAG and its tag already exist: nothing to do (idempotent rerun)"
+              exit 0
+            fi
+            echo "tag $TAG exists but its release does not; completing the release only"
+            if [ "$PUBLISH" = "true" ]; then
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+                --target "$MERGE_COMMIT" --title "$TAG" \
+                --notes-file "${RUNNER_TEMP:-/tmp}/release-notes.md"
+            else
+              echo "::notice::rehearsal (publish=false): would create release $TAG at ${MERGE_COMMIT:0:12} with the notes below"
+              cat "${RUNNER_TEMP:-/tmp}/release-notes.md"
+            fi
+            exit 0
+          fi
+
+          if [ "$PUBLISH" != "true" ]; then
+            echo "::warning::rehearsal (publish=false): nothing was written. Would push annotated tag $TAG at ${MERGE_COMMIT:0:12} and create its release with the notes below."
+            cat "${RUNNER_TEMP:-/tmp}/release-notes.md"
+            exit 0
+          fi
+
+          # Annotated tag, so the tag object itself carries who released what and
+          # when; lightweight tags carry nothing and are the shape ADR-0002 rules out.
+          git tag -a -m "$TAG" "$TAG" "$MERGE_COMMIT"
+          # --force is deliberately absent: pushing over an existing tag fails
+          # here rather than moving a published release, which is the immutability
+          # rule of #1578/Q1 restated as a command line.
+          git push origin "refs/tags/$TAG"
+
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --target "$MERGE_COMMIT" --title "$TAG" \
+            --notes-file "${RUNNER_TEMP:-/tmp}/release-notes.md"
+
+          echo "published: $TAG at ${MERGE_COMMIT:0:12} and its GitHub release"

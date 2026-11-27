@@ -313,15 +313,16 @@ caught by a machine.
 
 The docs must be attributable to one exact revision, and there is already one
 authority for that: the release promotion path of #1577
-(`scripts/release_promotion.py`, `scripts/release_gates.py`, the
-`release-stable` environment). Documentation does not mint its own identity.
+(`.github/workflows/release-promotion.yml` as reconciled by #1798,
+`scripts/release_gates.py`, the `release-stable` environment). Documentation
+does not mint its own identity.
 
 A documentation run is parameterised by the same tuple #1577 already produces:
 
 | Field | Source | Pinned by this record |
 | --- | --- | --- |
 | `version` | root `VERSION`, projected by the release tooling | yes — the same value as the release |
-| `candidate_sha` | the frozen develop candidate of `open-release-pr` | yes — the documented revision of a develop preview |
+| `candidate_sha` | the merge commit of the reviewed release pull request, as `verify` reports it | yes — the documented revision of a develop preview |
 | `release_sha` | the master commit the tag points at | yes — for stable publication |
 | `artifact_digests` | CI uploads of the tests/Sonar/dependency jobs | consumed, not recomputed |
 | `docs_manifest` | `sha256` over (version, tree, dependency lockfiles, locales, generator version, model id, evidence store digest) | yes |

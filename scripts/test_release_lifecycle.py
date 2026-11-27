@@ -18,6 +18,7 @@ Run from the repository root: `python3 scripts/test_release_lifecycle.py`.
 Exit 0 when every check passes, 1 with the failed ones listed.
 """
 
+import ast
 import json
 import re
 import sys
@@ -51,10 +52,6 @@ def doc_labels():
     return labels
 
 
-def argparse_subcommands(path):
-    return set(re.findall(r'add_parser\("([\w-]+)"', read(path)))
-
-
 def main():
     print("release_lifecycle.json holds against the committed tooling")
     raw = read(LIFECYCLE_PATH)
@@ -77,6 +74,10 @@ def main():
     for phase in life["phases"]:
         for token in re.findall(r"[\w./-]+\.(?:yml|py|md|json|rst)", phase["evidence"]):
             named.add(token)
+        # a phase that names the files its mechanism lives in must not name a
+        # file that has since been removed
+        for token in re.findall(r"[\w./-]+\.(?:py|json)", phase.get("mechanism", "")):
+            named.add(token)
     named.add(life["operator_runbook"]["page"])
     named.add("scripts/image_release.py")
     dev_images = life["channels"]["development"]["images"]["published_by"]
@@ -84,21 +85,58 @@ def main():
     for rel in sorted(named):
         check(f"named file exists: {rel}", (ROOT / rel).is_file())
 
+    # --- the suites run on a plain checkout, so they may import nothing else ----
+    #
+    # check_repo_tooling.sh runs scripts/test_*.py on a runner with no virtualenv
+    # of its own. That is stated in the script's header but enforced nowhere, so
+    # a suite that reaches for a third-party import goes red there while passing
+    # locally: the promotion suites once read their workflow with `import yaml`,
+    # which is no stdlib dependency and absent from the runner - one failed shut,
+    # the other skipped every check and still reported "OK (0/0 checks passed)".
+    # PyYAML was the specific trap; the rule is written for the next one.
+    stdlib = set(sys.stdlib_module_names) | {p.stem for p in (ROOT / "scripts").glob("*.py")}
+    offenders = []
+    for suite in sorted((ROOT / "scripts").glob("test_*.py")):
+        # Top level only. An import inside a function can guard itself - the xml
+        # canary probes lxml behind try/except ImportError and says so out loud -
+        # and that is the right convention. A top-level one cannot, and is what
+        # raises before a single check runs.
+        tree = ast.parse(suite.read_text(encoding="utf-8"), filename=str(suite))
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                roots = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+                roots = [node.module.split(".")[0]]
+            else:
+                continue
+            offenders += [f"{suite.name}: {r}" for r in roots if r not in stdlib]
+    check("every scripts/ suite imports stdlib and scripts/ only",
+          not offenders, str(offenders))
+
     # --- the promotion workflow is what the phases claim -----------------------
     wf = read(PROMOTION_WORKFLOW)
     promote = next(p for p in life["phases"] if p["id"] == "promote")
     check("the dispatch runs behind the declared environment",
           re.search(rf"environment: {re.escape(promote['environment'])}\b", wf),
           promote["environment"])
-    options = re.search(r"options: \[([^\]]*)\]", wf)
-    wf_modes = [m.strip() for m in options.group(1).split(",")] if options else []
-    check("dispatch_modes are exactly the workflow's choices",
-          set(wf_modes) == set(promote["dispatch_modes"]),
-          f"workflow={wf_modes} json={promote['dispatch_modes']}")
-    tool_subs = argparse_subcommands(ROOT / "scripts" / "release_promotion.py")
-    check("every dispatch mode is a real subcommand of the tool",
-          set(promote["dispatch_modes"]) <= tool_subs,
-          f"tool knows {sorted(tool_subs)}")
+    # The lifecycle names the mechanism rather than a mode list: there is no tool
+    # to dispatch any more, so the workflow's own job graph is what has to hold.
+    check("the promotion is one dispatch of jobs wired through needs, not a mode per step",
+          "workflow_dispatch:" in wf and "needs: verify" in wf
+          and "release_promotion.py" not in wf,
+          "no needs edge, or the workflow calls a promotion tool again")
+    # The publish input keeps publication off until #1799/#1800 wire their jobs in
+    # front of it, so its default - not a description that claims it - is what the
+    # lifecycle's "publishing" note depends on.
+    publish_input = re.search(r"^      publish:\n(?:^        .*\n)+", wf, re.MULTILINE)
+    check("the promotion writes with gh and git, and nothing is published by default",
+          "gh release create" in wf and "git tag" in wf
+          and bool(publish_input) and "default: false" in publish_input.group(0),
+          (publish_input.group(0)[-80:] if publish_input else "no publish input"))
+    check("the phase's declared mechanism names the files that actually decide it",
+          all(token in wf or (ROOT / token).exists()
+              for token in re.findall(r"[\w./-]+\.(?:py|json)", promote["mechanism"])),
+          promote["mechanism"])
 
     # --- image promotion is by digest through the committed tool ---------------
     check("image_release.py really carries the --promote path",

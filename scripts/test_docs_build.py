@@ -17,6 +17,14 @@ and a toctree entry carrying the indent the RST form requires inside a fenced
 MyST directive, where that indent becomes part of the document name. All three
 "built successfully".
 
+The last group of checks asks the one question a build cannot ask about itself:
+whether the exit status of the pinned strict build really decides. It builds a
+clean tree and a deliberately broken one against the same Sphinx and the same
+flags the docs job uses, and pins the contrast - the broken tree exits non-zero
+with ``-W`` and exits 0 without it, having written its HTML either way. Those
+checks skip out loud when Sphinx is not installed and fail when
+``MRMAP_DOCS_PYTHON`` names an interpreter that cannot import it.
+
 Run from the repository root: ``python3 scripts/test_docs_build.py``.
 Exit 0 when every check passes, 1 with the failed ones listed.
 """
@@ -24,7 +32,9 @@ Exit 0 when every check passes, 1 with the failed ones listed.
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -37,9 +47,16 @@ EXTENSION = SOURCE / "_ext" / "mrmap_docs.py"
 REQUIREMENTS = ROOT / "backend" / ".requirements" / "docs.txt"
 DOCKERFILE = ROOT / "docker" / "docs" / "Dockerfile"
 READTHEDOCS = ROOT / ".readthedocs.yaml"
+WORKFLOW = ROOT / ".github" / "workflows" / "docs.yml"
 GENERATOR = ROOT / "scripts" / "gen_docs_design.py"
 GENERATED = ("design", "release_notes")
 SKIP_DIRS = {"_ext", "_static", "_templates", "locale", "build", "_build"}
+
+#: The flags the strict build of ``.github/workflows/docs.yml`` runs with, and
+#: the ones the exit-status contract below is demonstrated with. Asserted
+#: against the workflow rather than assumed, because a gate whose flags drifted
+#: from the ones being tested is a gate that stopped meaning something.
+STRICT_FLAGS = ["-b", "html", "-E", "-W", "--keep-going"]
 
 failures: list[str] = []
 
@@ -516,6 +533,167 @@ def test_requirements_are_pinned_and_isolated() -> None:
               all((ROOT / name).is_file() for name in declared), str(declared))
 
 
+# ------------------------------------------------------- the strict build is the gate ---
+def _sphinx_interpreter() -> tuple[str | None, str, bool]:
+    """The interpreter that can run Sphinx, or why this check cannot run.
+
+    Returns ``(interpreter, reason, is_defect)``. The distinction is the point:
+
+    - ``(path, "", False)`` - Sphinx is there, run the checks.
+    - ``(None, reason, False)`` - this host never had Sphinx, so the affected
+      checks skip out loud rather than reporting a broken portal.
+    - ``(None, reason, True)`` - ``MRMAP_DOCS_PYTHON`` named an interpreter and
+      it cannot import Sphinx. That is a defect, not an absent optional tool:
+      the docs job names the venv it installed from the one pin file, and a gate
+      that skipped whenever that venv broke would stop being checked exactly when
+      it started mattering.
+    """
+    named = os.environ.get("MRMAP_DOCS_PYTHON", "").strip()
+    if named:
+        if not Path(named).exists():
+            return None, f"MRMAP_DOCS_PYTHON={named} does not exist", True
+        probe = subprocess.run([named, "-c", "import sphinx"],
+                               capture_output=True, text=True)
+        if probe.returncode != 0:
+            tail = probe.stderr.strip().splitlines()
+            return None, (f"MRMAP_DOCS_PYTHON={named} cannot import sphinx: "
+                          f"{tail[-1] if tail else 'no output'}"), True
+        return named, "", False
+
+    probe = subprocess.run([sys.executable, "-c", "import sphinx"],
+                           capture_output=True, text=True)
+    if probe.returncode == 0:
+        return sys.executable, "", False
+    return None, ("no Sphinx on this interpreter (install "
+                  "backend/.requirements/docs.txt, or name one with "
+                  "MRMAP_DOCS_PYTHON)"), False
+
+
+def _write_fixtures(base: Path) -> tuple[Path, Path]:
+    """A clean tree and a tree with two independent faults, both minimal.
+
+    The faults are the two the portal actually produces: a toctree entry that
+    names no document, and a ``:doc:`` target that resolves to nothing. Two of
+    them, on two pages, so a build that stopped at the first warning would be
+    visible as doing so.
+    """
+    conf = 'project = "gate"\nextensions = []\nexclude_patterns = ["_build"]\n'
+    good = base / "good"
+    bad = base / "bad"
+    for tree in (good, bad):
+        tree.mkdir(parents=True)
+        (tree / "conf.py").write_text(conf, encoding="utf-8")
+        (tree / "page.rst").write_text(
+            "Page\n====\n\nText that references :doc:`page` correctly.\n",
+            encoding="utf-8")
+    (good / "index.rst").write_text(
+        "Gate\n====\n\n.. toctree::\n   :maxdepth: 2\n\n   page\n",
+        encoding="utf-8")
+    (bad / "index.rst").write_text(
+        "Gate\n====\n\n.. toctree::\n   :maxdepth: 2\n\n   page\n   missing\n",
+        encoding="utf-8")
+    (bad / "page.rst").write_text(
+        "Page\n====\n\nSee :doc:`nowhere`.\n", encoding="utf-8")
+    return good, bad
+
+
+def _build(interpreter: str, source: Path, out: Path,
+           flags: list[str]) -> tuple[int, str]:
+    process = subprocess.run([interpreter, "-m", "sphinx", *flags, "-q",
+                              str(source), str(out)],
+                             capture_output=True, text=True, cwd=str(ROOT))
+    return process.returncode, (process.stdout or "") + (process.stderr or "")
+
+
+def test_the_strict_build_is_the_gate() -> None:
+    """The exit status of the pinned strict build decides, and nothing else does.
+
+    Three facts, each one the failure mode the issue's "native exit status is the
+    gate" sentence exists to close, all three demonstrated against the same
+    interpreter and the same flags ``docs.yml`` runs with:
+
+    1. A clean tree exits 0 - the gate is satisfiable, so a red is a real red.
+    2. A broken tree exits non-zero *and* lists both faults, which is ``-W`` and
+       ``--keep-going`` respectively doing their jobs.
+    3. The same broken tree **without** ``-W`` exits 0 and still writes its HTML.
+       That contrast is the whole reason the flag is in the workflow: without it
+       a documentation build publishes quietly broken pages and reports success.
+    """
+    interpreter, why_unavailable, is_defect = _sphinx_interpreter()
+    if interpreter is None:
+        # A named interpreter that cannot import Sphinx is a broken environment,
+        # reported as a failure; an absent optional tool is a reported skip.
+        check("the strict build can run where it was asked to run", not is_defect,
+              why_unavailable)
+        if not is_defect:
+            print(f"SKIP  the strict build exits as the gate ({why_unavailable})")
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        good, bad = _write_fixtures(base)
+        clean_code, clean_out = _build(interpreter, good, base / "out-good",
+                                       STRICT_FLAGS)
+        broken_code, broken_out = _build(interpreter, bad, base / "out-bad",
+                                         STRICT_FLAGS)
+        lenient_code, _lenient_out = _build(
+            interpreter, bad, base / "out-lenient",
+            [flag for flag in STRICT_FLAGS if flag != "-W"])
+        lenient_pages = list((base / "out-lenient").glob("*.html"))
+
+    check("a clean tree builds with exit status 0", clean_code == 0,
+          f"exit {clean_code}: {clean_out[-200:]}")
+    check("a broken tree is refused by the native exit status",
+          broken_code != 0, f"exit {broken_code}: {broken_out[-200:]}")
+    check("the failing build names both faults, not just the first",
+          "missing" in broken_out and "nowhere" in broken_out
+          and broken_out.count("WARNING") >= 2,
+          broken_out[-300:])
+    check("-W is load-bearing: the same broken tree passes without it",
+          lenient_code == 0 and len(lenient_pages) > 0,
+          f"exit {lenient_code}, {len(lenient_pages)} page(s) written")
+
+
+def test_ordinary_checks_stay_targeted_and_publish_nothing() -> None:
+    """An ordinary pull request checks the documentation; it does not ship it.
+
+    #1589 is explicit that publication is not here and that no heavy docs job
+    belongs in ordinary development: the portal is built and uploaded as a
+    reviewable artifact, linkcheck is reported rather than gated (an upstream 500
+    must not refuse a pull request that never touched the page quoting it), and
+    nothing deploys. Those boundaries are one deleted line each, so they are held
+    rather than trusted.
+    """
+    workflow = read(WORKFLOW)
+    strict_step = [line for line in workflow.splitlines() if "-m sphinx" in line]
+    check("the workflow builds the portal strictly, with -W --keep-going",
+          any("-W" in line and "--keep-going" in line for line in strict_step),
+          "; ".join(strict_step) or "no sphinx invocation found")
+    check("linkcheck cannot refuse a pull request (informational only)",
+          "continue-on-error: true" in workflow
+          and "-b linkcheck" in workflow,
+          "linkcheck must stay reported, not gated")
+    publishable = [needle for needle in
+                   ("actions/deploy-pages", "upload-pages-artifact",
+                    "sphinx-multiversion", "docker build", "rsync",
+                    "gh-pages")
+                   if needle in workflow]
+    check("no ordinary pull request publishes a site", not publishable,
+          ", ".join(publishable))
+    check("the docs job needs no credentials, database or container",
+          "secrets." not in workflow and "docker compose" not in workflow
+          and "POSTGRES" not in workflow,
+          "the docs environment is the one pin file")
+    # The demonstration of the exit-status contract needs the pinned interpreter,
+    # and the suite runs under the runner's plain python. Without this line in the
+    # workflow those checks skip in CI while every local run says green, which is
+    # how a gate goes unsurveyed without anyone deciding to remove it.
+    check("the docs job hands the suite the pinned interpreter",
+          re.search(r"^\s*MRMAP_DOCS_PYTHON:\s*\S", workflow, re.MULTILINE)
+          is not None,
+          "the exit-status demonstration would skip in CI")
+
+
 def main() -> int:
     test_generated_pages_match_the_generator()
     test_every_authored_note_is_rendered_exactly_once()
@@ -531,6 +709,8 @@ def main() -> int:
     test_configuration_holds_the_contracts_the_pages_depend_on()
     test_hosting_is_managed_and_the_force_push_publisher_stays_gone()
     test_requirements_are_pinned_and_isolated()
+    test_the_strict_build_is_the_gate()
+    test_ordinary_checks_stay_targeted_and_publish_nothing()
     print(f"\n{len(failures)} failed of the checks above" if failures
           else "\nall checks passed")
     return 1 if failures else 0

@@ -14,8 +14,8 @@ The contribution loop
 =====================
 
 1. A human or external coordinator explicitly assigns one worker. Check native
-   issue dependencies, assignees, linked branches/PRs and outstanding legacy
-   claims before starting. Keep the single-worker model; if ownership conflicts,
+   issue dependencies, assignees, linked branches/PRs and open Draft PRs before
+   starting. Keep the single-worker model; if ownership conflicts,
    ask the owners on the issue. Assignees and dependencies are planning signals,
    not atomic locks or automatic merge gates. Approval and pause labels remain
    human-owned during transition.

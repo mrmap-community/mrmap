@@ -55,8 +55,9 @@ Three facts about that environment are deliberate and worth keeping:
   contributor's venv be three builds of one environment.
 - **It is offline.** No renderer is fetched over the network during a build. See
   :ref:`docs-portal-diagrams`.
-- **It is pinned, transitively.** The ADR-0001 gate V-11 is "the committed pins
-  build"; an unpinned transitive upgrade cannot move under a pinned Sphinx again.
+- **It is pinned, transitively.** The committed pins are what the build is
+  expected to run from, transitive dependencies included, so an unpinned
+  transitive upgrade cannot move under a pinned Sphinx again.
 
 Strictness
 ==========
@@ -305,10 +306,11 @@ What is deliberately absent
 
 - **Publishing.** No deployment, no gh-pages push, no artifact uploaded to a
   registry, and no publisher script of our own. Hosting is Read the Docs and its
-  configuration: :doc:`documentation-hosting` (#1608, #1609).
+  configuration: :doc:`documentation-hosting` (#1608, #1609). The strict build
+  here is the gate a release consumes, not the thing that ships a site.
 - **Screenshots of a running instance and behavioural claims about one.** Those
-  need a stack and browser evidence; #1601 and #1602 own them and the portal
-  declares them as stubs rather than writing prose that looks like a test result.
+  need a stack and browser evidence; #1602 owns them and the portal declares them
+  as stubs rather than writing prose that looks like a test result.
 - **The Python reference content itself.** Under the offline default it is a
   placeholder naming the module - see :ref:`docs-portal-autodoc`.
 - **Translations.** The corpus is English; ``sphinx-intl`` has no catalogues to

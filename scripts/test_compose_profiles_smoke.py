@@ -62,6 +62,8 @@ COREISH = {"postgis": {"image": "postgis/postgis", "restart": "unless-stopped"},
                         "logging": {"driver": "syslog", "options": {
                             "syslog-address": "udp://127.0.0.1:5514"}}},
            "victoria-logs": {"image": "example/vl", "restart": "unless-stopped"},
+           "victoria-metrics": {"image": "example/vm", "restart": "unless-stopped"},
+           "victoria-traces": {"image": "example/vt", "restart": "unless-stopped"},
            "grafana": {"image": "example/grafana"},
            "pgadmin": {"image": "example/pgadmin"},
            "flower": {"image": "example/flower"}}
@@ -84,6 +86,8 @@ def lightweight_like():
     capped."""
     services = {name: dict(body) for name, body in COREISH.items()}
     services["victoria-logs"]["profiles"] = ["observability"]
+    services["victoria-metrics"]["profiles"] = ["observability"]
+    services["victoria-traces"]["profiles"] = ["observability"]
     services["grafana"]["profiles"] = ["observability"]
     services["pgadmin"]["profiles"] = ["admin"]
     services["flower"]["profiles"] = ["admin"]
@@ -125,13 +129,19 @@ def active_set_checks():
     check("a profiled service does not run without its profile",
           not any(name in running
                   for name in ("grafana", "pgadmin", "flower", "victoria-logs",
+                               "victoria-metrics", "victoria-traces",
                                "behave")),
           f"got {sorted(running)}")
     check("one active profile brings exactly its own tier",
           smoke.active_services(lite, ("admin",))
           == smoke.active_services(lite) | {"pgadmin", "flower"})
+    check("the observability profile brings the whole observer fleet of #1778",
+          smoke.active_services(lite, ("observability",))
+          == smoke.active_services(lite)
+          | {"victoria-logs", "victoria-metrics", "victoria-traces", "grafana"})
     check("several profiles bring the union of their tiers",
-          {"grafana", "flower", "pgadmin", "victoria-logs"}.issubset(
+          {"grafana", "flower", "pgadmin", "victoria-logs",
+           "victoria-metrics", "victoria-traces"}.issubset(
               smoke.active_services(lite, ("admin", "observability"))))
     check("an unrelated profile activates nothing",
           smoke.active_services(lite, ("nosuch",)) == smoke.active_services(lite))
@@ -143,6 +153,9 @@ def classification_checks():
           f"{smoke.TIERS}")
     check("the core tier is exactly the services which must come back after a reboot",
           smoke.CORE == frozenset(smoke.ALWAYS_ON), f"{smoke.CORE}")
+    check("both OpenTelemetry stores of #1778 sit in the observability tier",
+          {"victoria-metrics", "victoria-traces"} <= set(smoke.TIERS["observability"]),
+          f"{smoke.TIERS['observability']}")
     check("the testing tier holds the one-off check containers of the dev file",
           set(smoke.TIERS["testing"]) == {"pre-commit-check", "behave",
                                           "django-tests", "frontend-tests"})
@@ -219,8 +232,8 @@ def policy_checks():
 
 
 def tiered_combination(**overrides):
-    """A lightweight combination with both observer tier switched on, so the
-    four capped services are part of the active set."""
+    """A lightweight combination with both observer tier switched on, so every
+    capped service is part of the active set."""
     combo = lite_combination(
         profiles=("observability", "admin"),
         expect=smoke.CORE | frozenset(smoke.TIERS["observability"])
@@ -237,7 +250,7 @@ def full_combination(**overrides):
 
 
 def ceiling_checks():
-    """The memory ceilings of #1622: the lightweight mode bounds the four
+    """The memory ceilings of #1622 and #1778: the lightweight mode bounds the
     observers, the full mode bounds nothing, and a bound nobody can read is
     never a pass."""
     check("docker memory values and the un-interpolated compose default are "

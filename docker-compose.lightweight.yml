@@ -30,14 +30,18 @@
 #
 # THE THREE TIER THIS FILE GATES
 #
-#   observability   victoria-logs, grafana
-#                   The log store and its UI. Without them the application's own
-#                   syslog handler is skipped by settings.py (its DNS lookup of
-#                   `victoria-logs` fails and it says so on stdout, and warns
-#                   through the fallback of system/logging/fallback.py), which is
-#                   the fallback #1614 relies on: the application starts and
-#                   logs to its console either way.
-#                   When the tier IS layered back on, #1622 gives these two and
+#   observability   victoria-logs, victoria-metrics, victoria-traces, grafana
+#                   The log store, the two OpenTelemetry stores of #1778 and
+#                   their UI. Without them the application's own syslog handler
+#                   is skipped by settings.py (its DNS lookup of `victoria-logs`
+#                   fails and it says so on stdout, and it warns through the
+#                   fallback of system/logging/fallback.py), which is the
+#                   fallback #1614 relies on: the application starts and logs to
+#                   its console either way. The two stores of #1778 are the same
+#                   kind of observer - nothing in the core depends on them, so
+#                   no `depends_on` edge points at them anywhere and the
+#                   deployment starts, serves and logs with them switched off.
+#                   When the tier IS layered back on, #1622 gives these and
 #                   the two admin UIs below a memory ceiling each - see
 #                   "THE CEILINGS OF THE TIER" below.
 #   admin           pgadmin, flower
@@ -67,31 +71,41 @@
 #                             exact dependency of the suites which assert OGC
 #                             responses), started by name where it is needed
 #
-# THE CEILINGS OF THE TIER (#1622)
+# THE CEILINGS OF THE TIER (#1622, extended by #1778)
 #
-# The four services of the observability and admin tier carry a memory ceiling
+# The services of the observability and admin tier carry a memory ceiling
 # here which `docker-compose.yml` does not give them: the full deployment keeps
 # its uncapped contract, a deployment which layers this file and then switches
 # a tier back on runs that tier bounded. The numbers are the committed p50 of
 # #1613 rounded up with headroom - grafana 345 M anon under a 1 G limit,
 # pgadmin 231 M under 512 M, flower 50 M under 256 M, victoria-logs 39 M under
 # 256 M - so a hit means a leak or an oversized deployment, never a normal
-# query. A container which crosses its `mem_limit` is OOM-killed and, carrying
+# query. The two stores of #1778 have no #1613 baseline of their own: their
+# ceilings are the starting budgets of ADR-0003, sized so a healthy store inside
+# its retention window does not reach them, and they are the first thing to
+# re-measure when #1780 runs the matched workload. A container which crosses its
+# `mem_limit` is OOM-killed and, carrying
 # `restart: unless-stopped`, comes back; `docker events` and the restart count
 # of `docker inspect` are loud about it. It is not a silent degradation: this
 # tier is a pure observer, so bounding it cannot drop application data.
 # grafana's measured 1958 M charge needs no room in the number because ~82 %
 # of it is page cache, which cgroup v2 reclaims at the limit instead of
 # killing for. Each ceiling is overridable per .env (GRAFANA_MEM_LIMIT,
-# PGADMIN_MEM_LIMIT, FLOWER_MEM_LIMIT, VICTORIA_LOGS_MEM_LIMIT), mirroring
+# PGADMIN_MEM_LIMIT, FLOWER_MEM_LIMIT, VICTORIA_LOGS_MEM_LIMIT and - since
+# #1778 - VICTORIA_METRICS_MEM_LIMIT and VICTORIA_TRACES_MEM_LIMIT), mirroring
 # REDIS_MAXMEMORY of #1618: the right bound depends on the host, the value
 # here is the shipping default. `mem_reservation` is deliberately NOT set: a
 # soft reservation would keep charging the host for a tier which may be idle
 # for days, which is the opposite of the point.
 #
-# scripts/compose_profiles_smoke.py checks that all four carry a ceiling in
-# every lightweight combination, that the full mode carries none of them, and
-# that the values stay inside the documented bounds.
+# Retention bounds time, memory bounds a process: neither bounds bytes on disk.
+# Each store of #1778 therefore also carries a byte bound of its own in
+# `docker-compose.yml`, and `scripts/otlp_storage_smoke.py` is the check which
+# refuses one which has gone missing or unreadable.
+#
+# scripts/compose_profiles_smoke.py checks that every one of them carries a
+# ceiling in every lightweight combination, that the full mode carries none of
+# them, and that the values stay inside the documented bounds.
 #
 # THE TWO LINES WHICH ARE NOT ABOUT PROFILES
 #
@@ -124,8 +138,10 @@
 # already runs the tier keeps running it after the file is layered - take it
 # down deliberately, and only in your own project:
 #
-#   docker compose stop grafana pgadmin flower victoria-logs
-#   docker compose rm -f grafana pgadmin flower victoria-logs
+#   docker compose stop grafana pgadmin flower victoria-logs \
+#     victoria-metrics victoria-traces
+#   docker compose rm -f grafana pgadmin flower victoria-logs \
+#     victoria-metrics victoria-traces
 #
 # DOCKER COMPOSE VERSION
 #
@@ -138,13 +154,25 @@
 services:
 
   # --- observability tier ------------------------------------------------
-  # The log store and its UI. See the header for the two consequences: the
-  # application's syslog handler falls back to its console, and the container
-  # logs of postgis/frontend stay local. Both carry a memory ceiling here and
-  # nowhere else - see "THE CEILINGS OF THE TIER" in the header.
+  # The log store, the two OpenTelemetry stores of #1778 and their UI. See the
+  # header for the two consequences: the application's syslog handler falls back
+  # to its console, and the container logs of postgis/frontend stay local. All
+  # five carry a memory ceiling here and nowhere else - see "THE CEILINGS OF THE
+  # TIER" in the header. The two stores of #1778 belong to this tier and not to
+  # one of their own: they are the same kind of pure observer (nothing in the
+  # application depends on them), and one `--profile observability` then brings
+  # the whole observer fleet up rather than half of it.
   victoria-logs:
     profiles: [observability]
     mem_limit: ${VICTORIA_LOGS_MEM_LIMIT:-256m}
+
+  victoria-metrics:
+    profiles: [observability]
+    mem_limit: ${VICTORIA_METRICS_MEM_LIMIT:-512m}
+
+  victoria-traces:
+    profiles: [observability]
+    mem_limit: ${VICTORIA_TRACES_MEM_LIMIT:-512m}
 
   grafana:
     profiles: [observability]

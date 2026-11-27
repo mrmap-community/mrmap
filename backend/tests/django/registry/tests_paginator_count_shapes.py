@@ -36,6 +36,8 @@ from registry.models.service import WebMapService
 
 from tests.django.registry.tests_query_performance import (
     QueryMeasurementMixin, table_counter)
+from tests.django.registry.tests_service_alerts import \
+    ServiceDetailAlertScanTest
 
 #: the tables the alert derivation is built from - none of them belongs in a
 #: COUNT which only answers the number of services or of stored alert rows
@@ -141,31 +143,75 @@ class AlertCountShapeTest(QueryMeasurementMixin, TestCase):
             'the alert filter lost the stored rows which answer the meaning '
             f'of the filter: {counts[0][:400]}')
 
+    def seed_stored_alert(self, alert_id, service, category='monitoring_failed'):
+        """One stored alert row of a service, as the refresh writes it.
+
+        The condition of `filter[has_alert]` reads the rows which
+        `refresh_service_alerts()` writes (#1824), so the tile request below is
+        measured against a deployment whose refresh ran: a seed of the rows is
+        what beat and the invalidations leave behind, and it is what makes both
+        arms of the request answer rows.
+        """
+        return ServiceAlert.objects.update_or_create(
+            id=alert_id,
+            defaults=dict(
+                severity='error',
+                category=category,
+                message=f'agent {alert_id}',
+                service_type='WebMapService',
+                service=service,
+                service_title='WMS of #1824',
+                resource_type='WebMapServiceMonitoringRun',
+                resource_id='1',
+                target_path=f'/WebMapService/{service}/show/MonitoringSetting'))
+
     def test_the_alert_filter_of_a_one_row_page_asks_no_derivation(self):
         """The request the alert tiles of a service list send (#1824).
 
-        `page[size]=1` with `fields[WebMapService]=id` is what the tiles above
-        every service list ask - twice, once per state. Neither the COUNT nor
-        the page of that answer may carry the derivation: the 5.5 s the live
-        rig measured for it belonged to the COUNT of this request.
+        `page[size]=1` with `fields[WebMapService]=id` is what the two tiles
+        above every service list ask - once per state. The 5.5 s the live rig
+        measured for it belonged to the COUNT of this request, so neither that
+        COUNT nor the statement which slices the page may carry the
+        derivation: the condition asks the stored rows instead. Both arms are
+        measured, because `=true` matching nothing had to cost what `=false`
+        matching the whole table cost - the tell that the derivation was
+        unscoped.
         """
-        for value in ('true', 'false'):
-            _status, _body, queries = self.request(
+        self.seed_stored_alert('1824-tile-wms-one', WMS_ONE)
+        for value, expected in (('true', [WMS_ONE]),
+                                ('false', [WMS_TWO])):
+            _status, body, queries = self.request(
                 '/api/registry/wms', user='user',
-                **{'page[size]': '1',
+                **{'page[size]': '1', 'sort': '-id',
                    'fields[WebMapService]': 'id',
                    'filter[has_alert]': value})
             self.assertEqual(
-                len(count_statements(queries, 'registry_webmapservice')), 1)
-            for sql in count_statements(queries, 'registry_webmapservice') \
-                    + page_statements(queries, 'registry_webmapservice'):
-                for table in DERIVATION_TABLES:
-                    self.assertNotIn(
-                        table, sql.lower(),
-                        msg=f'filter[has_alert]={value} derives the attention '
-                            f'over the service table (names {table}): '
-                            f'{sql[:400]}')
-                self.assertIn('registry_servicealert', sql.lower())
+                sorted(self.ids_of(body)), sorted(expected),
+                f'filter[has_alert]={value} answers another page than the '
+                'stored rows of the alerts decide')
+            counts = count_statements(queries, 'registry_webmapservice')
+            self.assertEqual(
+                len(counts), 1,
+                f'filter[has_alert]={value} asked {len(counts)} COUNT '
+                'statements of the service table')
+            self.assertNoDerivation(counts)
+            self.assertIn(
+                'registry_servicealert', counts[0].lower(),
+                'the COUNT of the tile request lost the stored rows which '
+                f'answer the filter: {counts[0][:400]}')
+            # the COUNT is the one statement of a request which reads the
+            # whole service table - everything else is bounded by its page.
+            # Unbounded *and* deriving was exactly the 5.5 s of #1824.
+            unbounded = [
+                read for read in ServiceDetailAlertScanTest.outer_reads(
+                    queries.captured_queries, 'registry_webmapservice')
+                if 'LIMIT' not in read.upper()
+                and '"registry_webmapservice"."id" IN' not in read]
+            self.assertEqual(
+                len(unbounded), 1,
+                msg=f'besides its COUNT, filter[has_alert]={value} reads the '
+                    f'service table without bounding to the page: {unbounded}')
+            self.assertIn('count', unbounded[0].lower())
 
 
 class ServiceAlertListCountShapeTest(QueryMeasurementMixin, TestCase):

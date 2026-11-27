@@ -1826,6 +1826,43 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
                 msg=f"the COUNT evaluates the attention although no "
                     f"filter of the request names it: {counts[0][:400]}")
 
+    def test_the_alert_tiles_count_the_number_the_annotations_answer(self):
+        """The tiles above a list count what the attention really decides.
+
+        The two tiles of every service list ask `filter[has_alert]` with the
+        sparsest fieldset the api answers and show the pagination count of
+        that answer. Since #1824 the condition reads the stored rows of the
+        alerts instead of deriving over the service table, so the number a
+        tile shows must stay the number the plain annotations answer - only
+        its cost may have changed. `ServiceAlertRowsParityTest` pins the
+        stored rows against the very annotations they are written from; this
+        pins the count a client actually reads, of both arms and of the
+        catalogue whose attention also answers the state of its harvesting.
+        """
+        for route, model, resource in (
+                ("registry:wms-list", WebMapService, "WebMapService"),
+                ("registry:csw-list", CatalogueService, "CatalogueService")):
+            population = {str(service.pk) for service in model.objects.all()}
+            self.assertTrue(population, f"{model.__name__} answers no service")
+            attention = {str(service.pk) for service in model.objects.all()
+                         if self.alerts(service).has_alert}
+            for value, expected in (("true", attention),
+                                    ("false", population - attention)):
+                response = self.client.get(
+                    reverse(route),
+                    {"page[size]": "1",
+                     f"fields[{resource}]": "id",
+                     "filter[has_alert]": value},
+                    HTTP_ACCEPT=JSONAPI)
+                self.assertEqual(response.status_code, 200, response.content)
+                self.assertEqual(
+                    response.json()["meta"]["pagination"]["count"],
+                    len(expected),
+                    msg=f"the tile of {model.__name__} with "
+                        f"filter[has_alert]={value} counts another number "
+                        f"than the attention answers; the annotations decide "
+                        f"{sorted(expected)}")
+
     def test_an_alert_filter_still_decides_the_page(self):
         """The mask keeps the attention selectable where it was applied.
 
@@ -1932,6 +1969,139 @@ class ServiceListAlertScanTest(ServiceAlertsMixin, TestCase):
                     f"pages of the kind keep paying their derivation")
 
 
+#: the scale of the measured live rig of #1308, which `seed_alert_scale()`
+#: reproduces: map services and the monitoring runs each of them answers
+SERVICES = 14189
+RUNS_PER_SERVICE = 19
+
+
+def seed_alert_scale(case):
+    """Seed the scale of the measured live rig; answer (services, runs).
+
+    The fixture both alert benchmarks measure against: 14,189 map services
+    (the count of the measured live rig) on the PostGIS of the development
+    stack, one monitoring setting (as two tables, like every real setting)
+    and 19 monitoring runs with their probe results per service (about
+    270,000 seeded rows), seeded with set-based SQL over the row shapes the
+    ORM creates, then ANALYZE. `case` is the test which asks for it: the
+    runs and jobs of the fixture are created through its helpers.
+    """
+    # the row shapes the seed copies: one setting and one run as the ORM
+    # creates them, including the probe result of the run. The callback
+    # which dispatches the run to a worker is dropped - a
+    # `TransactionTestCase`, which both benchmarks are, has no
+    # `captureOnCommitCallbacks()` to capture it with - because they measure
+    # reads, they never monitor anything.
+    with patch("django.db.transaction.on_commit"):
+        setting = case.monitoring_setting(case.wms_one)
+        template_run = case.monitoring_run(setting, True, hours_ago=1)
+    with connections["default"].cursor() as cursor:
+        # services: every column of the fixture service, its own id,
+        # title and url - the seed is data, not an import, so history
+        # and triggers of the ORM path are no part of it
+        cursor.execute("""
+            INSERT INTO registry_webmapservice
+            SELECT (SELECT
+                        jsonb_populate_record(
+                            NULL::registry_webmapservice,
+                            (to_jsonb(s) - 'id' - 'title' - 'service_url'
+                             || jsonb_build_object(
+                                    'id', gen_random_uuid(),
+                                    'title', 'Bench WMS ' || g,
+                                    'service_url',
+                                    'https://bench.example.de/' || g)))).*
+            FROM registry_webmapservice s, generate_series(1, %s) g
+            WHERE s.id = %s
+        """, [SERVICES - 2, case.wms_one.pk])
+        # the settings inherit django_celery_beat's PeriodicTask over a
+        # parent table - so a seeded setting is two rows: the task (whose
+        # `name` is unique and carries the service id, which is how the
+        # child rows find their parent) and the child row itself. `INSERT
+        # INTO … SELECT` answers no column default, so the id of the task
+        # comes from its own sequence.
+        cursor.execute("""
+            WITH new_tasks AS (
+                INSERT INTO django_celery_beat_periodictask
+                SELECT (SELECT
+                            jsonb_populate_record(
+                                NULL::django_celery_beat_periodictask,
+                                (to_jsonb(t) - 'id' - 'name'
+                                 || jsonb_build_object(
+                                        'id', nextval(
+                                            'django_celery_beat_periodictask'
+                                            '_id_seq'),
+                                        'name', 'bench-' || v.id)))).*
+                FROM django_celery_beat_periodictask t,
+                     registry_webmapservice v
+                WHERE t.id = (SELECT periodictask_ptr_id
+                              FROM registry_webmapservicemonitoringsetting
+                              WHERE service_id = %s)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM registry_webmapservicemonitoringsetting s
+                      WHERE s.service_id = v.id)
+                RETURNING id,
+                          substring(name from '^bench-(.*)$')::uuid
+                              AS service_id
+            )
+            INSERT INTO registry_webmapservicemonitoringsetting
+                (periodictask_ptr_id, service_id)
+            SELECT id, service_id FROM new_tasks
+        """, [case.wms_one.pk])
+        # runs: the row shape of the template run, 19 per seeded setting,
+        # spread over the 30 days of the live rig's run history; the id of
+        # a run is the sequence of its table, its setting the seeded task
+        cursor.execute("""
+            INSERT INTO registry_webmapservicemonitoringrun
+                (date_created, date_done, background_process_id, setting_id)
+            SELECT now() - interval '30 days' + r.n * interval '1 hour',
+                   now() - interval '30 days' + r.n * interval '1 hour',
+                   t.background_process_id,
+                   c.periodictask_ptr_id
+            FROM registry_webmapservicemonitoringsetting c
+            JOIN django_celery_beat_periodictask p
+              ON p.id = c.periodictask_ptr_id
+            CROSS JOIN generate_series(1, %s) r(n)
+            CROSS JOIN registry_webmapservicemonitoringrun t
+            WHERE t.id = %s
+              AND p.name LIKE 'bench-%%'
+              AND NOT EXISTS (
+                  SELECT 1 FROM registry_webmapservicemonitoringrun x
+                  WHERE x.setting_id = c.periodictask_ptr_id)
+        """, [RUNS_PER_SERVICE, template_run.pk])
+        # the probe result of every seeded run - the subqueries of the
+        # monitoring alert look these up per service. Like the task above, the
+        # id comes from the sequence of its table: `INSERT INTO … SELECT`
+        # answers no column default.
+        cursor.execute("""
+            INSERT INTO registry_getcapabilitiesproberesult
+            SELECT (SELECT
+                        jsonb_populate_record(
+                            NULL::registry_getcapabilitiesproberesult,
+                            (to_jsonb(t) - 'id' - 'run_id'
+                             || jsonb_build_object(
+                                    'id', nextval(
+                                        'registry_getcapabilitiesproberesult'
+                                        '_id_seq'),
+                                    'run_id', r.id)))).*
+            FROM registry_getcapabilitiesproberesult t,
+                 registry_webmapservicemonitoringrun r
+            WHERE t.run_id = %s
+              AND NOT EXISTS (
+                  SELECT 1 FROM registry_getcapabilitiesproberesult x
+                  WHERE x.run_id = r.id)
+        """, [template_run.pk])
+        for table in ("registry_webmapservice",
+                      "django_celery_beat_periodictask",
+                      "registry_webmapservicemonitoringrun",
+                      "registry_getcapabilitiesproberesult"):
+            cursor.execute("ANALYZE " + table)
+        cursor.execute(
+            "SELECT (SELECT count(*) FROM registry_webmapservice), "
+            "(SELECT count(*) FROM registry_webmapservicemonitoringrun)")
+        services, runs = cursor.fetchone()
+    return services, runs
+
+
 class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
     """The measured benchmark of the detail request of a service (#1308).
 
@@ -1941,11 +2111,7 @@ class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
     ask for a fixed, documented fixture and a warm median instead of a
     wall-clock threshold on a tiny database.
 
-    The fixture: 14,189 map services (the count of the measured live rig) on
-    the PostGIS of the development stack, one monitoring setting (as two
-    tables, like every real setting) and 19 monitoring runs with their probe
-    results per service (about 270,000 seeded rows), seeded with set-based SQL
-    over the row shapes the ORM creates, then ANALYZE. The measurement: an
+    The fixture is `seed_alert_scale()`. The measurement: an
     admin retrieve of one fixed service, then 25 further retrieves; the
     reported numbers are the median and the p95 of those 25 and the number of
     SQL statements of one warm retrieve. The database is idle besides the
@@ -1963,8 +2129,6 @@ class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
             --noinput --keepdb
     """
 
-    SERVICES = 14189
-    RUNS_PER_SERVICE = 19
     ITERATIONS = int(os.environ.get("MRMAP_ALERT_DETAIL_BENCHMARK_RUNS", "25"))
 
     @skipUnless(
@@ -1973,108 +2137,7 @@ class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
     def test_warm_median_and_statement_count_of_one_detail(self):
         from statistics import median
 
-        # the row shapes the seed copies: one setting and one run as the ORM
-        # creates them, including the probe result of the run. The callback
-        # which dispatches the run to a worker is captured and dropped: this
-        # measures reads, it never monitors anything.
-        with self.captureOnCommitCallbacks():
-            setting = self.monitoring_setting(self.wms_one)
-            template_run = self.monitoring_run(setting, True, hours_ago=1)
-        with connections["default"].cursor() as cursor:
-            # services: every column of the fixture service, its own id,
-            # title and url - the seed is data, not an import, so history
-            # and triggers of the ORM path are no part of it
-            cursor.execute("""
-                INSERT INTO registry_webmapservice
-                SELECT (SELECT
-                            jsonb_populate_record(
-                                NULL::registry_webmapservice,
-                                (to_jsonb(s) - 'id' - 'title' - 'service_url'
-                                 || jsonb_build_object(
-                                        'id', gen_random_uuid(),
-                                        'title', 'Bench WMS ' || g,
-                                        'service_url',
-                                        'https://bench.example.de/' || g))).*
-                FROM registry_webmapservice s, generate_series(1, %s) g
-                WHERE s.id = %s)
-            """, [self.SERVICES - 2, self.wms_one.pk])
-            # the settings inherit django_celery_beat's PeriodicTask over a
-            # parent table - so a seeded setting is two rows: the task (whose
-            # `name` is unique and carries the service id, which is how the
-            # child rows find their parent) and the child row itself. The id
-            # of both stays the tables' own default.
-            cursor.execute("""
-                WITH new_tasks AS (
-                    INSERT INTO django_celery_beat_periodictask
-                    SELECT (SELECT
-                                jsonb_populate_record(
-                                    NULL::django_celery_beat_periodictask,
-                                    (to_jsonb(t) - 'id' - 'name'
-                                     || jsonb_build_object(
-                                            'name', 'bench-' || v.id))).*
-                    FROM django_celery_beat_periodictask t,
-                         registry_webmapservice v
-                    WHERE t.id = (SELECT periodictask_ptr_id
-                                  FROM registry_webmapservicemonitoringsetting
-                                  WHERE service_id = %s)
-                      AND NOT EXISTS (
-                          SELECT 1 FROM registry_webmapservicemonitoringsetting s
-                          WHERE s.service_id = v.id)
-                    RETURNING id,
-                              substring(name from '^bench-(.*)$')::uuid
-                                  AS service_id
-                )
-                INSERT INTO registry_webmapservicemonitoringsetting
-                    (periodictask_ptr_id, service_id)
-                SELECT id, service_id FROM new_tasks
-            """, [self.wms_one.pk])
-            # runs: the row shape of the template run, 19 per seeded setting,
-            # spread over the 30 days of the live rig's run history; the id of
-            # a run is the sequence of its table, its setting the seeded task
-            cursor.execute("""
-                INSERT INTO registry_webmapservicemonitoringrun
-                    (date_created, date_done, background_process_id, setting_id)
-                SELECT now() - interval '30 days' + r.n * interval '1 hour',
-                       now() - interval '30 days' + r.n * interval '1 hour',
-                       t.background_process_id,
-                       c.periodictask_ptr_id
-                FROM registry_webmapservicemonitoringsetting c
-                JOIN django_celery_beat_periodictask p
-                  ON p.id = c.periodictask_ptr_id
-                CROSS JOIN generate_series(1, %s) r(n)
-                CROSS JOIN registry_webmapservicemonitoringrun t
-                WHERE t.id = %s
-                  AND p.name LIKE 'bench-%%'
-                  AND NOT EXISTS (
-                      SELECT 1 FROM registry_webmapservicemonitoringrun x
-                      WHERE x.setting_id = c.periodictask_ptr_id)
-            """, [self.RUNS_PER_SERVICE, template_run.pk])
-            # the probe result of every seeded run - the subqueries of the
-            # monitoring alert look these up per service
-            cursor.execute("""
-                INSERT INTO registry_getcapabilitiesproberesult
-                SELECT (SELECT
-                            jsonb_populate_record(
-                                NULL::registry_getcapabilitiesproberesult,
-                                (to_jsonb(t) - 'id' - 'run_id'
-                                 || jsonb_build_object('run_id', r.id))).*
-                FROM registry_getcapabilitiesproberesult t,
-                     registry_webmapservicemonitoringrun r
-                WHERE t.run_id = %s
-                  AND NOT EXISTS (
-                      SELECT 1 FROM registry_getcapabilitiesproberesult x
-                      WHERE x.run_id = r.id)
-            """, [template_run.pk])
-            for table in ("registry_webmapservice",
-                          "django_celery_beat_periodictask",
-                          "registry_webmapservicemonitoringrun",
-                          "registry_getcapabilitiesproberesult"):
-                cursor.execute("ANALYZE " + table)
-            cursor.execute(
-                "SELECT (SELECT count(*) FROM registry_webmapservice), "
-                "(SELECT count(*) FROM registry_webmapservicemonitoringrun)")
-            services, runs = cursor.fetchone()
-
+        services, runs = seed_alert_scale(self)
         url = reverse("registry:wms-detail", kwargs={"pk": WMS_ONE})
         for _ in range(3):  # warm-up: plan cache and relation caches
             self.assertEqual(self.client.get(
@@ -2102,6 +2165,97 @@ class ServiceDetailAlertBenchmark(ServiceAlertsMixin, TransactionTestCase):
             f"median_s={median(durations):.3f} p95_s={p95:.3f} "
             f"statements={len(queries.captured_queries)} "
             f"service_table_reads={len(outer)} reads_narrowed={narrowed}",
+            flush=True)
+
+
+class ServiceAlertTileBenchmark(ServiceAlertsMixin, TransactionTestCase):
+    """The measured benchmark of the alert tiles of a service list (#1824).
+
+    NOT A CI TEST - it is skipped unless the environment names it, because it
+    measures seconds and not shapes; the shape the measurement relies on is
+    guarded by `ServiceListAlertScanTest` and by
+    `AlertCountShapeTest.test_the_alert_filter_of_a_one_row_page_asks_no_derivation`
+    in every run.
+
+    The fixture is `seed_alert_scale()`, plus one update
+    job which waits and the stored rows of the alerts - a deployment whose
+    refresh ran, which is the state the condition of `filter[has_alert]` reads
+    since #1824. The measurement: the request the shipped tiles send,
+    `page[size]=1` with the sparsest fieldset of the resource, once per state
+    of attention; the reported numbers are the median and the p95 of 25 warm
+    requests of each arm, their statement count, whether their COUNT still
+    derives the attention, and whether a request of them crossed the threshold
+    the slow-request middleware dumps at (`MRMAP_SLOW_REQUEST_THRESHOLD_MS`,
+    400 ms by default - the AC of #1824 ask for no dump of this query string).
+
+    The live rig measured 5.4-6.0 s per tile request at 35,349 services, 98 %
+    of it in one `COUNT(*)`; that hardware is not this rig, so read the numbers
+    of one machine against each other - the same command at the head of the fix
+    and at the commit before it (``MRMAP_ALERT_DETAIL_BENCHMARK_RUNS`` lowers
+    the repetition count while the slow head is measured):
+
+        MRMAP_ALERT_TILE_BENCHMARK=1 docker compose ... run --rm \
+            django-tests python manage.py test \
+            tests.django.registry.tests_service_alerts.ServiceAlertTileBenchmark \
+            --noinput --keepdb
+    """
+
+    TILE_ITERATIONS = int(os.environ.get("MRMAP_ALERT_DETAIL_BENCHMARK_RUNS", "25"))
+    SLOW_MS = int(os.environ.get("MRMAP_SLOW_REQUEST_THRESHOLD_MS", "400"))
+
+    @skipUnless(
+        os.environ.get("MRMAP_ALERT_TILE_BENCHMARK") == "1",
+        "opt-in benchmark of #1824; the shape guard runs in every CI run")
+    def test_tile_requests_of_a_list_are_no_slow_request(self):
+        from statistics import median
+
+        services, _runs = seed_alert_scale(self)
+        # one service of the deployment needs attention, so that the tile of
+        # the attention counts something - a 0 would make the arm meaningless.
+        # The invalidation the write of the job triggers is dropped: the
+        # refresh below writes the rows the request of the tile reads.
+        with patch("django.db.transaction.on_commit"):
+            self.update_job(self.wms_one, JobState.REVIEW_REQUIRED)
+        self.refresh_alerts()
+
+        url = reverse("registry:wms-list")
+        tile = {"page[size]": "1", "fields[WebMapService]": "id"}
+        reported = []
+        for value in ("true", "false"):
+            query = dict(tile, **{"filter[has_alert]": value})
+            for _ in range(3):  # warm-up: plan cache and relation caches
+                self.assertEqual(self.client.get(
+                    url, query, HTTP_ACCEPT=JSONAPI).status_code, 200)
+            durations = []
+            for _ in range(self.TILE_ITERATIONS):
+                started = perf_counter()
+                response = self.client.get(url, query, HTTP_ACCEPT=JSONAPI)
+                durations.append(perf_counter() - started)
+                self.assertEqual(response.status_code, 200)
+                self.assertGreater(
+                    len(response.json()["data"]), 0,
+                    f"filter[has_alert]={value} answers no row of the fixture")
+            durations.sort()
+            with CaptureQueriesContext(connections["default"]) as queries:
+                self.assertEqual(self.client.get(
+                    url, query, HTTP_ACCEPT=JSONAPI).status_code, 200)
+            counts = [
+                q["sql"] for q in queries.captured_queries
+                if q["sql"].lstrip().lower().startswith("select count")
+                and 'from "registry_webmapservice"' in q["sql"].lower()]
+            p95 = durations[max(0, math.ceil(0.95 * len(durations)) - 1)]
+            reported.append(
+                f"has_alert={value} median_s={median(durations):.3f} "
+                f"p95_s={p95:.3f} "
+                f"statements={len(queries.captured_queries)} "
+                f"counts={len(counts)} "
+                f"count_derives_alerts="
+                f"{any('monitoringrun' in c.lower() for c in counts)} "
+                f"over_slow_threshold={p95 * 1000 > self.SLOW_MS}")
+        print(
+            "ALERT-TILE-BENCHMARK "
+            f"services={services} iterations={self.TILE_ITERATIONS} "
+            f"slow_threshold_ms={self.SLOW_MS} " + " | ".join(reported),
             flush=True)
 
 

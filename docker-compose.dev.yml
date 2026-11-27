@@ -134,8 +134,18 @@ services:
     # in backend/setup.cfg, both facts are pinned by scripts/test_coverage_parallel_data.py.
     # The optional docker-compose.test-low-memory.yml supplies MRMAP_TEST_WORKERS=1.
     # $$ defers expansion to the container shell, including `run -e` overrides.
+    # MRMAP_TEST_SHARDS splits the suite over several CI runners; the shard index
+    # MRMAP_TEST_SHARD then names the coverage files, because three runners writing
+    # .coverage.unit each into this one bind mount would overwrite each other and
+    # backend-coverage would combine whatever landed last while every job still read
+    # green. With the default of one shard nothing is renamed: local runs and the
+    # artifact contract of the workflow stay exactly as they were.
+    # The labels come from `manage.py list_test_shards`, which discovers them the way
+    # the test runner does - a checked-in list would silently stop covering new files,
+    # and a shard that runs nothing is green. $$ defers all of this to the container
+    # shell, so compose does not interpolate the shell's own variables.
     command: >
-      /bin/sh -c "COVERAGE_FILE=.coverage.unit python -m coverage run --data-file=.coverage.unit ./manage.py test -v 3 /opt/mrmap/tests/ --noinput --parallel=$${MRMAP_TEST_WORKERS:-4} && python -m coverage xml --data-file=.coverage.unit -o unit-tests-coverage-report.xml"
+      /bin/sh -c "S=$${MRMAP_TEST_SHARD:-0}; N=$${MRMAP_TEST_SHARDS:-1}; F=.coverage.unit; X=unit-tests-coverage-report.xml; if [ $${N} -gt 1 ]; then F=.coverage.unit.$${S}; X=unit-tests-coverage-report-$${S}.xml; fi; L=$$(python manage.py list_test_shards --shard $${S} --of $${N}); COVERAGE_FILE=$${F} python -m coverage run --data-file=$${F} ./manage.py test -v 3 $${L} --noinput --parallel=$${MRMAP_TEST_WORKERS:-4} && python -m coverage xml --data-file=$${F} -o $${X}"
     hostname: "mrmap-django-tests"
     volumes:
       - type: bind

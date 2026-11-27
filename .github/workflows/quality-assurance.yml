@@ -87,7 +87,25 @@ jobs:
             ./backend/.coverage.acceptance
 
   unit-tests:
-    name: unit-tests
+    name: unit-tests (${{ matrix.shard }}/${{ strategy.job-total }})
+    # The suite is the long pole of this workflow and the one part of it nobody
+    # has touched: measured on a pull request of 27 Nov the job took 27m10s, of
+    # which 23m01s were the 3490 tests, 1m58s the image build, 1m15s the
+    # migrations and 13s the image pulls. `--parallel=4` already spends every
+    # core a hosted runner has (docker-compose.dev.yml carries the measurements
+    # behind that number), so the dimension left is several runners, not more
+    # workers on one. The split itself lives in the image
+    # (`manage.py list_test_shards`) and discovers the tests the way the runner
+    # does - a list checked in here would quietly stop covering new files, and a
+    # shard that runs nothing is green.
+    # Three shards, not `strategy.job-total`-derived: the balance was measured
+    # (three roughly equal buckets of the 108 test modules) and an empty shard is
+    # an error the command raises, so growing this list past the module count
+    # fails loudly instead of adding a green no-op.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -99,17 +117,22 @@ jobs:
       - name: Run unit tests
         # Match checkout ownership so coverage can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build --user "$(id -u):$(id -g)" django-tests
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build --user "$(id -u):$(id -g)" \
+            -e MRMAP_TEST_SHARD=${{ matrix.shard }} -e MRMAP_TEST_SHARDS=${{ strategy.job-total }} \
+            django-tests
 
       - name: upload coverage reports
         uses: actions/upload-artifact@v7
         with:
-          name: unit-tests-coverage-report
+          # One artifact per shard: the coverage files are named after the shard in
+          # docker-compose.dev.yml precisely so that three runners sharing this bind
+          # mount cannot overwrite each other.
+          name: unit-tests-coverage-report-${{ matrix.shard }}
           if-no-files-found: error
           include-hidden-files: true
           path: |
-            ./backend/unit-tests-coverage-report.xml
-            ./backend/.coverage.unit
+            ./backend/unit-tests-coverage-report-${{ matrix.shard }}.xml
+            ./backend/.coverage.unit.${{ matrix.shard }}
 
   frontend-tests:
     name: frontend-tests
@@ -172,13 +195,18 @@ jobs:
         run: python -m pip install coverage==7.6.12
       - uses: actions/download-artifact@v8
         with:
-          pattern: '*-tests-coverage-report'
+          pattern: '*-tests-coverage-report*'
           merge-multiple: true
           path: backend
       - name: Combine backend coverage
         working-directory: backend
         run: |
-          python -m coverage combine .coverage.unit .coverage.acceptance
+          # The shards each contribute .coverage.unit.<index>; the unsuffixed name is
+          # what a single-shard run writes and stays matched so the job does not
+          # depend on how many shards there are. A pattern matching nothing is left
+          # literal and makes coverage fail - which is right: a missing shard must
+          # not shrink the report silently.
+          python -m coverage combine .coverage.unit* .coverage.acceptance
           python -m coverage xml
           python -m coverage html
           python -m coverage report --format=markdown --fail-under=75 >> "$GITHUB_STEP_SUMMARY"

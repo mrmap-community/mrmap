@@ -86,10 +86,12 @@ def load_initial_data(apps, schema_editor):
         logging.info("MRMAP CSW service created with PK %s", MRMAP_CSW_PK)
 
 
+# Carried over from the previous chain (registry/0002_data) when the migration history
+# was regenerated from the models: the same python, only its dependencies moved.
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("registry", "0001_initial"),
+        ("registry", "0002_history_records_know_their_own_diff_size"),
     ]
 
     operations = [

@@ -157,12 +157,14 @@ def unseed_anonymous_viewer(apps, schema_editor):
     definition.delete()
 
 
+# Carried over from the previous chain (accounts/0009_the_anonymous_viewer_role_group_is_seeded) when the migration history
+# was regenerated from the models: the same python, only its dependencies moved.
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0008_roles_for_the_groups_of_an_existing_instance'),
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("accounts", "0003_roles_for_the_groups_of_an_existing_instance"),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("contenttypes", "0002_remove_content_type_name"),
     ]
 
     operations = [

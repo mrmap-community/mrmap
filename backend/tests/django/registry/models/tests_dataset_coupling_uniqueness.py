@@ -18,15 +18,18 @@ collection finds standing beside the one it asserts itself, which
 which left ``origin`` out refuses what that flow writes.
 
 ``DatasetCouplingUniquenessTests`` pins what the schema answers for the live
-model. ``DatasetCouplingDedupeMigrationTest`` travels the real
-``MigrationExecutor`` back to the schema before the constraint, writes the
-repetitions that schema allowed, and runs the upgrade which removes them before
-it refuses them.
+model. ``DatasetCouplingDedupeMigrationTest`` proves the upgrade of #1483 on
+the rebuilt chain of #1850: the chain creates the coupling table already
+constrained and has no node before the constraint to travel back to, so the
+test builds that state itself -- it takes the very constraints which
+``0001_initial`` created away, writes the repetitions that schema allowed, and
+runs the statements of the upgrade over them before it refuses them.
 """
 
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
-from django.test import TestCase, TransactionTestCase
+from django.db.models import Exists, OuterRef
+from django.test import TestCase
 
 from mptt2.models import Tree
 
@@ -57,6 +60,14 @@ KINDS = {
 #: the dedupe of the upgrade has to leave standing
 FIRST_KIND = 'imported evidence'
 
+#: the two pair constraints of the dataset side, per element, as ``0001_initial``
+#: of the rebuilt chain creates them -- the same two which the dedupe node of
+#: the old chain added over the deduped table
+PAIR_CONSTRAINTS = {
+    'layer': 'unique_dataset_metadata_representation_for_layer',
+    'feature_type': 'unique_dataset_metadata_representation_for_feature_type',
+}
+
 
 class CouplingParts:
     """One dataset record, one layer and one feature type to couple it to."""
@@ -64,9 +75,9 @@ class CouplingParts:
     def make_coupling_parts(self):
         """Create the couple's three parts for this test run.
 
-        Not ``setUpTestData``: the migration test below is a
-        ``TransactionTestCase``, which has no class level data to set up, and
-        both classes want the same rows.
+        Not ``setUpTestData``: the dedupe test below writes around these
+        rows with the constraints of the schema taken away, and both classes
+        want the rows of their own test run.
         """
         contact = MetadataContact.objects.create(name='Coupling contact')
         self.dataset = DatasetMetadataRecord.objects.create(
@@ -202,70 +213,186 @@ class DatasetCouplingUniquenessTests(CouplingParts, TestCase):
                 feature_type__isnull=True).count(), 2)
 
 
-class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
-    """0060 removes the repetitions of a couple, then refuses them."""
+class DatasetCouplingDedupeMigrationTest(CouplingParts, TestCase):
+    """The dedupe and the constraint of #1483 on the rebuilt chain.
 
-    migrate_from = [
-        ('registry',
-         '0059_remove_catalogueservice_registry_ca_update__7b419c_idx_and_more')]
-    migrate_to = [
-        ('registry', '0060_the_dataset_coupling_is_unique_per_kind')]
+    The rebuilt history (#1850) creates the coupling table already
+    constrained: no node of it exists without the two pair constraints, so
+    the executor cannot travel to the state which allowed the repetitions the
+    way it did while the dedupe node of the old chain still stood. The test
+    builds that state itself instead -- it takes the very constraints
+    ``0001_initial`` created away, writes what they refused, and runs the
+    statements of the upgrade over the rows: the dedupe of the old node,
+    which the new chain never needed because its table was empty when it was
+    constrained, and the constraints again, read from the schema of the chain
+    -- so a ``0001_initial`` which lost one of them goes red at the reading
+    and one which weakened one goes red at the refusal. What the test asks of
+    the upgrade is what it asked before: the oldest row of a coupling stands,
+    its repetitions are gone, every other kind keeps its own row, and a new
+    repetition is answered by the constraint.
+    """
 
     def setUp(self):
         super().setUp()
-        self.addCleanup(self.restore_schema)
         self.make_coupling_parts()
 
-    def restore_schema(self):
-        executor = MigrationExecutor(connection)
-        executor.migrate(executor.loader.graph.leaf_nodes())
+    def rebuilt_chain(self):
+        """The plan of the rebuilt chain, which the upgrade runs on."""
+        plan = MigrationExecutor(connection).loader.graph.forwards_plan(
+            ('registry', '0001_initial'))
+        self.assertIn(('registry', '0001_initial'), plan)
+        return plan
+
+    def chain_pair_constraint_definitions(self):
+        """The two pair constraints, as the rebuilt chain created them.
+
+        Read from the catalog of the migrated test database, which is what
+        ``0001_initial`` answered: a chain which lost one of the constraints
+        is gone here, and the definition of one which no longer compares the
+        whole key of #1483 is gone with it -- the refusal of a new repetition
+        covers a key which only got weaker.
+        """
+        definitions = {}
+        with connection.cursor() as cursor:
+            for element, name in PAIR_CONSTRAINTS.items():
+                cursor.execute(
+                    "SELECT pg_get_constraintdef(con.oid)"
+                    " FROM pg_constraint con"
+                    " JOIN pg_class rel ON rel.oid = con.conrelid"
+                    " WHERE rel.relname = %s"
+                    " AND rel.relnamespace = 'public'::regnamespace"
+                    " AND con.conname = %s AND con.contype = 'u'",
+                    [MetadataRelation._meta.db_table, name])
+                row = cursor.fetchone()
+                self.assertIsNotNone(
+                    row,
+                    'the rebuilt 0001_initial did not create the pair '
+                    'constraint %s of the dataset coupling' % name)
+                columns = {
+                    column.strip() for column in
+                    row[0][row[0].index('(') + 1:row[0].rindex(')')]
+                    .split(',')}
+                self.assertEqual(
+                    columns,
+                    {'is_internal', 'origin', 'dataset_metadata_id',
+                     '%s_id' % element},
+                    'the pair constraint %s does not compare the key of '
+                    '#1483' % name)
+                definitions[name] = row[0]
+        return definitions
+
+    @staticmethod
+    def drop_pair_constraints(definitions):
+        """The state before the constraint, rebuilt: the two constraints away.
+
+        The schema the old chain stood in below its dedupe node, taken from
+        the chain itself rather than named, which the rebuild left no name
+        for.
+        """
+        with connection.cursor() as cursor:
+            for name in definitions:
+                cursor.execute(
+                    'ALTER TABLE "%s" DROP CONSTRAINT "%s"'
+                    % (MetadataRelation._meta.db_table, name))
+
+    @staticmethod
+    def drop_repeated_couplings():
+        """The dedupe statement of the upgrade, carried here.
+
+        The old chain removed the repetitions in the migration which added
+        the constraints; the rebuilt chain had no repetitions to remove -- it
+        created the empty table constrained -- so the statement of that node
+        stands in here as the node answered it: of every couple the row with
+        the lowest primary key stands, because that is the row every writer
+        of the couple would have re-used, and rows of a different kind of the
+        same pair are couplings of their own and stay untouched.
+        """
+        for element in ELEMENTS:
+            earlier_of_the_same_couple = MetadataRelation.objects.filter(
+                **{
+                    'pk__lt': OuterRef('pk'),
+                    'is_internal': OuterRef('is_internal'),
+                    'origin': OuterRef('origin'),
+                    f'{element}_id': OuterRef(f'{element}_id'),
+                    'dataset_metadata_id': OuterRef('dataset_metadata_id'),
+                })
+            MetadataRelation.objects.filter(
+                Exists(earlier_of_the_same_couple),
+                **{
+                    f'{element}_id__isnull': False,
+                    'dataset_metadata_id__isnull': False,
+                }).delete()
+
+    @staticmethod
+    def add_pair_constraints(definitions):
+        """The second half of the upgrade: the constraints of the chain again.
+
+        Added from the definition the chain itself created, so that what
+        refuses the next repetition below is the constraint of
+        ``0001_initial``. The foreign keys of a table built by a migration
+        come up ``DEFERRABLE INITIALLY DEFERRED``, and the repetitions queued
+        their check of existence; the upgrade of the old chain ran in a
+        migration transaction of its own over rows which were committed
+        already, and forcing the pending checks answers that boundary here --
+        all the rows of the couple still reference rows which are there.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            for name, definition in definitions.items():
+                cursor.execute(
+                    'ALTER TABLE "%s" ADD CONSTRAINT "%s" %s'
+                    % (MetadataRelation._meta.db_table, name, definition))
+
+    def seed_and_upgrade(self):
+        """The upgrade of #1483 on the rebuilt chain, once, returning the seed.
+
+        The state before the constraint, the repetitions written into it and
+        the statements which removed them and answered the constraints again
+        -- in the order the executor ran them over a deployment while the
+        dedupe node still stood.
+        """
+        self.rebuilt_chain()
+        definitions = self.chain_pair_constraint_definitions()
+        self.drop_pair_constraints(definitions)
+        seeded = self.repetitions()
+        self.drop_repeated_couplings()
+        self.add_pair_constraints(definitions)
+        return seeded
 
     def repetitions(self):
         """The rows a deployment carries under the schema which allowed them.
 
-        Written with the models of the state before the constraint, because
-        that is the schema which let them in: three rows of one couple and one
-        kind - the first of them is what the dedupe has to leave behind, the
-        two after it are what it has to remove - beside a row of the very same
-        pair of every other kind, which is a coupling of its own and has to
-        survive, beside a row which names no element at all, which is no pair
-        and has to survive too.
+        Written while the pair constraints of the chain stand taken away,
+        which is the schema that let them in: three rows of one couple and
+        one kind - the first of them is what the dedupe has to leave behind,
+        the two after it are what it has to remove - beside a row of the very
+        same pair of every other kind, which is a coupling of its own and has
+        to survive, beside a row which names no element at all, which is no
+        pair and has to survive too.
 
         Returns:
             dict: per element the primary key of the first row of
-                ``FIRST_KIND`` and of the row of every other kind, plus the key
-                of the row which names no element
+                ``FIRST_KIND`` and of the row of every other kind, plus the
+                key of the row which names no element
         """
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_from)
-        apps = executor.loader.project_state(self.migrate_from).apps
-        Relation = apps.get_model('registry', 'MetadataRelation')
-        dataset = apps.get_model(
-            'registry', 'DatasetMetadataRecord').objects.get(pk=self.dataset.pk)
-        described = {
-            'layer': apps.get_model('registry', 'Layer').objects.get(
-                pk=self.layer.pk),
-            'feature_type': apps.get_model(
-                'registry', 'FeatureType').objects.get(pk=self.feature_type.pk),
-        }
-
         written = {}
         for element in ELEMENTS:
             origin, is_internal = KINDS[FIRST_KIND]
-            rows = [Relation.objects.create(
-                dataset_metadata=dataset, **{element: described[element]},
+            rows = [MetadataRelation.objects.create(
+                dataset_metadata=self.dataset,
+                **{element: self.element(element)},
                 origin=origin, is_internal=is_internal)
                 for _ in range(3)]
             others = {
-                kind: Relation.objects.create(
-                    dataset_metadata=dataset,
-                    **{element: described[element]},
+                kind: MetadataRelation.objects.create(
+                    dataset_metadata=self.dataset,
+                    **{element: self.element(element)},
                     origin=kind_origin, is_internal=kind_internal).pk
                 for kind, (kind_origin, kind_internal) in KINDS.items()
                 if kind != FIRST_KIND}
             written[element] = {'first': rows[0].pk, 'others': others}
-        written['without_element'] = Relation.objects.create(
-            dataset_metadata=dataset,
+        written['without_element'] = MetadataRelation.objects.create(
+            dataset_metadata=self.dataset,
             origin=MetadataOriginEnum.CATALOGUE.value).pk
         return written
 
@@ -300,10 +427,7 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
         other kind of the very same pair is a coupling of its own and keeps its
         row, which is why the assertion reads per kind and not per pair.
         """
-        seeded = self.repetitions()
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_to)
+        seeded = self.seed_and_upgrade()
 
         survivors = self.rows_per_couple()
         for element in ELEMENTS:
@@ -325,10 +449,13 @@ class DatasetCouplingDedupeMigrationTest(CouplingParts, TransactionTestCase):
             'the dedupe compared a row which names no element to a repetition')
 
     def test_the_upgraded_schema_refuses_a_new_repetition(self):
-        """After the upgrade it is the constraint which answers the race."""
-        self.repetitions()
-        executor = MigrationExecutor(connection)
-        executor.migrate(self.migrate_to)
+        """After the upgrade it is the constraint which answers the race.
+
+        The constraint is the one of the rebuilt chain: the upgrade put its
+        very definition back, which the test had read from the schema
+        ``0001_initial`` created.
+        """
+        self.seed_and_upgrade()
 
         for element in ELEMENTS:
             origin, is_internal = KINDS[FIRST_KIND]

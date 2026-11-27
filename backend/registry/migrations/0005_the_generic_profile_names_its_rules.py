@@ -1,14 +1,21 @@
-# the ISO 19139 v1 rule set of the generic profile (#1243): the seeded row
-# of #1240 carried an empty list with "the structural rules are filled by
-# #1243" - this is that content. Rules are data, evaluated on save (#1243)
-# and client-side by the editor (#1245) from the profile resource; the rule
-# shape is defined by registry/mappers/rules.py. GDI-DE and INSPIRE are
-# later rule SETS - they join as further data with their own families, not
-# as code branches (decision 3 of the #1238 review keeps v1 ISO only).
+"""The structural rules of the generic iso19139 profile.
+
+The profile of `0004` came with an empty rule list: the rules validate the
+harvested document against the shape the mapper expects, and until they were
+written down the profile could only describe its sections. Every `assert` below
+is an XPath 1.0 boolean over the whole document; the shape they check is defined
+by `registry/mappers/rules.py`, GDI-DE and INSPIRE will carry their own as data.
+
+Carried over from the previous chain
+(`registry/0052_the_generic_profile_names_its_rules.py`) when the migration
+history was regenerated from the models -- the constants and both functions are
+that file's text, only its dependencies moved.
+"""
 
 import uuid
 
 from django.db import migrations
+
 
 #: the fixed pk of the generic profile; `registry.models.metadata` and
 #: migration 0049 hold the same constant - change one, change the others
@@ -144,7 +151,7 @@ def clear_generic_rules(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0051_the_audit_diff_counts_the_profile'),
+        ("registry", "0004_the_generic_metadata_profile_is_seeded"),
     ]
 
     operations = [

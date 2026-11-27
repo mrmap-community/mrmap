@@ -1,10 +1,22 @@
-# the profile resource of the metadata editor (#1240): the model and the
-# seeded `iso19139-generic` row. The link of the records to it follows in
-# 0050, after this migration has created the row they default to.
+"""The generic iso19139 profile, seeded rather than migrated in as a fixture.
+
+The metadata editor (#1240) renders the sections and the structural rules of a
+record from a `MetadataProfile` row, and every record created by an import or
+through the api defaults to the one seeded here -- `MetadataProfile.generic()`
+looks it up by the fixed pk below, which `registry.models.metadata` holds as the
+model default of a record's `profile`. Change one, change the other.
+
+The row is data, so it is a data migration: the table itself comes from the
+models. Carried over from the previous chain
+(`registry/0049_the_profile_of_metadata_is_data.py`) when the migration history
+was regenerated from the models -- the constants and both functions are that
+file's text, only its dependencies moved.
+"""
 
 import uuid
 
-from django.db import migrations, models
+from django.db import migrations
+
 
 #: the fixed pk of the generic profile; `registry.models.metadata` holds the
 #: same constant as the model default of a record's `profile` — change one,
@@ -99,23 +111,10 @@ def unseed_generic_profile(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('registry', '0048_merge_20261114'),
+        ("registry", "0003_the_initial_data_is_seeded"),
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='MetadataProfile',
-            fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(help_text="the machine name of the profile, such as 'iso19139-generic'", max_length=100, unique=True, verbose_name='name')),
-                ('label', models.CharField(help_text='the display name of the profile, which the editor renders in its header', max_length=255, verbose_name='label')),
-                ('sections', models.JSONField(blank=True, default=list, help_text='the ordered sections of the editor: the fields each section groups and the mandatory/recommended flag of every field', verbose_name='sections')),
-                ('rules', models.JSONField(blank=True, default=list, help_text='the ISO structural rules which are validated on save (#1243); attribute constraints keep riding the OpenAPI schema (Q1 option C on #1243)', verbose_name='rules')),
-            ],
-            options={
-                'ordering': ['name'],
-            },
-        ),
         migrations.RunPython(
             seed_generic_profile,
             unseed_generic_profile,

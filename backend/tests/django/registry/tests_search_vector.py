@@ -8,9 +8,9 @@ answer reads, which the tests about the API and the read cost pin.
 """
 
 from django.contrib.postgres.search import SearchQuery
-from django.core.management import call_command
 from django.db import connection
-from django.test import TestCase, TransactionTestCase
+from django.db.migrations.executor import MigrationExecutor
+from django.test import TestCase
 
 from registry.expressions.search import TEXT_CONFIGURATION_NAME
 from registry.mappers.persistence.custom import _defaults_of_instance
@@ -352,26 +352,129 @@ class SearchVectorReadCostTest(TestCase):
                 self.assertFalse(is_deferred and 'search_vector' in deferred)
 
 
-class SearchableViewsMigrationTest(TransactionTestCase):
-    """Going back over the migration which dropped the searchable projections.
+class SearchableViewsMigrationTest(TestCase):
+    """The searchable projections around the rebuilt history (#855, #1850).
 
-    The projections of a record are what a search was answered from before a record
-    answered its keywords and its vector as columns of its own; the CSW and the MapBender
-    search answer the record tables themselves since #855. A projection is not part of
-    the migration state -- django-pgviews used to create it from the model -- and its
-    models and startup hook are gone. The migration carries the statement of both
-    projections itself, and that statement is what this test asks for.
+    The projections of a record are what a search was answered from before a
+    record answered its keywords and its vector as columns of its own; the CSW
+    and the MapBender search answer the record tables themselves since #855.
+    A projection is not part of the migration state -- django-pgviews used to
+    create it from the model -- and its models and startup hook are gone. The
+    drop node of the old chain carried the statement of both projections
+    itself, and this class asked the migration executor for that statement by
+    travelling back to the revision the projections still existed at.
 
-    Rolling further back, below the migration which gave a record its vector, drops both
-    projections again -- 0022 answers that -- and nothing creates them anymore, because
-    the column they answer is gone with it. That is what a rollback below that revision
-    means.
+    The rebuilt history (#1850) creates the final schema from the models and
+    never had a node at which one of these projections stood, so there is no
+    name of it left to travel to. What the class proves has survived that and
+    reads off both states: the end state -- the final schema of the rebuilt
+    chain answers neither projection, and the record tables answer the
+    columns the projections used to project -- and the statement of the way
+    back, carried here exactly as the drop node carried it. The test builds
+    the intermediate state with that statement itself and asks what it asked
+    before: the projection of a record stands and answers the record it
+    projects, with its data, and on the way forward the projections are gone
+    again.
     """
-
-    MIGRATE_BACK_TO = '0022_datasetmetadatarecord_search_vector_and_more'
 
     VIEWS = ('registry_searchabledatasetmetadatarecord',
              'registry_searchableservicemetadatarecord')
+
+    #: the migration of the rebuilt chain which creates the schema these tests
+    #: read off; the plan around it is what they run on
+    INITIAL = ('registry', '0001_initial')
+
+    # the statement of the way back, carried verbatim from the drop node of
+    # the old chain: the projections of a record as the models of the revision
+    # before the drop answered them -- the columns of the record, because a
+    # record answers its keywords array and its vector itself since #853 and
+    # #854, plus the constant which tells the two kinds apart. The indexes of
+    # a projection are not recreated with it; ``manage.py sync_pgviews
+    # --force`` creates those from the models a rolled back deployment checks
+    # out.
+    CREATE_SEARCHABLE_DATASET_VIEW = """
+CREATE MATERIALIZED VIEW registry_searchabledatasetmetadatarecord AS
+    SELECT "registry_datasetmetadatarecord"."xml_backup_file",
+           "registry_datasetmetadatarecord"."access_constraints",
+           "registry_datasetmetadatarecord"."fees",
+           "registry_datasetmetadatarecord"."use_limitation",
+           "registry_datasetmetadatarecord"."license_source_note",
+           "registry_datasetmetadatarecord"."licence_id",
+           "registry_datasetmetadatarecord"."id",
+           "registry_datasetmetadatarecord"."date_stamp",
+           "registry_datasetmetadatarecord"."file_identifier",
+           "registry_datasetmetadatarecord"."origin",
+           "registry_datasetmetadatarecord"."origin_url",
+           "registry_datasetmetadatarecord"."title",
+           "registry_datasetmetadatarecord"."abstract",
+           "registry_datasetmetadatarecord"."is_broken",
+           "registry_datasetmetadatarecord"."is_customized",
+           "registry_datasetmetadatarecord"."insufficient_quality",
+           "registry_datasetmetadatarecord"."is_searchable",
+           "registry_datasetmetadatarecord"."hits",
+           "registry_datasetmetadatarecord"."inspire_interoperability",
+           "registry_datasetmetadatarecord"."bounding_geometry",
+           "registry_datasetmetadatarecord"."metadata_contact_id",
+           "registry_datasetmetadatarecord"."equivalent_scale",
+           "registry_datasetmetadatarecord"."ground_res",
+           "registry_datasetmetadatarecord"."code",
+           "registry_datasetmetadatarecord"."code_space",
+           "registry_datasetmetadatarecord"."charset",
+           "registry_datasetmetadatarecord"."resource_identifier",
+           "registry_datasetmetadatarecord"."keywords_list",
+           "registry_datasetmetadatarecord"."search_vector",
+           "registry_datasetmetadatarecord"."dataset_contact_id",
+           "registry_datasetmetadatarecord"."format",
+           "registry_datasetmetadatarecord"."update_frequency_code",
+           "registry_datasetmetadatarecord"."inspire_top_consistence",
+           "registry_datasetmetadatarecord"."preview_image",
+           "registry_datasetmetadatarecord"."lineage_statement",
+           'dataset' AS "hierarchy_level"
+      FROM "registry_datasetmetadatarecord"
+WITH DATA;
+"""
+
+    CREATE_SEARCHABLE_SERVICE_VIEW = """
+CREATE MATERIALIZED VIEW registry_searchableservicemetadatarecord AS
+    SELECT "registry_servicemetadatarecord"."xml_backup_file",
+           "registry_servicemetadatarecord"."access_constraints",
+           "registry_servicemetadatarecord"."fees",
+           "registry_servicemetadatarecord"."use_limitation",
+           "registry_servicemetadatarecord"."license_source_note",
+           "registry_servicemetadatarecord"."licence_id",
+           "registry_servicemetadatarecord"."id",
+           "registry_servicemetadatarecord"."date_stamp",
+           "registry_servicemetadatarecord"."file_identifier",
+           "registry_servicemetadatarecord"."origin",
+           "registry_servicemetadatarecord"."origin_url",
+           "registry_servicemetadatarecord"."title",
+           "registry_servicemetadatarecord"."abstract",
+           "registry_servicemetadatarecord"."is_broken",
+           "registry_servicemetadatarecord"."is_customized",
+           "registry_servicemetadatarecord"."insufficient_quality",
+           "registry_servicemetadatarecord"."is_searchable",
+           "registry_servicemetadatarecord"."hits",
+           "registry_servicemetadatarecord"."inspire_interoperability",
+           "registry_servicemetadatarecord"."bounding_geometry",
+           "registry_servicemetadatarecord"."metadata_contact_id",
+           "registry_servicemetadatarecord"."equivalent_scale",
+           "registry_servicemetadatarecord"."ground_res",
+           "registry_servicemetadatarecord"."code",
+           "registry_servicemetadatarecord"."code_space",
+           "registry_servicemetadatarecord"."charset",
+           "registry_servicemetadatarecord"."resource_identifier",
+           "registry_servicemetadatarecord"."keywords_list",
+           "registry_servicemetadatarecord"."search_vector",
+           'service' AS "hierarchy_level"
+      FROM "registry_servicemetadatarecord"
+WITH DATA;
+"""
+
+    #: the way forward of the drop node, verbatim: both relations removed
+    DROP_SEARCHABLE_VIEWS = [
+        "DROP MATERIALIZED VIEW IF EXISTS registry_searchabledatasetmetadatarecord;",
+        "DROP MATERIALIZED VIEW IF EXISTS registry_searchableservicemetadatarecord;",
+    ]
 
     def view_exists(self, view):
         with connection.cursor() as cursor:
@@ -380,23 +483,63 @@ class SearchableViewsMigrationTest(TransactionTestCase):
                 ['public', view])
             return bool(cursor.fetchone())
 
-    def migrate(self, *args):
-        call_command('migrate', *args, verbosity=0, interactive=False)
-
     def setUp(self):
-        # the way back is only worth something if the projection it creates is the one
-        # the code of that revision can read a record out of, so a record is here while
-        # the migration answers it
+        # the way back is only worth something if the projection it creates is
+        # the one the code of a rolled back deployment can read a record out
+        # of, so a record is here while the projection answers it
         self.contact = MetadataContact.objects.create(name='Migration contact')
         self.dataset = DatasetMetadataRecord.objects.create(
             metadata_contact=self.contact, dataset_contact=self.contact,
             title='Wasserversorgung Migration')
         self.service = ServiceMetadataRecord.objects.create(
             metadata_contact=self.contact, title='Bodenrichtwerte Migration')
-        self.addCleanup(self.migrate)
+        self.assert_rebuilt_chain_end_state()
+        self.create_projections()
+
+    def assert_rebuilt_chain_end_state(self):
+        """The end state of the rebuilt chain, read off the migrated database.
+
+        The projections were dropped (#855) before the rebuild and the rebuild
+        carried no node which creates them, so the chain ends without either.
+        And the record tables answer the very columns the projections projected
+        -- the keywords array and the vector of #853 and #854: a statement of
+        the way back which read columns the chain no longer answers is a
+        rollback which cannot run, and nothing but this comparison notices.
+        """
+        plan = MigrationExecutor(connection).loader.graph.forwards_plan(
+            self.INITIAL)
+        self.assertIn(self.INITIAL, plan)
         for view in self.VIEWS:
-            self.assertFalse(self.view_exists(view), f'{view} survived the migration')
-        self.migrate('registry', self.MIGRATE_BACK_TO)
+            self.assertFalse(self.view_exists(view), f'{view} survived the chain')
+        with connection.cursor() as cursor:
+            for table in (DatasetMetadataRecord._meta.db_table,
+                          ServiceMetadataRecord._meta.db_table):
+                for column in ('keywords_list', 'search_vector'):
+                    cursor.execute(
+                        'SELECT 1 FROM information_schema.columns'
+                        ' WHERE table_name = %s AND column_name = %s',
+                        [table, column])
+                    self.assertIsNotNone(
+                        cursor.fetchone(),
+                        f'the rebuilt chain does not answer {column} of {table}, '
+                        f'which the projection of {table} projects')
+
+    def create_projections(self):
+        """The intermediate state of the way back, as the drop node made it.
+
+        The node itself is gone from the rebuilt chain, so its statements
+        stand in for it here; with them the state the executor used to migrate
+        back into is what the test builds.
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(self.CREATE_SEARCHABLE_DATASET_VIEW)
+            cursor.execute(self.CREATE_SEARCHABLE_SERVICE_VIEW)
+
+    def drop_projections(self):
+        """The way forward of the drop node: both relations removed again."""
+        with connection.cursor() as cursor:
+            for statement in self.DROP_SEARCHABLE_VIEWS:
+                cursor.execute(statement)
 
     def vector_of(self, record):
         """The vector the record itself answers, which the projection has to answer too."""
@@ -409,9 +552,10 @@ class SearchableViewsMigrationTest(TransactionTestCase):
     def hits(self, view, word):
         """The records of a projection a search for a word matches.
 
-        A rolled back deployment searches the projection, so the words of a record have
-        to be searchable in it; the word is not compared as text because a tsvector
-        holds the stemmed word, which is the whole point of searching a vector.
+        A rolled back deployment searches the projection, so the words of a
+        record have to be searchable in it; the word is not compared as text
+        because a tsvector holds the stemmed word, which is the whole point of
+        searching a vector.
         """
         with connection.cursor() as cursor:
             cursor.execute(
@@ -443,7 +587,8 @@ class SearchableViewsMigrationTest(TransactionTestCase):
                 self.assertEqual(level, hierarchy_level)
 
     def test_the_projection_is_gone_again_on_the_way_forward(self):
-        self.migrate()
+        """What the drop node dropped, the way forward drops again."""
+        self.drop_projections()
         for view in self.VIEWS:
             with self.subTest(view=view):
                 self.assertFalse(self.view_exists(view), f'{view} came back for good')

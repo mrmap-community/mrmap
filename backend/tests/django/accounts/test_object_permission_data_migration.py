@@ -1,25 +1,31 @@
 """Moves the permissions guardian shared into the tables of their own.
 
-The migrations ``registry/0031`` and ``accounts/0003`` carry the rows which a
-deployment already stored in guardian's shared tables into the dedicated tables
-of their model, and ``registry/0045`` does the same for the models #863 left
-open: the map applications, their layers, the monitoring settings of a web map
-service and the catalogues. Guardian answers a model with such a table only from
-it, so a row which does not move is a grant which stops working, and a row naming
-an object which is gone may not move either: the dedicated table has a real
-foreign key, the shared one never had one.
+The migrations ``registry/0031`` and ``accounts/0003`` carried the rows which
+a deployment already stored in guardian's shared tables into the dedicated
+tables of their model, and ``registry/0045`` did the same for the models #863
+left open: the map applications, their layers, the monitoring settings of a
+web map service and the catalogues. The rebuilt chain (#1850) retires these
+three nodes - a fresh install it migrates never held rows in the shared
+tables to move - but their meaning is what this module tests, so the
+``RunPython`` operations of the deleted nodes are ported below: the code is
+the one the nodes carried, only its home moved. Guardian answers a model with
+such a table only from it, so a row which does not move is a grant which stops
+working, and a row naming an object which is gone may not move either: the
+dedicated table has a real foreign key, the shared one never had one.
 
-All three migrations are called with the live app registry here. ``forwards`` and
-``backwards`` take ``apps`` as their first argument and do nothing to the
-database which this test does not run inside the transaction that Django rolls
-back for every test.
+All three ports are called with the live app registry here. The ported code
+takes ``apps`` as its first argument and does nothing to the database which
+this test does not run inside the transaction that Django rolls back for every
+test.
 """
-import importlib
+from functools import partial
 
 from django.apps import apps as django_apps
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.db import migrations
 from django.test import TestCase
 from guardian.models import GroupObjectPermission, UserObjectPermission
 
@@ -37,14 +43,199 @@ from registry.models.mapcontext import MapContext, MapContextLayer
 from registry.models.monitoring import WebMapServiceMonitoringSetting
 from registry.models.service import CatalogueService, WebMapService
 
-#: the migrations which move the rows, by their module name
-REGISTRY_MOVE = importlib.import_module(
-    "registry.migrations.0031_move_generic_object_permissions_to_direct_tables")
-ACCOUNTS_MOVE = importlib.import_module(
-    "accounts.migrations.0003_move_generic_object_permissions_to_direct_tables")
-REMAINING_MOVE = importlib.import_module(
-    "registry.migrations."
-    "0045_move_generic_object_permissions_of_the_remaining_models")
+#: guardian's shared tables, one per kind of actor - the same constant the
+#: three deleted nodes carried
+SHARED = {
+    'user': 'UserObjectPermission',
+    'group': 'GroupObjectPermission',
+}
+
+#: the rows one statement writes or removes, so that no statement names every
+#: permission of a deployment in one list of values
+BATCH_SIZE = 500
+
+#: what each node moves, spelled as the node spelled it: app label and model
+#: of the objects whose permissions move and, for every kind of actor, the
+#: name of the actor and the model of the table it moves into. The entries
+#: ``registry/0045`` spelled without an app label (its app is ``APP_LABEL``
+#: there) carry the label here, so one loop shape serves all
+REGISTRY_MOVED = [
+    ('registry', 'webmapservice', 'user', 'WebMapServiceUserObjectPermission'),
+    ('registry', 'webmapservice', 'group', 'WebMapServiceGroupObjectPermission'),
+    ('registry', 'webfeatureservice', 'user',
+     'WebFeatureServiceUserObjectPermission'),
+    ('registry', 'webfeatureservice', 'group',
+     'WebFeatureServiceGroupObjectPermission'),
+]
+
+# an organization is a group of its own table, so it is named by its own
+# primary key, which is the one-to-one key to ``auth_group``
+ACCOUNTS_MOVED = [
+    ('accounts', 'organization', 'user', 'OrganizationUserObjectPermission'),
+    ('accounts', 'organization', 'group', 'OrganizationGroupObjectPermission'),
+    ('auth', 'group', 'user', 'GroupUserObjectPermission'),
+    ('auth', 'group', 'group', 'GroupGroupObjectPermission'),
+]
+
+#: the models of #863, which the deleted ``registry/0045`` moved
+REMAINING_MOVED = [
+    ('registry', 'catalogueservice', 'user',
+     'CatalogueServiceUserObjectPermission'),
+    ('registry', 'catalogueservice', 'group',
+     'CatalogueServiceGroupObjectPermission'),
+    ('registry', 'mapcontext', 'user', 'MapContextUserObjectPermission'),
+    ('registry', 'mapcontext', 'group', 'MapContextGroupObjectPermission'),
+    ('registry', 'mapcontextlayer', 'user',
+     'MapContextLayerUserObjectPermission'),
+    ('registry', 'mapcontextlayer', 'group',
+     'MapContextLayerGroupObjectPermission'),
+    ('registry', 'webmapservicemonitoringsetting', 'user',
+     'WebMapServiceMonitoringSettingUserObjectPermission'),
+    ('registry', 'webmapservicemonitoringsetting', 'group',
+     'WebMapServiceMonitoringSettingGroupObjectPermission'),
+]
+
+
+def content_type(apps, app_label, model):
+    """The content type of a model, or None if the deployment never had one"""
+    return apps.get_model('contenttypes', 'ContentType').objects.filter(
+        app_label=app_label, model=model).first()
+
+
+def objects_named(target, texts):
+    """The texts which name an object of the given model which still exists
+
+    The shared table never had a foreign key, so a row can name an object which
+    is gone, or name nothing at all: a text the primary key of the model can not
+    read is the same case as a text naming a deleted object.
+
+    Args:
+        target: the model whose primary key reads the texts
+        texts: the ``object_pk`` values of the rows which want to move
+
+    Returns:
+        dict: the primary key of every object named by one of the texts, by the
+            text which names it
+    """
+    named = {}
+    for text in texts:
+        try:
+            named[text] = target._meta.pk.to_python(text)
+        except (ValidationError, ValueError):
+            continue
+    if not named:
+        return {}
+    existing = set(target.objects.filter(
+        pk__in=list(named.values())).values_list('pk', flat=True))
+    return {text: pk for text, pk in named.items() if pk in existing}
+
+
+def delete_in_batches(model, pks):
+    """Removes the rows of a model by their primary keys, in batches"""
+    for start in range(0, len(pks), BATCH_SIZE):
+        model.objects.filter(pk__in=pks[start:start + BATCH_SIZE]).delete()
+
+
+def forwards(apps, schema_editor, app_label, moved,
+             by_permission_content_type=False):
+    """Carries the rows of guardian's shared tables into the dedicated ones
+
+    The code of the deleted nodes. ``app_label`` names the app which holds
+    the dedicated tables and ``moved`` the rows this node carries; the flag
+    is what told ``registry/0045`` apart: it decided the destination by the
+    content type of the *permission* - what a lookup of the model filters on
+    - while ``registry/0031`` and ``accounts/0003`` filtered the shared table
+    by the content type the row carries.
+    """
+    for target_label, target_model, actor, direct_model in moved:
+        content = content_type(apps, target_label, target_model)
+        if content is None:
+            continue
+        target = apps.get_model(target_label, target_model)
+        shared = apps.get_model('guardian', SHARED[actor])
+        direct = apps.get_model(app_label, direct_model)
+
+        if by_permission_content_type:
+            granted = list(shared.objects.filter(
+                permission__content_type=content))
+        else:
+            granted = list(shared.objects.filter(content_type=content))
+        objects = objects_named(target, [row.object_pk for row in granted])
+        carried = [row for row in granted if row.object_pk in objects]
+        if not carried:
+            continue
+
+        direct.objects.bulk_create(
+            [direct(**{
+                f'{actor}_id': getattr(row, f'{actor}_id'),
+                'permission_id': row.permission_id,
+                'content_object_id': objects[row.object_pk]})
+             for row in carried],
+            batch_size=BATCH_SIZE, ignore_conflicts=True)
+        delete_in_batches(shared, [row.pk for row in carried])
+
+
+def backwards(apps, schema_editor, app_label, moved):
+    """Carries the rows of the dedicated tables back into the shared ones
+
+    The reverse of the deleted nodes: every row of the dedicated table goes
+    back to the shared one, named by the text of the primary key it was a
+    foreign key to.
+    """
+    for target_label, target_model, actor, direct_model in moved:
+        content = content_type(apps, target_label, target_model)
+        if content is None:
+            continue
+        shared = apps.get_model('guardian', SHARED[actor])
+        direct = apps.get_model(app_label, direct_model)
+
+        granted = list(direct.objects.all())
+        if not granted:
+            continue
+        shared.objects.bulk_create(
+            [shared(**{
+                f'{actor}_id': getattr(row, f'{actor}_id'),
+                'permission_id': row.permission_id,
+                'content_type': content,
+                'object_pk': row.content_object_id})
+             for row in granted],
+            batch_size=BATCH_SIZE, ignore_conflicts=True)
+        delete_in_batches(direct, [row.pk for row in granted])
+
+
+class RegistryMoveMigration(migrations.Migration):
+    """Port of the deleted ``registry/0031_move_generic_object_permissions_to
+    _direct_tables``: the services moved into their tables of their own."""
+
+    operations = [migrations.RunPython(
+        partial(forwards, app_label='registry', moved=REGISTRY_MOVED),
+        partial(backwards, app_label='registry', moved=REGISTRY_MOVED))]
+
+
+class AccountsMoveMigration(migrations.Migration):
+    """Port of the deleted ``accounts/0003_move_generic_object_permissions_to
+    _direct_tables``: the organizations and the groups of auth moved."""
+
+    operations = [migrations.RunPython(
+        partial(forwards, app_label='accounts', moved=ACCOUNTS_MOVED),
+        partial(backwards, app_label='accounts', moved=ACCOUNTS_MOVED))]
+
+
+class RemainingMoveMigration(migrations.Migration):
+    """Port of the deleted ``registry/0045_move_generic_object_permissions_of
+    _the_remaining_models``: the models #863 left open moved, reading the
+    shared table by the content type of the permission."""
+
+    operations = [migrations.RunPython(
+        partial(forwards, app_label='registry', moved=REMAINING_MOVED,
+                by_permission_content_type=True),
+        partial(backwards, app_label='registry', moved=REMAINING_MOVED))]
+
+
+#: the three ports, addressed as the deleted modules were
+REGISTRY_MOVE = RegistryMoveMigration
+ACCOUNTS_MOVE = AccountsMoveMigration
+REMAINING_MOVE = RemainingMoveMigration
 
 #: an organization which the deployment does not have
 GONE = "999999"
@@ -58,7 +249,8 @@ MONITORING_SETTING = 1
 
 
 class ObjectPermissionMoveTestCase(TestCase):
-    """What the two data migrations carry with them and what they leave"""
+    """What the ports of the two data migrations carry with them and what
+    they leave"""
 
     fixtures = ["test_users.json", "test_keywords.json", "test_wms.json"]
 
@@ -80,7 +272,7 @@ class ObjectPermissionMoveTestCase(TestCase):
                              "view_group", "view_user")}
         rows = [
             # a service: named by a uuid, both kinds of actor, a model with a
-            # table of its own since 0021
+            # table of its own
             UserObjectPermission.objects.create(
                 user=self.user, permission=permissions["view_webmapservice"],
                 content_object=self.service),
@@ -88,7 +280,7 @@ class ObjectPermissionMoveTestCase(TestCase):
                 group=self.group, permission=permissions["view_webmapservice"],
                 content_object=self.service),
             # an organization and its groups: named by an integer, both kinds of
-            # actor, a model with a table of its own since 0002
+            # actor, a model with a table of its own
             UserObjectPermission.objects.create(
                 user=self.user, permission=permissions["view_organization"],
                 content_object=self.organization),
@@ -117,12 +309,12 @@ class ObjectPermissionMoveTestCase(TestCase):
         return rows
 
     def move_forwards(self):
-        REGISTRY_MOVE.forwards(django_apps, None)
-        ACCOUNTS_MOVE.forwards(django_apps, None)
+        REGISTRY_MOVE.operations[0].code(django_apps, None)
+        ACCOUNTS_MOVE.operations[0].code(django_apps, None)
 
     def move_backwards(self):
-        REGISTRY_MOVE.backwards(django_apps, None)
-        ACCOUNTS_MOVE.backwards(django_apps, None)
+        REGISTRY_MOVE.operations[0].reverse_code(django_apps, None)
+        ACCOUNTS_MOVE.operations[0].reverse_code(django_apps, None)
 
     def test_forwards_moves_the_grants_of_a_model_with_a_table_of_its_own(
             self):
@@ -243,10 +435,10 @@ class ObjectPermissionMoveTestCase(TestCase):
 class RemainingModelsMoveTestCase(TestCase):
     """What the move of the models of #863 carries and what it leaves.
 
-    The tables of these models are new with ``registry/0044``, so a deployment
-    which has grants on them - or a fixture which wrote them the way
+    The tables of these models are the youngest of the dedicated ones, so a
+    deployment which has grants on them - or a fixture which wrote them the way
     ``test_mapcontext.json`` did - answers them from the shared table until this
-    migration moves them. Two readings of a row matter here:
+    port moves them. Two readings of a row matter here:
 
     * a lookup of a model narrows the shared table by ``permission__content_type``,
       so the model whose table a row moves into is the one of the *permission*.
@@ -282,7 +474,7 @@ class RemainingModelsMoveTestCase(TestCase):
         """
         rows = [
             # a catalogue: named by a uuid, granted on by no code today and
-            # answered from its own table since 0044
+            # answered from its own table
             GroupObjectPermission.objects.create(
                 group=self.group,
                 permission=self.permission(
@@ -336,10 +528,10 @@ class RemainingModelsMoveTestCase(TestCase):
         return rows
 
     def move_forwards(self):
-        REMAINING_MOVE.forwards(django_apps, None)
+        REMAINING_MOVE.operations[0].code(django_apps, None)
 
     def move_backwards(self):
-        REMAINING_MOVE.backwards(django_apps, None)
+        REMAINING_MOVE.operations[0].reverse_code(django_apps, None)
 
     def test_forwards_moves_the_grants_into_the_tables_of_their_model(self):
         """Every row of a model with a new table answers from it afterwards"""

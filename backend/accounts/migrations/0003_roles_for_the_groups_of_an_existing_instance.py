@@ -361,12 +361,14 @@ def remove_roles(apps, schema_editor):
     Role.objects.all().delete()
 
 
+# Carried over from the previous chain (accounts/0008_roles_for_the_groups_of_an_existing_instance) when the migration history
+# was regenerated from the models: the same python, only its dependencies moved.
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0007_roles_and_their_memberships'),
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("accounts", "0002_the_builtin_role_catalogue_is_seeded"),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("contenttypes", "0002_remove_content_type_name"),
     ]
 
     operations = [

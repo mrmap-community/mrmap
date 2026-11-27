@@ -278,12 +278,14 @@ def unseed_role_catalogue(apps, schema_editor):
     RoleDefinition.objects.filter(slug__in=SEED_SLUGS).delete()
 
 
+# Carried over from the previous chain (accounts/0005_the_builtin_role_catalogue_is_seeded) when the migration history
+# was regenerated from the models: the same python, only its dependencies moved.
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0004_role_definitions'),
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("accounts", "0001_initial"),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("contenttypes", "0002_remove_content_type_name"),
     ]
 
     operations = [

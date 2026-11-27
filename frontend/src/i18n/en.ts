@@ -1031,6 +1031,38 @@ const en = lodashMerge(
         notPermitted: "Not permitted",
         unreadable: "Unreadable",
       },
+      // the compact table of the work the deployment is doing, bottom-right of
+      // the dashboard (#1815). The rows are a bounded view onto the windows of
+      // the Background Job Center, so the wording never claims more than those
+      // windows can answer - and none of the states of a read answers a success
+      // word, because an unreadable deployment must never look idle
+      backgroundProcesses: {
+        title: "Active background processes",
+        type: "Process",
+        status: "Status",
+        started: "Started",
+        progress: "Progress",
+        scope: {
+          loading: "Reading the work of the deployment ...",
+          forbidden: "You are not allowed to see the background processes of this deployment",
+          error: "The background processes could not be read",
+          partial: "Only part of the work could be read, the table answers that part alone",
+          empty: "Nothing runs and nothing waits",
+          running: "The deployment is working",
+          waiting: "Work is waiting for a worker",
+          history: "Nothing runs right now, the rows below decided recently",
+        },
+        none: "Nothing to do",
+        justFailed: "Just failed: %{count}",
+        partialBadge: "Incomplete answer",
+        bounded: "%{shown} of %{total} processes shown",
+        unknown: "unknown",
+        notReported: "not reported",
+        notStarted: "not started",
+        noMoment: "no moment reported",
+        failedBefore: "failed earlier",
+        decidedBefore: "decided earlier",
+      },
     },
     historyChart: {
       partial: "Incomplete statistics for this period.",

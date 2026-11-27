@@ -4,6 +4,7 @@ import { useCanAccessResources } from "react-admin";
 import { Box, Grid, Skeleton, Stack } from "@mui/material";
 
 import ActivityChart from "./Cards/ActivityChart";
+import BackgroundProcessesCard from "./Cards/BackgroundProcessesCard";
 import CriticalAlerts from "./Cards/CriticalAlerts";
 import RecentNoticesCard from "./Cards/RecentNoticesCard";
 import ResourceListCard from "./Cards/ResourceListCard";
@@ -97,6 +98,9 @@ const Dashboard = (): ReactNode => {
             resources={inventoryResources.filter(resource => canAccess?.[resource] === true)}
             now={noticesNow}
           />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <BackgroundProcessesCard />
         </Grid>
       </Grid>}
     </Box>

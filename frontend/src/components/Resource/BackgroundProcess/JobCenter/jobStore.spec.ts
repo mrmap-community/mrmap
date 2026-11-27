@@ -7,13 +7,18 @@ import {
   hasProgressTotal,
   hasReferencePlan,
   isActive,
+  isReadForbidden,
   jobStateOf,
   MAX_TRACKED_JOBS,
+  overviewRows,
+  processesAnswer,
   removeJob,
   trim,
   visibleJobs,
   type BackgroundJobRecord,
+  type JobStoreState,
   initialJobStoreState,
+  type StoreWindow,
 } from "./jobStore";
 
 /** a process as the api answers it, with the fields the center reads */
@@ -311,5 +316,135 @@ describe("hasReferencePlan", () => {
     expect(
       hasReferencePlan(record(1, "running", { referencesTotal: null })),
     ).toBe(false);
+  });
+});
+
+/** the window of a store which answered the records and nothing else */
+const read = (
+  records: BackgroundJobRecord[] = [],
+): StoreWindow => ({ isPending: false, error: null, records });
+/** the window of a read which is still on its way */
+const pending = (): StoreWindow => ({
+  isPending: true,
+  error: null,
+  records: [],
+});
+/** the window of a read the api refused with one of the two statuses which
+ *  mean the caller may not see the records (#833) */
+const refused = (status: number): StoreWindow => ({
+  isPending: false,
+  error: { status },
+  records: [],
+});
+/** the window of a read which failed for another reason */
+const broken = (): StoreWindow => ({
+  isPending: false,
+  error: new Error("unreachable"),
+  records: [],
+});
+
+describe("isReadForbidden", () => {
+  it("names the two statuses of a refused read, on either shape of the error", () => {
+    expect(isReadForbidden({ status: 401 })).toBe(true);
+    expect(isReadForbidden({ status: 403 })).toBe(true);
+    expect(isReadForbidden({ response: { status: 403 } })).toBe(true);
+    expect(isReadForbidden({ status: 500 })).toBe(false);
+    expect(isReadForbidden(new Error("unreachable"))).toBe(false);
+    expect(isReadForbidden(null)).toBe(false);
+    expect(isReadForbidden(undefined)).toBe(false);
+  });
+});
+
+describe("processesAnswer", () => {
+  it("answers the states of a read apart from the states of the work", () => {
+    // a store which was not filled yet is not a deployment without work ...
+    expect(processesAnswer([pending(), pending()])).toBe("loading");
+    // ... and neither is a store whose reads were refused or failed
+    expect(processesAnswer([refused(403), refused(401)])).toBe("forbidden");
+    expect(processesAnswer([broken(), broken()])).toBe("error");
+  });
+
+  it("answers a refused read apart from a failed read, and never as empty", () => {
+    // a missing permission must not be reported as a broken api and neither of
+    // them may read as a deployment without work: a store whose every window is
+    // unreadable answers the refusal when all of them were refused ...
+    expect(processesAnswer([refused(403), refused(401)])).toBe("forbidden");
+    expect(processesAnswer([refused(403), refused(403)])).toBe("forbidden");
+    // ... and the broken api when one of them broke instead, because a refused
+    // read beside a broken one has nothing left to be partial about
+    expect(processesAnswer([refused(403), broken()])).toBe("error");
+    expect(processesAnswer([broken(), refused(401)])).toBe("error");
+    expect(processesAnswer([broken(), broken()])).toBe("error");
+  });
+
+  it("answers a half read answer as partial and never as the whole answer", () => {
+    // the active window is empty and the history window failed: the card may
+    // not read "nothing runs", because the window which would know is gone
+    expect(processesAnswer([read(), broken()])).toBe("partial");
+    expect(processesAnswer([read(), refused(403)])).toBe("partial");
+    expect(
+      processesAnswer([read([record(1, "running")]), broken()]),
+    ).toBe("partial");
+  });
+
+  it("distinguishes work which runs from work which waits and from history", () => {
+    expect(
+      processesAnswer([read([record(1, "running")]), read([record(2, "completed")])]),
+    ).toBe("running");
+    // a retrying process still moves, so it answers the deployment at work
+    expect(
+      processesAnswer([read([record(1, "running", { isRetrying: true })]), read()]),
+    ).toBe("running");
+    // queued work waits for a worker: it neither runs nor is history
+    expect(processesAnswer([read([record(1, "pending")]), read()])).toBe(
+      "waiting",
+    );
+    // the failures of the history window are history and never live work
+    expect(
+      processesAnswer([read(), read([record(2, "failed"), record(3, "completed")])]),
+    ).toBe("history");
+    expect(
+      processesAnswer([read([record(1, "aborted")]), read([record(2, "completed")])]),
+    ).toBe("history");
+  });
+
+  it("answers an empty store only when both windows were read", () => {
+    expect(processesAnswer([read(), read()])).toBe("empty");
+  });
+});
+
+describe("overviewRows", () => {
+  const store = (
+    ...records: BackgroundJobRecord[]
+  ): JobStoreState => ({ jobs: Object.fromEntries(records.map((r) => [String(r.id), r])) });
+
+  it("answers the work which can still be acted upon first", () => {
+    const rows = overviewRows(
+      store(
+        record(1, "completed", { dateCreated: "2026-11-09T12:00:00Z" }),
+        record(2, "pending", { dateCreated: "2026-11-01T12:00:00Z" }),
+        record(3, "failed", { dateCreated: "2026-11-02T12:00:00Z" }),
+        record(4, "running", { dateCreated: "2026-11-03T12:00:00Z" }),
+      ),
+      10,
+    );
+    // moving work, then waiting work, then the decided work - newest first
+    // within every group, whatever order the store held them in
+    expect(rows.map((row) => row.id)).toEqual([4, 2, 3, 1]);
+  });
+
+  it("bounds the rows it answers", () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      record(index + 1, "running", {
+        dateCreated: `2026-11-09T12:00:${String(index).padStart(2, "0")}Z`,
+      }),
+    );
+    expect(overviewRows(store(...many), 6)).toHaveLength(6);
+    // the newest of the moving work, because a compact panel is read by its
+    // most recent rows
+    expect(overviewRows(store(...many), 6).map((row) => row.id)).toEqual([
+      12, 11, 10, 9, 8, 7,
+    ]);
+    expect(overviewRows(store(...many), 0)).toEqual([]);
   });
 });

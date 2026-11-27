@@ -6,8 +6,9 @@
 # scripts/ holds host-side repository tools: release/migration checks,
 # documentation validation and the human decision protocol. The QA container
 # binds only ./backend, so these suites run on a plain checkout without agents,
-# MCP clients or LLM credentials. Legacy claim suites remain for the explicit
-# #1391 exception until its owner confirms the handoff.
+# MCP clients or LLM credentials. The legacy claim suites were removed with
+# their tools once the #1391 exception finished (#1794); discovery here is by
+# glob, so the summary only ever names what still exists.
 #
 # WHAT THIS DOES NOT DO
 #

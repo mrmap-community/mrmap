@@ -617,6 +617,20 @@ def _int(value):
         return None
 
 
+def _of_cell(name, cells):
+    """Whether an artifact belongs to one of the cells being (re)measured.
+
+    Every artifact of a run ends its name with its cell
+    (``http-<arm>-<cell>.jsonl``, ``memory-<arm>-<phase>-<cell>.jsonl``,
+    ``summary-<arm>-<cell>.txt``), so the tail decides and the phase in the
+    middle cannot confuse it. Without this a celery run deletes the http
+    readings of the same arm taken an hour earlier, and the "resume a protocol"
+    promise in the header only ever held across arms.
+    """
+    stem = name.split(".", 1)[0]
+    return any(stem.endswith("-%s" % cell) for cell in cells)
+
+
 def _belongs_to(name, arm_name):
     return name.startswith(tuple(
         "%s-%s" % (prefix, arm_name) for prefix in
@@ -805,12 +819,14 @@ def cmd_run(args, data):
     stack.resolve_loader()
 
     out = os.path.abspath(args.out)
-    # only this arm's own files are cleared, so an earlier arm's readings stay
-    # where they are: a protocol is a long run, and resuming one arm beats
-    # restarting all of them.
+    # only the files of THIS arm and of the cells being measured are cleared, so
+    # the readings of an earlier arm - and of the other half of this arm's
+    # protocol - stay where they are: a protocol is a long run, and resuming one
+    # half of it beats restarting all of it.
+    measured = {cell["name"] for cell in cells}
     if os.path.isdir(out):
         for name in os.listdir(out):
-            if _belongs_to(name, arm["name"]):
+            if _belongs_to(name, arm["name"]) and _of_cell(name, measured):
                 os.remove(os.path.join(out, name))
     else:
         os.makedirs(out, exist_ok=True)
@@ -1055,6 +1071,13 @@ def write_manifest(args, data, arm, cells, project, stack_tree, started, failure
         except Exception:
             return ""
 
+    prior_cells = {}
+    prior = os.path.join(args.out, "run-%s.json" % arm["name"])
+    if os.path.isfile(prior):
+        try:
+            prior_cells = load_json(prior, "previous run manifest")
+        except BenchError:
+            prior_cells = {}
     manifest = {
         "schema": RUN_SCHEMA,
         "kind": "run",
@@ -1067,7 +1090,12 @@ def write_manifest(args, data, arm, cells, project, stack_tree, started, failure
         "revision": git("rev-parse", "HEAD"),
         "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
         "dirty": bool(git("status", "--porcelain")),
-        "cells": [cell["name"] for cell in cells],
+        # the union of what this invocation measured and what an earlier one
+        # left in the directory: an arm measured in two sittings is one arm, and
+        # verify still refuses a named cell without an artifact behind it.
+        "cells": sorted(({cell["name"] for cell in cells}
+                         | set(prior_cells.get("cells") or []))
+                        & set(cell_records(args.out, arm["name"]))),
         "repeats": args.repeats or data["protocol"]["repeats"],
         "seed": args.seed or data["protocol"]["seed"],
         "sampled": bool(args.sample),

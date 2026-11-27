@@ -113,3 +113,9 @@ lerna-debug.log*
 # mount, so the artifact path of the nightly and this ignore are one path.
 /backend/task-perf/
 /backend/task-perf-heavy/
+
+# run directories of the observability benchmark (#1777) - the workload files
+# of a celery cell and the staged load driver of an http cell, both written
+# below backend/ for the same reason as above: it is the container's bind
+# mount. Nothing here is evidence; the evidence is --out.
+/backend/observability-bench/

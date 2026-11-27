@@ -20,6 +20,7 @@ import json
 import os
 import shutil
 import subprocess
+import time
 import sys
 import tempfile
 from pathlib import Path
@@ -374,6 +375,76 @@ def test_stack_loader_argv():
     shutil.rmtree(staging, ignore_errors=True)
     shutil.rmtree(os.path.join(str(ROOT), "backend", "observability-bench"),
                   ignore_errors=True)
+
+
+@check("a partial run keeps the artifacts of the cells it did not measure")
+def test_partial_run_keeps_other_cells():
+    # the protocol is long: measuring the http half of an arm after its celery
+    # half must not delete the celery half, and the manifest must still name
+    # both, or the resume promise only ever held across arms
+    measured = {"harvesting-import"}
+    untouched = ["taskperf-legacy-shipped-housekeeping.jsonl",
+                 "summary-legacy-shipped-service-list-ws.txt",
+                 "celery-env-legacy-shipped-housekeeping.json",
+                 "memory-legacy-shipped-idle-harvesting-fan-out.jsonl",
+                 "http-legacy-shipped-service-list-ws.jsonl",
+                 "run-legacy-shipped.json", "run-diagnostics-off.json",
+                 "http-diagnostics-off-harvesting-import.jsonl",
+                 "override-legacy-shipped.yml"]
+    regrown = ["taskperf-legacy-shipped-harvesting-import.jsonl",
+               "memory-legacy-shipped-idle-harvesting-import.jsonl",
+               "celery-env-legacy-shipped-harvesting-import.json"]
+    out = tempfile.mkdtemp()
+    for name in untouched + regrown:
+        open(os.path.join(out, name), "w").close()
+    cleared = sorted(name for name in os.listdir(out)
+                     if OB._belongs_to(name, "legacy-shipped")
+                     and OB._of_cell(name, measured))
+    assert cleared == sorted(regrown), cleared
+    for name in cleared:
+        os.remove(os.path.join(out, name))
+    assert sorted(os.listdir(out)) == sorted(untouched)
+
+
+@check("an arm measured in two sittings is one arm with both halves")
+def test_manifest_unions_partial_runs():
+    out = tempfile.mkdtemp()
+    arm = {"name": "legacy-shipped", "role": "subject", "celery_env": {},
+           "services": {}, "definition": "x", "requires_sampler": True}
+    prior = {"cells": ["harvesting-import", "harvesting-fan-out",
+                       "monitoring-probe", "housekeeping"]}
+    with open(os.path.join(out, "run-legacy-shipped.json"), "w") as handle:
+        json.dump(prior, handle)
+    # only the http half is measured now, so only its records exist on disk
+    for name, body in (
+            ("http-legacy-shipped-service-list.jsonl",
+             json.dumps({"kind": "load", "arm": "legacy-shipped",
+                         "phase": "load", "requests": 10, "elapsed_s": 1.0,
+                         "http": {"overall": {"n": 10, "p50_ms": 5,
+                                              "p95_ms": 9, "rps": 10.0,
+                                              "ok": 10, "errors": 0}}}) + "\n"),
+            ("memory-legacy-shipped-load-service-list.jsonl",
+             json.dumps({"container": "b", "phase": "load-service-list",
+                         "current_bytes": 100}) + "\n")):
+        with open(os.path.join(out, name), "w") as handle:
+            handle.write(body)
+    namespace = args(arm="legacy-shipped", out=out, profile="dev", sample=True,
+                     loader="stack", legacy_off_settings_module="")
+    data = OB.load_arms(str(ARMS))
+
+    class _Stack:
+        loader_mode = "stack"
+
+    OB.write_manifest(namespace, data, arm,
+                      [c for c in data["cells"] if c["name"] == "service-list"],
+                      "mrmap-issue-1777-split", str(ROOT), time.time(), [],
+                      _Stack())
+    manifest = json.load(open(os.path.join(out, "run-legacy-shipped.json")))
+    # the celery cells were never re-measured, so they are not claimed: a cell
+    # only belongs to a manifest while an artifact backs it
+    assert manifest["cells"] == ["service-list"], manifest["cells"]
+    assert manifest["loader_mode"] == "stack", manifest
+    shutil.rmtree(out, ignore_errors=True)
 
 
 @check("the run pins the project compose resolves, not the tree's .env")
@@ -816,6 +887,8 @@ def main():
     test_occupied_address_refused()
     test_occupied_address_loads_in_stack()
     test_stack_loader_argv()
+    test_partial_run_keeps_other_cells()
+    test_manifest_unions_partial_runs()
     test_compose_project_is_pinned()
     test_check_project_refuses_foreign_resolution()
     test_http_summary()

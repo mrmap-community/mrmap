@@ -155,6 +155,16 @@ Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.
   that adds a migration and it names both leaves, the file of each and the number to renumber to.
   Its offline checks are `python3 scripts/test_migration_graph_smoke.py` (synthetic graphs plus
   one throw-away git repository; needs neither docker nor the network).
+  `scripts/otlp_storage_smoke.py` asserts the optional metrics/traces stores of #1778 against
+  ADR-0003: the pinned images and flags, the volume, retention and byte bounds, that neither
+  store publishes a host port, that Grafana's two datasources and their pinned plugins are the
+  only readers, and - `--live` - that a hand-written OTLP/HTTP histogram and span are accepted,
+  queryable and retrievable in an isolated Compose project (`python3 scripts/otlp_storage_smoke.py
+  --live --json evidence.json`; two stores plus one probe container, own project name, no
+  application service). The offline half starts nothing and is what CI can afford; `--live` is
+  the reproducible evidence the issue asks for. Requests are issued from a container of the
+  check's own on `mrmap-internal`, never from a host socket, because the deployment publishes no
+  port for either store and the check must work against a remote or rootless Docker daemon.
   `scripts/release_gates.py` decides what a release candidate may claim (#1583, epic #1577): the
   OpenAPI/JSON:API contract diff against the committed baseline (today `pre-baseline`, measured 0
   tags, with the reviewed 0.x reading declared in the manifest), the version bump and the

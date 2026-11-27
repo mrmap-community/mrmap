@@ -1,0 +1,451 @@
+{
+  "issue": 1778,
+  "adr": "docs/architecture/decisions/ADR-0003-low-overhead-observability.md",
+  "revision": "c948cb8a09a8d2edbbd4b4aa1305de3561409edb",
+  "live": true,
+  "commands": [
+    "python3 scripts/otlp_storage_smoke.py",
+    "flock -x /tmp/mrmap-test.lock -c 'python3 scripts/otlp_storage_smoke.py --live'"
+  ],
+  "stores": {
+    "victoria-metrics": "victoriametrics/victoria-metrics:v1.157.0",
+    "victoria-traces": "victoriametrics/victoria-traces:v0.13.0"
+  },
+  "checks": [
+    {
+      "name": "victoria-metrics is defined in docker-compose.yml",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victoria-metrics runs the image ADR-0003 pins (victoriametrics/victoria-metrics:v1.157.0)",
+      "ok": true,
+      "detail": "victoriametrics/victoria-metrics:v1.157.0"
+    },
+    {
+      "name": "victoria-metrics publishes no host port - ingestion and query stay network-internal and Grafana stays the only web entry point",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victoria-metrics is attached to mrmap-internal and to nothing else",
+      "ok": true,
+      "detail": "{'mrmap-internal': None}"
+    },
+    {
+      "name": "victoria-metrics keeps its data on one named volume of the project",
+      "ok": true,
+      "detail": "[('vm-data', '/vm-data')]"
+    },
+    {
+      "name": "victoria-metrics comes back after a host reboot like the rest of the fleet",
+      "ok": true,
+      "detail": "unless-stopped"
+    },
+    {
+      "name": "victoria-metrics writes inside its own mount",
+      "ok": true,
+      "detail": "/vm-data"
+    },
+    {
+      "name": "victoria-metrics listens on its documented port only on the interface Compose publishes inside the network",
+      "ok": true,
+      "detail": ":8428"
+    },
+    {
+      "name": "victoria-metrics keeps the retention window of ADR-0003 (90d)",
+      "ok": true,
+      "detail": "${VICTORIA_METRICS_RETENTION:-90d}"
+    },
+    {
+      "name": "victoria-metrics bounds its retention: readable and inside 400 d, never unbounded",
+      "ok": true,
+      "detail": "'90d' -> 90 d"
+    },
+    {
+      "name": "victoria-metrics bounds its bytes on disk (-storage.minFreeDiskSpaceBytes)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victoria-metrics sets neither resource-attribute promotion flag, so nothing a caller controls can become a metric dimension - and it starts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the only OTLP flag of victoria-metrics is the Prometheus-compatible naming one of ADR-0003",
+      "ok": true,
+      "detail": "['-opentelemetry.usePrometheusNaming']"
+    },
+    {
+      "name": "victoria-metrics ingests OTLP with Prometheus-compatible names",
+      "ok": true,
+      "detail": "['-httpListenAddr', '-opentelemetry.usePrometheusNaming', '-retentionPeriod', '-storage.minFreeDiskSpaceBytes', '-storageDataPath']"
+    },
+    {
+      "name": "victoria-traces is defined in docker-compose.yml",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victoria-traces runs the image ADR-0003 pins (victoriametrics/victoria-traces:v0.13.0)",
+      "ok": true,
+      "detail": "victoriametrics/victoria-traces:v0.13.0"
+    },
+    {
+      "name": "victoria-traces publishes no host port - ingestion and query stay network-internal and Grafana stays the only web entry point",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "victoria-traces is attached to mrmap-internal and to nothing else",
+      "ok": true,
+      "detail": "{'mrmap-internal': None}"
+    },
+    {
+      "name": "victoria-traces keeps its data on one named volume of the project",
+      "ok": true,
+      "detail": "[('vt-data', '/vt-data')]"
+    },
+    {
+      "name": "victoria-traces comes back after a host reboot like the rest of the fleet",
+      "ok": true,
+      "detail": "unless-stopped"
+    },
+    {
+      "name": "victoria-traces writes inside its own mount",
+      "ok": true,
+      "detail": "/vt-data"
+    },
+    {
+      "name": "victoria-traces listens on its documented port only on the interface Compose publishes inside the network",
+      "ok": true,
+      "detail": ":10428"
+    },
+    {
+      "name": "victoria-traces keeps the retention window of ADR-0003 (7d)",
+      "ok": true,
+      "detail": "${VICTORIA_TRACES_RETENTION:-7d}"
+    },
+    {
+      "name": "victoria-traces bounds its retention: readable and inside 60 d, never unbounded",
+      "ok": true,
+      "detail": "'7d' -> 7 d"
+    },
+    {
+      "name": "victoria-traces bounds its bytes on disk (-retention.maxDiskSpaceUsageBytes)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no service anywhere depends on victoria-metrics or victoria-traces",
+      "ok": true,
+      "detail": " depends on the pair, which would make optional observability a startup dependency of the application"
+    },
+    {
+      "name": "the lightweight mode profiles victoria-metrics into the observability tier",
+      "ok": true,
+      "detail": "['observability']"
+    },
+    {
+      "name": "the lightweight mode caps victoria-metrics inside its documented band",
+      "ok": true,
+      "detail": "mem_limit='${VICTORIA_METRICS_MEM_LIMIT:-512m}', band 512m..1g"
+    },
+    {
+      "name": "the lightweight mode profiles victoria-traces into the observability tier",
+      "ok": true,
+      "detail": "['observability']"
+    },
+    {
+      "name": "the lightweight mode caps victoria-traces inside its documented band",
+      "ok": true,
+      "detail": "mem_limit='${VICTORIA_TRACES_MEM_LIMIT:-512m}', band 512m..1g"
+    },
+    {
+      "name": "the core tier of the lightweight mode runs neither store",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the core still resolves with the tier off - the disabled mode",
+      "ok": true,
+      "detail": "['backend', 'celery-beat', 'celery-worker', 'docker-api', 'frontend', 'postgis', 'redis']"
+    },
+    {
+      "name": "victoria-metrics has a provisioned Grafana datasource",
+      "ok": true,
+      "detail": "docker/grafana/provisioning/datasources/vm.yml"
+    },
+    {
+      "name": "the datasource of victoria-metrics carries the stable uid #1781 provisions its dashboard against",
+      "ok": true,
+      "detail": "victoriametrics"
+    },
+    {
+      "name": "the datasource of victoria-metrics is of the type whose HTTP API the store implements (victoriametrics-metrics-datasource)",
+      "ok": true,
+      "detail": "victoriametrics-metrics-datasource"
+    },
+    {
+      "name": "the datasource of victoria-metrics points at the internal store URL",
+      "ok": true,
+      "detail": "http://victoria-metrics:8428"
+    },
+    {
+      "name": "the datasource of victoria-metrics is reached through the Grafana proxy, not a browser-reachable store",
+      "ok": true,
+      "detail": "proxy"
+    },
+    {
+      "name": "the victoriametrics-metrics-datasource plugin is pinned to an exact version",
+      "ok": true,
+      "detail": "GF_PLUGINS_PREINSTALL='${GRAFANA_PLUGINS_PREINSTALL:-victoriametrics-logs-datasource@0.34.0,victoriametrics-metrics-datasource@1.0.1}'"
+    },
+    {
+      "name": "victoria-traces has a provisioned Grafana datasource",
+      "ok": true,
+      "detail": "docker/grafana/provisioning/datasources/vt.yml"
+    },
+    {
+      "name": "the datasource of victoria-traces carries the stable uid #1781 provisions its dashboard against",
+      "ok": true,
+      "detail": "victoriatraces"
+    },
+    {
+      "name": "the datasource of victoria-traces is of the type whose HTTP API the store implements (tempo)",
+      "ok": true,
+      "detail": "tempo"
+    },
+    {
+      "name": "the datasource of victoria-traces points at the internal store URL",
+      "ok": true,
+      "detail": "http://victoria-traces:10428/select/tempo"
+    },
+    {
+      "name": "the datasource of victoria-traces is reached through the Grafana proxy, not a browser-reachable store",
+      "ok": true,
+      "detail": "proxy"
+    },
+    {
+      "name": "every preinstalled Grafana plugin of the deployment is pinned",
+      "ok": true,
+      "detail": "{'victoriametrics-logs-datasource': '0.34.0', 'victoriametrics-metrics-datasource': '1.0.1'}"
+    },
+    {
+      "name": "the unsigned-load list names victoriametrics-logs-datasource explicitly, rather than being open",
+      "ok": true,
+      "detail": "${GRAFANA_PLUGINS_UNSIGNED:-victoriametrics-logs-datasource,victoriametrics-metrics-datasource}"
+    },
+    {
+      "name": "the unsigned-load list names victoriametrics-metrics-datasource explicitly, rather than being open",
+      "ok": true,
+      "detail": "${GRAFANA_PLUGINS_UNSIGNED:-victoriametrics-logs-datasource,victoriametrics-metrics-datasource}"
+    },
+    {
+      "name": "Grafana provisions its datasources read-only from the repository",
+      "ok": true,
+      "detail": "['/var/lib/grafana', '/etc/grafana/provisioning/datasources', '/etc/grafana/provisioning/dashboards']"
+    },
+    {
+      "name": "no other published service addresses either store, so Grafana stays the only reader of these APIs",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the metrics export decodes as one OTLP histogram",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the exported metric carries the ADR-0003 name and unit",
+      "ok": true,
+      "detail": "http_server_request_duration_seconds [s]"
+    },
+    {
+      "name": "the exported histogram carries the boundaries of ADR-0003 exactly",
+      "ok": true,
+      "detail": "[0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.4, 0.5, 0.75, 1.0, 2.5, 5.0, 7.5, 10.0]"
+    },
+    {
+      "name": "the exported histogram is cumulative with bucket counts that add up to 11",
+      "ok": true,
+      "detail": "[0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1]"
+    },
+    {
+      "name": "the cumulative count at the 0.4 s boundary is the observations at or below it, which is what #1781 queries",
+      "ok": true,
+      "detail": "8"
+    },
+    {
+      "name": "the observation slower than every boundary lands in the +Inf bucket",
+      "ok": true,
+      "detail": "1"
+    },
+    {
+      "name": "the export distinguishes its writer by service.instance.id",
+      "ok": true,
+      "detail": "{'deployment.environment.name': 'otlp-storage-smoke', 'service.instance.id': 'writer-a', 'service.name': 'mrmap-otlp-smoke', 'service.version': 'smoke'}"
+    },
+    {
+      "name": "the export carries no resource attribute beyond the four of the bounded set - the cardinality boundary of ADR-0003",
+      "ok": true,
+      "detail": "['deployment.environment.name', 'service.instance.id', 'service.name', 'service.version']"
+    },
+    {
+      "name": "the data point carries the two bounded request attributes",
+      "ok": true,
+      "detail": "['http.request.method', 'http.route']"
+    },
+    {
+      "name": "no arbitrary dimension of a caller can reach the metric",
+      "ok": true,
+      "detail": "{'http.request.method': 'GET', 'http.route': '/api/v1/resources'}"
+    },
+    {
+      "name": "the trace export decodes as one OTLP span",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the span carries a 16 byte trace id, an 8 byte span id, a SERVER kind and a successful status",
+      "ok": true,
+      "detail": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa kind 2 status [1]"
+    },
+    {
+      "name": "the span is finished: its start precedes its end",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "the span carries only the bounded request attributes of ADR-0003",
+      "ok": true,
+      "detail": "['http.request.method', 'http.response.status_code', 'http.route']"
+    },
+    {
+      "name": "the trace resource carries the bounded set and no arbitrary dimension",
+      "ok": true,
+      "detail": "['deployment.environment.name', 'service.name', 'service.version']"
+    },
+    {
+      "name": "victoria-metrics answers its own health endpoint from inside the network",
+      "ok": true,
+      "detail": "not ready within 120s"
+    },
+    {
+      "name": "victoria-traces answers its own health endpoint from inside the network",
+      "ok": true,
+      "detail": "not ready within 120s"
+    },
+    {
+      "name": "victoria-metrics accepts a direct OTLP/HTTP export of the ADR-0003 histogram from writer-a",
+      "ok": true,
+      "detail": "200 b''"
+    },
+    {
+      "name": "victoria-metrics accepts a direct OTLP/HTTP export of the ADR-0003 histogram from writer-b",
+      "ok": true,
+      "detail": "200 b''"
+    },
+    {
+      "name": "victoria-traces accepts a direct OTLP/HTTP trace export",
+      "ok": true,
+      "detail": "200 b''"
+    },
+    {
+      "name": "the exported histogram is queryable through the Prometheus-compatible query API",
+      "ok": true,
+      "detail": "200 [{'metric': {'__name__': 'http_server_request_duration_seconds_count', 'deployment_environment_name': 'otlp-storage-smoke', 'http_request_method': 'GET', 'http_"
+    },
+    {
+      "name": "the two writers stay two cumulative series rather than overwriting one another",
+      "ok": true,
+      "detail": "['writer-a', 'writer-b']"
+    },
+    {
+      "name": "each writer's cumulative count is the 11 observations it exported, so the pair neither double-counts nor loses one",
+      "ok": true,
+      "detail": "[11.0, 11.0] expected 11 per writer"
+    },
+    {
+      "name": "the 0.4 s boundary of ADR-0003 is a queryable bucket of the exported histogram",
+      "ok": true,
+      "detail": "status 200, 16 le values seen"
+    },
+    {
+      "name": "the count at le=0.4 is the observations at or below the cutoff",
+      "ok": true,
+      "detail": "[8.0, 8.0] expected 8 per writer"
+    },
+    {
+      "name": "victoria-traces answers the Tempo query API Grafana speaks",
+      "ok": true,
+      "detail": "200 echo"
+    },
+    {
+      "name": "the exported service is searchable through the Jaeger query API",
+      "ok": true,
+      "detail": "200 {'data': ['mrmap-otlp-smoke'], 'errors': None, 'limit': 0, 'offset': 0, 'total': 1}"
+    },
+    {
+      "name": "the exported trace comes back through the Tempo API by its id, which is the request Grafana makes when a span is opened",
+      "ok": true,
+      "detail": "200 {\"batches\": [{\"resource\": {\"attributes\": [{\"key\": \"deployment.environment.name\", \"value\": {\"stringValue\": \"otlp-storage-"
+    },
+    {
+      "name": "the exported trace is retrievable through the Jaeger trace query API",
+      "ok": true,
+      "detail": "200 {'data': [{'processes': {'p1': {'serviceName': 'mrmap-otlp-smoke', 'tags': [{'key': 'deployment.environment.name', 'type': 'string', 'value': 'otlp-storage-smok"
+    },
+    {
+      "name": "victoria-metrics is really unreachable once stopped",
+      "ok": true,
+      "detail": "still answered None"
+    },
+    {
+      "name": "victoria-traces is really unreachable once stopped",
+      "ok": true,
+      "detail": "still answered None"
+    },
+    {
+      "name": "the deployment still resolves with both stores stopped - the unavailable mode",
+      "ok": true,
+      "detail": "14"
+    }
+  ],
+  "measurements": [
+    {
+      "name": "otlp metric exports accepted",
+      "value": 2,
+      "unit": "exports",
+      "note": "one per writer, each 200 with an OTLP reply body"
+    },
+    {
+      "name": "histogram boundaries stored",
+      "value": 16,
+      "unit": "le buckets",
+      "note": "the explicit boundaries of ADR-0003, queried back"
+    },
+    {
+      "name": "observations per cumulative writer",
+      "value": 11,
+      "unit": "count",
+      "note": "8 below and 2 above the 0.4 s cutoff"
+    },
+    {
+      "name": "cumulative writers distinguished",
+      "value": 2,
+      "unit": "series",
+      "note": "two service.instance.id writers of one stream"
+    }
+  ],
+  "limitations": [
+    "the application-side behaviour of an exporter against a stopped, slow or rejecting store belongs to #1779 and #1780; what this check proves is that no service of the deployment depends on the pair, which is the startup half of the same rule",
+    "the byte bound of the default mode is each store's own free-space guard plus its retention window, not a filesystem quota: a quota needs a quota-enabled filesystem and the quota tools, which an operator opts into",
+    "on the pinned victoria-traces, /select/tempo/api/search answers 200 with an empty result for spans the same store serves by id and through the Jaeger API, and /select/tempo/api/traceql/search is not implemented at all; the check therefore proves retrievability by id and by service rather than the search box, and whoever reviews the tier should confirm which search mode the provisioned tempo datasource ends up using",
+    "Grafana's own render of the two provisioned datasources is not automated here; the check pins the plugin versions and asserts the datasource definitions and the store APIs behind them, and a reviewer with the tier up should open Explore once per datasource",
+    "the OTLP payload is written against the published wire format rather than through the OpenTelemetry SDK on purpose: the question is what the store accepts, and #1779 owns the SDK pins",
+    "the live half starts the stores of the committed file, not the whole stack: an end-to-end run with a real instrumented application is #1779 and the matched measurement is #1777/#1780",
+    "requests go through the busybox client of a container of this check's own on mrmap-internal rather than a socket from this host, because the deployment publishes no port for either store; that also means the check works against a remote or rootless Docker host, and what it cannot see is a client outside the network being refused - which the offline port check asserts instead"
+  ]
+}

@@ -93,6 +93,8 @@
   "tiers": {
     "observability": [
       "victoria-logs",
+      "victoria-metrics",
+      "victoria-traces",
       "grafana"
     ],
     "admin": [

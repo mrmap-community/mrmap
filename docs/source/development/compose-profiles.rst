@@ -28,9 +28,9 @@ OOM cannot take back barely moves when they are dropped. #1614 turned that
 measurement into a supported choice: the services which only observe or
 administer MrMap, and the containers which run its test suites, are now a tier
 each, and the core runs without them. #1622 closed the other half: on a host
-which switches a tier back on inside the lightweight mode, those four observers
-run under a memory ceiling, and the application says out loud when the log sink
-of the tier it did not start is missing.
+which switches a tier back on inside the lightweight mode, those observers run
+under a memory ceiling, and the application says out loud when the log sink of
+the tier it did not start is missing.
 
 The service matrix
 ==================
@@ -62,11 +62,12 @@ new service in no tier fails it.
      - core (dev)
      - a runtime dependency of the development stack and the exact dependency of
        the suites which assert OGC responses; started by name where it is needed
-   * - ``victoria-logs``, ``grafana``
+   * - ``victoria-logs``, ``victoria-metrics``, ``victoria-traces``, ``grafana``
      - ``observability``
-     - the log store and its UI. Optional for the application, required for
-       central log search. Bounded by #1622 when the tier runs in lightweight
-       mode: see `The memory ceiling of the tier`_
+     - the three stores and their UI. Optional for the application, required for
+       central log search and for any metrics or trace to be kept at all.
+       Bounded by #1622 when the tier runs in lightweight mode: see `The memory
+       ceiling of the tier`_; #1778 adds the metrics and traces stores
    * - ``pgadmin``, ``flower``
      - ``admin``
      - two operator UIs over data the application's own API and status pages
@@ -120,8 +121,10 @@ Three things to know about the mechanism
 
   .. code:: console
 
-      docker compose stop grafana pgadmin flower victoria-logs
-      docker compose rm -f grafana pgadmin flower victoria-logs
+      docker compose stop grafana pgadmin flower victoria-logs \
+          victoria-metrics victoria-traces
+      docker compose rm -f grafana pgadmin flower victoria-logs \
+          victoria-metrics victoria-traces
 
 * **A tier which is not active is not part of the project's containers**, so no
   restart policy brings it back after a host reboot - see
@@ -223,9 +226,9 @@ The memory ceiling of the tier
 Switching a tier off is the big saving, and #1614 shipped it. #1622 covers the
 other half of the same question: **a tier which is switched back on in
 lightweight mode runs bounded**, because the point of layering the file was a
-host which cannot afford the uncapped fleet of the full deployment. The four
+host which cannot afford the uncapped fleet of the full deployment. The six
 observers carry a ``mem_limit`` in ``docker-compose.lightweight.yml`` and
-nowhere else:
+nowhere else - the four of #1622 plus the two stores #1778 adds:
 
 .. list-table::
    :header-rows: 1
@@ -251,6 +254,14 @@ nowhere else:
      - ``256m``
      - 39 M
      - ``VICTORIA_LOGS_MEM_LIMIT``
+   * - ``victoria-metrics``
+     - ``512m``
+     - no #1613 baseline
+     - ``VICTORIA_METRICS_MEM_LIMIT``
+   * - ``victoria-traces``
+     - ``512m``
+     - no #1613 baseline
+     - ``VICTORIA_TRACES_MEM_LIMIT``
 
 Four things about that table, each of which the smoke check asserts:
 
@@ -285,6 +296,62 @@ re-reads ``/vlogs-data``; a restarted pgadmin re-reads ``servers.json``), while
 the shared caches and queues which carry application state - Redis, the Celery
 result backend, the Postgres shared buffers - keep the bounds their own issues
 gave them (#1618, #1615, #1621) and are not touched here.
+
+The metrics and traces stores of #1778
+--------------------------------------
+
+The two stores which came after ``victoria-logs`` follow the same rules on purpose:
+``victoria-metrics`` and ``victoria-traces`` are in the ``observability`` tier, carry no
+published port, keep their data on the named volumes ``vm-data`` and ``vt-data``, and are
+read only by Grafana over ``mrmap-internal`` - through the two datasources provisioned
+read-only from ``docker/grafana/provisioning/datasources/``, which is why the two
+``victoriametrics-*`` plugins are pinned to an exact version and named explicitly in
+``GF_PLUGINS_PREINSTALL``. An OTLP/HTTP client which reaches either store directly has
+to be inside that network, so nothing which crosses the edge can push a metric or a span
+into them: there is no ingestion port to hit.
+
+They are off unless the tier is on, and with the tier off ``docker compose config``
+still resolves the deployment; no core service waits for them, so a disabled or an
+unavailable store cannot stop the application. Each is overridable the way the ceilings
+above are:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 22 48
+
+   * - knob
+     - default
+     - what it bounds
+   * - ``VICTORIA_METRICS_RETENTION``
+     - ``90d``
+     - how far back metrics go. Retention bounds *time*, never bytes
+   * - ``VICTORIA_METRICS_MIN_FREE_DISK``
+     - ``1073741824``
+     - the free space VictoriaMetrics leaves on its volume; below it the store stops
+       merging parts rather than filling the host's disk
+   * - ``VICTORIA_TRACES_RETENTION``
+     - ``7d``
+     - how far back traces go
+   * - ``VICTORIA_TRACES_MAX_DISK_USAGE``
+     - ``10737418240``
+     - the size of the trace volume. VictoriaTraces enforces this by dropping the
+       *oldest* partition, which is the right trade for sampled traces - ADR-0003
+       accepts losing a span - but it is a deletion policy rather than a quota, which
+       is why the number is visible and overridable here instead of left at an
+       upstream default
+   * - ``VICTORIA_METRICS_MEM_LIMIT`` and
+       ``VICTORIA_TRACES_MEM_LIMIT``
+     - ``512m`` each
+     - the ceiling of the lightweight mode only; the full mode stays uncapped, as
+       above
+
+Neither store promotes a resource attribute (``-opentelemetry.promoteResourceAttributes``
+is set to *nothing*, not to an empty list - VictoriaMetrics counts the empty list as
+*set* and refuses to start beside ``promoteAllResourceAttributes``), so no dimension a
+caller controls becomes part of a metric name. That and the rest of the contract is
+asserted by ``python3 scripts/otlp_storage_smoke.py``, whose ``--live`` half starts the
+two stores in a Compose project of its own, exports a hand-written OTLP/HTTP histogram
+and span and queries them back through the APIs Grafana uses.
 
 The check containers
 --------------------
@@ -362,7 +429,11 @@ row labelled "measured" says exactly what was.
      - 1613 M
      - 1379 M
      - derived; equals #1613's own "dropping all three UIs" row, which is the
-       cross-check of the arithmetic
+       cross-check of the arithmetic. **Understated since #1778**: the row was
+       measured with ``victoria-logs`` and ``grafana`` in the tier, and the two
+       stores added there now cost up to 1 G of ceiling between them. #1780
+       re-measures it; until then treat 1613 M as the floor of that mode, not
+       its height
    * - lightweight + ``admin``
      - 1936 M
      - 1621 M
@@ -457,7 +528,7 @@ it, so it runs on a bare runner - and checks the active service set, the
 classification of every service, that no running service depends on one no
 profile activates, that no running service ships its container log to a log store
 which is not running, that the always-on core keeps ``restart: unless-stopped``,
-that the four observers of the optional tier carry their ``mem_limit`` of #1622
+that the six observers of the optional tier carry their ``mem_limit`` of #1622
 inside the documented band while the full mode carries none,
 and that both halves of the ``depends_on`` seam are where they belong. It starts
 nothing. Its rules are tested offline against synthetic configurations by

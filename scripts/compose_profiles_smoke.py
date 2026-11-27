@@ -67,7 +67,7 @@ asked of the CLI. Then, per combination:
     quietly makes a deployment non-persistent across a host reboot;
   * no active service lacks both an image and a build - the shape a service
     reference into a combination that does not define it produces;
-  * the four observers of the observability and admin tier carry the memory
+  * the observers of the observability and admin tier carry the memory
     ceiling of #1622 in every lightweight combination, each inside its
     documented band, and carry none of them in the full mode - which keeps the
     uncapped contract of `docker-compose.yml` and fails a ceiling which drifted
@@ -99,8 +99,9 @@ LOG_STORE = "victoria-logs"
 # checkout which is in none of these lists and is not core fails the check:
 # the table below is only worth anything while it stays complete.
 TIERS = {
-    # the log store and its UI
-    "observability": ("victoria-logs", "grafana"),
+    # the log store, the two OpenTelemetry stores of #1778 and their UI
+    "observability": ("victoria-logs", "victoria-metrics", "victoria-traces",
+                      "grafana"),
     # operator UIs over data the application itself serves
     "admin": ("pgadmin", "flower"),
     # one-off check containers, defined by docker-compose.dev.yml
@@ -108,8 +109,9 @@ TIERS = {
 }
 TIER_SERVICES = frozenset(name for members in TIERS.values() for name in members)
 
-# The memory ceilings of #1622, and the band each has to stay inside. Only the
-# four observers of the two optional tier are capped, and only in the
+# The memory ceilings of #1622 - and, since #1778, of the two OpenTelemetry
+# stores - and the band each has to stay inside. Only the observers of the two
+# optional tier are capped, and only in the
 # lightweight overlay: the full deployment keeps its uncapped contract, so the
 # upper half of every band is what a ceiling must not exceed there either (an
 # uncapped service is answered by `None`, which is out of no band). The lower
@@ -118,6 +120,13 @@ TIER_SERVICES = frozenset(name for members in TIERS.values() for name in members
 # observability this tier exists to provide.
 CEILINGS = {
     "victoria-logs": ("256m", "512m"),
+    # the two stores of #1778: no #1613 baseline exists for them, so the band
+    # is the starting budget of ADR-0003 - wide enough that a store inside its
+    # retention window is never killed for a normal query, narrow enough that a
+    # leak or an oversized deployment is an OOM kill and a loud restart rather
+    # than an unbounded charge on the host. #1780 re-measures both.
+    "victoria-metrics": ("512m", "1g"),
+    "victoria-traces": ("512m", "1g"),
     "grafana": ("1g", "2g"),
     "pgadmin": ("512m", "1g"),
     "flower": ("256m", "512m"),
@@ -328,9 +337,9 @@ def memory_bytes(value):
 
 
 def stray_ceilings(config, profiles=()):
-    """Ceilings on a service which is not one of the four observers of #1622.
+    """Ceilings on a service which is not one of the observers of #1622 / #1778.
 
-    The four observers are the only services this repository bounds anywhere;
+    Those observers are the only services this repository bounds anywhere;
     a `mem_limit` on anything else - the core in particular - is an unrelated
     cap nobody decided, and the same failure in both modes.
     """

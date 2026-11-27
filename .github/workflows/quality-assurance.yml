@@ -75,7 +75,7 @@ jobs:
       - name: Run pre commit checks
         # Match checkout ownership so translation checks can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-build --user "$(id -u):$(id -g)" pre-commit-check
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" pre-commit-check
 
   acceptance-tests:
     name: acceptance-tests
@@ -106,7 +106,7 @@ jobs:
       - name: Run behave tests
         # Match checkout ownership so coverage can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-build --user "$(id -u):$(id -g)" behave
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" behave
 
       - name: upload coverage reports
         uses: actions/upload-artifact@v7
@@ -147,7 +147,7 @@ jobs:
       - name: Run unit tests
         # Match checkout ownership so coverage can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --no-build --user "$(id -u):$(id -g)" django-tests
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" django-tests
 
       - name: upload coverage reports
         uses: actions/upload-artifact@v7

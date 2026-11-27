@@ -290,13 +290,17 @@ def run(command, check=True, cwd=None, env=None, timeout=3600):
     return completed
 
 
-def cell_base(args, cell):
+def cell_base(args, cell, mode="host"):
     """The address an http cell is loaded against.
 
     ``--host-port`` moves both the published port and the address the load
     goes to, so the two cannot disagree - a run which published on a free
-    pair but kept loading 8001 would measure whatever else owns it.
+    pair but kept loading 8001 would measure whatever else owns it. In stack
+    mode the load does not use a host port at all and goes to the service
+    name the compose network resolves for the arm's own backend container.
     """
+    if mode == "stack":
+        return "http://backend:8001"
     if args.host_port:
         return "http://127.0.0.1:%d" % args.host_port
     return args.base_url or cell["base_url"]
@@ -344,15 +348,97 @@ class Stack:
     """The compose project of one run: bring it up, ask it, take it away."""
 
     def __init__(self, tree, project, files, arm, legacy_off_module="",
-                 host_port=None):
+                 host_port=None, loader="host"):
         self.tree = tree
         self.project = project
         self.files = list(files)
         self.arm = arm
         self.legacy_off_module = legacy_off_module
         self.host_port = host_port
+        #: "host" loads against the published port, "stack" from inside the
+        #: backend container (see --loader); "auto" resolves on the first cell
+        self.loader = loader
+        self.loader_mode = None
+        self.loader_staging = None
         self.override = None
         self._token = None
+
+    # ------------------------------------------------------- the load driver
+    def resolve_loader(self):
+        """Where the load of an http cell comes from, decided once per run.
+
+        ``stack`` - the default - runs the driver inside the backend container
+        against the address that container answers on. It is the default
+        because it is the only mode which always exists: a published port is
+        reachable from the host only when this host IS the docker host, and on
+        a machine talking to a nested or remote daemon the mapping shows up in
+        ``inspect`` while no packet ever arrives. It is also the mode which
+        cannot collide with a neighbour's published port.
+
+        ``host`` insists on the published address, which is the shorter path
+        and the one a deployment actually serves through - worth having when
+        the run owns the host, which is exactly when it works. The mode is
+        part of the manifest and ``verify`` refuses a baseline whose arms were
+        measured in different modes: a ratio is only a ratio when both sides
+        walked the same road.
+        """
+        self.loader_mode = self.loader
+        return self.loader_mode
+
+    def stage_loader(self, bench):
+        """Put the load driver where the backend container can execute it.
+
+        ``backend/`` is the one directory the dev stack bind-mounts, for the
+        same reason the celery cells write their workload files below it: it
+        is the only place the container and the host see the same bytes. The
+        loader is copied there (never edited in the checkout, never committed)
+        and the phase records are written to the mirror of that directory.
+        """
+        staging = os.path.join(self.tree, "backend", "observability-bench",
+                               "loader")
+        os.makedirs(staging, exist_ok=True)
+        os.chmod(staging, 0o777)
+        shutil.copyfile(bench, os.path.join(staging, "http_process_bench.py"))
+        self.loader_staging = staging
+        return staging
+
+    def container_path(self, host_path):
+        """The path ``host_path`` has inside the backend container."""
+        prefix = os.path.join(self.tree, "backend") + os.sep
+        absolute = os.path.abspath(host_path)
+        if not absolute.startswith(prefix):
+            raise BenchError("the stack loader writes through the backend/"
+                             " bind mount, so its records must live below %s"
+                             " (asked for %s)" % (prefix, host_path))
+        return "/opt/mrmap/" + os.path.relpath(absolute, prefix)
+
+    def collect_loader_records(self, staging_name, out_path):
+        """Move the records of a stack-mode phase back to the run directory."""
+        source = os.path.join(self.loader_staging, staging_name)
+        if not os.path.isfile(source):
+            return False
+        shutil.copyfile(source, out_path)
+        os.remove(source)
+        return True
+
+    def load_argv(self, bench, subcommand, *arguments):
+        """The command line which runs one phase of scripts/http_process_bench.
+
+        In stack mode the phase runs with ``docker compose exec`` inside the
+        backend container of THIS project, against the address that container
+        answers on, with the stdlib loader staged below the bind mount. Both
+        modes therefore run the SAME script and write records the same reader
+        reads; only the network path of the request differs, which is exactly
+        what has to be switchable.
+        """
+        if self.loader_mode != "stack":
+            return [sys.executable, bench, subcommand] + [str(a) for a in arguments]
+        return (self.compose_command("exec", "-T", "backend", "python3",
+                                     self.container_path(os.path.join(
+                                         self.loader_staging,
+                                         "http_process_bench.py")),
+                                     subcommand)
+                + [str(a) for a in arguments])
 
     def websocket_token(self, bench, base, log_write, protocol, cell_name):
         """One knox token for the whole run, fetched on the first need.
@@ -364,9 +450,10 @@ class Stack:
         """
         if self._token is not None:
             return self._token
-        result = run([sys.executable, bench, "token", "--base-url", base,
-                      "--credentials", protocol["websocket_credentials"]],
-                     cwd=REPO, check=False, timeout=120)
+        result = run(self.load_argv(bench, "token", "--base-url", base,
+                                    "--credentials",
+                                    protocol["websocket_credentials"]),
+                     cwd=self.tree, check=False, timeout=120)
         if result is None or result.returncode != 0:
             log_write((result.stderr if result else "token unavailable") or "")
             raise BenchError("the websockets of %s need a knox token and the"
@@ -391,6 +478,13 @@ class Stack:
         # run measures an arm it did not start. The shipped
         # docker-compose.prebuilt.yml resets that name; this does the same.
         backend = {"container_name": "%s-backend" % self.project}
+        if self.loader_mode == "stack" and not self.host_port:
+            # the shipped dev file publishes 0.0.0.0:8001 and :8002, and a host
+            # port has one owner: a second stack which asks for the same pair
+            # never comes up. The stack loader does not use the mapping at all,
+            # so the run resets it and cannot collide with a neighbour - which
+            # is also why it is the default mode.
+            backend["ports"] = ["!reset []"]
         if self.host_port:
             # the shipped dev file publishes 0.0.0.0:8001 and the edge routes
             # /ws to 8002, and a host port can only be held by one publisher -
@@ -429,7 +523,11 @@ class Stack:
                                  for name, item in sorted(value.items()))
                 elif isinstance(value, list):
                     lines.append("    %s:" % key)
-                    lines.extend("      - %s" % json.dumps(item) for item in value)
+                    for item in value:
+                        # a leading "!" is a compose tag (!reset), which must
+                        # survive into the file unquoted to mean anything
+                        lines.append("      - %s" % (item if str(item).startswith("!")
+                                                     else json.dumps(item)))
                 else:
                     lines.append("    %s: %s" % (key, json.dumps(str(value))))
         os.makedirs(directory, exist_ok=True)
@@ -468,12 +566,15 @@ class Stack:
                              " stack, and the run would measure and remove that"
                              " one instead" % (resolved, self.project, self.tree))
 
-    def compose(self, *args, check=True, timeout=1800):
+    def compose_command(self, *args):
         command = ["docker", "compose"]
         for path in self.files + ([self.override] if self.override else []):
             command += ["-f", path]
-        command += ["-p", self.project] + [str(arg) for arg in args]
-        return run(command, check=check, cwd=self.tree, timeout=timeout)
+        return command + ["-p", self.project] + [str(arg) for arg in args]
+
+    def compose(self, *args, check=True, timeout=1800):
+        return run(self.compose_command(*args), check=check, cwd=self.tree,
+                   timeout=timeout)
 
     def up(self, services):
         self.compose("up", "-d", *services)
@@ -684,17 +785,24 @@ def cmd_run(args, data):
     for cell in cells:
         if cell["kind"] != "http":
             continue
+        if args.loader != "host":
+            continue
         base = cell_base(args, cell)
         occupant = listening(base)
         if occupant:
-            raise BenchError("something already answers on %s (%s), the address"
-                             " of cell %s; the run would measure that server"
-                             " and not this arm. Stop the stack which publishes"
-                             " the port, or give the run a free pair with"
-                             " --host-port" % (base, occupant, cell["name"]))
+            raise BenchError(
+                "something already answers on %s (%s), the address of cell"
+                " %s; the run would measure that server and not this arm."
+                " Stop the stack which publishes the port, give the run a"
+                " free pair with --host-port, or load it from inside the stack"
+                " with --loader stack" % (base, occupant, cell["name"]))
     owned_or_die(project)
     stack = Stack(stack_tree, project, files, arm,
-                  args.legacy_off_settings_module, args.host_port)
+                  args.legacy_off_settings_module, args.host_port,
+                  args.loader)
+    # resolved before the override is written: whether the run publishes the
+    # web tier at all follows from where its load is going to come from
+    stack.resolve_loader()
 
     out = os.path.abspath(args.out)
     # only this arm's own files are cleared, so an earlier arm's readings stay
@@ -731,7 +839,8 @@ def cmd_run(args, data):
         for name in list(os.listdir(out)):
             if name.startswith("override-") or name.endswith(".mem"):
                 os.remove(os.path.join(out, name))
-    write_manifest(args, data, arm, cells, project, stack_tree, started, failures)
+    write_manifest(args, data, arm, cells, project, stack_tree, started,
+                   failures, stack)
     if args.artifacts:
         copy_artifacts(out, args.artifacts, arm["name"])
     if failures:
@@ -851,31 +960,44 @@ def run_http_cell(args, arm, cell, stack, out, protocol):
                "boot-%s" % cell["name"], stack.tree,
                duration=protocol["idle_sample_seconds"])
 
-    base = cell_base(args, cell)
+    mode = stack.resolve_loader()
+    base = cell_base(args, cell, mode)
     bench = os.path.join(REPO, "scripts", "http_process_bench.py")
-    result = run([sys.executable, bench, "wait-ready", "--arm", arm["name"],
-                  "--base-url", base, "--out", out_path], cwd=REPO, check=False,
-                 timeout=900)
+    if mode == "stack":
+        stack.stage_loader(bench)
+        records = stack.container_path(os.path.join(
+            stack.loader_staging, "http-%s-%s.jsonl" % (arm["name"],
+                                                        cell["name"])))
+    else:
+        records = out_path
+    result = run(stack.load_argv(bench, "wait-ready", "--arm", arm["name"],
+                                 "--base-url", base, "--out", records),
+                 cwd=stack.tree, check=False, timeout=900)
     if result is None or result.returncode != 0:
         log_write((result.stderr if result else "wait-ready unavailable") or "")
-        raise BenchError("the web tier of %s never answered on %s"
-                         % (cell["name"], base))
+        raise BenchError("the web tier of %s never answered on %s (%s loader)"
+                         % (cell["name"], base, mode))
 
     endpoints = []
     for endpoint in cell["endpoints"]:
         endpoints += ["--endpoint", endpoint]
     common = ["--base-url", base, "--concurrency", str(concurrency)]
-    run([sys.executable, bench, "load", "--arm", arm["name"], "--phase", "warmup",
-         "--requests", str(args.warmup or protocol["warmup_requests"])]
-        + endpoints + common + ["--out", out_path], cwd=REPO, check=False)
+    run(stack.load_argv(
+        bench, "load", "--arm", arm["name"], "--phase", "warmup",
+        "--requests", str(args.warmup or protocol["warmup_requests"]))
+        + endpoints + common + ["--out", records],
+        cwd=stack.tree, check=False)
 
     media = cell.get("media_paths")
     before = stack.inventory(cell["media_service"], media) if media else None
-    load = [sys.executable, bench, "load", "--arm", arm["name"], "--phase", "load",
-            "--requests", str(requests), "--peer-endpoint",
-            protocol["peer_endpoint"]] + endpoints + common
+    load = stack.load_argv(
+        bench, "load", "--arm", arm["name"], "--phase", "load",
+        "--requests", str(requests), "--peer-endpoint", protocol["peer_endpoint"])
     if cell.get("websocket_count"):
-        load += ["--ws-base-url", args.ws_base_url or cell.get("ws_base_url", base),
+        ws_base = (args.ws_base_url
+                   or (cell.get("ws_base_url", base) if mode != "stack"
+                       else "http://backend:8002"))
+        load += ["--ws-base-url", ws_base,
                  "--ws-count", str(cell["websocket_count"]),
                  "--ws-hold", str(cell.get("websocket_hold_seconds", 30)),
                  "--token", stack.websocket_token(bench, base, log_write,
@@ -888,10 +1010,19 @@ def run_http_cell(args, arm, cell, stack, out, protocol):
         sample(stack.project, mem_path, "load-%s" % cell["name"], stack.tree,
                during=" ".join(str(part) for part in load))
     else:
-        result = run(load, cwd=REPO, check=False, timeout=3000)
+        result = run(load, cwd=stack.tree, check=False, timeout=3000)
         if result is not None and result.stderr:
             log_write(result.stderr)
     after = stack.inventory(cell["media_service"], media) if media else None
+    if mode == "stack":
+        # the records were written below the bind mount because that is the
+        # only path the container has; they belong beside the other artifacts
+        staging_name = os.path.basename(out_path)
+        if not stack.collect_loader_records(staging_name, out_path):
+            raise BenchError("the stack loader of %s wrote no records to %s"
+                             % (cell["name"], out_path))
+        shutil.rmtree(stack.loader_staging, ignore_errors=True)
+        stack.loader_staging = None
     with open(os.path.join(out, "storage-%s-%s.json" % (arm["name"], cell["name"])),
               "w") as handle:
         json.dump({"arm": arm["name"], "cell": cell["name"],
@@ -915,7 +1046,8 @@ def storage_delta(before, after):
         for path in sorted(set(first) | set(second))}
 
 
-def write_manifest(args, data, arm, cells, project, stack_tree, started, failures):
+def write_manifest(args, data, arm, cells, project, stack_tree, started, failures,
+                   stack=None):
     def git(*command):
         try:
             return subprocess.run(["git", *command], cwd=stack_tree, timeout=20,
@@ -945,6 +1077,8 @@ def write_manifest(args, data, arm, cells, project, stack_tree, started, failure
             ("concurrency", getattr(args, "concurrency", None)),
             ("repeats", args.repeats)) if value},
         "legacy_off_settings_module": args.legacy_off_settings_module or None,
+        "loader": getattr(args, "loader", None),
+        "loader_mode": getattr(stack, "loader_mode", None),
         "protocol": data["protocol"],
         "arm_definition": arm,
         "duration_seconds": round(time.time() - started, 1),
@@ -1440,6 +1574,7 @@ def cmd_verify(args, data):
         problems.append("no run-<arm>.json manifest in %s" % args.out)
     expected = digest_of(os.path.abspath(args.arms_file))
     defined = {arm["name"]: arm for arm in data["arms"]}
+    modes = set()
     for arm, summary in summaries.items():
         manifest = summary["manifest"]
         if manifest.get("arms_file_sha256") != expected:
@@ -1459,6 +1594,13 @@ def cmd_verify(args, data):
                             " measurement cannot be attributed to a checkout" % arm)
         if manifest.get("dirty"):
             say("note: arm %s was measured on a dirty working tree" % arm)
+        modes.add((manifest.get("loader_mode") or "host",))
+        if len(modes) > 1:
+            problems.append("the arms were loaded from different places (%s): a"
+                            " ratio of a request through the published port and"
+                            " one from inside the container compares two"
+                            " different network paths, not two arms"
+                            % ", ".join(sorted(m[0] for m in modes)))
         enabled = set(defined[arm].get("celery_env") or {})
         unknown = sorted(enabled - set(LEGACY_TASK_KNOBS))
         if unknown:
@@ -1557,6 +1699,16 @@ def parser():
                              " port and the next one (for /ws) instead of the"
                              " 8001/8002 of the shipped files, and load it"
                              " there; needed whenever another stack holds 8001")
+    runner.add_argument("--loader", choices=["host", "stack"], default="stack",
+                        help="where the load of an http cell comes from: stack"
+                             " (the default) runs the driver inside the backend"
+                             " container against http://backend:8001, which is"
+                             " the only address that always exists and the only"
+                             " one which cannot collide with a neighbour's"
+                             " published port; host loads the published port"
+                             " instead, which works only when this host is the"
+                             " docker host. Both arms of one baseline must use"
+                             " the same mode - verify refuses a mismatch")
     runner.add_argument("--legacy-off-settings-module", default="")
     runner.add_argument("--no-sample", dest="sample", action="store_false")
     runner.set_defaults(sample=True)

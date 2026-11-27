@@ -81,7 +81,8 @@ def args(**values):
     base = dict(arms_file=str(ARMS), arm=None, cell=None, kind=None,
                 profile="production", repeats=None, seed=None, requests=None, warmup=None, concurrency=None, host_port=None, out=None,
                 artifacts="", stack_tree=str(ROOT), compose_file=None,
-                base_url="", ws_base_url="", legacy_off_settings_module="",
+                base_url="", ws_base_url="", loader="host",
+                legacy_off_settings_module="",
                 sample=True, budget_file=str(BUDGETS), out_file="")
     base.update(values)
     return argparse.Namespace(**base)
@@ -287,6 +288,92 @@ def test_occupied_address_refused():
         os.environ.pop("COMPOSE_PROJECT_NAME", None)
         shutil.rmtree(os.path.join(tempfile.gettempdir(), "obs1777-occ"),
                       ignore_errors=True)
+
+
+@check("an occupied published port can be sidestepped from inside the stack")
+def test_occupied_address_loads_in_stack():
+    # a published port is only reachable when this host IS the docker host; a
+    # foreign answer there must not abort the cell, it must move the load into
+    # the compose network of the run's own project
+    original = OB.listening
+    OB.listening = lambda url: "HTTP 404 gunicorn" if url.startswith(
+        "http://127.0.0.1:8001") else None
+    os.environ["COMPOSE_PROJECT_NAME"] = "mrmap-issue-1777-stack"
+    recorded = []
+    real_run = OB.run
+
+    def fake_run(command, check=True, cwd=None, env=None, timeout=3600):
+        recorded.append(list(command))
+        if command[:2] == ["docker", "compose"]:
+            # compose answers "which project" with the name the run asked for,
+            # which is what check_project() demands before any container starts
+            asked = command[command.index("-p") + 1] if "-p" in command else ""
+            return subprocess.CompletedProcess(
+                command, 0, '{"name": %s}' % json.dumps(asked), "")
+        return real_run(command, check=check, cwd=cwd, env=env, timeout=timeout)
+
+    OB.run = fake_run
+    stack_out = os.path.join(tempfile.gettempdir(), "obs1777-stackload")
+    outcome = []
+    try:
+        with compose_env():
+            outcome.append(OB.cmd_run(args(arm="diagnostics-off",
+                                           cell="service-list",
+                                           loader="stack", sample=False,
+                                           out=stack_out),
+                                      OB.load_arms(str(ARMS))))
+    except OB.BenchError as error:
+        # a cell may only fail on a load which never answered - never because a
+        # host port it does not use is occupied
+        assert "never answered" in str(error) or "wrote no records" in str(error), error
+    finally:
+        OB.run = real_run
+        OB.listening = original
+        os.environ.pop("COMPOSE_PROJECT_NAME", None)
+        shutil.rmtree(stack_out, ignore_errors=True)
+    loads = [c for c in recorded if "http_process_bench.py" in " ".join(c)]
+    assert loads, "no load phase was attempted"
+    assert any("exec" in c and "backend" in c and "http://backend:8001" in c
+               for c in loads), loads
+
+
+@check("the stack loader runs the same script below the bind mount")
+def test_stack_loader_argv():
+    stack = OB.Stack(str(ROOT), "mrmap-issue-1777-x", ["docker-compose.yml"],
+                     {"name": "diagnostics-off"}, loader="stack")
+    stack.loader_mode = "stack"
+    bench = str(ROOT / "scripts" / "http_process_bench.py")
+    staging = stack.stage_loader(bench)
+    assert os.path.isfile(os.path.join(staging, "http_process_bench.py"))
+    joined = " ".join(stack.load_argv(bench, "load", "--requests", "10"))
+    assert joined.startswith("docker compose -f "), joined
+    assert "-p mrmap-issue-1777-x" in joined, joined
+    assert " exec -T backend python3 " in joined, joined
+    assert ("/opt/mrmap/observability-bench/loader/http_process_bench.py load"
+            in joined), joined
+    assert joined.endswith("--requests 10"), joined
+    assert stack.container_path(os.path.join(staging, "http-a-b.jsonl")) == (
+        "/opt/mrmap/observability-bench/loader/http-a-b.jsonl")
+    try:
+        stack.container_path("/tmp/outside.jsonl")
+        raise AssertionError("a path outside the bind mount was accepted")
+    except OB.BenchError:
+        pass
+    # stack mode publishes nothing, so it cannot collide with a neighbour
+    override = stack.write_override(tempfile.mkdtemp())
+    with open(override) as handle:
+        body = handle.read()
+    assert "ports:" in body and "!reset []" in body, body
+    # host mode is untouched by any of this
+    stack.loader_mode = "host"
+    assert stack.load_argv("/x/bench.py", "load") == [sys.executable,
+                                                      "/x/bench.py", "load"]
+    host_override = stack.write_override(tempfile.mkdtemp())
+    with open(host_override) as handle:
+        assert "!reset" not in handle.read()
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.rmtree(os.path.join(str(ROOT), "backend", "observability-bench"),
+                  ignore_errors=True)
 
 
 @check("the run pins the project compose resolves, not the tree's .env")
@@ -727,6 +814,8 @@ def main():
     test_celery_summary()
     test_celery_summary_excludes_injections()
     test_occupied_address_refused()
+    test_occupied_address_loads_in_stack()
+    test_stack_loader_argv()
     test_compose_project_is_pinned()
     test_check_project_refuses_foreign_resolution()
     test_http_summary()

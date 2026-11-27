@@ -109,6 +109,21 @@ decision. The rules an administrator sets are listed in
 `docs/source/development/documentation-hosting.rst`; building the portal stays
 `docs/source/development/documentation-portal.rst`.
 
+`scripts/docs_release_rehearsal.py` (#1610) rehearses that path once without
+publishing: it exports one `--candidate` with `git archive`, builds it with the
+flags read out of `.github/workflows/docs.yml`, reads `provenance.json` back to
+prove the artifact came from that SHA, rebuilds the same tree with a broken toctree
+to prove the gate really refuses, probes the managed host, and writes its report
+under `docs/**/evidence/`. It never builds a working tree, never touches a tag
+matching `scripts/release_lifecycle.json`'s `tag_pattern`, and needs
+`MRMAP_DOCS_REHEARSAL_PROMOTE` naming the exact `docs-rehearsal-*` tag before it
+pushes anything; a missing docs interpreter exits 2 rather than reporting a green
+that never built. Its 92 offline checks are `python3
+scripts/test_docs_release_rehearsal.py` (synthetic repositories, stubbed network,
+skips the three build-dependent checks without a docs environment); the live
+report and the limits of what a pull request can observe are in
+`docs/source/development/documentation-release-rehearsal.rst`.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.

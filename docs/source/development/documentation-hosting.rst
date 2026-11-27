@@ -285,6 +285,12 @@ evidence for them is the two HTTP facts in the table above plus the settings an
 administrator confirms; they are stated as observed rather than asserted so that
 the first release tag (#1609) is the moment they become provable.
 
+What one non-production run of the whole path measured - the gate refusing a
+broken candidate, the provenance of the accepted build, and which versions the
+service actually serves - is the record of #1610 in
+:doc:`documentation-release-rehearsal`, together with what that run could not
+observe from a pull request.
+
 What is deliberately absent
 ===========================
 

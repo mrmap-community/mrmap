@@ -87,6 +87,18 @@ jobs:
           MRMAP_DOCS_PYTHON: /tmp/docsenv/bin/python
         run: python scripts/test_docs_build.py
 
+      # The offline half of the #1610 rehearsal: every rule the rehearsal applies
+      # to what it observed, held against a throw-away repository the suite builds
+      # and discards. It needs no network and no host - the live half is the
+      # rehearsal itself, whose recorded report is the evidence of that - and it
+      # runs here, next to the portal suite, because three of its checks reuse the
+      # docs environment this job just installed. Run without it, the same suite
+      # holds every rule and skips only those three, out loud.
+      - name: Run the release rehearsal suite
+        env:
+          MRMAP_DOCS_PYTHON: /tmp/docsenv/bin/python
+        run: python scripts/test_docs_release_rehearsal.py
+
       # -W makes every warning a failure; --keep-going lists all of them instead
       # of stopping at the first, which is what makes a red build readable.
       - name: Build the portal strictly

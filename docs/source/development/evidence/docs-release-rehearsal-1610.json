@@ -1,0 +1,407 @@
+{
+  "candidate_is_merge_commit": true,
+  "candidate_sha": "d979422f0628abb6edf8cd9e66be9821c9e0fd9c",
+  "checks": [
+    {
+      "detail": "",
+      "name": "the candidate carries the managed-host configuration",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the candidate builds the hosted site from the single docs pin file",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the candidate declares no second package source for the hosted build",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the candidate has no repository-owned publisher",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the candidate force-pushes no Pages branch",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the candidate deploys no Pages site beside the managed service",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "no ordinary pull request or develop push triggers full generation",
+      "ok": true
+    },
+    {
+      "detail": "scripts/image_release.py names no documentation URL and MRMAP_DOCS_REHEARSAL_URL is unset",
+      "name": "the candidate names the site its image metadata publishes",
+      "ok": true
+    },
+    {
+      "detail": "",
+      "name": "the pinned docs interpreter is available",
+      "ok": true
+    },
+    {
+      "detail": "exit 1: ate/docs/source/development/vscode-configuration.rst: WARNING: document isn't included in any toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/candidate/docs/source/development/wfs-describe-batching-verdict.rst: WARNING: document isn't included in any toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/candidate/docs/source/administration/permissions.md:12: WARNING: Unknown source document '/tmp/mrmap-docs-rehearsal-ytz2s8c_/candidate/docs/architecture' [myst.xref_missing]",
+      "name": "the strict build accepts the candidate with exit status 0",
+      "ok": false
+    },
+    {
+      "detail": "provenance says 'd979422f0628abb6edf8cd9e66be9821c9e0fd9c'",
+      "name": "the build recorded the candidate as what it documented",
+      "ok": true
+    },
+    {
+      "detail": "missing ['toolchain.sphinx']: {\"autodoc\": \"placeholders:django-not-installed\", \"builder\": \"html\", \"diagrams\": \"static\", \"documented_commit\": \"d979422f0628abb6edf8cd9e66be9821c9e0fd9c\", \"language\": \"en\", \"locales\": [\"en\"], \"pages\":",
+      "name": "the build recorded its toolchain and its source digest",
+      "ok": true
+    },
+    {
+      "detail": "no index.html",
+      "name": "the accepted build wrote the artifact the gate is about",
+      "ok": true
+    },
+    {
+      "detail": "exit 1: ny toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/source/development/wfs-describe-batching-verdict.rst: WARNING: document isn't included in any toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/source/administration/permissions.md:12: WARNING: Unknown source document '/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/architecture' [myst.xref_missing]",
+      "name": "the injected fault is refused by the native exit status",
+      "ok": true
+    },
+    {
+      "detail": "ny toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/source/development/wfs-describe-batching-verdict.rst: WARNING: document isn't included in any toctree [toc.not_included]\n/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/source/administration/permissions.md:12: WARNING: Unknown source document '/tmp/mrmap-docs-rehearsal-ytz2s8c_/broken/docs/architecture' [myst.xref_missing]",
+      "name": "the failing build names the fault it found",
+      "ok": true
+    },
+    {
+      "detail": "exit 1 after writing 96 page(s)",
+      "name": "the refusal is only visible in the exit status, which is why nothing else may gate publication",
+      "ok": true
+    },
+    {
+      "detail": "{\"site\": \"https://mrmap.readthedocs.io\", \"requested\": [{\"requested\": \"https://mrmap.readthedocs.io\", \"url\": \"https://mrmap.readthedocs.io/en/latest/\", \"status\": 200, \"headers\": {\"content-type\": \"text/html; charset=utf-8\", \"server\": \"cloudflare\", \"x-rtd-domain\": \"mrmap.readthedocs.io\", \"x-rtd-force-a",
+      "name": "the hosted site answers",
+      "ok": true
+    },
+    {
+      "detail": "no x-rtd-* header: this is not a Read the Docs project",
+      "name": "the hosted site is served by the managed service",
+      "ok": true
+    }
+  ],
+  "commands": [
+    "python3 scripts/docs_release_rehearsal.py --candidate d979422f0628abb6edf8cd9e66be9821c9e0fd9c --isolated-equivalent 'no develop -> master promotion merge exists yet: git reports the merge conflicted in 141 paths, 9 of them under docs/, and master still carries the pre-#1597 portal'"
+  ],
+  "generated_at": "2026-11-27T23:14:38+00:00",
+  "host": {
+    "answers": true,
+    "has_stable_version": false,
+    "managed_by_readthedocs": true,
+    "requested": [
+      {
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "server": "cloudflare",
+          "x-rtd-domain": "mrmap.readthedocs.io",
+          "x-rtd-force-addons": "true",
+          "x-rtd-path": "/proxito/html/mrmap/latest/index.html",
+          "x-rtd-project": "mrmap",
+          "x-rtd-project-method": "public_domain",
+          "x-rtd-resolver-filename": "/",
+          "x-rtd-version": "latest",
+          "x-rtd-version-method": "path"
+        },
+        "requested": "https://mrmap.readthedocs.io",
+        "status": 200,
+        "url": "https://mrmap.readthedocs.io/en/latest/"
+      },
+      {
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "server": "cloudflare",
+          "x-rtd-domain": "mrmap.readthedocs.io",
+          "x-rtd-force-addons": "true",
+          "x-rtd-project": "mrmap",
+          "x-rtd-project-method": "public_domain",
+          "x-rtd-version": "stable",
+          "x-rtd-version-method": "path"
+        },
+        "requested": "https://mrmap.readthedocs.io/en/stable/",
+        "status": 404,
+        "url": "https://mrmap.readthedocs.io/en/stable/"
+      },
+      {
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "server": "cloudflare",
+          "x-rtd-domain": "mrmap.readthedocs.io",
+          "x-rtd-force-addons": "true",
+          "x-rtd-path": "/proxito/html/mrmap/latest/index.html",
+          "x-rtd-project": "mrmap",
+          "x-rtd-project-method": "public_domain",
+          "x-rtd-resolver-filename": "/",
+          "x-rtd-version": "latest",
+          "x-rtd-version-method": "path"
+        },
+        "requested": "https://mrmap.readthedocs.io/en/latest/",
+        "status": 200,
+        "url": "https://mrmap.readthedocs.io/en/latest/"
+      }
+    ],
+    "served_by": [
+      "cloudflare"
+    ],
+    "served_versions": [
+      "latest"
+    ],
+    "site": "https://mrmap.readthedocs.io",
+    "unknown_versions": [
+      "stable"
+    ]
+  },
+  "hosted_site": "https://mrmap.readthedocs.io",
+  "isolated_equivalent_reason": "no develop -> master promotion merge exists yet: git reports the merge conflicted in 141 paths, 9 of them under docs/, and master still carries the pre-#1597 portal",
+  "issue": 1610,
+  "kind": "managed-host",
+  "limitations": [
+    "whether the managed host keeps serving the previous artifact after a refused build is a property of the service and is not observable without its API token; what is proven here is that the gate refuses the candidate, which is what prevents publication",
+    "no stable version is published yet: the host activates a SemVer tag by rule and the repository has never cut one - #1801 authorises the first real release",
+    "the host's automation rules, activation list, default version and redirect rows are administration settings a pull request cannot read; an administrator confirms them and they are recorded in docs/source/development/documentation-hosting.rst",
+    "an asynchronous host build is not observable without the project API token, so what is recorded is the artifact the host serves rather than its build queue; a release must not claim an atomic publication",
+    "no promotion merge commit exists yet: git reports the develop -> master merge conflicted: docs/development/mcp-servers.md, docs/source/administration/permissions.md, docs/source/development/capacity-snapshot.rst, docs/source/development/celery-capacity-telemetry.rst, docs/source/development/celery-task-orm-audit.rst, docs/source/development/celery-task-sql-regression.rst, docs/source/development/code-quality.rst, docs/source/development/index.rst, docs/source/development/queryset-manager-conventions.rst, so #1798 has no merge SHA to build and this rehearsal can only be of an isolated equivalent",
+    "the candidate is not the merge commit of a develop -> master release pull request; it is an isolated equivalent because no develop -> master promotion merge exists yet: git reports the merge conflicted in 141 paths, 9 of them under docs/, and master still carries the pre-#1597 portal. The gate result transfers to the promotion merge of the same docs content; the hosting result does not extend to a tag that does not exist yet",
+    "d979422f0628 is not reachable on mrmap-community/mrmap: a rehearsal tag on it would be an orphan, and #1798 could never have built it",
+    "the candidate is not reachable on GitHub: a rehearsal tag on it would be an orphan, so this rehearsal stays local"
+  ],
+  "measurements": [
+    {
+      "name": "gate flags",
+      "note": "read from docs.yml",
+      "unit": "sphinx",
+      "value": "-b html -E -W --keep-going"
+    },
+    {
+      "name": "strict build of the candidate",
+      "note": "12.39s, 96 pages",
+      "unit": "exit status",
+      "value": 1
+    },
+    {
+      "name": "strict build of the broken candidate",
+      "note": "a toctree entry '   rehearsal-missing-page' inserted beside the real entry 'introduction/index', 96 page(s) written",
+      "unit": "exit status",
+      "value": 1
+    },
+    {
+      "name": "hosted site answers",
+      "note": "https://mrmap.readthedocs.io",
+      "unit": "bool",
+      "value": true
+    },
+    {
+      "name": "served versions",
+      "note": "",
+      "unit": "versions",
+      "value": "latest"
+    },
+    {
+      "name": "stable version published",
+      "note": "",
+      "unit": "bool",
+      "value": false
+    },
+    {
+      "name": "candidate shape",
+      "note": "parents / first parent on master / last parent on develop",
+      "unit": "merge",
+      "value": "{\"first_parent_in_stable\": true, \"last_parent_in_development\": true, \"parents\": 2}"
+    },
+    {
+      "name": "develop -> master merge today",
+      "note": "141 conflicted path(s), 9 of them docs",
+      "unit": "bool",
+      "value": false
+    },
+    {
+      "name": "candidate reachable on GitHub",
+      "note": "commits API answered 422",
+      "unit": "bool",
+      "value": false
+    }
+  ],
+  "parent": 1589,
+  "promote_authorised_by": null,
+  "promoted_tag": null,
+  "promotion_merge_of_branches": {
+    "conflicted": [
+      ".gitignore",
+      "backend/MrMap/settings.py",
+      "backend/accounts/checks.py",
+      "backend/accounts/management/commands/sync_role_definitions.py",
+      "backend/accounts/managers/roles.py",
+      "backend/accounts/models/groups.py",
+      "backend/accounts/models/roles.py",
+      "backend/accounts/models/users.py",
+      "backend/accounts/permissions.py",
+      "backend/accounts/serializers/groups.py",
+      "backend/accounts/serializers/users.py",
+      "backend/accounts/signals.py",
+      "backend/accounts/urls.py",
+      "backend/accounts/utils.py",
+      "backend/extras/permissions.py",
+      "backend/extras/serializers.py",
+      "backend/extras/viewsets.py",
+      "backend/locale/de/LC_MESSAGES/django.mo",
+      "backend/locale/de/LC_MESSAGES/django.po",
+      "backend/mapbender_compatibility/views.py",
+      "backend/notify/urls.py",
+      "backend/notify/views.py",
+      "backend/registry/helper/plugins/etf.py",
+      "backend/registry/helper/plugins/internal.py",
+      "backend/registry/helper/preview.py",
+      "backend/registry/managers/security.py",
+      "backend/registry/mappers/factory.py",
+      "backend/registry/mappers/publish.py",
+      "backend/registry/mappers/rules.py",
+      "backend/registry/mappers/xml_mapper.py",
+      "backend/registry/models/conformity.py",
+      "backend/registry/models/guardian.py",
+      "backend/registry/models/harvest.py",
+      "backend/registry/models/metadata.py",
+      "backend/registry/models/monitoring.py",
+      "backend/registry/models/update.py",
+      "backend/registry/ows_lib/request/ogc_request.py",
+      "backend/registry/proxy/mixins.py",
+      "backend/registry/proxy/wms_proxy.py",
+      "backend/registry/querys/capacity.py",
+      "backend/registry/serializers/metadata.py",
+      "backend/registry/serializers/service.py",
+      "backend/registry/tasks/conformity.py",
+      "backend/registry/tasks/harvest.py",
+      "backend/registry/tasks/service.py",
+      "backend/registry/views/historical.py",
+      "backend/registry/views/metadata.py",
+      "backend/registry/views/update.py",
+      "backend/system/apps.py",
+      "backend/system/capacity_measures.py",
+      "backend/system/capacity_snapshot.py",
+      "backend/system/models.py",
+      "backend/system/tasks.py",
+      "backend/system/views.py",
+      "backend/tests/behave/features/json:api/auth/change_application_record_permissions.feature",
+      "backend/tests/behave/features/json:api/auth/change_service_permissions.feature",
+      "backend/tests/behave/features/json:api/auth/list_roledefinitions.feature",
+      "backend/tests/behave/steps/resource_ownership.py",
+      "backend/tests/django/accounts/test_role_managed_models.py",
+      "backend/tests/django/accounts/test_service_object_grants.py",
+      "backend/tests/django/registry/managers/tests_harvesting.py",
+      "backend/tests/django/registry/managers/tests_monitoring.py",
+      "backend/tests/django/registry/tasks/tests_task_sql_harvesting.py",
+      "backend/tests/django/registry/tasks/tests_task_sql_monitoring.py",
+      "backend/tests/django/registry/tests_record_list_can_edit.py",
+      "backend/tests/django/registry/tests_resource_ownership.py",
+      "backend/tests/django/registry/tests_task_sql_alert_refresh.py",
+      "backend/tests/django/system/test_capacity_measures.py",
+      "backend/tests/django/system/test_capacity_snapshot.py",
+      "backend/tests/django/system/test_task_sql_guards.py",
+      "backend/tests/django/test_permission_facade.py",
+      "docs/development/mcp-servers.md",
+      "docs/source/administration/permissions.md",
+      "docs/source/development/capacity-snapshot.rst",
+      "docs/source/development/celery-capacity-telemetry.rst",
+      "docs/source/development/celery-task-orm-audit.rst",
+      "docs/source/development/celery-task-sql-regression.rst",
+      "docs/source/development/code-quality.rst",
+      "docs/source/development/index.rst",
+      "docs/source/development/queryset-manager-conventions.rst",
+      "frontend/src/components/Dashboard/Cards/CardWithIcon.tsx",
+      "frontend/src/components/Dashboard/Cards/ResourceListCard.tsx",
+      "frontend/src/components/Field/RelativeDateField.tsx",
+      "frontend/src/components/GeomanControl/Events.tsx",
+      "frontend/src/components/LayerTree/ContextMenu/DimensionItem.tsx",
+      "frontend/src/components/LayerTree/LayerTree.tsx",
+      "frontend/src/components/Layout/Menu.spec.tsx",
+      "frontend/src/components/Layout/Menu.tsx",
+      "frontend/src/components/MapContainer/useTimeFrameBuffer.ts",
+      "frontend/src/components/MrMapFrontend.tsx",
+      "frontend/src/components/Resource/Definition.tsx",
+      "frontend/src/components/Resource/Generic/BatchEdit/BatchEditButton.tsx",
+      "frontend/src/components/Resource/Generic/BatchEdit/BatchEditDialog.spec.tsx",
+      "frontend/src/components/Resource/Generic/BatchEdit/BatchEditDialog.tsx",
+      "frontend/src/components/Resource/Generic/MetadataEditor/MetadataEditor.spec.tsx",
+      "frontend/src/components/Resource/Generic/MetadataEditor/MetadataEditor.tsx",
+      "frontend/src/components/Resource/Generic/MetadataEditor/MetadataEditorRoute.tsx",
+      "frontend/src/components/Resource/Generic/MetadataEditor/XmlSourceDocument.spec.tsx",
+      "frontend/src/components/Resource/Generic/MetadataEditor/XmlSourceDocument.tsx",
+      "frontend/src/components/Resource/Generic/RecordShow/RecordHeader.tsx",
+      "frontend/src/components/Resource/Generic/ServiceShow/LivePreview/LivePreview.tsx",
+      "frontend/src/components/Resource/Generic/ServiceShow/LivePreview/PreviewMap.tsx",
+      "frontend/src/components/Resource/Generic/Update/useGuesserProps.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/ContextualIncidents.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/IncidentContextBanner.spec.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/IncidentContextBanner.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/IncidentContextHistory.spec.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/IncidentContextHistory.tsx",
+      "frontend/src/components/Resource/OperationalIncident/Context/useContextualIncidents.spec.ts",
+      "frontend/src/components/Resource/OperationalIncident/Context/useContextualIncidents.ts",
+      "frontend/src/components/Resource/OperationalIncident/incidentContract.ts",
+      "frontend/src/components/Resource/RoleDefinition/ListOrganizationRoles.tsx",
+      "frontend/src/components/Resource/ServiceExplorer/ServiceExplorer.tsx",
+      "frontend/src/components/Resource/User/AddMemberDialogButton.spec.tsx",
+      "frontend/src/components/Resource/User/AddMemberDialogButton.tsx",
+      "frontend/src/components/Resource/User/AssignRoleButton.spec.tsx",
+      "frontend/src/components/Resource/User/AssignRoleButton.tsx",
+      "frontend/src/components/Resource/User/ListOrganizationMembers.spec.tsx",
+      "frontend/src/components/Resource/User/ListOrganizationMembers.tsx",
+      "frontend/src/components/Resource/WebMapService/Show/Overview/UpdateJobs/UpdateJobsCardBase.tsx",
+      "frontend/src/components/Resource/WebMapServiceUpdateJob/CompletedUpdateJob.tsx",
+      "frontend/src/components/Resource/WebMapServiceUpdateJob/ShowWebMapServiceUpdateJob.tsx",
+      "frontend/src/context/SystemStatusContext.tsx",
+      "frontend/src/i18n/de.ts",
+      "frontend/src/i18n/en.ts",
+      "frontend/src/jsonapi/components/Count.tsx",
+      "frontend/src/jsonapi/utils.spec.tsx",
+      "frontend/src/ows-lib/OwsContext/authentication.ts",
+      "frontend/src/ows-lib/OwsContext/core.ts",
+      "frontend/src/ows-lib/OwsContext/dimensions.ts",
+      "frontend/src/ows-lib/OwsContext/validation.ts",
+      "frontend/src/providers/authProvider.spec.tsx",
+      "frontend/src/providers/authProvider.ts",
+      "frontend/src/providers/dataProvider.spec.tsx",
+      "frontend/src/providers/dataProvider.ts",
+      "frontend/src/providers/permissions.spec.ts",
+      "frontend/src/providers/permissions.ts",
+      "opencode.json",
+      "scripts/git_checks.py",
+      "scripts/mcp-setup.sh",
+      "scripts/test_git_checks.py"
+    ],
+    "conflicted_in_docs": [
+      "docs/development/mcp-servers.md",
+      "docs/source/administration/permissions.md",
+      "docs/source/development/capacity-snapshot.rst",
+      "docs/source/development/celery-capacity-telemetry.rst",
+      "docs/source/development/celery-task-orm-audit.rst",
+      "docs/source/development/celery-task-sql-regression.rst",
+      "docs/source/development/code-quality.rst",
+      "docs/source/development/index.rst",
+      "docs/source/development/queryset-manager-conventions.rst"
+    ],
+    "mergeable": false,
+    "tree": "3844bf9709d98ee62d71ed662878db3891e86616"
+  },
+  "promotion_merge_shape": {
+    "first_parent_in_stable": true,
+    "last_parent_in_development": true,
+    "parents": 2
+  },
+  "schema": "mrmap.docs.rehearsal.v1",
+  "toolchain": {
+    "docs_python": "/tmp/docsenv/bin/python",
+    "python": "3.13.15"
+  }
+}

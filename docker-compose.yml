@@ -574,13 +574,20 @@ services:
   # query API out. Like victoria-logs it publishes no host port - the network
   # internal HTTP API is read by Grafana, which carries the login.
   #
-  # `-opentelemetry.promoteResourceAttributes=` is deliberately empty: ADR-0003
-  # promotes no arbitrary resource attribute, so nothing a caller controls can
-  # become a metric dimension here. Retention is the ADR's starting proposal for
-  # metrics; retention bounds *time*, never *bytes*, which is what the memory
-  # ceiling of the lightweight tier and `-storage.minFreeDiskSpaceBytes` below
-  # are for: without free space left on its volume VictoriaMetrics stops merging
-  # parts rather than filling the host's disk.
+  # Neither `-opentelemetry.promoteResourceAttributes` nor its
+  # `promoteAllResourceAttributes` variant is set, and neither may be added
+  # without a review of the cardinality it lets in: ADR-0003 promotes no
+  # arbitrary resource attribute, so nothing a caller controls becomes a metric
+  # dimension here. Note that *setting the list to empty* is not the way to say
+  # that - VictoriaMetrics counts an empty list as set and refuses to start
+  # beside the `promoteAll` flag, which is what
+  # scripts/otlp_storage_smoke.py checks for by absence rather than value.
+  #
+  # Retention is the ADR's starting proposal for metrics. Retention bounds
+  # *time*, never *bytes*, which is what the memory ceiling of the lightweight
+  # tier and `-storage.minFreeDiskSpaceBytes` below are for: without free space
+  # left on its volume VictoriaMetrics stops merging parts rather than filling
+  # the host's disk.
   victoria-metrics:
     image: victoriametrics/victoria-metrics:v1.157.0
     restart: unless-stopped
@@ -590,8 +597,17 @@ services:
       - "-retentionPeriod=${VICTORIA_METRICS_RETENTION:-90d}"
       - "-httpListenAddr=:8428"
       - "-opentelemetry.usePrometheusNaming"
-      - "-opentelemetry.promoteResourceAttributes="
       - "-storage.minFreeDiskSpaceBytes=${VICTORIA_METRICS_MIN_FREE_DISK:-1073741824}"
+    # readiness is the store's own answer and not the process existing: a fatal
+    # flag mistake kills VictoriaMetrics during start-up with exit 255, and a
+    # container which is merely "created" says nothing either way. busybox wget
+    # ships in the image, so this needs no sidecar.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--tries=1", "--spider", "http://127.0.0.1:8428/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     volumes:
       - vm-data:/vm-data
     networks:
@@ -606,6 +622,13 @@ services:
   # compatibility, so back up vt-data before bumping the pin and follow the
   # upgrade notes of the target release. The retention below is the ADR's
   # starting proposal for traces.
+  #
+  # `-retention.maxDiskSpaceUsageBytes` is the byte bound of this store, and
+  # VictoriaTraces implements it by dropping the *oldest* partition when the
+  # volume crosses it. That is the right trade for traces - ADR-0003 samples
+  # them and says losing a span is acceptable - but it is not a quota: it is a
+  # deletion policy an operator should be able to see, which is why the number
+  # is here in the open and overridable rather than an upstream default.
   victoria-traces:
     image: victoriametrics/victoria-traces:v0.13.0
     restart: unless-stopped
@@ -615,6 +638,12 @@ services:
       - "-retentionPeriod=${VICTORIA_TRACES_RETENTION:-7d}"
       - "-httpListenAddr=:10428"
       - "-retention.maxDiskSpaceUsageBytes=${VICTORIA_TRACES_MAX_DISK_USAGE:-10737418240}"
+    # No healthcheck: the image is distroless, with no shell, no wget and no
+    # client to probe the store's own /health with, and `docker compose up
+    # --wait` would block forever on a service stuck in "starting". Readiness is
+    # established over the network instead, from the peer container, by
+    # scripts/otlp_storage_smoke.py; a healthcheck with a client shipped in as a
+    # volume would be the alternative and buys nothing here.
     volumes:
       - vt-data:/vt-data
     networks:

@@ -28,6 +28,10 @@ vi.mock("./Cards/WorkQueueCard", () => ({
   default: () => <div>workQueue</div>,
 }));
 
+vi.mock("./Cards/RecentNoticesCard", () => ({
+  default: ({ resources }: { resources: string[] }) => <div data-testid="notices">{resources.join(",")}</div>,
+}));
+
 vi.mock("./Cards/ServiceAttentionCard", () => ({
   default: () => <div>attention</div>,
 }));

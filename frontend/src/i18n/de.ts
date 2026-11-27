@@ -963,6 +963,33 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       noTrend: "Keine Bestandstrenddaten",
       sparkline: "Bestandstrend für %{resource}",
     },
+    // die kompakte Meldungs- und Aktivitätstabelle des Dashboards (#1819): die
+    // Zeilen sind Datensätze der Meldungen und der Änderungshistorien, ihre
+    // Worte sind also die dieser Screens - diese Karte nennt nur die Zustände,
+    // die eine Quelle der Tabelle beantworten kann, von denen keiner „keine
+    // Meldungen dieser Art“ bedeutet
+    notices: {
+      title: "Letzte Meldungen und Aktivitäten",
+      window: "Neueste Meldungen vom %{from} bis %{to} (%{days} Tage) — nicht die gesamte Historie",
+      truncated: "Die neuesten %{rows} Meldungen der Bereitstellung",
+      loading: "Die Meldungen der Bereitstellung werden gelesen ...",
+      loadError: "Die Meldungen konnten nicht gelesen werden.",
+      empty: "Keine Meldungen in diesem Zeitraum.",
+      unsupported: "Keine Meldung der Bereitstellung kann gelesen werden.",
+      noTime: "ohne Datum",
+      noDetail: "Die Api beantwortet keine Beschreibung für diese Meldung.",
+      loadingSource: "%{resource}: die Meldungen werden noch gelesen.",
+      errorSource: "%{resource}: die Meldungen konnten nicht gelesen werden.",
+      forbiddenSource: "%{resource}: Sie dürfen diese Meldungen nicht lesen.",
+      unsupportedSource: "%{resource}: für diese Ressource werden keine Meldungen beantwortet.",
+      viewHistory: "Alle Änderungen an %{resource}",
+      columns: {
+        time: "Zeit",
+        type: "Art",
+        description: "Beschreibung",
+        target: "Betroffener Dienst / Datensatz",
+      },
+    },
     // die kompakte Gesundheit der Bereitstellung: eine Zeile je Warteschlange,
     // die ihren Zustand neben ihrer Zahl beantwortet (#1816). Keiner Zustand,
     // der nicht gelesen werden durfte oder konnte, beantwortet ein Erfolgswort

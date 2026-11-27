@@ -402,6 +402,81 @@ def test_configuration_holds_the_contracts_the_pages_depend_on() -> None:
                   ('"builder"', '"documented_commit"', '"autodoc"', '"diagrams"')))
 
 
+def test_hosting_is_managed_and_the_force_push_publisher_stays_gone() -> None:
+    """Hosting is Read the Docs configuration, not a publisher of our own (#1608).
+
+    The retired 2021 script force-pushed a build onto ``gh-pages``, so it could
+    not say which version or commit a published page came from, and a failed run
+    replaced good documentation with nothing. The revised epic #1589 does not
+    want a repository-owned replacement at all: the managed service provides the
+    versions, the retention and the build queue. These checks hold that decision,
+    because a deleted file and a page of prose are both easy to undo quietly.
+    """
+    check("the force-push publisher is gone",
+          not (ROOT / "docs" / "publish_docs.sh").exists())
+
+    workflows = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+    force_pushers = [w.name for w in workflows
+                     if "gh-pages" in read(w)
+                     and re.search(r"git push[^\n]*(--force|-f)\b", read(w))]
+    check("no workflow force-pushes a Pages branch", not force_pushers,
+          ", ".join(force_pushers))
+    # A Pages deployment job beside the service would be the dual publisher the
+    # revised epic refuses, so name one rather than trust the prose about it.
+    deployers = [f"{w.name}:{job}" for w in workflows
+                 for job in workflow_jobs(read(w))
+                 if re.search(r"pages|deploy", job, re.IGNORECASE)]
+    check("no Pages deployment job exists beside the managed service",
+          not deployers, ", ".join(deployers))
+
+    config = read(READTHEDOCS)
+    check("Read the Docs builds from the single docs pin file",
+          re.search(r"requirements:\s*\n?\s*-?\s*backend/\.requirements/docs\.txt",
+                    config) is not None)
+    check("the hosted build treats a warning as a failure, as CI does",
+          "fail_on_warning: true" in config)
+    # Comments only, this time the other way round: the header of the file
+    # explains why it declares no apt packages, and prose about a setting is not
+    # the setting. Same distinction the docs-image check above makes.
+    declared = "\n".join(line for line in config.splitlines()
+                         if not line.lstrip().startswith("#"))
+    check("no second package source is declared for the hosted build",
+          "apt_packages" not in declared and "pip install" not in declared)
+    check("the hosted interpreter is the one the docs pins were frozen with",
+          'python: "3.13"' in config and "ubuntu-24.04" in config)
+
+    hosting = SOURCE / "development" / "documentation-hosting.rst"
+    text = read(hosting) if hosting.is_file() else ""
+    # Named after the actions the service actually offers, so that a rewrite of
+    # this page into a plausible-sounding but wrong rule set fails here.
+    check("the hosting rules an administrator has to set are written down",
+          all(phrase in text for phrase in
+              ("Automation Rules", "Activate version", "Trigger build for version",
+               "Changed files", "Hide version")),
+          "; ".join(phrase for phrase in
+                    ("Automation Rules", "Activate version", "Trigger build for version",
+                     "Changed files", "Hide version") if phrase not in text))
+    published = hosted_site_url()
+    check("the hosted site is the URL the image metadata publishes",
+          bool(published) and published in text,
+          f"image_release.py publishes {published!r}")
+
+
+def hosted_site_url() -> str:
+    """The documentation URL the image metadata publishes, read from its owner."""
+    match = re.search(r'"documentation":\s*"(https://[^"]+)"',
+                      read(ROOT / "scripts" / "image_release.py"))
+    return match.group(1) if match else ""
+
+
+def workflow_jobs(text: str) -> list[str]:
+    """Job ids of a workflow file, from the two-space indent under ``jobs:``."""
+    body = text.split("\njobs:", 1)
+    if len(body) < 2:
+        return []
+    return re.findall(r"^  ([A-Za-z0-9_-]+):\s*$", body[1], re.MULTILINE)
+
+
 def test_requirements_are_pinned_and_isolated() -> None:
     requirements = read(REQUIREMENTS)
     lines = [line.strip() for line in requirements.splitlines()
@@ -454,6 +529,7 @@ def main() -> int:
     test_rst_explicit_links_resolve()
     test_local_links_of_the_authored_corpus_resolve()
     test_configuration_holds_the_contracts_the_pages_depend_on()
+    test_hosting_is_managed_and_the_force_push_publisher_stays_gone()
     test_requirements_are_pinned_and_isolated()
     print(f"\n{len(failures)} failed of the checks above" if failures
           else "\nall checks passed")

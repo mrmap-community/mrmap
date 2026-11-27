@@ -56,10 +56,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: set up buildx for the compose build
+        # The docker-container driver is what makes the GitHub Actions layer cache
+        # reachable from `docker compose build` (see docker-compose.ci-cache.yml).
+        # Pinned like the other third-party actions in this repository.
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build the test image with the Actions layer cache
+        # The build happens here, once, so the run step below needs no --build and
+        # so the three backend jobs share one cache scope instead of each repeating
+        # the same build from scratch.
+        env:
+          COMPOSE_BAKE: 'true'
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+            -f docker-compose.ci-cache.yml build pre-commit-check
+
       - name: Run pre commit checks
         # Match checkout ownership so translation checks can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build --user "$(id -u):$(id -g)" pre-commit-check
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" pre-commit-check
 
   acceptance-tests:
     name: acceptance-tests
@@ -71,10 +87,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: set up buildx for the compose build
+        # The docker-container driver is what makes the GitHub Actions layer cache
+        # reachable from `docker compose build` (see docker-compose.ci-cache.yml).
+        # Pinned like the other third-party actions in this repository.
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build the test image with the Actions layer cache
+        # The build happens here, once, so the run step below needs no --build and
+        # so the three backend jobs share one cache scope instead of each repeating
+        # the same build from scratch.
+        env:
+          COMPOSE_BAKE: 'true'
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+            -f docker-compose.ci-cache.yml build behave
+
       - name: Run behave tests
         # Match checkout ownership so coverage can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build --user "$(id -u):$(id -g)" behave
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" behave
 
       - name: upload coverage reports
         uses: actions/upload-artifact@v7
@@ -96,10 +128,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: set up buildx for the compose build
+        # The docker-container driver is what makes the GitHub Actions layer cache
+        # reachable from `docker compose build` (see docker-compose.ci-cache.yml).
+        # Pinned like the other third-party actions in this repository.
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: build the test image with the Actions layer cache
+        # The build happens here, once, so the run step below needs no --build and
+        # so the three backend jobs share one cache scope instead of each repeating
+        # the same build from scratch.
+        env:
+          COMPOSE_BAKE: 'true'
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml \
+            -f docker-compose.ci-cache.yml build django-tests
+
       - name: Run unit tests
         # Match checkout ownership so coverage can write to the bind mount.
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --build --user "$(id -u):$(id -g)" django-tests
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm --user "$(id -u):$(id -g)" django-tests
 
       - name: upload coverage reports
         uses: actions/upload-artifact@v7

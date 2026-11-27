@@ -133,7 +133,8 @@ describe("InventoryChart", () => {
     expect(screen.getByRole("heading", { name: lookup("dashboard.inventory.title") })).toBeInTheDocument();
     expect(props.height).toBeLessThanOrEqual(180);
     expect(props.series.every(line => line.curve === "linear" && line.area && !line.showMark)).toBe(true);
-    expect(props.grid).toEqual({ horizontal: true });
+    // a stock is read against its days, so the plot needs no vertical grid
+    expect(props.grid).toEqual({ horizontal: true, vertical: false });
     expect(props.slotProps.legend).toMatchObject({ direction: "horizontal", toggleVisibilityOnClick: true });
     expect(screen.getAllByLabelText("Native series legend")).toHaveLength(1);
   });

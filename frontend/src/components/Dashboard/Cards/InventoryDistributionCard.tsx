@@ -6,13 +6,13 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { PieChart } from "@mui/x-charts/PieChart";
 
-import SimpleCard from "../../MUI/SimpleCard";
 import { dashboardResourceColor } from "../dashboardColors";
 import {
   dashboardDistribution,
   type InventoryCountSource,
   type InventoryDistribution,
 } from "../dashboardInventory";
+import { ChartCard, PlotState } from "./ChartParts";
 
 /** the height of the donut itself; the card stays within the middle row of the mockup */
 const PLOT_HEIGHT = 132;
@@ -56,15 +56,7 @@ const InventoryDistributionCard = ({ sources }: {
     });
 
   const body = () => {
-    if (distribution.status !== "ready") {
-      const messages = {
-        loading: "historyChart.asking", error: "historyChart.error",
-        partial: "historyChart.partial", unsupported: "historyChart.noStatistics",
-      } as const;
-      return <Typography variant="body2" role="status" sx={{ py: 1 }}>
-        {translate(messages[distribution.status])}
-      </Typography>;
-    }
+    if (distribution.status !== "ready") return <PlotState status={distribution.status} />;
     const { slices, total, unavailable } = distribution;
     const small = slices.filter(slice => slice.percent < OTHER_THRESHOLD);
     const shown = grouped && small.length > 1
@@ -150,23 +142,15 @@ const InventoryDistributionCard = ({ sources }: {
   };
 
   return (
-    <SimpleCard
-      title={<Stack direction="row" useFlexGap sx={{ alignItems: "center", columnGap: 0.25, minWidth: 0 }}>
-        <DonutLargeIcon fontSize="small" color="primary" />
-        <Typography component="h2" variant="subtitle2" sx={{ minWidth: 0 }} noWrap>
-          {translate("dashboard.distribution.title")}
-        </Typography>
-      </Stack>}
-      subheader={<Typography variant="caption" color="text.secondary">
-        {translate("dashboard.distribution.scope")}
-      </Typography>}
-      headerProps={{ sx: { alignItems: "flex-start", minHeight: 40, px: 1.5, py: 0.25 } }}
-      cardProps={{ variant: "outlined", sx: { minWidth: 0, boxShadow: "none", borderRadius: 2, height: "100%" } }}
-      contentProps={{ sx: { px: 1, pt: 0, pb: 0.5, "&:last-child": { pb: 0.5 } } }}
-      divider={false}
+    <ChartCard
+      icon={<DonutLargeIcon fontSize="small" color="primary" />}
+      title={translate("dashboard.distribution.title")}
+      subheader={translate("dashboard.distribution.scope")}
+      fill
+      contentPaddingX={1}
     >
       {body()}
-    </SimpleCard>
+    </ChartCard>
   );
 };
 

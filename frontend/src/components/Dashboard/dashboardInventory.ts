@@ -193,10 +193,16 @@ export const dashboardDailyChanges = (
   period: DashboardPeriod,
 ): DailyChangesStatistics => {
   const activity = sources.filter(source => source.status === "ready" && source.days);
-  const unavailable: InventoryGap[] = sources.flatMap(source =>
-    source.status === "ready"
-      ? source.days ? [] : [{ resource: source.resource, status: "partial" as const }]
-      : [{ resource: source.resource, status: source.status }]);
+  // a resource of a verified window which answers no days is incomplete, which is
+  // answered apart from a read which did not answer at all
+  const gapOf = (source: InventorySource): InventoryGap | null => {
+    if (source.status !== "ready") return { resource: source.resource, status: source.status };
+    if (source.days) return null;
+    return { resource: source.resource, status: "partial" };
+  };
+  const unavailable: InventoryGap[] = sources
+    .map(gapOf)
+    .filter((gap): gap is InventoryGap => gap !== null);
   if (!activity.length) {
     const severe = (["error", "loading", "partial", "unsupported"] as const)
       .find(status => unavailable.some(gap => gap.status === status));

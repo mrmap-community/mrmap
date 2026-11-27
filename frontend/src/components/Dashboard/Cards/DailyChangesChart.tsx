@@ -1,20 +1,20 @@
 import type { DashboardPeriod } from "../dashboardStatistics";
 
 import { useState } from "react";
-import { useLocaleState, useTranslate } from "react-admin";
+import { useTranslate } from "react-admin";
 
 import StackedBarChartIcon from "@mui/icons-material/StackedBarChart";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { BarChart } from "@mui/x-charts/BarChart";
 
-import SimpleCard from "../../MUI/SimpleCard";
 import { dashboardResourceColor } from "../dashboardColors";
 import {
   dashboardDailyChanges,
   type DailyChangesStatistics,
   type InventorySource,
 } from "../dashboardInventory";
+import { ChartCard, countAxis, dayAxis, plotLegend, PlotState, usePlotLocales } from "./ChartParts";
 
 /** the days of the window the axis names, so a 30 day window names eight of them */
 const NAMED_DAYS = 8;
@@ -22,15 +22,8 @@ const NAMED_DAYS = 8;
 /** the height of the plot itself; the card stays within the middle row of the mockup */
 const PLOT_HEIGHT = 132;
 
-const tickStep = (days: number) => Math.max(1, Math.ceil((days - 1) / NAMED_DAYS));
-
-/** the whole numbers the value axis counts in, never below one */
-const valueStep = (max: number) => {
-  const target = Math.max(1, max);
-  const power = 10 ** Math.floor(Math.log10(target / 4));
-  return [1, 2, 5, 10].map(multiplier => multiplier * power)
-    .find(step => step >= 1 && Math.ceil(target / step) <= 4) ?? Math.max(1, 10 * power);
-};
+/** the labels of the value axis this row of the mockup can read beside its bars */
+const VALUE_TICKS = 4;
 
 /**
  * The daily changes of the deployment, stacked by resource type.
@@ -49,33 +42,21 @@ const DailyChangesChart = ({ sources, period }: {
   period: DashboardPeriod;
 }) => {
   const translate = useTranslate();
-  const [locale] = useLocaleState();
   const theme = useTheme();
   const [hidden, setHidden] = useState<{ type: "bar"; seriesId: string }[]>([]);
   const statistics: DailyChangesStatistics = dashboardDailyChanges(sources, period);
-  const numbers = new Intl.NumberFormat(locale);
-  const dates = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  const shortDates = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" });
+  const locales = usePlotLocales();
+  const { numbers } = locales;
   const resourceName = (resource: string) => translate(`dashboard.activity.resourceNames.${resource}`, {
     _: translate(`resources.${resource}.plural`, { _: resource }),
   });
 
   const body = () => {
-    if (statistics.status !== "ready") {
-      const messages = {
-        loading: "historyChart.asking", error: "historyChart.error",
-        partial: "historyChart.partial", unsupported: "historyChart.noStatistics",
-      } as const;
-      return <Typography variant="body2" role="status" sx={{ py: 1 }}>
-        {translate(messages[statistics.status])}
-      </Typography>;
-    }
+    if (statistics.status !== "ready") return <PlotState status={statistics.status} />;
     const { days, series: verified, unavailable, total } = statistics;
     const stacked = verified.filter(line => !hidden.some(entry => entry.seriesId === line.resource));
     const maxValue = Math.max(1, ...days.map((_day, index) =>
       stacked.reduce((sum, line) => sum + (line.data[index] ?? 0), 0)));
-    const step = valueStep(maxValue);
-    const ticks = Array.from({ length: Math.ceil(maxValue / step) + 1 }, (_, index) => index * step);
     return <Box>
       <BarChart
         aria-label={translate("dashboard.changes.title")}
@@ -90,29 +71,9 @@ const DailyChangesChart = ({ sources, period }: {
         }))}
         hiddenItems={hidden}
         onHiddenItemsChange={setHidden}
-        slotProps={{
-          legend: {
-            direction: "horizontal",
-            toggleVisibilityOnClick: true,
-            sx: { justifyContent: "center", columnGap: 2, rowGap: 0.25, fontSize: "0.75rem", minHeight: 24 },
-          },
-        }}
-        xAxis={[{
-          scaleType: "band", data: days, height: 22,
-          valueFormatter: (day: string, context: { location: string }) =>
-            context.location === "tick"
-              ? shortDates.format(new Date(`${day}T00:00:00Z`))
-              : dates.format(new Date(`${day}T00:00:00Z`)),
-          tickInterval: (_day: string, index: number) => index % tickStep(days.length) === 0,
-          tickLabelStyle: { fontSize: 11, fill: theme.palette.text.secondary },
-        }]}
-        yAxis={[{
-          min: 0, max: ticks.at(-1), tickNumber: ticks.length, tickMinStep: 1, domainLimit: "strict", width: "auto",
-          label: translate("dashboard.changes.yAxis"),
-          labelStyle: { fontSize: 11, fontWeight: 600, fill: theme.palette.text.primary },
-          tickLabelStyle: { fontSize: 11, fill: theme.palette.text.secondary },
-          valueFormatter: (value: number) => numbers.format(value),
-        }]}
+        slotProps={{ legend: plotLegend }}
+        xAxis={dayAxis(days, theme, locales, { scaleType: "band", height: 22, namedDays: NAMED_DAYS })}
+        yAxis={countAxis(maxValue, translate("dashboard.changes.yAxis"), theme, numbers, VALUE_TICKS)}
         margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
         grid={{ horizontal: true }}
         sx={{
@@ -136,23 +97,14 @@ const DailyChangesChart = ({ sources, period }: {
   };
 
   return (
-    <SimpleCard
-      title={<Stack direction="row" useFlexGap sx={{ alignItems: "center", columnGap: 0.25, minWidth: 0 }}>
-        <StackedBarChartIcon fontSize="small" color="primary" />
-        <Typography component="h2" variant="subtitle2" sx={{ minWidth: 0 }} noWrap>
-          {translate("dashboard.changes.title")}
-        </Typography>
-      </Stack>}
-      subheader={<Typography variant="caption" color="text.secondary">
-        {translate("dashboard.changes.scope", { days: period })}
-      </Typography>}
-      headerProps={{ sx: { alignItems: "flex-start", minHeight: 40, px: 1.5, py: 0.25 } }}
-      cardProps={{ variant: "outlined", sx: { minWidth: 0, boxShadow: "none", borderRadius: 2, height: "100%" } }}
-      contentProps={{ sx: { px: 0.5, pt: 0, pb: 0.5, "&:last-child": { pb: 0.5 } } }}
-      divider={false}
+    <ChartCard
+      icon={<StackedBarChartIcon fontSize="small" color="primary" />}
+      title={translate("dashboard.changes.title")}
+      subheader={translate("dashboard.changes.scope", { days: period })}
+      fill
     >
       {body()}
-    </SimpleCard>
+    </ChartCard>
   );
 };
 

@@ -597,7 +597,15 @@ def cmd_run(args, data):
                          " shipped (see LEGACY_TASK_KNOBS)"
                          % (arm["name"], ", ".join(unknown)))
     protocol = data["protocol"]
-    project = os.environ.get("COMPOSE_PROJECT_NAME") or protocol["compose_project"]
+    # an explicitly empty name is a caller which means to choose one and chose
+    # nothing, so it is refused rather than quietly replaced by the default:
+    # the difference matters because the name is what `down` later removes.
+    raw_project = os.environ.get("COMPOSE_PROJECT_NAME")
+    if raw_project is not None and not raw_project.strip():
+        raise BenchError("COMPOSE_PROJECT_NAME is set but empty; the run must own"
+                         " what it measures and what it removes, so name the"
+                         " project (expected %s*)" % PROJECT_PREFIX)
+    project = raw_project or protocol["compose_project"]
     if not project.startswith(PROJECT_PREFIX):
         raise BenchError("COMPOSE_PROJECT_NAME=%s is not a project name this tool"
                          " creates (expected %s*): the run must own what it"

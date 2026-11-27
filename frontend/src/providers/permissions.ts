@@ -177,12 +177,46 @@ export const callerRoleIdsFromWhoAmI = (body: unknown): string[] => {
     .filter((id): id is string => typeof id === "string")
 }
 
+/** The `data` member of a JSON:API collection answer; anything else - an
+ * unanswered read included - reads as the empty list. */
+const rawData = (body: unknown): {
+  id?: string
+  attributes?: Record<string, unknown>
+  relationships?: Record<string, { data?: { id?: string } | null }>
+}[] => {
+  const data = (body as { data?: unknown } | undefined)?.data
+  return Array.isArray(data) ? data as ReturnType<typeof rawData> : []
+}
+
+/**
+ * The one Role relationship both reads of the slug resolution need: the
+ * definition the row instantiates. `MrMap/settings.py` sets
+ * `JSON_API_FORMAT_FIELD_NAMES = "camelize"`, so the API answers it as
+ * `roleDefinition` - the same inflection this module already reads its
+ * attributes under (`isActive`, `isSuperuser`) (#1803).
+ */
+const roleDefinitionIdOf = (role: {
+  relationships?: Record<string, { data?: { id?: string } | null }>
+}): string | undefined =>
+  role.relationships?.roleDefinition?.data?.id
+
+/**
+ * The definition ids the caller's Role rows link to - the `filter[id.in]`
+ * input of the second read of the slug resolution. An unanswered read answers
+ * the empty list, which is what lets the caller skip that read instead of
+ * asking it with an empty filter.
+ */
+export const roleDefinitionIdsOf = (rolesBody: unknown): string[] =>
+  rawData(rolesBody)
+    .map(roleDefinitionIdOf)
+    .filter((id): id is string => typeof id === "string")
+
 /**
  * Turns the two documents of the slug resolution - the caller's Role rows
  * (`GET /roles?filter[id.in]=...`) and their RoleDefinition rows
  * (`GET /roledefinitions?filter[id.in]=...`) - into the snapshot's role
- * slugs and administered organizations. Only `is_active` rows count: a
- * retired role grants nothing, which is the same rule the backend applies.
+ * slugs and administered organizations. Only active rows count: a retired
+ * role grants nothing, which is the same rule the backend applies.
  * A Role whose definition is absent from the second answer contributes
  * nothing - the snapshot is judged by what the API actually answered.
  */
@@ -190,26 +224,18 @@ export const resolveAdministrationFromRoles = (
   rolesBody: unknown,
   definitionsBody: unknown
 ): Pick<PermissionSnapshot, "roles" | "administeredOrganizationIds"> => {
-  const readData = (body: unknown): {
-    id?: string
-    attributes?: Record<string, unknown>
-    relationships?: Record<string, { data?: { id?: string } | null }>
-  }[] => {
-    const data = (body as { data?: unknown } | undefined)?.data
-    return Array.isArray(data) ? data as ReturnType<typeof readData> : []
-  }
   const slugs = new Map<string, string>(
-    readData(definitionsBody)
+    rawData(definitionsBody)
       .filter(definition => typeof definition.attributes?.slug === "string")
       .map(definition => [definition.id!, definition.attributes!.slug as string])
   )
   const roles: string[] = []
   const administeredOrganizationIds: string[] = []
-  for (const role of readData(rolesBody)) {
+  for (const role of rawData(rolesBody)) {
     if (role.attributes?.isActive !== true) {
       continue
     }
-    const slug = slugs.get(role.relationships?.role_definition?.data?.id ?? "")
+    const slug = slugs.get(roleDefinitionIdOf(role) ?? "")
     if (slug === undefined) {
       continue
     }

@@ -186,11 +186,11 @@ describe('the role rows of the selected organization', () => {
     state.organizations = [{ id: 'o1' }];
     state.storeValue = 'o1';
     state.roleRows = [
-      { id: 'r1', role_definition: { id: 'd1' }, memberCount: 3 },
+      { id: 'r1', roleDefinition: { id: 'd1' }, memberCount: 3 },
       {
         // a row whose definition the join cannot answer reads unresolved,
         // it never invents a slug
-        id: 'r2', role_definition: { id: 'd9' }, memberCount: 0,
+        id: 'r2', roleDefinition: { id: 'd9' }, memberCount: 0,
       },
     ];
     state.definitions = [

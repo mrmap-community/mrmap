@@ -32,6 +32,7 @@ import {
   isPlatformAdministration,
   permissionSnapshotFromWhoAmI,
   resolveAdministrationFromRoles,
+  roleDefinitionIdsOf,
   type PermissionSnapshot,
 } from "./permissions";
 
@@ -108,7 +109,7 @@ describe("role slug resolution of #736", () => {
         id: "11",
         attributes: { isActive: true },
         relationships: {
-          role_definition: { data: { type: "RoleDefinition", id: "3" } },
+          roleDefinition: { data: { type: "RoleDefinition", id: "3" } },
           organization: { data: { type: "Organization", id: "7" } },
         },
       },
@@ -118,7 +119,7 @@ describe("role slug resolution of #736", () => {
         id: "12",
         attributes: { isActive: false },
         relationships: {
-          role_definition: { data: { type: "RoleDefinition", id: "3" } },
+          roleDefinition: { data: { type: "RoleDefinition", id: "3" } },
           organization: { data: { type: "Organization", id: "8" } },
         },
       },
@@ -127,7 +128,7 @@ describe("role slug resolution of #736", () => {
         id: "13",
         attributes: { isActive: true },
         relationships: {
-          role_definition: { data: { type: "RoleDefinition", id: "5" } },
+          roleDefinition: { data: { type: "RoleDefinition", id: "5" } },
           organization: { data: null },
         },
       },
@@ -135,7 +136,7 @@ describe("role slug resolution of #736", () => {
         // a role whose definition the second read did not answer
         id: "14",
         attributes: { isActive: true },
-        relationships: { role_definition: { data: { type: "RoleDefinition", id: "99" } } },
+        relationships: { roleDefinition: { data: { type: "RoleDefinition", id: "99" } } },
       },
     ],
   };
@@ -160,6 +161,30 @@ describe("role slug resolution of #736", () => {
     expect(resolveAdministrationFromRoles(undefined, undefined)).toEqual({
       roles: [], administeredOrganizationIds: [],
     });
+  });
+
+  it("reads the definition link under the camelized name the API answers", () => {
+    // settings.py JSON_API_FORMAT_FIELD_NAMES camelizes every member name, so
+    // the relationship is `roleDefinition` - reading the snake_case model name
+    // left every non-superuser on /access-denied (#1803)
+    expect(roleDefinitionIdsOf(rolesBody)).toEqual(["3", "3", "5", "99"]);
+
+    const snakeCased = {
+      data: [{
+        id: "11",
+        attributes: { isActive: true },
+        relationships: {
+          role_definition: { data: { type: "RoleDefinition", id: "3" } },
+        },
+      }],
+    };
+    expect(roleDefinitionIdsOf(snakeCased)).toEqual([]);
+    expect(resolveAdministrationFromRoles(snakeCased, definitionsBody)).toEqual({
+      roles: [], administeredOrganizationIds: [],
+    });
+    // an unanswered read is the same empty input, which is what lets the
+    // caller skip the definition read instead of asking an empty filter
+    expect(roleDefinitionIdsOf(undefined)).toEqual([]);
   });
 
   it("names the organization administration slug the resolver reads off", () => {

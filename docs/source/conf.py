@@ -129,7 +129,7 @@ templates_path = ["_templates"]
 # ``build`` and ``_build`` are excluded so that a generated artifact inside the
 # tree can never be picked up as source. That keeps authored content and
 # generated output separate even when someone builds in place, which is what the
-# docs Makefile and ``docs/publish_docs.sh`` both do.
+# docs Makefile and the ``pre_build`` job of ``.readthedocs.yaml`` both do.
 exclude_patterns = ["build", "_build", ".doctrees", "locale", "**/.ipynb_checkpoints"]
 
 # -- MyST configuration ------------------------------------------------------

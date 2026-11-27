@@ -360,8 +360,9 @@ docs-artifact/v1/<docs_manifest>/
 Rules that make this usable as a cache and as a legal record:
 
 - `portal/` is **immutable once published**, keyed by `<docs_manifest>`. Nothing
-  overwrites a published path. This is what allows retention of history and
-  kills the force-push model of `publish_docs.sh`.
+  overwrites a published path. This is what allows retention of history and is
+  the property the force-push model of the retired `publish_docs.sh` could not
+  offer (see section 12 for who provides it now).
 - `report.json` is the artifact the gate reads. A build that "succeeded" but
   whose report shows a coverage regression is a failed build.
 - Model output is cached under `sha256(prompt, model_id, model_parameters,
@@ -476,23 +477,50 @@ fixture sets (`test_wms.json`, `test_csw.json`, and siblings) — with fixed
 locale, viewport, fonts and a deterministic clock, and with redacted logs. No
 production instance is ever screenshotted, and no real data enters an artifact.
 
-### 12. Publication replaces `publish_docs.sh` with artifacts and no force-push
+### 12. Hosting is managed Read the Docs; there is no repository-owned publisher
 
-`docs/publish_docs.sh` and the workflow that calls it are retired by #1608.
-Publication becomes: a privileged publisher job downloads the artifact for
-`<docs_manifest>` and writes it to `/stable/`, `/develop/` and `/vX.Y.Z/` in a
-Pages build, atomically, never force-pushing and never rewriting a published
-version. The multiversion machinery already in `conf.py` (`sphinx_multiversion`,
-with the tag selection described by `scripts/release_lifecycle.json`) keeps
-historical versions selectable, so preserving old URLs is inherited from
-existing behaviour rather than added.
+*Revised 2026-11-26 by the maintainer scope reset of #1589, which supersedes
+this section as first written. What the section decided before that reset, kept
+here so a reader can see exactly what was given up: a privileged publisher job
+that downloaded the artifact for `<docs_manifest>` and wrote it to `/stable/`,
+`/develop/` and `/vX.Y.Z/` in a Pages build, atomically, never force-pushing and
+never rewriting a published version.*
+
+What is decided now: **Read the Docs native Git integration hosts and versions
+the site**, reusing the existing project and `.readthedocs.yaml`. Historical
+versions come from activated tags under the service's own version handling; the
+pre-release gate remains the exact-master-SHA Sphinx build of #1798, and native
+publication follows an authorized tag. The rules an administrator configures,
+the version table, and the automation rules that keep ordinary branch and
+pull-request traffic from spending a build are in
+`docs/source/development/documentation-hosting.rst`.
+
+The multiversion machinery already in `conf.py` (`sphinx_multiversion`, with the
+tag selection described by `scripts/release_lifecycle.json`) stays, because the
+docs image at `docker/docs/entrypoint.sh` is a separate consumer that calls
+`sphinx-multiversion` directly and needs it. That is one selection read by two
+consumers, not two publishers.
+
+**A repository-owned publisher, artifact archive or Pages workflow is out of
+scope and must not be reintroduced without prior explicit maintainer approval
+and a demonstrated upstream gap** (#1589, 2026-11-26). If the service
+provably cannot serve the minimum needs, the fallback is the *official* GitHub
+Actions artifact-upload and Pages-deploy actions for the latest stable only —
+never a custom archive layout, and never a dual publisher.
+
+`docs/publish_docs.sh` is deleted with #1608. It was a 2021 script that
+`git push --force`d a freshly built tree onto `gh-pages`; under the contract
+above it has no role to keep, because the version identity, the retention and
+the build queue are all the service's.
 
 Historical content is preserved by construction: the pre-epic corpus enters as
 `kind: human` evidence, the existing `docs/source` tree keeps its paths and
 therefore its anchors and labels (`_documenting_metadata` and the section labels
 the root toctree lists), and the coverage floor only ever grows. No page is
 deleted because a generator dislikes it — a page is deleted only when the
-invalidation graph proves its subject is gone from the software.
+invalidation graph proves its subject is gone from the software. Prefix-level
+URL moves of the previously published site are answered by **native redirects**
+in the service, not by a publisher keeping old paths alive.
 
 ### 13. No production publish from this record
 
@@ -574,7 +602,7 @@ permits. `inferred` text is published without review at all.
 | #1601, #1602 | deterministic demo stack, Playwright evidence (V-8, V-14) |
 | #1603, #1604, #1605 | audience sections, per-locale generation (V-12), behavioural evidence |
 | #1606, #1607 | invalidation graph (section 5), coverage gate and bounded repair (V-1 … V-16) |
-| #1608, #1609 | artifact-based publication replacing `publish_docs.sh`, #1577 wiring |
+| #1608, #1609 | managed Read the Docs hosting and its configuration, replacing the retired `publish_docs.sh`; #1577 wiring |
 | #1610 | end-to-end validation including the negative-case dry run (V-17) |
 
 ## Appendix A — Reproducing the baseline

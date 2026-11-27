@@ -92,6 +92,23 @@ This rule requires no new tooling, automated policy checker or additional
 approval process for ordinary domain fixes. Apply existing human decisions only
 to material unresolved trade-offs.
 
+### Documentation hosting is managed (docs-specific rule)
+
+Documentation hosting, versioning and retention are **managed Read the Docs
+behavior** configured by `.readthedocs.yaml` plus the project's own version and
+automation-rule settings (#1589 as revised 2026-11-26, ADR-0001 section 12).
+Do not add a repository-owned publisher, artifact archive or Pages deployment
+workflow, and do not restore `docs/publish_docs.sh` or a `gh-pages` force push:
+the version switcher, per-version storage and build queue are the service's, and
+a second publisher means two sources of truth for one site. Historical versions
+come from activated release tags; ordinary branch and pull-request traffic is
+kept off full builds by automation rules, not by a webhook service. Reaching for
+the official GitHub Pages artifact/deploy actions as a fallback already requires
+the stop rule above: a demonstrated upstream gap and an explicit maintainer
+decision. The rules an administrator sets are listed in
+`docs/source/development/documentation-hosting.rst`; building the portal stays
+`docs/source/development/documentation-portal.rst`.
+
 ## Project structure
 
 Backend paths are relative to `backend/`, frontend paths to `frontend/src/`.

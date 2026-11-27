@@ -15,6 +15,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
 
    communication
    documentation-portal
+   documentation-hosting
    getting-started
    project-structure
    environment

@@ -22,9 +22,11 @@ from issues and from deployed instances already point at. What changed is that t
 sections are now grouped by audience, registered in a toctree, and built on every
 pull request.
 
-Publishing is not part of this issue. There is no deployment here, no artifact
-pushed anywhere, and no gh-pages branch written; the portal is built, checked and
-uploaded as a reviewable artifact and nothing more.
+Publishing is not part of this page either. Nothing here deploys, pushes an
+artifact anywhere, or writes a ``gh-pages`` branch: the portal is built, checked
+and uploaded as a reviewable artifact and nothing more. Where the built site
+*lives* - Read the Docs, its versions, its automation rules - is
+:doc:`documentation-hosting`.
 
 Building it
 ===========
@@ -269,11 +271,17 @@ one artifact.
 Version and language navigation
 ===============================
 
-``sphinx-multiversion`` documents the released tags - the two-component names the
-repository published before the SemVer policy (``v0.2``) and the full names
-promotion creates today (``v0.2.0``) - with ``develop`` as the branch build. The
-selection is bound to ``scripts/release_lifecycle.json`` rather than to a regex
-somebody has to remember to update; ``scripts/test_release_lifecycle.py`` holds it.
+Two consumers build this corpus for more than one revision, and they get their
+versions from different places. Read the Docs builds one version per activated
+tag and per activated branch with its **own** version handling, which is what
+the switcher a reader sees is made of - see :doc:`documentation-hosting`. The
+docs image is the consumer that does call ``sphinx-multiversion`` directly: it
+documents the released tags - the two-component names the repository published
+before the SemVer policy (``v0.2``) and the full names promotion creates today
+(``v0.2.0``) - with ``develop`` as the branch build. Both read the same
+selection, which is bound to ``scripts/release_lifecycle.json`` rather than to a
+regex somebody has to remember to update;
+``scripts/test_release_lifecycle.py`` holds it.
 
 The release string in the sidebar comes from the canonical ``VERSION`` file through
 the surface #1579 designates, so a bump reaches this consumer with the other three.
@@ -297,9 +305,9 @@ What is deliberately absent
 ===========================
 
 - **Publishing.** No deployment, no gh-pages push, no artifact uploaded to a
-  registry. The native Read the Docs integration and the removal of the obsolete
-  publishing path are #1608; the strict build here is the gate a release consumes,
-  not the thing that ships a site.
+  registry, and no publisher script of our own. Hosting is Read the Docs and its
+  configuration: :doc:`documentation-hosting` (#1608, #1609). The strict build
+  here is the gate a release consumes, not the thing that ships a site.
 - **Screenshots of a running instance and behavioural claims about one.** Those
   need a stack and browser evidence; #1602 owns them and the portal declares them
   as stubs rather than writing prose that looks like a test result.

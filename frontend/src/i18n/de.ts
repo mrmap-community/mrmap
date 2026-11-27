@@ -938,7 +938,6 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
       title: "Änderungen an Diensten und Metadaten",
       yAxis: "Anzahl Änderungen",
       scope: "Neuaufnahmen, Aktualisierungen und Löschungen, pro Tag und je Ressource gezählt — Protokollereignisse, keine verschiedenen Objekte. Nur Ressourcen mit verifiziertem Dashboard-Verlauf werden dargestellt.",
-      period: "Zeitraum",
       days: "Letzte %{days} Tage",
       coverage: "Abdeckung des Verlaufs",
       complete: "Vollständig für den gewählten Zeitraum",
@@ -955,6 +954,51 @@ const germanMessages: TranslationMessages & { ra: Record<string, unknown> } = {
     criticalAlerts: {
       down: "%{smart_count} Komponente der Bereitstellung ist gestoppt |||| %{smart_count} Komponenten der Bereitstellung sind gestoppt",
       degraded: "%{smart_count} Komponente der Bereitstellung ist eingeschränkt |||| %{smart_count} Komponenten der Bereitstellung sind eingeschränkt",
+    },
+    // der einzelne Kopf des Dashboards (#1820): der Bildschirm beantwortet
+    // einen Zeitraum und eine Aktualisierung, damit keine zwei Karten
+    // desselben Bildschirms zwei Fenster nennen
+    header: {
+      title: "Dashboard",
+      description: "Der Bestand dieser Bereitstellung, ihre Änderungen und die wartende Arbeit — gezählt über alles, was Sie sehen dürfen.",
+      period: "Zeitraum",
+      refresh: "Aktualisieren",
+      refreshed: "Letzte Aktualisierung %{moment}",
+    },
+    // der Bestand, den eine Ressource an jedem Tag des Fensters zählte
+    // (#1820): das Gegenstück des Aktivitätsdiagramms, das Ereignisse zählt -
+    // ein erfundener Bestand ist die eine Antwort, die diese Karte nie geben darf
+    inventory: {
+      title: "Ressourcenbestand über die Zeit",
+      yAxis: "Anzahl registrierter Ressourcen",
+      scope: "Der Bestand, den jede Ressource an den Tagen des gewählten Zeitraums zählte — registrierte Ressourcen, weder Protokollereignisse noch verschiedene reale Objekte. Nur Ressourcen mit nachweisbarer Bestandshistorie werden dargestellt.",
+      coverage: "Bestandsabdeckung",
+      verified: "Verifizierter Bestand, zählt heute %{count}",
+      unverified: "Der Bestand lässt sich für diesen Zeitraum nicht nachweisen und wird nicht dargestellt",
+      unavailable: "%{resources} kann seinen Bestand derzeit nicht beantworten und wird nicht dargestellt.",
+      empty: "Keine registrierten Ressourcen der verifizierten Arten in diesem Zeitraum.",
+    },
+    // die gestapelten täglichen Änderungen (#1820): dieselben verifizierten
+    // Ereigniszahlen wie im Aktivitätsdiagramm, nur gestapelt statt als eigene
+    // Linien gezeichnet
+    changes: {
+      title: "Tägliche Änderungen nach Ressource",
+      yAxis: "Anzahl Ereignisse",
+      scope: "Neuaufnahmen, Aktualisierungen und Löschungen der verifizierten Ressourcen, pro Tag gestapelt — dieselben Protokollereignisse wie im Aktivitätsdiagramm, über die letzten %{days} Tage.",
+      total: "%{events} Ereignisse über %{days} Tage",
+    },
+    // die Verteilung des registrierten Bestands (#1820): der Nenner ist immer
+    // die Summe der beantworteten Anzahlen, nie die gesamte Bereitstellung,
+    // und die Liste neben dem Kreis beantwortet die exacten Zahlen
+    distribution: {
+      title: "Ressourcenverteilung",
+      scope: "Anteil der registrierten Ressourcen jeder Art heute — registrierte Ressourcen, keine verschiedenen realen Objekte.",
+      denominator: "%{total} registrierte Ressource aus %{resources} Art gezählt |||| %{total} registrierte Ressourcen aus %{resources} Arten gezählt",
+      other: "Sonstige",
+      empty: "Diese Bereitstellung registriert noch keine Ressourcen.",
+      unavailable: "%{resources} kann seine Anzahl derzeit nicht beantworten und fehlt im Nenner.",
+      explain: "Genaue Anteile von %{resources} Arten anzeigen",
+      group: "Anteile unter %{threshold}% zusammenfassen",
     },
     kpi: {
       delta: "Veränderung %{delta}",

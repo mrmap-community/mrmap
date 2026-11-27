@@ -74,10 +74,6 @@ const resources = ["CatalogueService", "DatasetMetadataRecord", "ServiceMetadata
 const plot = (): PlotProps => state.chart.mock.lastCall?.[0] as PlotProps;
 const lines = () => screen.getByTestId("activity-lines");
 const zero = (value: number) => `0,${"0,".repeat(28)}${value}`;
-const choosePeriod = (option: string) => {
-  fireEvent.mouseDown(screen.getByRole("combobox", { name: lookup("dashboard.activity.period") }));
-  fireEvent.click(screen.getByRole("option", { name: option }));
-};
 const openCoverage = () => {
   fireEvent.click(screen.getByRole("button", { name: lookup("dashboard.activity.coverage") }));
   return screen.getByRole("dialog", { name: lookup("dashboard.activity.coverage") });
@@ -96,7 +92,7 @@ beforeEach(() => {
 
 describe("ActivityChart", () => {
   it("draws one line per authorized resource, in the color of that resource", () => {
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     expect(state.query).toHaveBeenLastCalledWith(resources, 30);
     expect(plot().series.map(line => line.id)).toEqual([
       "CatalogueService", "DatasetMetadataRecord", "ServiceMetadataRecord",
@@ -111,7 +107,7 @@ describe("ActivityChart", () => {
   });
 
   it("draws the plot with the native features of the mockup", () => {
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     const props = plot();
     expect(props["aria-label"]).toBe("Changes to services and metadata");
     expect(screen.getByRole("heading", { name: "Changes to services and metadata" })).toBeInTheDocument();
@@ -125,17 +121,18 @@ describe("ActivityChart", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
-  it("keeps the card compact: no permanent scope text, no totals block, no second filter", () => {
-    render(<ActivityChart resources={resources} />);
+  it("keeps the card compact and leaves the period to the header of the screen", () => {
+    render(<ActivityChart resources={resources} period={30} />);
     expect(screen.queryByText(/histories complete/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Additions|Updates|Deletions/)).not.toBeInTheDocument();
-    expect(screen.getAllByRole("combobox")).toHaveLength(1);
-    expect(screen.getByRole("combobox", { name: "Period" })).toHaveTextContent("Last 30 days");
+    // one selector for the whole screen (#1820): a card which chose its own
+    // window would name a different period than the cards beside it
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("names sparse localized days and keeps the exact value in the tooltip", () => {
     state.sources = [source("ServiceMetadataRecord", 20000)];
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     const props = plot();
     expect(props.xAxis[0].data).toHaveLength(30);
     expect(props.xAxis[0].data.filter((_day, index) => props.xAxis[0].tickInterval("", index))).toHaveLength(10);
@@ -148,7 +145,7 @@ describe("ActivityChart", () => {
 
   it("preserves the true spike of one day instead of smoothing it", () => {
     state.sources = [source("ServiceMetadataRecord", 20000)];
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     const data = plot().series[0].data;
     expect(data.filter(value => value === 20000)).toHaveLength(1);
     expect(data.at(-1)).toBe(20000);
@@ -156,7 +153,7 @@ describe("ActivityChart", () => {
   });
 
   it("toggles the one legend without asking the api again and recovers from no series", () => {
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     const asked = state.query.mock.calls.length;
     const hidden = plot().series.map(line => ({ type: "line" as const, seriesId: line.id }));
     act(() => plot().onHiddenItemsChange(hidden));
@@ -169,18 +166,19 @@ describe("ActivityChart", () => {
     expect(state.query.mock.calls).toHaveLength(asked);
   });
 
-  it("changes the verified period", () => {
-    render(<ActivityChart resources={resources} />);
-    choosePeriod("Last 7 days");
+  it("verifies the window the header of the dashboard chose", () => {
+    const { rerender } = render(<ActivityChart resources={resources} period={30} />);
+    expect(state.query).toHaveBeenLastCalledWith(resources, 30);
+    rerender(<ActivityChart resources={resources} period={7} />);
     expect(state.query).toHaveBeenLastCalledWith(resources, 7);
-    choosePeriod("Last 90 days");
+    rerender(<ActivityChart resources={resources} period={90} />);
     expect(state.query).toHaveBeenLastCalledWith(resources, 90);
   });
 
   it.each(["partial", "error", "loading", "unsupported"] as const)(
     "draws the verified resources and names a %s one instead of inventing a line", status => {
       state.sources[1].statistics = { status };
-      render(<ActivityChart resources={resources} />);
+      render(<ActivityChart resources={resources} period={30} />);
       expect(lines()).toHaveTextContent("CatalogueService:");
       expect(lines()).not.toHaveTextContent("DatasetMetadataRecord:");
       expect(screen.getByRole("status")).toHaveTextContent("Dataset metadata records cannot answer right now");
@@ -194,29 +192,29 @@ describe("ActivityChart", () => {
   it.each(["partial", "error", "loading", "unsupported"] as const)(
     "answers the %s state of the whole card when no resource can be drawn", status => {
       for (const entry of state.sources) entry.statistics = { status };
-      render(<ActivityChart resources={resources} />);
+      render(<ActivityChart resources={resources} period={30} />);
       expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent(lookup(`historyChart.${messageOf[status]}`));
     });
 
   it("distinguishes a verified zero from a resource which cannot answer", () => {
     state.sources = [{ resource: "CatalogueService", statistics: dashboardStatistics([], 0, 0, 30, "2026-11-26") }];
-    const { rerender } = render(<ActivityChart resources={resources} />);
+    const { rerender } = render(<ActivityChart resources={resources} period={30} />);
     expect(lines()).toHaveTextContent(`CatalogueService: ${zero(0)}`);
     expect(screen.getByText("No changes recorded in this period.")).toBeInTheDocument();
-    rerender(<ActivityChart resources={[]} />);
+    rerender(<ActivityChart resources={[]} period={30} />);
     expect(screen.queryByTestId("activity-lines")).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("No change statistics");
   });
 
   it("drops a resource as soon as its permission disappears", () => {
-    const { rerender } = render(<ActivityChart resources={resources} />);
-    rerender(<ActivityChart resources={["DatasetMetadataRecord"]} />);
+    const { rerender } = render(<ActivityChart resources={resources} period={30} />);
+    rerender(<ActivityChart resources={["DatasetMetadataRecord"]} period={30} />);
     expect(plot().series.map(line => line.id)).toEqual(["DatasetMetadataRecord"]);
   });
 
   it("explains the statistical scope on demand, with totals and the exact window", () => {
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     const dialog = openCoverage();
     expect(dialog).toHaveTextContent("audit events, never distinct objects");
     expect(within(dialog).getByText(/^Service metadata records: Complete for the selected period/)).toBeInTheDocument();
@@ -226,9 +224,8 @@ describe("ActivityChart", () => {
 
   it("localizes the card, the axes and the popover in German", () => {
     state.locale = "de";
-    render(<ActivityChart resources={resources} />);
+    render(<ActivityChart resources={resources} period={30} />);
     expect(screen.getByRole("heading", { name: "Änderungen an Diensten und Metadaten" })).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Zeitraum" })).toHaveTextContent("Letzte 30 Tage");
     const props = plot();
     expect(props.yAxis[0].label).toBe("Anzahl Änderungen");
     expect(props.series[0].valueFormatter(1000)).toBe("1.000");

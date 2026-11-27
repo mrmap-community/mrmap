@@ -5,7 +5,7 @@ import { useLocaleState, useTranslate } from "react-admin";
 
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
-import { Alert, Box, IconButton, MenuItem, Popover, Select, Stack, Tooltip, Typography } from "@mui/material";
+import { Alert, Box, IconButton, Popover, Stack, Tooltip, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { LineChart } from "@mui/x-charts/LineChart";
 
@@ -29,9 +29,6 @@ const NAMED_DAYS = 10;
 
 /** the height of the plot itself; the card stays within the chart row of the mockup */
 const PLOT_HEIGHT = 168;
-
-/** the periods the local selector offers until #1820 lifts the selector to the header */
-const PERIODS = [7, 30, 90] as const;
 
 const tickStep = (days: number) => Math.max(1, Math.ceil((days - 1) / NAMED_DAYS));
 
@@ -97,25 +94,6 @@ const ActivityCoverage = ({ sources, statistics, excluded, resourceName }: {
       </Typography>}
     </Popover>
   </>;
-};
-
-/** The local period control of the card, until #1820 lifts it to the dashboard header. */
-const ActivityPeriod = ({ period, onChange }: {
-  period: DashboardPeriod;
-  onChange: (period: DashboardPeriod) => void;
-}) => {
-  const translate = useTranslate();
-  return <Select
-    size="small"
-    variant="standard"
-    disableUnderline
-    value={period}
-    onChange={event => onChange(Number(event.target.value) as DashboardPeriod)}
-    inputProps={{ "aria-label": translate("dashboard.activity.period") }}
-    sx={{ fontSize: "0.8125rem", "& .MuiSelect-select": { py: 0.25, pr: "22px" } }}
-  >
-    {PERIODS.map(days => <MenuItem key={days} value={days}>{translate("dashboard.activity.days", { days })}</MenuItem>)}
-  </Select>;
 };
 
 const ActivityPlot = ({ statistics, resourceName }: {
@@ -199,9 +177,20 @@ const ActivityPlot = ({ statistics, resourceName }: {
   </Box>;
 };
 
-const ActivityChart = ({ resources }: { resources: string[] }) => {
+/**
+ * The audit events of the deployment over the shared period of the dashboard.
+ *
+ * The left half of the chart row of the mockup: one line per resource whose
+ * history is verified, drawn with the events of that resource alone. The period
+ * comes from the header of the screen (#1820), because the inventory line, the
+ * stacked bars and the KPI tiles beside this card answer the very same window —
+ * a local selector would let two cards of one screen name two different windows.
+ */
+const ActivityChart = ({ resources, period }: {
+  resources: string[];
+  period: DashboardPeriod;
+}) => {
   const translate = useTranslate();
-  const [period, setPeriod] = useState<DashboardPeriod>(30);
   const sources = useDashboardActivity(resources, period);
   const statistics = dashboardActivity(sources);
   const resourceName = (resource: string) => translate(`dashboard.activity.resourceNames.${resource}`, {
@@ -217,7 +206,7 @@ const ActivityChart = ({ resources }: { resources: string[] }) => {
         </Typography>
         <ActivityCoverage sources={sources} statistics={statistics} excluded={excluded} resourceName={resourceName} />
       </Stack>}
-      headerProps={{ sx: { alignItems: "center", minHeight: 40, px: 1.5, py: 0.25 }, action: <ActivityPeriod period={period} onChange={setPeriod} /> }}
+      headerProps={{ sx: { alignItems: "center", minHeight: 40, px: 1.5, py: 0.25 } }}
       cardProps={{ variant: "outlined", sx: { minWidth: 0, boxShadow: "none", borderRadius: 2 } }}
       contentProps={{ sx: { px: 0.5, pt: 0, pb: 0.5, "&:last-child": { pb: 0.5 } } }}
       divider={false}

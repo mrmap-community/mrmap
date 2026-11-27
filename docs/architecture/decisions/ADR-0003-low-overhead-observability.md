@@ -1,6 +1,6 @@
 # ADR-0003: Low-overhead technical observability
 
-**Status:** Proposed
+**Status:** Revised scope proposed for review (2026-11-27)
 
 **Date:** 2026-11-26
 
@@ -8,6 +8,42 @@
 epic [#1775](https://github.com/mrmap-community/mrmap/issues/1775)
 
 **Source baseline:** `bc3e516b6cefdd6ec13de3945a6615e89d69a64d` (`develop`)
+
+## Maintainer scope revision — 2026-11-27
+
+**This decision supersedes conflicting application-integration and migration requirements in the historical evaluation below.** See [epic #1775](https://github.com/mrmap-community/mrmap/issues/1775) and [PR #1847 review](https://github.com/mrmap-community/mrmap/pull/1847#pullrequestreview-6088588031). Existing storage pins, topology, privacy protections, resource budgets and inventory evidence remain applicable unless explicitly revised here.
+
+### Minimal architecture
+
+- One optional, disabled-by-default integration: native Python OpenTelemetry SDK, Django and Celery instrumentation, native OTLP HTTP export, native SDK Views and standard OTEL environment variables. Use the evaluated compatible pins below. Small startup hooks only; initialize in actual serving processes after fork, before middleware construction, including trusted web/Beat producers and worker children. Document/enforce the supported preload combination. No private provider resets, custom exporters/readers, retries, buffers, generic configuration parser, naming caches or duplicate Celery collectors.
+- V1 records safe unsampled HTTP metrics and safe sampled HTTP/Celery traces (1% parent-based root sampling starting hypothesis). Keep the explicit HTTP duration 0.4 s boundary and bounded dimensions. Preserve cumulative writer separation and missing-data semantics. If a trace source cannot meet privacy without substantial custom code, disable it; retain safe native HTTP metrics.
+- Keep #1778 storage and Grafana. Direct OTLP remains the preferred simple path. An official optional internal Collector using declarative configuration is acceptable only where it demonstrably reduces application code. No custom Collector components, mandatory new service or silent movement of the pre-export trust boundary. No sensitive fields in exported telemetry. Use native SDK Views before aggregation, native propagation configuration without baggage, existing public ingress header stripping and minimal public SDK privacy adapters only where unavoidable. Reject spoofed public trace context and external OGC trace headers including redirects.
+- **Not in scope:** SQL, Redis, requests/OGC client and WebSocket instrumentation, OTLP logs, new custom task metrics and custom drop counters, diagnostic mode and timers, tail sampling, automatic alerts/events or new telemetry API/UI. Keep existing task profiling, Celery attempt/capacity and slow-task evidence, logging, health/status, permission-filtered incidents, scheduling, domain monitoring, audit/history and recovery. No new persistence or migration of existing task tables.
+- Do not implement the historical `mrmap.*` metric contract in V1. It remains evaluation evidence only. Native Celery runtime metrics may be retained only if privacy-safe; otherwise drop via a native View. Do not introduce a replacement for the existing authoritative collector.
+- No new technical framework or scripts. Use existing regression/load tools and native SDK diagnostics; no claims of strict shutdown/retry deadlines beyond what the selected SDK demonstrably supports.
+
+### Rollout and gates
+
+Remaining open work: #1777 baseline, #1779 minimal SDK (revise #1847), #1780 focused performance/privacy/outage verification, #1781 Grafana HTTP histogram dashboard, #1782 safe retirement of slow HTTP SQL capture plus final upgrade/rollback and concise operator notes. #1776 and #1778 are completed historical prerequisites. #1783–#1789 are cancelled as not planned; essential #1789 release checks are included in #1782. Do not recreate deferred work without a concrete measured need and explicit review.
+
+Retain the existing performance budgets below as provisional comparison targets; test matched repeated disabled/enabled/unavailable runs, with legacy HTTP detector comparison where relevant. No weakening thresholds to pass. Zero new telemetry DB/disk writes or blocking export on hot paths. Inspect actual decoded OTLP payloads and external redirected HTTP headers. Verify real pinned Compose image, process lifecycle, no duplicate spans/metrics, cumulative streams, outage isolation and core behavior. Preserve prior legacy SQL capture until #1780/#1781 parity and maintainer approval of sampled diagnosis and changed off-mode behavior; then stop new dumps and remove obsolete hooks only. Preserve protected historical files/cleanup and normal logs; verify fresh install, supported upgrade and rollback. Sampled traces are not per-request evidence and no custom event pipeline is required.
+
+### Implementation references
+
+- [Python SDK instrumentation](https://opentelemetry.io/docs/languages/python/instrumentation/)
+- [SDK environment variables](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/)
+- [Python fork model](https://opentelemetry-python.readthedocs.io/en/latest/examples/fork-process-model/README.html)
+- [Django instrumentor](https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/django/django.html)
+- [Celery instrumentor](https://opentelemetry-python-contrib.readthedocs.io/en/latest/instrumentation/celery/celery.html)
+- [SDK metric Views](https://opentelemetry.io/docs/specs/otel/metrics/sdk/)
+- [Sensitive data handling](https://opentelemetry.io/docs/security/handling-sensitive-data/)
+- [Optional Collector configuration](https://opentelemetry.io/docs/collector/configuration/)
+
+---
+
+## Historical evaluation (2026-11-26)
+
+The original evaluation is preserved below for compatibility evidence, existing storage configuration, inventory and the rationale of the initial proposal. Its broader application metric contract, diagnostic modes and later migration tasks are **not active implementation requirements**; follow the revision above and #1775/#1779 instead.
 
 ## Context
 

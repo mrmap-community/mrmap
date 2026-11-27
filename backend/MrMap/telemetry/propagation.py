@@ -190,7 +190,8 @@ def strip_context_headers(headers) -> None:
     """
     if headers is None:
         return
-    for name in list(headers):
+    # the copy is deliberate: the loop deletes from the mapping it iterates over
+    for name in list(headers):  # NOSONAR iterating a snapshot while deleting keys, an iterator over the live mapping would raise
         if isinstance(name, str) and name.lower() in CONTEXT_HEADERS:
             try:
                 del headers[name]

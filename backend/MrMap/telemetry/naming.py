@@ -131,13 +131,16 @@ def _registered_task_names():
     return names
 
 
-def queue(queue_name, budget=16):
+def queue(queue_name):
     """The declared queue of an attempt, or ``other``.
 
     The declared queues of the deployment are few and fixed
     (``MrMap/celery_queues.py``); a routing key which is not one of them came
     from a producer this deployment does not own, and becomes one series named
     ``other`` rather than a series per foreign name.
+
+    The number of names this may answer is bounded by :func:`_declared_queues`,
+    which reads the operator's budget from the settings; a caller cannot widen it.
     """
     if not queue_name:
         return OTHER
@@ -175,7 +178,7 @@ def _declared_queues():
     default = getattr(settings, "CELERY_TASK_DEFAULT_QUEUE", None)
     if default:
         names.add(str(default))
-    names = {name for name in names}
+    names = set(names)
     if len(names) > limit:
         # the budget of the issue is a hypothesis about the registry (#1779
         # names 16); when the real registry is bigger, the bigger number is the

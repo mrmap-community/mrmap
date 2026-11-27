@@ -36,6 +36,17 @@ from opentelemetry.sdk.trace import Event, ReadableSpan, SpanProcessor
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.trace import Link
 
+#: the contract attribute names, shared with the recorder in
+#: :mod:`MrMap.telemetry.metrics` so the allowlist and the recording can
+#: never spell a dimension differently
+from MrMap.telemetry.attributes import (ATTR_ERROR_TYPE,
+                                        ATTR_HTTP_METHOD,
+                                        ATTR_HTTP_STATUS,
+                                        ATTR_OBSERVATION_QUALITY,
+                                        ATTR_QUEUE, ATTR_TASK_CLASS,
+                                        ATTR_TASK_OUTCOME,
+                                        ATTR_URL_SCHEME)
+
 #: the explicit histogram boundaries of ADR-0003, in seconds. ``0.4`` is in the
 #: list because the legacy slow-request detector of #888/#1782 answered "slower
 #: than 400 ms", and the count above it is computed as ``count - le=0.4`` - which
@@ -72,17 +83,17 @@ RESOURCE_KEYS = frozenset({
 
 #: every span kind may carry these
 _SPAN_COMMON_KEYS = frozenset({
-    "error.type",
+    ATTR_ERROR_TYPE,
     "exception.type",
 })
 
 #: what a server span may say: the route *template* of a registered URL, the
 #: method, the scheme, the status. Never a path, never a query, never a host.
 SPAN_SERVER_KEYS = _SPAN_COMMON_KEYS | frozenset({
-    "http.request.method",
-    "url.scheme",
+    ATTR_HTTP_METHOD,
+    ATTR_URL_SCHEME,
     "http.route",
-    "http.response.status_code",
+    ATTR_HTTP_STATUS,
     "network.protocol.version",
     "http.server_name",
 })
@@ -93,9 +104,9 @@ SPAN_SERVER_KEYS = _SPAN_COMMON_KEYS | frozenset({
 #: carries a path and a query (#1474's fetch policy is what makes such a URL
 #: somebody else's input).
 SPAN_CLIENT_KEYS = _SPAN_COMMON_KEYS | frozenset({
-    "http.request.method",
-    "url.scheme",
-    "http.response.status_code",
+    ATTR_HTTP_METHOD,
+    ATTR_URL_SCHEME,
+    ATTR_HTTP_STATUS,
     "network.protocol.version",
     "mrmap.remote.kind",
 })
@@ -103,16 +114,16 @@ SPAN_CLIENT_KEYS = _SPAN_COMMON_KEYS | frozenset({
 #: the method of the operation a span describes, which even the strictest kind
 #: may state: "GET" of a request and "apply_async" of a publish are both facts
 #: about the call, and neither names anything
-_SPAN_METHOD_KEYS = frozenset({"http.request.method", "rpc.method"})
+_SPAN_METHOD_KEYS = frozenset({ATTR_HTTP_METHOD, "rpc.method"})
 
 #: what a worker/producer span may say about a task. No task uuid, no root id,
 #: no parent id, no worker name, no payload size, no retry/revocation reason
 #: text, no message id.
 SPAN_MESSAGING_KEYS = _SPAN_COMMON_KEYS | _SPAN_METHOD_KEYS | frozenset({
     "celery.action",
-    "mrmap.task.class",
-    "mrmap.queue",
-    "mrmap.task.outcome",
+    ATTR_TASK_CLASS,
+    ATTR_QUEUE,
+    ATTR_TASK_OUTCOME,
     "messaging.system",
     "messaging.operation",
     "messaging.destination.name",
@@ -196,18 +207,18 @@ DROP_INSTRUMENTS = (
 
 #: the metric attributes of each instrument we own or forward
 HTTP_SERVER_METRIC_KEYS = frozenset({
-    "http.request.method", "url.scheme", "http.route",
-    "http.response.status_code", "error.type",
+    ATTR_HTTP_METHOD, ATTR_URL_SCHEME, "http.route",
+    ATTR_HTTP_STATUS, ATTR_ERROR_TYPE,
 })
 HTTP_CLIENT_METRIC_KEYS = frozenset({
-    "http.request.method", "http.response.status_code", "error.type",
+    ATTR_HTTP_METHOD, ATTR_HTTP_STATUS, ATTR_ERROR_TYPE,
 })
 TASK_METRIC_KEYS = frozenset({
-    "mrmap.task.class", "mrmap.queue", "mrmap.task.outcome",
+    ATTR_TASK_CLASS, ATTR_QUEUE, ATTR_TASK_OUTCOME,
 })
-TASK_WAIT_METRIC_KEYS = frozenset({"mrmap.task.class", "mrmap.queue"})
+TASK_WAIT_METRIC_KEYS = frozenset({ATTR_TASK_CLASS, ATTR_QUEUE})
 OBSERVATION_METRIC_KEYS = frozenset({
-    "mrmap.task.class", "mrmap.queue", "mrmap.observation.quality",
+    ATTR_TASK_CLASS, ATTR_QUEUE, ATTR_OBSERVATION_QUALITY,
 })
 DROPPED_METRIC_KEYS = frozenset({"mrmap.signal", "mrmap.drop.reason"})
 

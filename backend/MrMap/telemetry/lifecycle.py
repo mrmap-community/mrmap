@@ -370,6 +370,38 @@ def _abandon_inherited():
     metrics.detach()
 
 
+def _drain(target, drain_millis):
+    """Shut one provider down within the bounded drain, whatever it answers.
+
+    Every failure is swallowed on purpose: a collector which is down, a provider
+    of a release which takes no timeout and a provider already shut down are all
+    the same outcome - buffered telemetry is lost, which the drop counters of the
+    collector exist to make visible. Nothing here may raise, because the caller is
+    process teardown and a hanging or failing worker exit is not an acceptable
+    price for an observability feature.
+    """
+    if target is None:
+        return
+    try:
+        target.shutdown(timeout_millis=drain_millis)
+    except TypeError:  # pragma: no cover - the tracer provider takes none
+        try:
+            target.shutdown()
+        except Exception:
+            pass
+    except Exception:
+        # a dead collector at teardown is normal; it costs telemetry only
+        pass
+
+
+def _run_quietly(action):
+    """One teardown step whose failure may not stop the steps behind it."""
+    try:
+        action()
+    except Exception:
+        pass
+
+
 def shutdown(reason="shutdown"):
     """One bounded drain, then let go. Called from process teardown only.
 
@@ -390,32 +422,12 @@ def shutdown(reason="shutdown"):
     drain_millis = int(float((values or {}).get(
         "shutdown_drain_seconds", 3.0)) * 1000)
     from MrMap.telemetry import celery_metrics, instrumentation
-    try:
-        # close the open observations *before* the receivers go away, so a
-        # graceful restart of a worker is not a hole in the task histogram
-        celery_metrics.flush_on_process_shutdown()
-    except Exception:
-        pass
-    try:
-        celery_metrics.disconnect()
-    except Exception:
-        pass
-    try:
-        instrumentation.uninstrument()
-    except Exception:
-        pass
-    for target in (provider, meter_provider):
-        if target is None:
-            continue
-        try:
-            target.shutdown(timeout_millis=drain_millis)
-        except TypeError:  # pragma: no cover - the tracer provider takes none
-            try:
-                target.shutdown()
-            except Exception:
-                pass
-        except Exception:
-            # a dead collector at teardown is normal; it costs telemetry only
-            pass
+    # close the open observations *before* the receivers go away, so a graceful
+    # restart of a worker is not a hole in the task histogram
+    _run_quietly(celery_metrics.flush_on_process_shutdown)
+    _run_quietly(celery_metrics.disconnect)
+    _run_quietly(instrumentation.uninstrument)
+    _drain(provider, drain_millis)
+    _drain(meter_provider, drain_millis)
     logger.debug("opentelemetry: process telemetry shut down (%s).", reason)
     return True

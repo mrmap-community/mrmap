@@ -34,6 +34,8 @@ instrument: an unknown task is ``other``, not a new time series.
 from django.conf import settings
 
 from MrMap.telemetry import naming
+from MrMap.telemetry.attributes import (ATTR_OBSERVATION_QUALITY, ATTR_QUEUE,
+                                        ATTR_TASK_CLASS, ATTR_TASK_OUTCOME)
 
 #: the outcome values of the contract - the same vocabulary as
 #: ``system.models.AttemptOutcome``, so the metric and the attempt table of
@@ -69,14 +71,13 @@ TELEMETRY_DROPPED = "mrmap.telemetry.dropped"
 #: instrument name -> (kind, unit, allowed attributes), the single place the
 #: names of the contract exist in code
 INSTRUMENTS = {
-    ATTEMPT_DURATION: ("histogram", "s", ("mrmap.task.class", "mrmap.queue",
-                                          "mrmap.task.outcome")),
-    QUEUE_WAIT: ("histogram", "s", ("mrmap.task.class", "mrmap.queue")),
-    ATTEMPTS: ("counter", "{attempt}", ("mrmap.task.class", "mrmap.queue",
-                                        "mrmap.task.outcome")),
-    OBSERVATIONS: ("counter", "{observation}", ("mrmap.task.class",
-                                                "mrmap.queue",
-                                                "mrmap.observation.quality")),
+    ATTEMPT_DURATION: ("histogram", "s", (ATTR_TASK_CLASS, ATTR_QUEUE,
+                                          ATTR_TASK_OUTCOME)),
+    QUEUE_WAIT: ("histogram", "s", (ATTR_TASK_CLASS, ATTR_QUEUE)),
+    ATTEMPTS: ("counter", "{attempt}", (ATTR_TASK_CLASS, ATTR_QUEUE,
+                                        ATTR_TASK_OUTCOME)),
+    OBSERVATIONS: ("counter", "{observation}", (ATTR_TASK_CLASS, ATTR_QUEUE,
+                                                ATTR_OBSERVATION_QUALITY)),
     TELEMETRY_DROPPED: ("counter", "{item}", ("mrmap.signal",
                                               "mrmap.drop.reason")),
 }
@@ -117,7 +118,7 @@ def _task_class(task_name):
 
 
 def _queue(queue):
-    return naming.queue(queue, budget=getattr(settings, "OTEL_MAX_QUEUES", 16))
+    return naming.queue(queue)
 
 
 def _instrument(name):
@@ -138,18 +139,17 @@ def record_attempt(task_name, queue, outcome, active_seconds=None,
     still records the observation, because an attempt which ended without a
     duration is still one attempt.
     """
-    attributes = {"mrmap.task.class": _task_class(task_name),
-                  "mrmap.queue": _queue(queue)}
+    attributes = {ATTR_TASK_CLASS: _task_class(task_name),
+                  ATTR_QUEUE: _queue(queue)}
     observed = _instrument(OBSERVATIONS)
     if observed is not None:
         if quality not in (QUALITY_STAMPED, QUALITY_UNSTAMPED,
                            QUALITY_INVALID_STAMP, QUALITY_DROPPED):
             quality = (QUALITY_STAMPED if wait_seconds is not None
                        else QUALITY_UNSTAMPED)
-        observed.add(1, dict(attributes, **{
-            "mrmap.observation.quality": quality}))
+        observed.add(1, dict(attributes, **{ATTR_OBSERVATION_QUALITY: quality}))
     outcome = outcome if outcome in OUTCOMES else OUTCOME_UNKNOWN
-    attempt_attributes = dict(attributes, **{"mrmap.task.outcome": outcome})
+    attempt_attributes = dict(attributes, **{ATTR_TASK_OUTCOME: outcome})
     counter = _instrument(ATTEMPTS)
     if counter is not None:
         counter.add(1, attempt_attributes)
@@ -174,9 +174,9 @@ def record_unmeasured(task_name, queue, quality=QUALITY_UNSTAMPED):
     instrument = _instrument(OBSERVATIONS)
     if instrument is None:
         return
-    instrument.add(1, {"mrmap.task.class": _task_class(task_name),
-                       "mrmap.queue": _queue(queue),
-                       "mrmap.observation.quality": quality})
+    instrument.add(1, {ATTR_TASK_CLASS: _task_class(task_name),
+                       ATTR_QUEUE: _queue(queue),
+                       ATTR_OBSERVATION_QUALITY: quality})
 
 
 def record_invalid_stamp(task_name, queue):

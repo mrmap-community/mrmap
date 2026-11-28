@@ -77,9 +77,7 @@ class HarvestHistoryTest(TestCase):
         for fields, expected in (
             (['harvestedDatasetCount'], {'harvested_dataset_count': 1}),
             (['harvestedServiceCount'], {'harvested_service_count': 1}),
-            (['harvestedTotalCount'], {'harvested_dataset_count': 1,
-                                       'harvested_service_count': 1,
-                                       'harvested_total_count': 2}),
+            (['harvestedTotalCount'], {'harvested_total_count': 2}),
             (['harvested_dataset_count', 'harvested_total_count'],
              {'harvested_dataset_count': 1, 'harvested_total_count': 2}),
             (['title', 'elementCount'], {}),

@@ -1239,6 +1239,9 @@ class LayerInheritanceBenchmark(LayerTreeMixin, QueryMeasurementMixin,
 
     REGISTRY_LAYERS = 265653
     SERVICE_LAYERS = 4
+    #: the page of the report of #1825
+    PAGE_SIZE = 25
+    FLAT_PATH = '/api/registry/layers'
     ITERATIONS = int(os.environ.get('MRMAP_LAYER_CTE_BENCHMARK_RUNS', '25'))
     # the target of the AC of #1315 for a comparable environment
     WARM_MEDIAN_SECONDS = 2.0
@@ -1308,3 +1311,83 @@ class LayerInheritanceBenchmark(LayerTreeMixin, QueryMeasurementMixin,
             f'the layers of a service with {self.SERVICE_LAYERS} layers in a '
             f'registry of {layers} layers took {median(durations):.3f} s warm; '
             f'the AC of #1315 ask for less than {self.WARM_MEDIAN_SECONDS} s')
+
+    @skipUnless(
+        os.environ.get('MRMAP_LAYER_CTE_BENCHMARK') == '1',
+        'opt-in benchmark of #1825; the shapes it measures run in every CI run')
+    def test_warm_median_of_a_page_of_the_flat_list(self):
+        """The measured benchmark of the flat list (#1825).
+
+        The request of the issue: the unfiltered first page of 25 rows of the
+        flat list, in the same registry the test above seeds. Before the fix the
+        statement of that page derived the effective values of every layer the
+        filters keep - without a filter the whole registry - and 25 rows and 100
+        rows cost the same 6.6-9.3 s; the page is bounded by its own rows now, so
+        the duration of a page may not grow with the layers the deployment holds
+        beside the 25 it shows.
+
+        Run it at the head of the fix and at the commit before it to read both on
+        one machine::
+
+            MRMAP_LAYER_CTE_BENCHMARK=1 docker compose ... run --rm django-tests \
+                python manage.py test \
+                tests.django.registry.tests_layer_inheritance.LayerInheritanceBenchmark.test_warm_median_of_a_page_of_the_flat_list \
+                --noinput --keepdb
+        """
+        from time import perf_counter
+
+        self.grow_with_sql(self.other, self.REGISTRY_LAYERS
+                           - Layer.objects.count())
+        with connections['default'].cursor() as cursor:
+            cursor.execute('ANALYZE registry_layer')
+            cursor.execute('SELECT count(*) FROM registry_layer')
+            layers = cursor.fetchone()[0]
+
+        client = APIClient()
+        client.force_login(self.user)
+        params = {'page[size]': self.PAGE_SIZE}
+        for _ in range(3):  # warm-up: plan cache and relation caches
+            self.assertEqual(
+                client.get(self.FLAT_PATH, params,
+                           HTTP_ACCEPT=JSONAPI).status_code, 200)
+
+        durations = []
+        for _ in range(self.ITERATIONS):
+            started = perf_counter()
+            response = client.get(self.FLAT_PATH, params,
+                                  HTTP_ACCEPT=JSONAPI)
+            durations.append(perf_counter() - started)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(len(response.json()['data']), self.PAGE_SIZE)
+        durations.sort()
+        with CaptureQueriesContext(connections['default']) as queries:
+            self.assertEqual(
+                client.get(self.FLAT_PATH, params,
+                           HTTP_ACCEPT=JSONAPI).status_code, 200)
+        p95 = durations[max(0, math.ceil(0.95 * len(durations)) - 1)]
+        derivation = [query['sql'] for query in queries.captured_queries
+                      if '"ancestors" AS (' in query['sql']]
+        print(
+            'FLAT-PAGE-BENCHMARK '
+            f'layers={layers} page_size={self.PAGE_SIZE} '
+            f'iterations={self.ITERATIONS} '
+            f'median_s={median(durations):.3f} p95_s={p95:.3f} '
+            f'statements={len(queries.captured_queries)} '
+            f'derivation_statements={len(derivation)} '
+            f'cte_statement_chars={len(derivation[0]) if derivation else 0}',
+            flush=True)
+        # the read of the page itself is bounded by the page, so it is asked of
+        # the same few rows whatever the registry holds; the seconds of the
+        # statement of the rows are the count and the serializer, which no
+        # page-scoping of the derivation can shorten
+        self.assertLess(
+            median(durations), self.WARM_MEDIAN_SECONDS,
+            f'a page of {self.PAGE_SIZE} layers of a registry of {layers} '
+            f'layers took {median(durations):.3f} s warm; the AC of #1825 ask '
+            f'for the order of the nested endpoint, under '
+            f'{self.WARM_MEDIAN_SECONDS} s')
+        # and the shape which produced the report is gone: the derivation is
+        # asked once, outside the statement of the page
+        self.assertEqual(
+            len(derivation), 1,
+            msg=f'the page derived the inheritance {len(derivation)} times')

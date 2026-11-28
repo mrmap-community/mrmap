@@ -11,7 +11,10 @@ Feature: Layer List Endpoint
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "meta.pagination.count" with value "9"
-        Then I expect that "10" queries where made
+        # 10 before #1825: the statement of the list derived the inherited attributes of every
+        # layer the filters keep, so a page paid for the table and not for itself; the derivation
+        # is answered for the rows of the page now, which is the one statement more
+        Then I expect that "11" queries where made
 
     Scenario: Can sort by lft
         Given I set a queryparam "sort" with value "mpttLft"
@@ -99,15 +102,17 @@ Feature: Layer List Endpoint
         Then I expect that response json has an attribute "included.[0].type" with value "WebMapService"
         # 23 before #738: every included service answered is_accessible and paid
         # its permission lookups even though no reader asked; the one hint is now
-        # opt-in on a list and an unasked list resolves no permissions at all
-        Then I expect that "18" queries where made
+        # opt-in on a list and an unasked list resolves no permissions at all; 18 before #1825,
+        # which answers the inherited attributes of a page in a statement of its own
+        Then I expect that "19" queries where made
 
     Scenario: Can include keywords
         Given I set a queryparam "include" with value "keywords"
         When I send the request with GET method
         Then I expect the response status is 200
         Then I expect that response json has an attribute "included.[0].type" with value "Keyword"
-        Then I expect that "10" queries where made
+        # 10 before #1825, which answers the inherited attributes of a page separately
+        Then I expect that "11" queries where made
 
     Scenario Outline: Can include <relation>
         Given I set a queryparam "include" with value "<relation>"

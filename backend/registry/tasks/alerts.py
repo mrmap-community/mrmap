@@ -16,8 +16,19 @@ derivation on every read (#1030). Two things run this refresh:
 
 It runs as a singleton on the ``db-routines`` queue: two refreshes over one
 state have nothing to add to each other, and the one which finds the lock
-taken is skipped - the state which it missed is answered by the next beat fire
-at the latest.
+taken is skipped.
+
+What "skipped" costs is stated here rather than promised away (#1827): the
+state a dropped fire missed is answered by the next fire which actually RUNS.
+On a deployment which meets its schedule that is the next beat fire, one
+interval later. On one which does not - a rewrite which needs longer than the
+interval it is scheduled with, the size-dependent case of #1827 - every second
+beat fire meets the lock too, so the answer arrives one interval plus one run
+duration later and the rows are current at half the configured cadence. That
+condition is no longer invisible: a fire dropped by the lock is recorded as its
+own attempt outcome (#1330), the capacity snapshot of #1326 answers the dropped
+share per schedule under ``reachability``, and the detector of #1390 publishes
+an incident when a beat schedule's measured p95 costs more than its interval.
 """
 
 from logging import Logger

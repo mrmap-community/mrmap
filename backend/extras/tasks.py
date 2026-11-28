@@ -10,10 +10,46 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import (DEFAULT_DB_ALIAS, DatabaseError, InterfaceError,
                        connections)
 from django.db.utils import load_backend
+from django.dispatch import Signal
 from rest_framework.test import APIRequestFactory
 from simple_history.models import HistoricalRecords
 
 logger: Logger = settings.ROOT_LOGGER
+
+#: fired when a fire of a :class:`SingletonTask` finds the lock taken and
+#: therefore answers *skipped* instead of running its body.
+#:
+#: A skipped fire is invisible to every duration read of the deployment: it
+#: never executed, so it measured nothing and belongs in no occupancy
+#: distribution. Without this seam the only trace of a dropped beat fire is
+#: one INFO line per fire in the worker log, which at the cadence of a tight
+#: schedule is noise rather than a signal (#1827). The receiver side is the
+#: attempt telemetry of #1330, which records the fire as its own outcome so
+#: the share of dropped fires becomes a number the diagnostics of #1390 can
+#: read out of the database instead of out of the logs.
+#:
+#: Sends ``sender`` as the task and the keywords ``task_id`` and
+#: ``attempt_no``; a receiver which raises costs nobody anything.
+task_skipped = Signal()
+
+
+def _note_skipped_fire(task):
+    """Tell the deployment that one fire of ``task`` was dropped.
+
+    ``send_robust`` and not ``send``: Django 4 and later let a receiver's
+    exception out of ``send``, and a diagnostic about a dropped fire must
+    never cost the fire which is answering the skip (#1330's rule for every
+    observer of a task).
+    """
+    request = getattr(task, "request", None)
+    try:
+        task_skipped.send_robust(
+            sender=task,
+            task_id=str(getattr(request, "id", None) or ""),
+            attempt_no=int(getattr(request, "retries", 0) or 0))
+    except Exception as error:  # pragma: no cover - defensive seam
+        logger.debug("singleton skip of %s could not be announced: %s",
+                     getattr(task, "name", "?"), error)
 
 
 @task_prerun.connect
@@ -153,6 +189,7 @@ class SingletonTask(Task):
                 msg = f"Task {self.name} skipped: another instance is running"
                 logger.info(msg)
                 self.update_state(state="SKIPPED", meta={"info": msg})
+                _note_skipped_fire(self)
                 return msg
 
             self.update_state(state="STARTED", meta={"info": "Task started"})

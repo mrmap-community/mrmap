@@ -251,6 +251,10 @@ def attempt_measures(since, until=None, queue=None, task_name=None,
             _terminal_q() & Q(outcome=AttemptOutcome.RETRY.value))),
         revoked=Count("pk", filter=(
             _terminal_q() & Q(outcome=AttemptOutcome.REVOKED.value))),
+        # a dropped fire never executed, so it is not a terminal sample and
+        # not in ``samples`` either: its own count is the answer (#1827)
+        skipped=Count("pk", filter=Q(
+            outcome=AttemptOutcome.SKIPPED.value)),
         wait_samples=Count("pk", filter=(
             _terminal_q() & Q(wait_seconds__isnull=False))),
         wait_p50=_WaitPercentile(0.5),
@@ -284,6 +288,10 @@ def attempt_measures(since, until=None, queue=None, task_name=None,
                 AttemptOutcome.RETRY.value: stats["retried"],
                 AttemptOutcome.REVOKED.value: stats["revoked"],
             },
+            # the fires a singleton lock dropped in this window: never in
+            # ``total`` (nothing executed), reported here so the share of
+            # dropped fires of a schedule is a number and not a grep (#1827)
+            "dropped_fires": stats["skipped"],
         },
         "uncertain": {
             "open_without_end": uncertain_total,
@@ -334,6 +342,79 @@ def grouped_measures(since, until=None, by=("queue", "task_name"),
         "groups": rows[:limit],
         "truncated": truncated,
     }
+
+
+def grouped_reachability(since, until=None, limit=200):
+    """The measured duration AND the dropped fires of every beat name.
+
+    One grouped, bounded read over the windowed attempt index, keyed by the
+    beat setting name - the identity a schedule dispatches under - and the
+    task class and queue it really ran on. Answers per group:
+
+    ``samples``
+        terminal attempts of the window, the ones which ran and measured a
+        duration; the p95 belongs to exactly these rows.
+    ``active_p95``
+        the 95th percentile of those occupied slot seconds, or None when
+        nothing was measured - which is unknown, not fast.
+    ``dropped``
+        the fires the singleton lock refused in the same window (#1827).
+        Those rows never executed and carry no duration, so they are in
+        neither ``samples`` nor the p95: their count beside them is what
+        makes "half the fires were dropped" a number instead of a grep of
+        INFO lines.
+
+    The p95 is what a cadence is judged with: a schedule is only reachable
+    when its unlucky run still fits inside the interval it fires on.
+    """
+    rows = (_windowed(since, until)
+            .values("periodic_name", "task_name", "queue")
+            .annotate(
+                samples=Count("pk", filter=_terminal_q()),
+                active_p95=PercentileWithinGroup("active_seconds", 0.95),
+                active_max=Max("active_seconds", filter=_terminal_q()),
+                dropped=Count("pk", filter=Q(
+                    outcome=AttemptOutcome.SKIPPED.value)))
+            .order_by("-samples"))
+    rows = list(rows[:limit + 1])
+    truncated = len(rows) > limit
+    return {
+        "source": SOURCE_MEASURED_WORKER,
+        "window": {"since": since, "until": until or timezone.now()},
+        "grouped_by": ["periodic_name", "task_name", "queue"],
+        "groups": rows[:limit],
+        "truncated": truncated,
+    }
+
+
+def measured_p95_of_periodic_task(periodic_name, task_name=None,
+                                  since=None, minutes=6 * 60,
+                                  min_samples=None):
+    """The p95 completed duration of ONE beat schedule, or None.
+
+    The one-schedule form of :func:`grouped_reachability`, for the caller
+    which asks about a single cadence instead of building a panel: the refresh
+    of the alert rows reads its own measurement at migrate time, so the
+    interval a fresh row gets IS the number this read answers (#1827).
+
+    ``None`` means "nothing measured", which is never an answer of "fast
+    enough": a caller must not conclude reachability from the absence of a
+    number. The window keeps the read on the recent behaviour of the
+    deployment - the size-dependent duration this is about moves with the
+    catalogue, and a p95 over the whole retention would be a p95 of history.
+    """
+    since = (timezone.now() - timedelta(minutes=max(1, int(minutes)))
+             if since is None else since)
+    minimum = (int(getattr(settings, "CAPACITY_REACHABILITY_MIN_SAMPLES", 5))
+               if min_samples is None else int(min_samples))
+    rows = (_windowed(since, None, task_name=task_name,
+                      periodic_name=periodic_name)
+            .aggregate(
+                samples=Count("pk", filter=_terminal_q()),
+                active_p95=PercentileWithinGroup("active_seconds", 0.95)))
+    if not rows["samples"] or rows["samples"] < minimum:
+        return None
+    return rows["active_p95"]
 
 
 def recent_samples(since, queue=None, task_name=None, limit=100):
@@ -425,6 +506,12 @@ def _aggregate_fields():
             terminal & Q(outcome=AttemptOutcome.RETRY.value))),
         "revoked": Count("pk", filter=(
             terminal & Q(outcome=AttemptOutcome.REVOKED.value))),
+        # the fires a singleton lock dropped (#1827): a fire which never ran
+        # its body has no measured duration, so it is NOT a terminal sample of
+        # ``_terminal_q()`` and joins none of the numbers above - this count
+        # over its own outcome is the only place their share is visible
+        "skipped": Count("pk", filter=Q(
+            outcome=AttemptOutcome.SKIPPED.value)),
         "wait_samples": Count("pk", filter=stamped),
         "wait_max": Max("wait_seconds", filter=stamped),
         "active_max": Max("active_seconds", filter=terminal),
@@ -447,7 +534,7 @@ _DURATION_FIELDS = (
 #: the count columns of a bucket: additive, and 0 is their honest answer for
 #: a window in which nothing of that kind happened
 _COUNT_FIELDS = ("executions", "succeeded", "failed", "retried", "revoked",
-                 "wait_samples")
+                 "skipped", "wait_samples")
 
 
 def _bucket_row(stats):

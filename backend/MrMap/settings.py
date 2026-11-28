@@ -1264,6 +1264,23 @@ CAPACITY_COST_LOOKBACK_DAYS = 7
 CAPACITY_COST_MIN_SAMPLES = 3
 # the groups one grouped cost query may return before it reports truncation
 CAPACITY_COST_GROUP_LIMIT = 5_000
+# the reachability read of #1827: a beat schedule whose measured p95 exceeds
+# the interval it fires on can never be met, and every other fire is then
+# dropped by the singleton lock. ``HEADROOM`` is the margin below which a
+# schedule which still fits counts as "tight" instead of "reachable" (with
+# 1.1 a 20 s schedule is tight from 18.2 s on), ``MIN_SAMPLES`` how many
+# measured attempts a row needs before any of this may be claimed about it.
+# Both are read by ``capacity_demand.schedule_reachability`` - the snapshot
+# panel and the detector of #1390 ask with the same numbers.
+CAPACITY_REACHABILITY_HEADROOM = float(
+    os.getenv("MRMAP_CAPACITY_REACHABILITY_HEADROOM", "1.1"))
+CAPACITY_REACHABILITY_MIN_SAMPLES = int(
+    os.getenv("MRMAP_CAPACITY_REACHABILITY_MIN_SAMPLES", "5"))
+# the window the dropped fires and the p95 of the reachability panel are read
+# from: recent behaviour of THIS deployment, not the whole retention - the
+# duration this is about moves with the size of the catalogue
+CAPACITY_REACHABILITY_WINDOW_MINUTES = int(
+    os.getenv("MRMAP_CAPACITY_REACHABILITY_WINDOW_MINUTES", "360"))
 # a purely advisory line a deployment may draw under rho to ask for attention
 # - a tunable threshold, not a statement that capacity above it is safe
 CAPACITY_RHO_ADVISORY_THRESHOLD = 0.7
@@ -1333,6 +1350,46 @@ TASK_PERFORMANCE_STALE_AFTER_HOURS = 72
 TASK_PERFORMANCE_POLICY = {}
 TASK_PERFORMANCE_POLICIES = os.environ.get(
     "MRMAP_TASK_PERFORMANCE_POLICIES", "") or {}
+# the reachability condition of #1827 (see ``capacity_demand
+# .schedule_reachability`` for the two shared thresholds): the longest
+# interval a beat row may have and still be judged. The condition is about a
+# cadence an operator chose in seconds, so a schedule which fires once a day
+# is not the shape it reads - and judging it would turn every nightly job into
+# a finding about its own runtime.
+TASK_PERFORMANCE_REACHABILITY_MAX_INTERVAL_SECONDS = int(os.environ.get(
+    "MRMAP_TASK_PERFORMANCE_REACHABILITY_MAX_INTERVAL_SECONDS", "300"))
+
+################################################################
+# the refresh which keeps the rows of the service alerts current (#1827)
+################################################################
+# The cadence the rows of the alerts are rewritten on, and the rule which
+# keeps that cadence reachable. The beat row of
+# ``registry.tasks.alerts.refresh_service_alerts`` used to be created with a
+# hardcoded 20 s, which a deployment with tens of thousands of services does
+# not meet: one rewrite needs more than the interval it is scheduled with, so
+# every second fire meets the singleton lock and is dropped, and the rows are
+# current at half the cadence the deployment believes it configured - with
+# nothing but an INFO line per dropped fire saying so.
+# The interval is a deployment value now, like every other tunable of this
+# app: ``MRMAP_SERVICE_ALERT_REFRESH_SECONDS`` moves it, and a deployment
+# which prefers to say it over the api still can (the row is keyed by its
+# name, so an existing row is never re-written by a migrate).
+SERVICE_ALERT_REFRESH_SECONDS = int(
+    os.getenv("MRMAP_SERVICE_ALERT_REFRESH_SECONDS", "20"))
+# On a FRESH row only (an existing row stays the operator's), the interval is
+# raised to what the deployment actually measured, times this factor: a
+# shipped default which cannot be met on the size the documentation treats as
+# normal is not a default, it is a defect. Raised, never shortened - a
+# deployment which asked for a slower refresh keeps it - and never past the
+# bound below, so a measurement taken during an outage cannot park the rows
+# of the alerts at an hour.
+SERVICE_ALERT_REFRESH_ADAPTIVE = os.environ.get(
+    "MRMAP_SERVICE_ALERT_REFRESH_ADAPTIVE", "on").strip().lower() in (
+    "on", "1", "true")
+SERVICE_ALERT_REFRESH_HEADROOM = float(
+    os.getenv("MRMAP_SERVICE_ALERT_REFRESH_HEADROOM", "1.5"))
+SERVICE_ALERT_REFRESH_MAX_INTERVAL_SECONDS = int(
+    os.getenv("MRMAP_SERVICE_ALERT_REFRESH_MAX_INTERVAL_SECONDS", "300"))
 
 ################################################################
 # django channels settings

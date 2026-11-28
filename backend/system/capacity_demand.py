@@ -52,6 +52,9 @@ from time import monotonic
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
+# ``timezone`` is taken by ``datetime`` in this module (the walk needs
+# ``timezone.utc``), so the django clock arrives under its own name
+from django.utils import timezone as util_timezone
 from django_celery_beat.models import (CrontabSchedule, IntervalSchedule,
                                        PeriodicTask)
 from extras.scheduling import next_run_after
@@ -421,6 +424,153 @@ def schedule_fingerprint(force=False):
     value = f"{digest.hexdigest()}:{count}"
     cache.set(FINGERPRINT_CACHE_KEY, value, ttl)
     return value
+
+
+#: the unit of every ``period`` an ``IntervalSchedule`` row may carry
+_INTERVAL_UNITS = None
+
+
+def _interval_units():
+    global _INTERVAL_UNITS
+    if _INTERVAL_UNITS is None:
+        _INTERVAL_UNITS = {
+            IntervalSchedule.SECONDS: 1,
+            IntervalSchedule.MINUTES: 60,
+            IntervalSchedule.HOURS: 3600,
+            IntervalSchedule.DAYS: 86400,
+        }
+    return _INTERVAL_UNITS
+
+
+def interval_seconds(every, period):
+    """The seconds of one interval schedule, or None when unreadable."""
+    try:
+        unit = _interval_units().get(period)
+        return None if unit is None else float(every) * unit
+    except (TypeError, ValueError):  # dcb's validators rule these out
+        return None
+
+
+def schedule_intervals(max_interval_seconds, limit=None):
+    """The live interval of every short-interval beat row, per setting name.
+
+    Answers ``{setting_name: {"seconds", "task"}}`` for the enabled rows which
+    fire on an **interval** schedule at least as often as
+    ``max_interval_seconds``. Three bounds, because this is read on a beat
+    cadence beside the walk of the demand side: interval schedules only (a
+    crontab has no single interval to compare a duration against - and the
+    per-service schedules of a big deployment are all crontabs), enabled
+    non-one-off rows only, and a row count bound. A deployment whose beat rows
+    are all crontabs therefore answers ``{}``, which is the honest "nothing to
+    judge" and not an error.
+
+    The queue is deliberately not answered here: a reader which wants it reads
+    the queue the attempt actually ran on, which is the observed answer.
+    """
+    bound = float(max_interval_seconds)
+    rows = (PeriodicTask.objects
+            .filter(enabled=True, one_off=False)
+            .exclude(interval_id=None)
+            .select_related("interval")
+            .order_by("pk")
+            .values_list("name", "task", "interval__every",
+                         "interval__period")
+            [:int(limit if limit is not None
+                  else getattr(settings, "CAPACITY_COST_GROUP_LIMIT", 5_000))])
+    intervals = {}
+    for name, task, every, period in rows:
+        seconds = interval_seconds(every, period)
+        if seconds is None or seconds <= 0 or seconds > bound:
+            continue
+        intervals[name] = {"seconds": seconds, "task": task}
+    return intervals
+
+
+def schedule_reachability(since, until=None, max_interval_seconds=None,
+                          limit=200):
+    """Every short-interval beat schedule beside its own measured duration.
+
+    The join the deployment needs to answer "is this cadence reachable at all"
+    (#1827): the interval a row fires on, against the p95 of the attempts THAT
+    row dispatched, plus the fires of the same window the singleton lock
+    dropped. A run which costs more than the interval it is scheduled with
+    never fits, and every second fire is then refused by the lock - which no
+    duration read of this module can see on its own, because a dropped fire
+    measured nothing.
+
+    Answers one entry per live interval beat row which has samples, keyed by
+    the beat setting name, each with the measured duration, the interval, the
+    drop share and the verdict of ``capacity_measures``:
+
+    *   ``"unreachable"`` - the p95 exceeds the interval (``overrun_ratio``
+        above 1.0): the schedule cannot be met at this size.
+    *   ``"tight"`` - the p95 fits but with less headroom than asked for.
+    *   ``"reachable"`` - the p95 fits with headroom.
+    *   ``"unknown"`` - nothing measured for the row: it never fired, or its
+        attempts carry no duration. Never answered as reachable.
+
+    One grouped read for the samples side, one bounded read for the schedule
+    side, and the join in Python over the two - never one query per schedule.
+    """
+    if max_interval_seconds is None:
+        max_interval_seconds = getattr(
+            settings, "TASK_PERFORMANCE_REACHABILITY_MAX_INTERVAL_SECONDS", 300)
+    bound = float(max_interval_seconds)
+    headroom = float(getattr(settings, "CAPACITY_REACHABILITY_HEADROOM", 1.1))
+    minimum = int(getattr(settings, "CAPACITY_REACHABILITY_MIN_SAMPLES", 5))
+    intervals = schedule_intervals(bound)
+    if not intervals:
+        return {
+            "source": capacity_measures.SOURCE_MEASURED_WORKER,
+            "window": {"since": since, "until": until or util_timezone.now()},
+            "schedules": {},
+            "truncated": False,
+        }
+    answer = capacity_measures.grouped_reachability(since, until, limit=limit)
+    schedules = {}
+    for group in answer["groups"]:
+        entry = intervals.get(group["periodic_name"])
+        if entry is None or group["task_name"] != entry["task"]:
+            # an attempt of a task whose beat row this read does not cover
+            # (the row was edited or removed, or the task fired by hand):
+            # without a live interval there is no cadence to judge
+            continue
+        samples = group["samples"] or 0
+        dropped = group["dropped"] or 0
+        fires = samples + dropped
+        p95 = group["active_p95"]
+        if p95 is None or samples < minimum:
+            verdict = "unknown"
+        elif p95 > entry["seconds"]:
+            verdict = "unreachable"
+        elif p95 > entry["seconds"] / headroom:
+            verdict = "tight"
+        else:
+            verdict = "reachable"
+        key = f'{group["periodic_name"]}|{group["task_name"]}|{group["queue"]}'
+        schedules[key] = {
+            "periodic_name": group["periodic_name"],
+            "task_name": group["task_name"],
+            "queue": group["queue"],
+            "interval_seconds": entry["seconds"],
+            "samples": samples,
+            "min_samples": minimum,
+            "active_p95": p95,
+            "active_max": group["active_max"],
+            "dropped_fires": dropped,
+            "fires": fires,
+            "skipped_share": (dropped / fires) if fires else None,
+            "overrun_ratio": (p95 / entry["seconds"])
+            if p95 is not None else None,
+            "verdict": verdict,
+        }
+    return {
+        "source": answer["source"],
+        "window": answer["window"],
+        "headroom": headroom,
+        "schedules": schedules,
+        "truncated": answer["truncated"],
+    }
 
 
 def measured_costs(since, until=None):

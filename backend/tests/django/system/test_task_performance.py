@@ -806,12 +806,15 @@ class OutageAndBudgetTests(DetectorTestMixin, TestCase):
         # the baseline window (one batched read for all classes, never one per
         # class), the coverage aggregate, the stale-open count, one exceedance
         # count per judged class and the open-attempt read - fixed per fire
-        # and per class, independent of the 24 attempts in the window
+        # and per class, independent of the 24 attempts in the window. The
+        # reachability condition of #1827 adds exactly two more, both grouped
+        # and bounded: the attempt aggregate of the window and one read of the
+        # beat rows.
         for index in range(4):
             seed_class(6, active=2.0, task_name=f"task.class.{index}")
         with patch(INSPECT) as inspect:
             broker(inspect)
-            with self.assertNumQueries(9):
+            with self.assertNumQueries(11):
                 evaluate_task_performance(publish=False)
 
     def test_detection_off_evaluates_nothing(self):

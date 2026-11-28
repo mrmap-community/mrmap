@@ -39,6 +39,13 @@ Data quality of what this leaves behind (#1330's acceptance criteria):
 *   ``Task.retry`` re-publishes under the same task uuid; the attempt counter
     of the request separates the attempts, and each counted attempt's active
     time is measured for itself.
+*   A fire of a ``SingletonTask`` which found the lock taken never ran, so it
+    measured nothing: it is recorded as the outcome ``skipped`` with a NULL
+    duration, which keeps it out of every distribution and makes its count
+    the answer to "how many fires of this schedule did the deployment drop"
+    (#1827). It is not a terminal sample - the reads of this module count it
+    separately, because "the fire is over" and "the attempt executed" are
+    different statements.
 *   Duplicate events and concurrent redelivery collapse onto the attempt's
     partial unique keys - the duplicate is dropped, never double counted.
 """
@@ -55,6 +62,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from extras.tasks import task_skipped
 from system.models import (AttemptOutcome, AttemptQuality,
                            CeleryTaskAttempt)
 
@@ -68,6 +76,12 @@ PUBLISH_STAMP_HEADER = "mrmap-published-at"
 #: the same attempt, the first finish time stays. A retried attempt reports
 #: ``task_failure`` too when the retry budget ran out - the terminal failure
 #: of an exhausted budget outranks the last scheduled retry.
+#:
+#: A ``skipped`` fire is not in this table because it does not compete: the
+#: answer of a skip is final (see ``_mark_terminal``), because celery fires
+#: ``task_success`` and ``task_postrun`` for it too - the fire returned its
+#: "skipped" text to celery as an ordinary return value - and those arrive
+#: after the skip was announced (#1827).
 _OUTCOME_RANK = {
     "": 0,
     AttemptOutcome.SUCCESS.value: 1,
@@ -83,7 +97,7 @@ class _Attempt:
     __slots__ = ("task_id", "attempt_no", "task_name", "queue", "worker",
                  "root_id", "parent_id", "periodic_name", "published_at",
                  "started_at", "finished_at", "active_seconds", "outcome",
-                 "quality", "mono_start")
+                 "quality", "mono_start", "skipped")
 
     def __init__(self, task_id, attempt_no, task_name, queue, worker,
                  root_id, parent_id, periodic_name, published_at, started_at,
@@ -103,6 +117,9 @@ class _Attempt:
         self.outcome = ""
         self.quality = set()
         self.mono_start = mono_start
+        #: set by ``note_skipped_fire``: the fire never ran its body, so its
+        #: duration stays unmeasured no matter which signal arrives next
+        self.skipped = False
 
     @property
     def is_terminal(self):
@@ -274,13 +291,85 @@ def _finish_attempt(task, outcome):
 
 
 def _mark_terminal(entry, outcome):
-    now = timezone.now()
+    if entry.skipped:
+        # the fire answered "skipped" and celery reports that answer as an
+        # ordinary successful return, so its success/postrun arrives here too
+        # - and a fire which never ran its body has no duration to measure.
+        # The answer of the skip is final (#1827).
+        return
+    moment = timezone.now()
     if entry.active_seconds is None:
         entry.active_seconds = max(
             0.0, time.monotonic() - entry.mono_start)
-        entry.finished_at = now
+        entry.finished_at = moment
     if _OUTCOME_RANK.get(outcome, 0) > _OUTCOME_RANK.get(entry.outcome, 0):
         entry.outcome = outcome
+
+
+def _note_skipped_fire(task, task_id, attempt_no):
+    """Records one fire of a singleton task which found the lock taken.
+
+    The fire executed nothing, so its row carries no ``active_seconds`` and
+    no ``finished_at``: it is terminal - the fire is over - but it joins no
+    duration distribution, only the count of what the deployment dropped
+    (#1827). The row rides the same bounded batch as every other observation
+    of this worker process, which is what keeps a dropped fire a number in
+    the database instead of an INFO line in a log.
+    """
+    task_id = str(task_id or "")[:64]
+    if not task_id:
+        return
+    key = (task_id, int(attempt_no or 0))
+    entry = _buffer.get(key)
+    if entry is None:
+        # the prerun of this fire is not in the buffer (its id is unknown
+        # here, or a flush already settled it): open an observation of the
+        # skip itself rather than lose it - the start time is this moment,
+        # which is when the fire was dropped
+        request = getattr(task, "request", None)
+        delivery = getattr(request, "delivery_info", None) or {}
+        headers = getattr(request, "headers", None)
+        periodic_name = (headers.get("periodic_task_name")
+                         if isinstance(headers, dict) else None)
+        entry = _Attempt(
+            task_id=task_id,
+            attempt_no=int(attempt_no or 0),
+            task_name=(getattr(task, "name", None) or "unknown"),
+            queue=delivery.get("routing_key") or "",
+            worker=getattr(request, "hostname", None) or "",
+            root_id=(str(request.root_id)[:64]
+                     if getattr(request, "root_id", None) else None),
+            parent_id=(str(request.parent_id)[:64]
+                       if getattr(request, "parent_id", None) else None),
+            periodic_name=(str(periodic_name)[:255] if periodic_name
+                           else None),
+            # deliberately no publish stamp: the wait of a message which was
+            # dropped before it ran is not the wait of an execution, and a
+            # number here would join the queue-wait distributions
+            published_at=None,
+            started_at=timezone.now(),
+            mono_start=time.monotonic(),
+        )
+    entry.skipped = True
+    entry.outcome = AttemptOutcome.SKIPPED.value
+    _enforce_buffer_limit()
+    _flush_if_due()
+
+
+@task_skipped.connect(weak=False)
+def note_skipped_fire(sender=None, task_id=None, attempt_no=0, **kwargs):
+    """The receiver of the singleton skip seam (#1827).
+
+    Like every other receiver here it swallows its own error into a log line:
+    a diagnostic about a dropped fire must never cost the fire answering it.
+    """
+    if not collection_enabled():
+        return
+    try:
+        _note_skipped_fire(sender, task_id, attempt_no)
+    except Exception as error:
+        logger.debug("capacity telemetry: failed to record a skipped fire: "
+                     "%s", error)
 
 
 def _enforce_buffer_limit():

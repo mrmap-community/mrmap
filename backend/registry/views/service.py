@@ -550,7 +550,7 @@ class LayerViewSetMixin(
         Returns:
             bool: True if the page answers the derivation for its rows
         """
-        return (self.action == 'list'
+        return (getattr(self, 'action', None) == 'list'
                 and not self.derives_inherited_attributes()
                 and not isinstance(self, NestedModelViewSet))
 

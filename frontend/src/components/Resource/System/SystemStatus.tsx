@@ -5,7 +5,7 @@ import {
   Chip, LinearProgress, Stack, Typography
 } from '@mui/material';
 
-import { systemComponents, useSystemStatus, type SystemStatusRecord } from '../../../context/SystemStatusContext';
+import { hasObservation, systemComponents, useSystemStatus, type SystemStatusRecord } from '../../../context/SystemStatusContext';
 import SimpleCard from "../../MUI/SimpleCard";
 
 const label = (value?: string | null) => value ? new Date(value).toLocaleString() : '—';
@@ -28,7 +28,7 @@ export const SystemStatusPanel = ({ data, stale }: { data: SystemStatusRecord; s
             {stale && <Alert severity="warning" sx={{ mb: 2 }}>{t('stale')}</Alert>}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, gap: 2 }}>
                 {systemComponents.map(name => {
-                    const component = data.components[name];
+                    const component = data.components?.[name];
                     const status = stale ? 'unknown' : component?.status ?? 'unknown';
                     return <Box key={name} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 2 }}>
                         <Typography sx={{ mb: 1 }}>{t(name)}</Typography>
@@ -47,7 +47,7 @@ const SystemStatus = () => {
     const { data, isPending, forbidden, stale } = useSystemStatus();
     if (forbidden) return null;
     if (isPending) return <LinearProgress aria-label={translate('systemStatus.title')} />;
-    if (!data) return <Alert severity="warning" sx={{ mb: 2 }}>{translate('systemStatus.unavailable')}</Alert>;
+    if (!hasObservation(data)) return <Alert severity="warning" sx={{ mb: 2 }}>{translate('systemStatus.unavailable')}</Alert>;
     return <SystemStatusPanel data={data} stale={stale} />;
 };
 

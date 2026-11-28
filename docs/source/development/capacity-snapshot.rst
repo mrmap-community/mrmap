@@ -261,7 +261,7 @@ Settings
 ``CAPACITY_RHO_ADVISORY_THRESHOLD``                                                                  the advisory line
                                                                                                      that travels with
                                                                                                      rho (0.7)
-``CAPACITY_REACHABILITY_HEADROOM`` / ``..._MIN_SAMPLES`` / ``..._WINDOW_MINUTES``                     the margin, the
+``CAPACITY_REACHABILITY_HEADROOM`` / ``..._MIN_SAMPLES`` / ``..._WINDOW_MINUTES``                    the margin, the
                                                                                                      sample floor and
                                                                                                      the window of the
                                                                                                      reachability panel

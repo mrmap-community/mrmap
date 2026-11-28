@@ -1,6 +1,7 @@
 from accounts.models.users import User
+from accounts.permissions import (AccountAccessPermission,
+                                  readable_accounts)
 from accounts.serializers.users import UserCreateSerializer, UserSerializer
-from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework.response import Response
 from rest_framework_json_api.views import ModelViewSet
 
@@ -13,7 +14,10 @@ class UserViewSetMixin:
         "default": UserSerializer,
         "create": UserCreateSerializer,
     }
-    permission_classes = [DjangoObjectPermissions]
+    # the read of an account is decided by the catalogue, which is what
+    # ``DjangoObjectPermissions`` never asked on a safe method (#1807); the
+    # write half of that class is inherited unchanged
+    permission_classes = [AccountAccessPermission]
     prefetch_for_includes = {
         '__all__': [
             # the UserSerializer answers the roles relation of every user
@@ -34,6 +38,12 @@ class UserViewSetMixin:
         'last_name': ['exact', 'icontains', 'contains'],
         'email': ['exact', 'icontains', 'contains'],
     }
+
+    def get_queryset(self):
+        # the list answers the same rule as the detail route, so a row cannot
+        # be hidden from the collection and reached by its id (#1807)
+        return readable_accounts(
+            self.request.user, super().get_queryset(), self.request)
 
     def get_serializer_class(self):
         return self.serializer_classes.get(

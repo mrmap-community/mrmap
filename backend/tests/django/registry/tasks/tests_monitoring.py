@@ -8,6 +8,8 @@ from django.test.utils import override_settings
 from django_celery_beat.models import IntervalSchedule
 from MrMap.celery import app
 from MrMap.settings import BASE_DIR
+from notify.enums import ProcessStatusEnum
+from notify.models import BackgroundProcess
 from registry.models.monitoring import (
     CatalogueServiceMonitoringRun, CatalogueServiceMonitoringSetting,
     GetCapabilitiesProbe,
@@ -22,7 +24,8 @@ from registry.ows_lib.client.core import OgcClient
 from registry.ows_lib.csw.csw import CatalogueServiceClient
 from registry.ows_lib.wfs.wfs import WebFeatureServiceClient
 from registry.tasks.monitoring import (create_csw_monitoring_run,
-                                       create_wfs_monitoring_run)
+                                       create_wfs_monitoring_run,
+                                       create_wms_monitoring_run)
 from rest_framework import status
 from tests.django.utils import MockResponse
 
@@ -256,6 +259,153 @@ class WmsGetCapabilitiesMonitoringTaskTest(TransactionTestCase):
 
         except ObjectDoesNotExist:
             self.fail("result was not found.")
+
+
+class MonitoringRunWithoutProbesTest(TransactionTestCase):
+    """Tests the runs of a monitoring setting which has no probes (#1806).
+
+    A setting is born without probes: they are a separate resource and nothing
+    creates one together with the setting. The empty probe list used to short
+    circuit the chain which executes the checks — celery applied the task which
+    finishes the run without any argument at all — so every scheduled run of
+    such a setting raised before its first check and its background process
+    stayed "Running 0 checks" forever. A run which had nothing to check is a
+    completed run: these tests hold that against all three kinds of setting.
+    """
+
+    fixtures = ['test_users.json', 'test_keywords.json', 'test_crs.json',
+                'test_wms.json', 'test_wfs.json', 'test_csw.json']
+
+    def setUp(self):
+        self.interval = IntervalSchedule.objects.create(every=1, period='hours')
+        self.wms_setting = WebMapServiceMonitoringSetting.objects.create(
+            service=WebMapService.objects.get(
+                pk="cd16cc1f-3abb-4625-bb96-fbe80dbe23e3"),
+            interval=self.interval)
+        self.wfs_setting = WebFeatureServiceMonitoringSetting.objects.create(
+            service=WebFeatureService.objects.get(
+                pk="9cc4889d-0cd4-4c3b-8975-58de6d30db41"),
+            interval=self.interval)
+        self.csw_setting = CatalogueServiceMonitoringSetting.objects.create(
+            service=CatalogueService.objects.get(
+                pk="9cc4889d-0cd4-4c3b-8975-58de6d30db41"),
+            interval=self.interval)
+
+    def assert_run_completed_without_checks(self, run):
+        """The terminal state of a run which had nothing to check.
+
+        The run itself is done and the process which reports it decided about
+        itself: not the "running indeterminate" of a process which never
+        learned its steps.
+        """
+        self.assertIsNotNone(run.date_done)
+        # `failing_probe_checks()` names the result models of this kind of run
+        for result_model, _query in type(run).failing_probe_checks().values():
+            self.assertFalse(
+                result_model.objects.filter(run=run).exists())
+
+        process = BackgroundProcess.objects.process_info().get(
+            pk=run.background_process_id)
+        self.assertEqual(ProcessStatusEnum.COMPLETED, process.status)
+        # the phase is the only answer why the run has no results at all
+        self.assertEqual(
+            "Completed without checks: the setting has no probes",
+            process.phase)
+        self.assertEqual(0, process.total_steps)
+        self.assertEqual(0, process.done_steps)
+        self.assertIsNotNone(process.done_at)
+        self.assertEqual('completed', process.state)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def test_wms_run_of_a_setting_without_probes_completes(self):
+        create_wms_monitoring_run.apply(args=(self.wms_setting.name,))
+
+        self.assert_run_completed_without_checks(
+            WebMapServiceMonitoringRun.objects.get(setting=self.wms_setting))
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def test_wfs_run_of_a_setting_without_probes_completes(self):
+        create_wfs_monitoring_run.apply(args=(self.wfs_setting.name,))
+
+        self.assert_run_completed_without_checks(
+            WebFeatureServiceMonitoringRun.objects.get(
+                setting=self.wfs_setting))
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def test_csw_run_of_a_setting_without_probes_completes(self):
+        create_csw_monitoring_run.apply(args=(self.csw_setting.name,))
+
+        self.assert_run_completed_without_checks(
+            CatalogueServiceMonitoringRun.objects.get(
+                setting=self.csw_setting))
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('registry.tasks.monitoring.chain')
+    def test_a_run_without_probes_dispatches_no_chain(self, mocked_chain):
+        """Nothing to check means no fan-out to plan at all
+
+        The chain of an empty group is the crash of #1806; a run which has
+        nothing to check may never be handed to it.
+        """
+        create_wms_monitoring_run.apply(args=(self.wms_setting.name,))
+
+        self.assertFalse(
+            mocked_chain.called,
+            msg='the run of a setting without probes was dispatched as a '
+                'chain of an empty group')
+        self.assert_run_completed_without_checks(
+            WebMapServiceMonitoringRun.objects.get(setting=self.wms_setting))
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('registry.tasks.monitoring.chain')
+    def test_a_run_with_probes_still_dispatches_its_chain(self, mocked_chain):
+        """The guard only answers the empty case, the fan-out stays as it was"""
+        GetCapabilitiesProbe.objects.create(setting=self.wms_setting)
+
+        create_wms_monitoring_run.apply(args=(self.wms_setting.name,))
+
+        self.assertTrue(
+            mocked_chain.called,
+            msg='the run of a setting with probes was not dispatched as a '
+                'chain of its checks')
+        process = BackgroundProcess.objects.process_info().get(
+            pk=WebMapServiceMonitoringRun.objects.get(
+                setting=self.wms_setting).background_process_id)
+        # the chain is mocked, so no check ran: the process plans its one
+        # step and waits for it, as it did before the guard existed
+        self.assertEqual(ProcessStatusEnum.RUNNING, process.status)
+        self.assertEqual(1, process.total_steps)
+
+    @override_settings(CELERY_TASK_EAGER_PROPAGATES=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(OgcClient, "send_request", side_effect=side_effect)
+    def test_a_probe_added_after_the_run_is_not_reported_as_empty(
+            self, mocked_send_request):
+        """The guard only changes the answer of a run which really has none"""
+        setup_capabilitites_file()
+        GetCapabilitiesProbe.objects.create(setting=self.wms_setting)
+
+        create_wms_monitoring_run.apply(args=(self.wms_setting.name,))
+
+        run = WebMapServiceMonitoringRun.objects.get(setting=self.wms_setting)
+        self.assertEqual(1, GetCapabilitiesProbeResult.objects.filter(
+            run=run).count())
+        process = BackgroundProcess.objects.process_info().get(
+            pk=run.background_process_id)
+        self.assertEqual("Running 1 checks", process.phase)
+        self.assertEqual(1, process.total_steps)
+        self.assertEqual(1, process.done_steps)
 
 
 class MonitoringTaskRoutingTest(SimpleTestCase):

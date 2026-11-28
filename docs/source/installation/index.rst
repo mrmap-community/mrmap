@@ -336,19 +336,27 @@ off (``command: ["postgres", "-c", "jit=off"]`` on the ``postgis`` service), so 
 fresh ``docker compose up`` is fast without any manual step.
 
 The service-list endpoints (for example ``GET /api/registry/csw``) are answered by
-one annotated query carrying dozens of correlated sub-selects (alert flags,
-monitoring/update/harvest state, ``elementCount``). Its planner cost is far above
+one annotated query carrying correlated sub-selects (alert flags and the
+monitoring/update state of every service). Its planner cost is far above
 Postgres' default ``jit_above_cost = 100000``, so the stock image JIT-compiles that
 plan on *every* request. These are one-shot OLTP queries whose plan is never reused,
 so the compile time is pure overhead and has no chance to amortize: measured on the
 reference stack the query dropped from ``721 ms`` to ``363 ms`` once JIT was off
 (``EXPLAIN ANALYZE`` loses its ``JIT:`` section entirely, issue ``#871``).
 
+The coverage of a service and the number of records a harvesting pulled for it are
+deliberately *not* part of that statement. They are answered once per page, by one
+grouped statement per source over the identifiers of the page, and only to a request
+which names them in its sparse fieldset (``fields[CatalogueService]``) - or, for the
+counters of a catalogue, to its detail endpoint. A list which names none of them
+reads none of the rows behind them, so its cost no longer grows with the harvest
+volume of the rows it happens to show (issue ``#1826``).
+
 Nothing in mrmap loses a JIT speed-up by this: the genuinely heavy reads -- the
 harvest day statistics and the ``tsvector`` search -- plan at a few thousand cost,
 well under ``jit_above_cost``, so they were never JIT-compiled in the first place.
-A raised ``jit_above_cost`` was rejected as brittle: the list query's cost grows
-with the number of harvested records, so it would cross any fixed threshold again.
+A raised ``jit_above_cost`` was rejected as brittle: the plan of a list whose
+aggregates are annotated is not stable, so it would cross any fixed threshold again.
 
 The setting is passed to the server process, not with ``ALTER SYSTEM`` (which would
 write into the shared data directory and leak into the test databases). It therefore

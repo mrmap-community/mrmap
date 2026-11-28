@@ -458,6 +458,50 @@ def authorized_role_membership_grant(user, perm, obj, checker=None) -> bool:
     return result
 
 
+def _anonymous_viewer_group_ids():
+    """A subquery of the pk of the anonymous viewer's group.
+
+    The same statement as ``registry.expressions.visibility`` reads - the
+    ``Role`` row of the definition, never the name of the group (#732) - kept
+    here because the facade decides the public axis without a query of its
+    own for it. Named locally rather than imported from the registry: the
+    facade of #734 stays usable for an app without a visibility annotation.
+    """
+    from accounts.models.roles import (ANONYMOUS_VIEWER_ROLE, Role)
+
+    return Role.objects.filter(
+        role_definition__slug=ANONYMOUS_VIEWER_ROLE,
+        is_active=True).values("group_id")
+
+
+def _anonymous_holds_any_grant(app_label, obj, through_model, checker) -> bool:
+    """Whether the anonymous viewer holds any grant over ``obj``'s model.
+
+    The cheap predecessor of the per-object ``EXISTS``: the hint of #738 asks
+    the public axis for every action of every row it answers, and a
+    deployment which published nothing must not pay one query per row for the
+    answer "nothing is public". The group arrives as a subquery, so this is
+    one statement per request and model - and none at all on a checker which
+    has already asked.
+    """
+    memo = _memo_of(checker) if checker is not None else None
+    key = ("public_any", app_label, obj._meta.model_name)
+    if memo is not None and key in memo:
+        return memo[key]
+    grants = through_model.objects.filter(
+        group_id__in=_anonymous_viewer_group_ids(),
+        permission__content_type__app_label=app_label,
+        permission__content_type__model=obj._meta.model_name)
+    if through_model.objects.is_generic():
+        grants = grants.filter(
+            content_type__app_label=app_label,
+            content_type__model=obj._meta.model_name)
+    result = grants.exists()
+    if memo is not None:
+        memo[key] = result
+    return result
+
+
 def authorized_public_object_grant(user, perm, obj, checker=None) -> bool:
     """The public axis: the anonymous viewer's grant holds for everyone.
 
@@ -488,14 +532,14 @@ def authorized_public_object_grant(user, perm, obj, checker=None) -> bool:
 
     from guardian.utils import get_group_obj_perms_model
 
-    from accounts.utils import anonymous_viewer_group
-
-    group = anonymous_viewer_group()
     result = False
-    if group is not None:
-        through_model = get_group_obj_perms_model(obj)
+    through_model = get_group_obj_perms_model(obj)
+    # the cheap question first: while the database holds no anonymous grant
+    # for this model at all - every database until somebody publishes - the
+    # per-object EXISTS is not paid for (#739's rollout by construction)
+    if _anonymous_holds_any_grant(app_label, obj, through_model, checker):
         grants = through_model.objects.filter(
-            group=group,
+            group_id__in=_anonymous_viewer_group_ids(),
             permission__codename=codename,
             permission__content_type__app_label=app_label)
         if through_model.objects.is_generic():
@@ -1022,12 +1066,15 @@ def allowed_actions(user, obj, checker=None) -> list:
     The hint of #738: one answer for "what may this caller do here", shipped
     by the serializers as ``allowedActions`` and gated on by the frontend -
     replacing the ``can_edit`` / ``can_delete`` / ``is_accessible`` trio whose
-    expressions could disagree with the endpoint. It widens nothing: every
-    returned action is answered by ``allowed()`` for its permission, and an
-    action an app does not declare is never answered (``_action_permissions``).
+    expressions could disagree with the endpoint. It widens nothing and
+    narrows nothing: an action is answered exactly when ``allowed()`` answers
+    its permission - which includes the public axis of #739, so a caller who
+    may read a public resource is answered ``view`` like the anonymous one is
+    (#1808) - and an action an app does not declare is never answered
+    (``_action_permissions``).
 
     The cost mirrors ``allowed()`` rather than adding to it: the object axis
-    is asked first and is free for a prefetched page; the two role axes are
+    is asked first and is free for a prefetched page; the remaining axes are
     only reached for the actions which hold no explicit grant, and then not
     one query per action but one batch per request and app
     (``_seed_action_role_memos``). A fully granted user therefore reads zero
@@ -1037,7 +1084,7 @@ def allowed_actions(user, obj, checker=None) -> list:
 
     Args:
         user: the user asking; ``None`` and anonymous answer only the object
-            axis, like ``allowed()``
+            axis and the public one, like ``allowed()``
         obj: the object the actions are about
         checker: the request's permission checker, when there is one
     """
@@ -1058,14 +1105,21 @@ def allowed_actions(user, obj, checker=None) -> list:
     for action, perm in actions:
         # the object axis first: the checker of the request has usually
         # loaded it already, so the common grant answers without a query.
-        # For an anonymous user this is the whole decision, exactly as
-        # ``allowed()`` answers it.
+        # Everything else - the public axis of #739 and the two role axes -
+        # is what ``allowed()`` decides for the actions the grant did not
+        # answer, so the hint cannot offer what the endpoint would refuse
+        # and cannot withhold what it would allow.
         if authorized_explicit_scoped_object_grant(
                 user, perm, obj, checker=checker):
             decisions[action] = True
         else:
             missing.append((action, perm))
     if not getattr(user, "is_authenticated", False):
+        # the anonymous caller is decided by the object axis alone - which
+        # already covers a public resource, because guardian maps the
+        # anonymous request to the member of the anonymous viewer group
+        # holding the grant (#739). The role axes would answer nothing and
+        # the public axis repeats the answer of the object axis.
         missing = []
     if missing and checker is not None:
         _seed_action_role_memos(user, obj, checker)
@@ -1073,7 +1127,9 @@ def allowed_actions(user, obj, checker=None) -> list:
         decisions[action] = bool(
             authorized_platform_scoped_perm(user, perm, checker=checker)
             or authorized_role_membership_grant(user, perm, obj,
-                                                checker=checker))
+                                                checker=checker)
+            or authorized_public_object_grant(user, perm, obj,
+                                              checker=checker))
     return [action for action, _ in actions if decisions.get(action)]
 
 

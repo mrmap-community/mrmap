@@ -55,6 +55,7 @@ from registry.serializers.service import (
     WebMapServiceCreateSerializer, WebMapServiceListSerializer,
     WebMapServiceOperationUrlSerializer, WebMapServiceSerializer)
 from registry.views.shares import ServiceShareViewSetMixin
+from registry.views.visibility import VisibilityWritePermissions
 from registry.tasks.service import build_ogc_service
 from registry.helper.preview import PreviewError, feature_preview_image, preview
 from rest_framework_json_api.views import ModelViewSet
@@ -366,7 +367,9 @@ class WebMapServiceViewSet(
     ordering_fields = ["id", "title", "abstract", "hits",
                        "date_stamp", "has_alert", "monitoring_failed_at",
                        "update_review_required_at", "update_failed_at"]
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # the visibility write of #739 belongs to the publish capability, not to
+    # the viewset's change axis (#1808)
+    permission_classes = [VisibilityWritePermissions]
     task_function = build_ogc_service
 
     def get_task_kwargs(self, request, serializer):
@@ -749,7 +752,9 @@ class WebFeatureServiceViewSet(
     ordering_fields = ["id", "title", "abstract", "hits",
                        "date_stamp", "has_alert", "monitoring_failed_at",
                        "update_review_required_at", "update_failed_at"]
-    permission_classes = [DjangoObjectPermissionsOrAnonReadOnly]
+    # the visibility write of #739 belongs to the publish capability, not to
+    # the viewset's change axis (#1808)
+    permission_classes = [VisibilityWritePermissions]
     task_function = build_ogc_service
 
     def get_task_kwargs(self, request, serializer):

@@ -289,9 +289,11 @@ class PublishWriteTests(VisibilityDataMixin, TestCase):
         self.target = self.create_wms("Publishable Service", self.org_a)
 
         self.editor = self.member_of("editor-a", self.org_a, "resource_editor")
+        # the single role the handbook names for publishing (#1808): with the
+        # editor role additionally held, it is the change axis which opens the
+        # endpoint and the publish axis is never the one asked
         self.publisher = self.member_of(
-            "publisher-a", self.org_a, "resource_editor",
-            "resource_publisher")
+            "publisher-a", self.org_a, "resource_publisher")
         self.outsider = self.member_of(
             "editor-b", self.org_b, "resource_editor")
         self.root = User.objects.create_superuser(
@@ -370,3 +372,131 @@ class PublishWriteTests(VisibilityDataMixin, TestCase):
         response = self.patch(self.root, "public")
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(self.visibility_now(), Visibility.PUBLIC.value)
+
+
+class PublishWithThePublisherRoleAloneTests(VisibilityDataMixin, TestCase):
+    """The publisher role alone reaches the publish decision (#1808).
+
+    The visibility write has two gates: the endpoint's - which DRF answers
+    with the viewset's ``change_<model>`` - and the serializer's, which asks
+    the publish capability. The catalogue splits those rights over two roles
+    and the creation bootstrap grants the object triple to the editors' group
+    only, so a member of ``resource_publisher`` alone was answered 403 by the
+    endpoint and never reached the decision it is written for, while
+    ``allowedActions`` offered ``publish``. The route gate of
+    ``registry.views.visibility`` asks the action's own capability, the way
+    the share route of the same viewset always did.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+        self.client.credentials(HTTP_ACCEPT=JSONAPI)
+        self.target = self.create_wms("Publisher Only Service", self.org_a)
+        self.publisher = self.member_of(
+            "solo-publisher-a", self.org_a, "resource_publisher")
+        self.admin = self.member_of(
+            "orgadmin-a", self.org_a, "organization_admin")
+
+    def patch(self, user, attributes):
+        self.client.force_authenticate(user)
+        return self.client.patch(
+            reverse("registry:wms-detail", args=[self.target.pk]),
+            {
+                "data": {
+                    "type": "WebMapService",
+                    "id": str(self.target.pk),
+                    "attributes": attributes,
+                }
+            },
+            format="vnd.api+json")
+
+    def visibility_now(self, service=None):
+        return WebMapService.objects.filter(
+            pk=(service or self.target).pk).with_visibility().values_list(
+                "visibility", flat=True).get()
+
+    def allowed_actions(self, user, service=None):
+        self.client.force_authenticate(user)
+        response = self.client.get(
+            reverse("registry:wms-detail", args=[(service or self.target).pk]),
+            {"fields[WebMapService]": "id,allowed_actions"})
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()["data"]["attributes"]["allowedActions"]
+
+    def test_the_publisher_role_alone_publishes(self):
+        """The role the handbook names performs the write it exists for."""
+        response = self.patch(self.publisher, {"visibility": "public"})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            response.json()["data"]["attributes"]["visibility"], "public")
+        self.assertEqual(self.visibility_now(), Visibility.PUBLIC.value)
+
+    def test_the_publisher_role_alone_withdraws(self):
+        self.patch(self.publisher, {"visibility": "public"})
+        response = self.patch(self.publisher,
+                              {"visibility": "organization-internal"})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            self.visibility_now(), Visibility.ORGANIZATION_INTERNAL.value)
+
+    def test_the_organization_administrator_withdraws(self):
+        """The way back belongs to ``manage_access_rules`` too."""
+        self.publish(self.target)
+        self.assertEqual(self.visibility_now(), Visibility.PUBLIC.value)
+        response = self.patch(
+            self.admin, {"visibility": "organization-internal"})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(
+            self.visibility_now(), Visibility.ORGANIZATION_INTERNAL.value)
+
+    def test_the_organization_administrator_does_not_publish(self):
+        """Managing the access rules opens the way back, not the way in."""
+        response = self.patch(self.admin, {"visibility": "public"})
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertEqual(
+            self.visibility_now(), Visibility.ORGANIZATION_INTERNAL.value)
+
+    def test_a_mixed_write_stays_on_the_change_axis(self):
+        """Naming another attribute besides visibility is a content write."""
+        response = self.patch(self.publisher,
+                              {"visibility": "public", "title": "Renamed"})
+        self.assertEqual(response.status_code, 403, response.content)
+        self.target.refresh_from_db()
+        self.assertEqual(self.target.title, "Publisher Only Service")
+        self.assertEqual(
+            self.visibility_now(), Visibility.ORGANIZATION_INTERNAL.value)
+
+    def test_the_hint_offers_publish_to_the_caller_which_may_publish(self):
+        """The disagreement of #1808: hint and route answer one question.
+
+        Before the fix the hint answered ``publish`` for this caller while
+        the route refused it; the pair is pinned in both directions, so
+        neither half may drift again without a red test.
+        """
+        self.assertIn("publish", self.allowed_actions(self.publisher))
+        self.assertEqual(
+            self.patch(self.publisher, {"visibility": "public"}).status_code,
+            200)
+
+    def test_the_hint_withholds_publish_from_the_caller_which_may_not(self):
+        self.assertNotIn("publish", self.allowed_actions(self.admin))
+        self.assertEqual(
+            self.patch(self.admin, {"visibility": "public"}).status_code, 403)
+
+    def test_a_logged_in_caller_of_a_public_resource_is_answered_view(self):
+        """The same question, the same answer, whoever asks it (#1808).
+
+        The detail route of a public resource reads public for a logged-in
+        caller of another organization - the list and the detail gate honour
+        the public axis - so the hint must answer ``view`` too, like it does
+        for the anonymous caller of the very same row.
+        """
+        outsider = self.member_of("viewer-c", self.org_b, "viewer")
+        self.publish(self.target)
+        self.assertEqual(self.visibility_now(), Visibility.PUBLIC.value)
+        self.client.force_authenticate(outsider)
+        detail = self.client.get(
+            reverse("registry:wms-detail", args=[self.target.pk]))
+        self.assertEqual(detail.status_code, 200, detail.content)
+        self.assertEqual(self.allowed_actions(outsider), ["view"])

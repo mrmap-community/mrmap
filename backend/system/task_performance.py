@@ -1160,11 +1160,11 @@ def resolve_cadence_verdicts(cadence_live, at):
     from notify.enums import IncidentStatusEnum
     from notify.models import OperationalIncident
 
-    standing = OperationalIncident.objects.filter(
+    standing = list(OperationalIncident.objects.filter(
         code__startswith=CODE_SCHEDULE_OVERRUN,
-        status=IncidentStatusEnum.ACTIVE.value)
+        status=IncidentStatusEnum.ACTIVE.value))
     resolved = 0
-    for incident in list(standing):
+    for incident in standing:
         if _cadence_resolves(incident.code, cadence_live):
             resolved += OperationalIncident.objects.resolve(
                 incident.dedup_key, at=at)
@@ -1553,6 +1553,46 @@ def _summary(verdicts, classes, truncated, window, baseline_window, at,
     }
 
 
+def _cadence_reading(window, at):
+    """The cadence verdicts of one fire, beside what the fire proved live.
+
+    Answers ``(verdicts, cadence_live)``. ``cadence_live`` is ``None`` when the
+    fire could not make the read at all - the difference between an unread
+    schedule and a reachable one is what keeps a standing cadence incident open
+    through an outage of the collector (#1390). The reading runs even with the
+    slow-task detection switched off, for the reason stated at
+    ``evaluate_reachability``: a fire the singleton lock refuses measures
+    nothing, so no other condition of this module can notice it (#1827).
+    """
+    try:
+        reachability = evaluate_reachability(
+            window["since"], window["until"], at)
+    except Exception as error:
+        logger.warning(
+            "task performance (#1390): the reachability read could not be "
+            "made (%s); this fire says nothing about cadences.", error)
+        return [], None
+    return reachability, {item.get("code") for item in reachability}
+
+
+def _disabled_fire(reachability, cadence_live, at, publish):
+    """The summary of a fire with the slow-task detection switched off.
+
+    Its own branch because the one reading which still runs there is the one
+    whose recovery must run there too: an operator who widened an interval
+    while the detector was off must not have to switch the detector back on
+    before the incident closes (#1827).
+    """
+    verdicts = list(reachability)
+    published = publish_verdicts(_actionable(verdicts)) if publish else []
+    resolved = (resolve_cadence_verdicts(cadence_live, at)
+                if publish else 0)
+    return {"status": "disabled", "verdicts": verdicts,
+            "published": published, "resolved": resolved, "classes": 0,
+            "truncated": False, "unknown": ["detection_disabled"],
+            "unreachable_schedules": len(reachability)}
+
+
 def evaluate_task_performance(at=None, publish=True):
     """One bounded evaluation of the deployment's task performance (#1390).
 
@@ -1571,37 +1611,10 @@ def evaluate_task_performance(at=None, publish=True):
             every answer which is unknown instead of healthy
     """
     at = at or now()
-    detection = detection_enabled()
     window, baseline_window = _class_windows(at)
-    # None answers "this fire could not read any cadence" - the difference
-    # between an unread schedule and a reachable one is what keeps a standing
-    # cadence incident open through an outage of the collector (#1390)
-    cadence_live = None
-    try:
-        # the reachability read of #1827 runs even with the slow-task
-        # detection switched off - see evaluate_reachability for why the two
-        # switches are deliberately separate
-        reachability = evaluate_reachability(
-            window["since"], window["until"], at)
-    except Exception as error:
-        logger.warning(
-            "task performance (#1390): the reachability read could not be "
-            "made (%s); this fire says nothing about cadences.", error)
-        reachability = []
-    else:
-        cadence_live = {item.get("code") for item in reachability}
-    if not detection:
-        verdicts = list(reachability)
-        published = publish_verdicts(_actionable(verdicts)) if publish else []
-        # the cadence reading ran, so its recovery runs too: an operator who
-        # widened the interval while the detector was off must not have to
-        # switch the detector on to close the incident
-        resolved = (resolve_cadence_verdicts(cadence_live, at)
-                    if publish else 0)
-        return {"status": "disabled", "verdicts": verdicts,
-                "published": published, "resolved": resolved, "classes": 0,
-                "truncated": False, "unknown": ["detection_disabled"],
-                "unreachable_schedules": len(reachability)}
+    reachability, cadence_live = _cadence_reading(window, at)
+    if not detection_enabled():
+        return _disabled_fire(reachability, cadence_live, at, publish)
     try:
         window_read = _read_windows(window, baseline_window, at)
     except Exception as error:

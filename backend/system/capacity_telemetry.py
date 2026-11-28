@@ -306,6 +306,47 @@ def _mark_terminal(entry, outcome):
         entry.outcome = outcome
 
 
+def _open_skipped_attempt(task, key):
+    """Open the observation of a fire whose prerun this worker never saw.
+
+    The prerun is missing when the fire's id is unknown here or when a flush
+    already settled its row, so the skip opens an observation of itself rather
+    than losing the trace - stamped with this moment, which is the moment the
+    fire was dropped. It rides the buffer under its own key immediately: an
+    entry which is built and never put there is exactly the lost observation
+    this branch exists to prevent (#1827).
+    """
+    task_id, attempt_no = key
+    request = getattr(task, "request", None)
+    delivery = getattr(request, "delivery_info", None) or {}
+    headers = getattr(request, "headers", None)
+    periodic_name = (headers.get("periodic_task_name")
+                     if isinstance(headers, dict) else None)
+    entry = _Attempt(
+        task_id=task_id,
+        attempt_no=attempt_no,
+        task_name=(getattr(task, "name", None) or "unknown"),
+        queue=delivery.get("routing_key") or "",
+        worker=getattr(request, "hostname", None) or "",
+        root_id=_bounded(getattr(request, "root_id", None)),
+        parent_id=_bounded(getattr(request, "parent_id", None)),
+        periodic_name=(str(periodic_name)[:255] if periodic_name else None),
+        # deliberately no publish stamp: the wait of a message which was
+        # dropped before it ran is not the wait of an execution, and a
+        # number here would join the queue-wait distributions
+        published_at=None,
+        started_at=timezone.now(),
+        mono_start=time.monotonic(),
+    )
+    _buffer[key] = entry
+    return entry
+
+
+def _bounded(value):
+    """A Celery id as stored here, or None when the message carries none."""
+    return str(value)[:64] if value else None
+
+
 def _note_skipped_fire(task, task_id, attempt_no):
     """Records one fire of a singleton task which found the lock taken.
 
@@ -320,40 +361,7 @@ def _note_skipped_fire(task, task_id, attempt_no):
     if not task_id:
         return
     key = (task_id, int(attempt_no or 0))
-    entry = _buffer.get(key)
-    if entry is None:
-        # the prerun of this fire is not in the buffer (its id is unknown
-        # here, or a flush already settled it): open an observation of the
-        # skip itself rather than lose it - the start time is this moment,
-        # which is when the fire was dropped
-        request = getattr(task, "request", None)
-        delivery = getattr(request, "delivery_info", None) or {}
-        headers = getattr(request, "headers", None)
-        periodic_name = (headers.get("periodic_task_name")
-                         if isinstance(headers, dict) else None)
-        entry = _Attempt(
-            task_id=task_id,
-            attempt_no=int(attempt_no or 0),
-            task_name=(getattr(task, "name", None) or "unknown"),
-            queue=delivery.get("routing_key") or "",
-            worker=getattr(request, "hostname", None) or "",
-            root_id=(str(request.root_id)[:64]
-                     if getattr(request, "root_id", None) else None),
-            parent_id=(str(request.parent_id)[:64]
-                       if getattr(request, "parent_id", None) else None),
-            periodic_name=(str(periodic_name)[:255] if periodic_name
-                           else None),
-            # deliberately no publish stamp: the wait of a message which was
-            # dropped before it ran is not the wait of an execution, and a
-            # number here would join the queue-wait distributions
-            published_at=None,
-            started_at=timezone.now(),
-            mono_start=time.monotonic(),
-        )
-        # the observation of the skip only exists once it rides the buffer:
-        # an entry which is built and never put there is the lost trace this
-        # branch exists to prevent (#1827)
-        _buffer[key] = entry
+    entry = _buffer.get(key) or _open_skipped_attempt(task, key)
     entry.skipped = True
     entry.outcome = AttemptOutcome.SKIPPED.value
     _enforce_buffer_limit()

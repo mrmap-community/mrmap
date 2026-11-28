@@ -486,6 +486,51 @@ def schedule_intervals(max_interval_seconds, limit=None):
     return intervals
 
 
+def _reachability_verdict(p95, seconds, samples, minimum, headroom):
+    """How one schedule's measured p95 fits the interval its row fires on.
+
+    ``unknown`` is the answer of an unread schedule and never ``reachable``:
+    a row which never fired, or whose attempts carry no duration, has not
+    proven anything about its own cadence (#1827).
+    """
+    if p95 is None or samples < minimum:
+        return "unknown"
+    if p95 > seconds:
+        return "unreachable"
+    if p95 > seconds / headroom:
+        return "tight"
+    return "reachable"
+
+
+def _reachability_entry(group, seconds, minimum, headroom):
+    """One schedule's answer: its own interval beside its own measurement.
+
+    ``dropped_fires`` counts the fires of the same window which the singleton
+    lock refused, so the share of them is a number the diagnostics read out of
+    the database rather than out of the worker log (#1827).
+    """
+    samples = group["samples"] or 0
+    dropped = group["dropped"] or 0
+    fires = samples + dropped
+    p95 = group["active_p95"]
+    return {
+        "periodic_name": group["periodic_name"],
+        "task_name": group["task_name"],
+        "queue": group["queue"],
+        "interval_seconds": seconds,
+        "samples": samples,
+        "min_samples": minimum,
+        "active_p95": p95,
+        "active_max": group["active_max"],
+        "dropped_fires": dropped,
+        "fires": fires,
+        "skipped_share": (dropped / fires) if fires else None,
+        "overrun_ratio": (p95 / seconds) if p95 is not None else None,
+        "verdict": _reachability_verdict(p95, seconds, samples, minimum,
+                                         headroom),
+    }
+
+
 def schedule_reachability(since, until=None, max_interval_seconds=None,
                           limit=200):
     """Every short-interval beat schedule beside its own measured duration.
@@ -535,35 +580,9 @@ def schedule_reachability(since, until=None, max_interval_seconds=None,
             # (the row was edited or removed, or the task fired by hand):
             # without a live interval there is no cadence to judge
             continue
-        samples = group["samples"] or 0
-        dropped = group["dropped"] or 0
-        fires = samples + dropped
-        p95 = group["active_p95"]
-        if p95 is None or samples < minimum:
-            verdict = "unknown"
-        elif p95 > entry["seconds"]:
-            verdict = "unreachable"
-        elif p95 > entry["seconds"] / headroom:
-            verdict = "tight"
-        else:
-            verdict = "reachable"
         key = f'{group["periodic_name"]}|{group["task_name"]}|{group["queue"]}'
-        schedules[key] = {
-            "periodic_name": group["periodic_name"],
-            "task_name": group["task_name"],
-            "queue": group["queue"],
-            "interval_seconds": entry["seconds"],
-            "samples": samples,
-            "min_samples": minimum,
-            "active_p95": p95,
-            "active_max": group["active_max"],
-            "dropped_fires": dropped,
-            "fires": fires,
-            "skipped_share": (dropped / fires) if fires else None,
-            "overrun_ratio": (p95 / entry["seconds"])
-            if p95 is not None else None,
-            "verdict": verdict,
-        }
+        schedules[key] = _reachability_entry(group, entry["seconds"],
+                                             minimum, headroom)
     return {
         "source": answer["source"],
         "window": answer["window"],

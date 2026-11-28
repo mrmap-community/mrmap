@@ -24,6 +24,7 @@ MrMap is maintained as a `GitHub project <https://github.com/mrmap-community/mrm
    celery-capacity-telemetry
    celery-task-performance-export
    observability-inventory
+   observability-tracing
    celery-task-orm-audit
    outbound-ogc-request-audit
    update-metadata-refresh-policy

@@ -1949,3 +1949,79 @@ SYSTEM_STATUS_DOCKER_URL = os.environ.get(
     "SYSTEM_STATUS_DOCKER_URL", "http://docker-api:2375")
 SYSTEM_STATUS_DOCKER_PROJECT = os.environ.get(
     "SYSTEM_STATUS_DOCKER_PROJECT", "")
+
+# ---------------------------------------------------------------------------
+# Optional OpenTelemetry integration (#1779, epic #1775, ADR-0003)
+# ---------------------------------------------------------------------------
+# The knobs of :mod:`MrMap.telemetry` are parsed in exactly one place,
+# ``MrMap.telemetry.config.resolve()``, which reads them from the environment and
+# clamps every number into its documented range. What follows is the projection of
+# that resolution into Django's settings, so that
+#
+#   * a deployment, a test and ``docs/source/development/observability-tracing.rst``
+#     see one documented list of names, and
+#   * ``override_settings(OTEL_MODE=...)`` is the seam a test isolates with, the
+#     same seam every other setting of this project offers.
+#
+# The import is not a cycle: ``MrMap.telemetry.config`` reads nothing but the
+# environment and imports no Django module, which is what lets a process answer
+# "which mode am I in" *before* the app registry, the SDK or a socket exist - the
+# rule behind ``off`` costing nothing. A test asserts that this projection stays
+# equal to the resolution it was derived from.
+from MrMap.telemetry import config as _otel_config  # noqa: E402
+
+#: every knob of one process, as resolved from the environment
+OTEL_VALUES = _otel_config.resolve()
+
+# ``off`` is the shipped default and means nothing of the package runs: no
+# instrumentor patches a library, no provider exists, no exporter thread starts
+# and no collector address is looked up.
+OTEL_MODE = OTEL_VALUES["mode"]
+OTEL_SERVICE_NAME = OTEL_VALUES["service_name"]
+# never a container name and never caller-influenced; the version is the canonical
+# VERSION of #1579 unless the deployment names one itself
+OTEL_SERVICE_VERSION = OTEL_VALUES["service_version"] or VERSION
+OTEL_DEPLOYMENT_ENVIRONMENT = OTEL_VALUES["deployment_environment"]
+# signal-specific complete URLs (different paths, different ports per signal), so
+# two settings and no base URL; empty means "no exporter for this signal"
+OTEL_TRACES_ENDPOINT = OTEL_VALUES["traces_endpoint"]
+OTEL_METRICS_ENDPOINT = OTEL_VALUES["metrics_endpoint"]
+# parent-based head sampling: a trusted sampled parent is honoured, a public root
+# is sampled by this ratio (the 1 % starting point of ADR-0003)
+OTEL_TRACES_SAMPLE_RATIO = OTEL_VALUES["trace_ratio"]
+# semicolon separated hostnames - the only destinations a trace header may be
+# propagated TO, and the only boundaries whose incoming header is read at all
+OTEL_TRUSTED_HOSTS = OTEL_VALUES["trusted_hosts"]
+OTEL_TRUSTED_SOURCE_HOSTS = OTEL_VALUES["trusted_source_hosts"]
+OTEL_BROKER_TRUSTED = OTEL_VALUES["broker_trusted"]
+# the reviewed task classes; empty maps every task to the "other" series, which is
+# the fail-safe reading of the cardinality contract
+OTEL_TASK_CLASSES = OTEL_VALUES["task_classes"]
+# cardinality budgets of the metric views: an instrument which exceeds one gets the
+# SDK's single overflow series and nothing else
+OTEL_MAX_ATTRIBUTE_SETS = OTEL_VALUES["max_attribute_sets"]
+OTEL_MAX_TASK_CLASSES = OTEL_VALUES["max_task_classes"]
+OTEL_MAX_ROUTES = OTEL_VALUES["max_routes"]
+OTEL_MAX_QUEUES = OTEL_VALUES["max_queues"]
+# the diagnostic mode stops its own extras after this many minutes, so a forgotten
+# "diagnostic" cannot run a deployment hot
+OTEL_DEBUG_MAX_MINUTES = OTEL_VALUES["debug_max_minutes"]
+# the diagnostic extras, each off by default in every mode (ADR-0003): SQL text and
+# Redis detail need an operator to ask for them by name
+OTEL_HTTP_CLIENT_ENABLED = OTEL_VALUES["http_client_enabled"]
+OTEL_SQL_ENABLED = OTEL_VALUES["sql_enabled"]
+OTEL_REDIS_ENABLED = OTEL_VALUES["redis_enabled"]
+# the bounded batch pipeline: queues, batches and timeouts, all clamped by config
+OTEL_SPAN_MAX_QUEUE = OTEL_VALUES["span_max_queue"]
+OTEL_SPAN_MAX_EXPORT_BATCH = OTEL_VALUES["span_max_export_batch"]
+OTEL_SPAN_SCHEDULE_DELAY_SECONDS = OTEL_VALUES["span_schedule_delay_seconds"]
+OTEL_METRIC_INTERVAL_SECONDS = OTEL_VALUES["metric_interval_seconds"]
+OTEL_METRIC_TIMEOUT_SECONDS = OTEL_VALUES["metric_timeout_seconds"]
+OTEL_EXPORTER_TIMEOUT_SECONDS = OTEL_VALUES["export_timeout_seconds"]
+OTEL_MAX_EXPORT_ATTEMPTS = OTEL_VALUES["export_attempts"]
+OTEL_SHUTDOWN_DRAIN_SECONDS = OTEL_VALUES["shutdown_drain_seconds"]
+# the test seam of #1330's collector, in the same shape: it lets a unit test drive
+# the celery receivers of MrMap.telemetry.celery_metrics from a process which
+# never went through worker start-up. Nothing but a test sets it.
+OTEL_COLLECT_ANY_PROCESS = bool(
+    int(os.environ.get("MRMAP_OTEL_COLLECT_ANY_PROCESS") or 0))

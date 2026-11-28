@@ -145,6 +145,46 @@ def _aggregates_map(services, model, extent, element_count):
     return extents, counts
 
 
+def _kinds_to_read(element_count: bool, harvest_counts: dict) -> dict:
+    """Which kinds of record of a catalogue must be read for what is asked.
+
+    The element count of a catalogue is the number of all its records, so it
+    needs both kinds; a counter of the harvesting needs only its own kind.
+    """
+    needed = harvest_kinds_to_read(harvest_counts)
+    return {kind: element_count or needed[kind] for kind in HARVEST_KINDS}
+
+
+def _records_of(per_kind: dict, service_pk) -> int:
+    """The number of records of one catalogue over every kind which was read."""
+    return sum(kind.get(service_pk, 0) for kind in per_kind.values())
+
+
+def _attach_coverage(service, extent, element_count, catalogue, extents, counts,
+                     per_kind) -> None:
+    """Attach the coverage attributes which the request asked for.
+
+    The number of the records of a catalogue comes from `catalogue_record_counts()`,
+    never from the statement of its coverage: the coverage aggregation reads
+    geometries and must stay free of the count, which is pinned by the tests of
+    #1031.
+    """
+    if extent:
+        service.extent = extents.get(service.pk)
+    if element_count:
+        service.element_count = (_records_of(per_kind, service.pk)
+                                 if catalogue else counts.get(service.pk, 0))
+
+
+def _attach_harvest_counters(service, harvest_counts: dict, per_kind: dict) -> None:
+    """Attach the counters of the harvesting which the request named."""
+    if harvest_counts.get('harvested_total_count'):
+        service.harvested_total_count = _records_of(per_kind, service.pk)
+    for name, kind in HARVEST_COUNT_OF_KIND:
+        if harvest_counts.get(name):
+            setattr(service, name, per_kind.get(kind, {}).get(service.pk, 0))
+
+
 def service_aggregates(services, model=None, extent=True, element_count=True,
                        harvest_counts=None):
     """Attach the coverage and the harvest counters of the given services.
@@ -172,38 +212,22 @@ def service_aggregates(services, model=None, extent=True, element_count=True,
     model = model or services[0].__class__
     harvest_counts = harvest_counts or {}
     catalogue = model is CatalogueService
-    # the element count of a catalogue is the number of all its records, so it
-    # needs both kinds; a counter of the harvesting needs only its own kind
-    needed = harvest_kinds_to_read(harvest_counts) if catalogue else {}
-    kinds = {kind: element_count or needed.get(kind, False)
-             for kind in HARVEST_KINDS}
+    kinds = _kinds_to_read(element_count, harvest_counts) if catalogue else {}
     # the element count of a catalogue and the counters of its harvesting count
     # the same rows, so they share one grouped read over both kinds of record
     per_kind = (catalogue_record_counts([service.pk for service in services], kinds)
                 if catalogue and any(kinds.values()) else {})
-    # the number of the records of a catalogue comes from
-    # `catalogue_record_counts()`, never from the statement of its coverage: the
-    # coverage aggregation reads geometries and must stay free of the count,
-    # which is pinned by the tests of #1031
     coverage_count = element_count and not catalogue
     if extent or coverage_count:
         extents, counts = _aggregates_map(services, model, extent, coverage_count)
     else:
         extents, counts = {}, {}
+    counters_asked = any(harvest_counts.values())
     for service in services:
-        if extent:
-            service.extent = extents.get(service.pk)
-        if element_count:
-            service.element_count = (
-                sum(kind.get(service.pk, 0) for kind in per_kind.values())
-                if catalogue else counts.get(service.pk, 0))
-        if any(harvest_counts.values()):
-            if harvest_counts.get('harvested_total_count'):
-                service.harvested_total_count = sum(
-                    kind.get(service.pk, 0) for kind in per_kind.values())
-            for name, kind in HARVEST_COUNT_OF_KIND:
-                if harvest_counts.get(name):
-                    setattr(service, name, per_kind.get(kind, {}).get(service.pk, 0))
+        _attach_coverage(service, extent, element_count, catalogue,
+                         extents, counts, per_kind)
+        if counters_asked:
+            _attach_harvest_counters(service, harvest_counts, per_kind)
     return services
 
 

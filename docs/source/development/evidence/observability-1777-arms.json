@@ -1,0 +1,159 @@
+{
+  "schema": "mrmap.observability-arms.v1",
+  "issue": 1777,
+  "parent": 1775,
+  "adr": "docs/architecture/decisions/ADR-0003-low-overhead-observability.md",
+  "inspected_on": "2026-11-27",
+  "baseline_develop_sha": "f9caba88063db48cb2ec4fc7ab374070c7973d13",
+  "purpose": "The arms, workload cells and repetition protocol of the legacy observability baseline. Every number in observability-1777-baseline.json was produced by `scripts/observability_bench.py run` against THIS file, and the run manifest carries its digest; `verify` refuses a run whose file differs. The two arms differ ONLY in celery_env (and, for the reference arm, in the settings module it boots the web tier with), which is what makes their difference the overhead answer rather than a difference in work.",
+  "protocol": {
+    "compose_project": "mrmap-issue-1777-bench",
+    "compose_files": {
+      "production": [
+        "docker-compose.yml"
+      ],
+      "dev": [
+        "docker-compose.yml",
+        "docker-compose.dev.yml"
+      ]
+    },
+    "repeats": 7,
+    "seed": 20261121,
+    "warmup_requests": 50,
+    "requests": 300,
+    "concurrency": 8,
+    "idle_sample_seconds": 15,
+    "peer_endpoint": "/__cheap_peer__",
+    "websocket_credentials": "admin:admin",
+    "notes": "repeats=7 and seed=20261121 are the conventions of scripts/task_perf_runner.sh (#1396): seven repetitions of a seeded workload is what its cv, its stability floor and its gate read, so the web-tier cells use the same figure instead of inventing a second one. warmup_requests is excluded from the measured samples but recorded as its own phase, because the first requests of a Django process pay for imports and query-plan warm-up that no later request pays. The peer endpoint is unrouted on purpose (#1032): it walks the whole middleware chain, answers 404 on an idle server, and therefore shows what a request which does no work of its own pays for its neighbours. concurrency 8 rather than the 16 of the #1617 reading, because this measurement is about the per-request cost of a detector, not about saturating gunicorn."
+  },
+  "arms": [
+    {
+      "name": "diagnostics-off",
+      "role": "reference",
+      "definition": "Nothing of the technical observability is enabled: no task profiler (#1389), no performance recorder (#1391), no exporter (#1392), no capacity telemetry (#1401). For the web-tier cells the arm additionally turns MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING off on the backend, which drops system.logging.middleware.LogSlowRequestsMiddleware out of the chain - that middleware is the legacy HTTP detector, and an honest 'diagnostics off' reading of the HTTP tier has to remove it rather than claim it is idle.",
+      "celery_env": {},
+      "needs_legacy_off_module": true,
+      "services": {
+        "backend": {
+          "environment": {
+            "MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING": "False"
+          }
+        }
+      }
+    },
+    {
+      "name": "legacy-shipped",
+      "role": "subject",
+      "definition": "The detector/profiler stack as it shipped, with its own documented defaults: the sampling profiler of #1389 on the four measured task families, the performance recorder of #1391, the capacity telemetry of #1401. The values are the settings.py defaults (sample rate 0.05, memory ceiling 128 MiB, memory sample 0.5 s) because a baseline which silently tuned the knobs would be measuring a configuration nobody runs. The HTTP tier boots with the shipped middleware chain, so LogSlowRequestsMiddleware and its slow-request dumps are part of this arm.",
+      "celery_env": {
+        "MRMAP_TASK_PROFILING": "on",
+        "MRMAP_TASK_PROFILING_TASKS": "registry.tasks.harvest.call_md_metadata_files_to_db,registry.tasks.harvest.call_fetch_total_records,registry.tasks.monitoring.run_probe_check,system.tasks.bound_task_attempt_samples",
+        "MRMAP_TASK_PERFORMANCE": "on",
+        "MRMAP_CAPACITY_TELEMETRY": "on"
+      },
+      "services": {},
+      "requires_sampler": true
+    }
+  ],
+  "cells": [
+    {
+      "name": "harvesting-import",
+      "kind": "celery",
+      "family": "harvesting.import_chunk",
+      "out_dir": "backend/observability-bench/worker",
+      "notes": "The bounded import chunk of #859/#895 over the backlog - the representative large-CSW-harvest work of the issue, since a harvest is this task repeated per page. Declared contract: 4 statements per unit, so its query-count column has something to be compared against.",
+      "workload": "synthetic md-metadata-file rows seeded by the bench class, seeded by --seed"
+    },
+    {
+      "name": "harvesting-fan-out",
+      "kind": "celery",
+      "family": "harvesting.fan_out",
+      "out_dir": "backend/observability-bench/worker",
+      "notes": "The catalogue round trip and the fan-out over the download queue - the half of a CSW harvest which talks to the remote and dispatches, where a duplicate remote call would first show up. Contract: 0 statements and 0 http calls per unit, so anything above the floor is the instrumentation's own work.",
+      "workload": "synthetic catalogue records, mocked remote"
+    },
+    {
+      "name": "monitoring-probe",
+      "kind": "celery",
+      "family": "monitoring.wms",
+      "out_dir": "backend/observability-bench/worker",
+      "notes": "The concurrent-task cell: probe checks are a fan-out over the monitoring queue, so queue wait matters as much as active time, and this is the family whose work is HTTP-bound (1 http call, 7 statements per unit). The issue's 'concurrent tasks' is read as a fan-out of a fan-out, measured rather than asserted.",
+      "workload": "synthetic GetMap probes against a mocked OGC client (patched-ogc-client-200)"
+    },
+    {
+      "name": "housekeeping",
+      "kind": "celery",
+      "family": "housekeeping.system",
+      "out_dir": "backend/observability-bench/worker",
+      "notes": "The retention sweeps - attempt retention, slow-request dump retention, capacity snapshot rebuild. It is in the protocol because one of the things it retains IS the storage the baseline measures: an arm which writes more dumps also makes this task do more work, and a baseline which omitted it would hide part of the cost of the shipped detectors.",
+      "workload": "synthetic attempt rows and dump files, seeded by --seed"
+    },
+    {
+      "name": "service-list",
+      "kind": "http",
+      "base_url": "http://127.0.0.1:8001",
+      "services": [
+        "backend",
+        "postgis",
+        "redis",
+        "victoria-logs"
+      ],
+      "endpoints": [
+        "/api/registry/keywords*3",
+        "/api/registry/wms*2",
+        "/api/registry/harvesting/harvesting-jobs*1"
+      ],
+      "media_service": "backend",
+      "media_paths": [
+        "/var/mrmap/backend/media/logs",
+        "/var/mrmap/backend/media/security_proxy/logs"
+      ],
+      "notes": "The service-list half of the issue's 'service lists/search': weighted unauthenticated list reads over keep-alive connections, the same endpoint mix and weighting the #1617 reading used, so the two are comparable. The media paths are the directories the shipped chain writes into: slow-request dumps and security-proxy analysis logs, counted before and after the phase."
+    },
+    {
+      "name": "proxy",
+      "kind": "http",
+      "base_url": "http://127.0.0.1:8001",
+      "services": [
+        "backend",
+        "postgis",
+        "redis",
+        "victoria-logs",
+        "mapserver"
+      ],
+      "endpoints": [
+        "/mrmap-proxy/wms/00000000-0000-0000-0000-000000000000*4",
+        "/api/registry/wms*1"
+      ],
+      "media_service": "backend",
+      "media_paths": [
+        "/var/mrmap/backend/media/security_proxy/logs"
+      ],
+      "notes": "The proxy half of the issue. The UUID is deliberately absent: what is measured is the middleware and proxy-decision cost of a request which the layer then refuses, not MapServer's rendering, and an absent service is a deterministic 4xx which no arm can win or lose by seeding data. The weighted 4:1 against a list read keeps the proxy path dominant while still exercising the chain the list cell measures."
+    },
+    {
+      "name": "service-list-ws",
+      "kind": "http",
+      "base_url": "http://127.0.0.1:8001",
+      "ws_base_url": "http://127.0.0.1:8002",
+      "services": [
+        "backend",
+        "postgis",
+        "redis",
+        "victoria-logs"
+      ],
+      "endpoints": [
+        "/api/registry/keywords*3",
+        "/api/registry/wms*2"
+      ],
+      "websocket_count": 25,
+      "websocket_hold_seconds": 75,
+      "media_service": "backend",
+      "media_paths": [
+        "/var/mrmap/backend/media/logs"
+      ],
+      "notes": "The concurrent-task shape of the web tier: 25 authenticated websockets held open for at least 75 s across the list load, which is #1617's 'no stuck websockets' acceptance expressed as a measured closed_early count rather than an assertion. knox caps live tokens per user at five (#1450), so this cell must reuse one token across arms - the tool fetches it once per run, which is why the credentials name one user."
+    }
+  ]
+}

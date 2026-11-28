@@ -239,6 +239,10 @@ services:
       GUNICORN_THREADS: ${GUNICORN_THREADS:-}
       GUNICORN_WS_WORKERS: ${GUNICORN_WS_WORKERS:-}
       MRMAP_LOW_MEMORY: ${MRMAP_LOW_MEMORY:-}
+      # the switch of the legacy slow-request detector (#1777); empty keeps the
+      # shipped chain, "False" drops LogSlowRequestsMiddleware from it, and the
+      # matched benchmark of #1777 reads its diagnostics-off web tier with it
+      MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING: "${MRMAP_OBSERVABILITY_SLOW_REQUEST_LOGGING:-}"
       GUNICORN_PRELOAD: ${GUNICORN_PRELOAD:-}
     env_file:
       - docker/backend/.mrmap.env

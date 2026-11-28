@@ -1,0 +1,89 @@
+{
+  "schema": "mrmap.observability-budgets.v1",
+  "issue": 1777,
+  "parent": 1775,
+  "inspected_on": "2026-11-27",
+  "reference_arm": "diagnostics-off",
+  "meaning": "The total-stack budgets of the observability chain, stated the only way a budget can be stated without becoming a flaky CI timing gate: as a ceiling on the RATIO of an arm against the diagnostics-off reference of the same workload cell on the same host. An absolute wall-clock figure would be a property of the machine, and a gate on it fails on a busy runner rather than on a regression, which is what the issue forbids ('no flaky CI timing gate'). These numbers are therefore a REVIEW instrument - `scripts/observability_bench.py baseline` prints the verdicts and `verify` refuses a run which exceeds them - and not a pull-request check: nothing in .github/workflows reads this file, and it must stay that way until a comparison against the OTel arms of #1780 says the ceiling is the right one. max_ratio 1.25 on a latency means the arm may cost at most a quarter more than the same work with diagnostics off; the figure comes from the stability floor of #1395 (a cv above 0.10 makes an arm unreviewable), which leaves two such deviations inside the ceiling and three outside it.",
+  "budgets": [
+    {
+      "cell": "harvesting-import",
+      "metric": "runtime.harvesting.import_chunk/typical.active_p95",
+      "max_ratio": 1.25,
+      "why": "The profiler of #1389 runs inside the task body, so its cost belongs to active time; a quarter is the point at which the sampling overhead stops being a rounding error in the family's own gate."
+    },
+    {
+      "cell": "harvesting-import",
+      "metric": "runtime.harvesting.import_chunk/typical.active_cv",
+      "max_ratio": 2.0,
+      "why": "Variability, not speed: the sampling profiler and the capacity collector of #1401 both take their own samples, and a detector which makes an arm's cv twice the reference's cv destroys the measurement it is attached to. The 0.10 floor of #1395 is the absolute version of this."
+    },
+    {
+      "cell": "harvesting-fan-out",
+      "metric": "runtime.harvesting.fan_out/typical.active_p95",
+      "max_ratio": 1.25,
+      "why": "This family's unit does one catalogue round trip and dispatches; the recorder of #1391 writes rows about it, so the ceiling is the same 25% and the reading is worth more here because the family declares 0 statements per unit - everything above the floor is the instrumentation."
+    },
+    {
+      "cell": "harvesting-fan-out",
+      "metric": "runtime.harvesting.fan_out/typical.sql_statements_max",
+      "max_ratio": 2.0,
+      "why": "The performance recorder persists attempt rows; the contract declares zero statements per unit, so the ratio has a floor to be measured against. A doubling is the point at which the recorder's own writes dominate the work it records."
+    },
+    {
+      "cell": "monitoring-probe",
+      "metric": "runtime.monitoring.wms/typical.active_p95",
+      "max_ratio": 1.25,
+      "why": "The probe is HTTP-bound and its declared contract is 1 http call and 7 statements per unit; the profiler samples around exactly that, so this cell is the most sensitive read of what sampling costs."
+    },
+    {
+      "cell": "monitoring-probe",
+      "metric": "runtime.monitoring.wms/typical.end_to_end_p95",
+      "max_ratio": 1.25,
+      "why": "The fan-out waits on the monitoring queue, and a worker which pays for instrumentation holds its slot longer, so queue-side delay is where a per-task collector shows up first."
+    },
+    {
+      "cell": "housekeeping",
+      "metric": "runtime.housekeeping.system/typical.active_p95",
+      "max_ratio": 1.25,
+      "why": "The retention sweeps are the chain's own janitor: it has to keep up with what the detectors write, and a sweep which slows down is the beginning of unbounded dumps."
+    },
+    {
+      "cell": "service-list",
+      "metric": "http.load.p95_ms",
+      "max_ratio": 1.35,
+      "why": "The wider ceiling than the task cells is deliberate: the legacy HTTP detector wraps EVERY request in a connection.execute_wrapper and copies every statement with its parameters, and a list read runs many statements. Removing that capture is the reference arm's whole HTTP-side difference, so this is the number #1780 is judged against."
+    },
+    {
+      "cell": "service-list",
+      "metric": "http.load.rps",
+      "max_ratio": 1.0,
+      "why": "Throughput is inverse-cost: the arm may deliver at most the reference's rps scaled by 1.0 means 'no worse than', and judge() computes after/base, so a ratio at or below 1.0 says the detector did not cost throughput. Anything above 1.0 means the arm served more per second than the same work without diagnostics, which is not a pass but a signal that the two arms were not comparable."
+    },
+    {
+      "cell": "service-list",
+      "metric": "http.load.peer_p95_ms",
+      "max_ratio": 1.5,
+      "why": "#1032's neighbour measure: a request which does no work of its own must not pay for what its neighbours' detectors do. It is the most tolerant ceiling in the file because the peer is a single unrouted 404 and its own latency floor is a third of the reading."
+    },
+    {
+      "cell": "service-list",
+      "metric": "memory.load.stack_committed_peak_bytes",
+      "max_ratio": 1.15,
+      "why": "The stack-wide committed peak of the compose project, from the kernel's memory accounting: the memory of the collector, its buffers and its rows is charged to the stack, and 15% of the same stack doing the same work is the ceiling for taking on a diagnostics layer. It is a stack budget, which is what the issue asks for - not a per-process figure a single worker could hide behind."
+    },
+    {
+      "cell": "proxy",
+      "metric": "http.load.p95_ms",
+      "max_ratio": 1.35,
+      "why": "The proxy path is where the security-proxy log analysis and the slow-request dumps live, so it gets the same wider-than-task ceiling as the list read and for the same reason."
+    },
+    {
+      "cell": "proxy",
+      "metric": "memory.load.stack_committed_peak_bytes",
+      "max_ratio": 1.15,
+      "why": "Same stack budget on the proxy workload, because the proxy's logging shape (per-request analysis, per-analysis rows) is the one most likely to grow with traffic rather than with request cost."
+    }
+  ],
+  "storage_note": "Storage gets no ratio: a ratio against zero is meaningless, and a diagnostic which wrote nothing in the reference arm has no denominator. The baseline records the absolute delta of the media directories per cell (kilobytes and file counts, inventoried inside the container before and after the phase) and the review asks the human question instead - is what the shipped chain writes per 2100 requests bounded by the retention of system.tasks.delete_old_slow_request_dumps? That is why housekeeping is one of the measured cells."
+}

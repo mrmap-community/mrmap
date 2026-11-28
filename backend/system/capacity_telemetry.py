@@ -350,13 +350,17 @@ def _note_skipped_fire(task, task_id, attempt_no):
             started_at=timezone.now(),
             mono_start=time.monotonic(),
         )
+        # the observation of the skip only exists once it rides the buffer:
+        # an entry which is built and never put there is the lost trace this
+        # branch exists to prevent (#1827)
+        _buffer[key] = entry
     entry.skipped = True
     entry.outcome = AttemptOutcome.SKIPPED.value
     _enforce_buffer_limit()
     _flush_if_due()
 
 
-@task_skipped.connect(weak=False)
+@task_skipped.connect
 def note_skipped_fire(sender=None, task_id=None, attempt_no=0, **kwargs):
     """The receiver of the singleton skip seam (#1827).
 

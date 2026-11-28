@@ -1135,6 +1135,42 @@ def publish_verdicts(verdicts):
     return lines
 
 
+def _cadence_resolves(code, cadence_live):
+    """Whether one standing cadence incident's own reading released it.
+
+    ``cadence_live`` is the set of cadence codes the fire still reads
+    unreachable, or ``None`` when the fire could not make the read at all:
+    without the reading nothing moves, because an unread schedule is not a
+    reachable one (#1390's blindness rule).
+    """
+    if cadence_live is None:
+        return False
+    return code not in cadence_live
+
+
+def resolve_cadence_verdicts(cadence_live, at):
+    """Close the standing cadence incidents of #1827 whose row reads reachable.
+
+    Apart from :func:`resolve_verdicts` because the cadence reading runs even
+    with the slow-task detection switched off: a fire which can prove a
+    schedule reachable must not leave its incident standing until somebody
+    switches the detector back on - while a fire without any class, coverage or
+    worker reading must resolve nothing else.
+    """
+    from notify.enums import IncidentStatusEnum
+    from notify.models import OperationalIncident
+
+    standing = OperationalIncident.objects.filter(
+        code__startswith=CODE_SCHEDULE_OVERRUN,
+        status=IncidentStatusEnum.ACTIVE.value)
+    resolved = 0
+    for incident in list(standing):
+        if _cadence_resolves(incident.code, cadence_live):
+            resolved += OperationalIncident.objects.resolve(
+                incident.dedup_key, at=at)
+    return resolved
+
+
 def _coverage_code_family(code):
     """The coverage code a standing incident belongs to, or None.
 
@@ -1222,7 +1258,8 @@ def _open_attempt_moved_on(row, at, grace, hosts):
     return hosts is not None and _hostname(row["worker"]) in hosts
 
 
-def _resolves_standing(incident, classes, gone_attempts, live_codes):
+def _resolves_standing(incident, classes, gone_attempts, live_codes,
+                       cadence_live=None):
     """Whether one standing incident's evidence moved on (#1390).
 
     Each condition resolves on the answer of its OWN judge: a class which
@@ -1243,7 +1280,7 @@ def _resolves_standing(incident, classes, gone_attempts, live_codes):
         # gone from the live schedules) closes it. Deliberately NOT the class
         # entry below: a schedule can be perfectly healthy as a task class and
         # still be unreachable as a cadence, and vice versa.
-        return code not in live_codes
+        return _cadence_resolves(code, cadence_live)
     task_name = evidence.get("task_name")
     if not task_name:
         return False
@@ -1271,7 +1308,7 @@ def _resolution_field(code):
 
 
 def resolve_verdicts(classes, confirmed, coverage, at, hosts=None,
-                     reachability=()):
+                     cadence_live=None):
     """Resolve this module's standing incidents whose evidence moved on.
 
     Every direction is evidence-side, never a timeout guess and never the
@@ -1289,7 +1326,9 @@ def resolve_verdicts(classes, confirmed, coverage, at, hosts=None,
     *   a schedule-overrun incident (#1827) resolves when the same beat row
         reads reachable again - the operator widened the interval, or the run
         got cheaper - or when its beat row is gone from the live schedules
-        altogether.
+        altogether. ``cadence_live`` is the set of cadence codes the fire
+        still reads unreachable and ``None`` when it could not make the read:
+        an unread schedule resolves nothing.
 
     All of it runs over #1319's ``resolve``: one conditional update per key,
     idempotent, the single ACTIVE -> RESOLVED transition, so a fire which
@@ -1303,14 +1342,14 @@ def resolve_verdicts(classes, confirmed, coverage, at, hosts=None,
     confirmed_attempts = {(item["task_id"], item.get("attempt_no"))
                           for item in confirmed}
     live_codes = {item.get("code") for item in coverage}
-    live_codes |= {item.get("code") for item in reachability}
     standing = list(OperationalIncident.objects.filter(
         code__startswith=OWNED_CODE_PREFIX,
         status=IncidentStatusEnum.ACTIVE.value))
     gone = _long_running_gone(standing, confirmed_attempts, hosts, at)
     resolved = 0
     for incident in standing:
-        if _resolves_standing(incident, classes, gone, live_codes):
+        if _resolves_standing(incident, classes, gone, live_codes,
+                              cadence_live):
             resolved += OperationalIncident.objects.resolve(
                 incident.dedup_key, at=at)
     return resolved
@@ -1534,6 +1573,10 @@ def evaluate_task_performance(at=None, publish=True):
     at = at or now()
     detection = detection_enabled()
     window, baseline_window = _class_windows(at)
+    # None answers "this fire could not read any cadence" - the difference
+    # between an unread schedule and a reachable one is what keeps a standing
+    # cadence incident open through an outage of the collector (#1390)
+    cadence_live = None
     try:
         # the reachability read of #1827 runs even with the slow-task
         # detection switched off - see evaluate_reachability for why the two
@@ -1545,11 +1588,18 @@ def evaluate_task_performance(at=None, publish=True):
             "task performance (#1390): the reachability read could not be "
             "made (%s); this fire says nothing about cadences.", error)
         reachability = []
+    else:
+        cadence_live = {item.get("code") for item in reachability}
     if not detection:
         verdicts = list(reachability)
         published = publish_verdicts(_actionable(verdicts)) if publish else []
+        # the cadence reading ran, so its recovery runs too: an operator who
+        # widened the interval while the detector was off must not have to
+        # switch the detector on to close the incident
+        resolved = (resolve_cadence_verdicts(cadence_live, at)
+                    if publish else 0)
         return {"status": "disabled", "verdicts": verdicts,
-                "published": published, "resolved": 0, "classes": 0,
+                "published": published, "resolved": resolved, "classes": 0,
                 "truncated": False, "unknown": ["detection_disabled"],
                 "unreachable_schedules": len(reachability)}
     try:
@@ -1590,7 +1640,7 @@ def evaluate_task_performance(at=None, publish=True):
         resolved = resolve_verdicts(
             classes, confirmed, coverage, at,
             hosts=_answered_hosts(answers) if answers is not None else None,
-            reachability=reachability)
+            cadence_live=cadence_live)
 
     if published or resolved or suspicions:
         logger.info(

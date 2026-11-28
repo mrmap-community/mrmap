@@ -174,7 +174,7 @@ class SingletonTaskTest(TestCase):
                 task.pop_request()
 
         task_skipped.connect(record, weak=False)
-        self.addCleanup(task_skipped.disconnect, record, weak=False)
+        self.addCleanup(task_skipped.disconnect, record)
         try:
             with self.assertLogs(settings.ROOT_LOGGER, level='INFO'):
                 second = fire_dropped('dropped-fire')
@@ -182,7 +182,13 @@ class SingletonTaskTest(TestCase):
             self.assertEqual(len(announced), 1,
                              'the dropped fire was not announced once')
             sender, task_id, _ = announced[0]
-            self.assertIs(sender, task, 'the announcement names no task')
+            # the celery task object of a non-current app is a proxy, so the
+            # run announces itself through the instance behind it and identity
+            # is not the question here - naming the locked schedule is
+            self.assertIsInstance(sender, SingletonTask,
+                                  'the announcement names no task')
+            self.assertEqual(sender.name, task.name,
+                             'the announcement names the wrong task')
             self.assertEqual(task_id, 'dropped-fire',
                              'the announcement names no fire')
 
@@ -196,7 +202,7 @@ class SingletonTaskTest(TestCase):
                 with self.assertLogs(settings.ROOT_LOGGER, level='INFO'):
                     self.assertIn('skipped', fire_dropped('still-skipped'))
             finally:
-                task_skipped.disconnect(broken, weak=False)
+                task_skipped.disconnect(broken)
         finally:
             task.release.set()
             first.join(TIMEOUT)

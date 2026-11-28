@@ -179,9 +179,20 @@ ones become incidents through ``notify.incident_reporting``:
 
 - codes start with ``taskperf_`` and hold their own namespace beside the
   operation and watchdog families of #1320: ``taskperf_completed_slow``,
-  ``taskperf_regression``, ``taskperf_long_running`` and the three coverage
+  ``taskperf_regression``, ``taskperf_long_running``, the three coverage
   codes ``taskperf_coverage_unstamped``, ``taskperf_coverage_stale_open``,
-  ``taskperf_coverage_disabled``;
+  ``taskperf_coverage_disabled`` and the cadence code
+  ``taskperf_schedule_overrun`` (#1827);
+- the cadence reading of #1827 is the one condition which runs even with
+  ``MRMAP_TASK_PERFORMANCE`` switched off: a beat schedule whose run does not
+  fit its own interval is refused by the singleton lock and measures nothing,
+  so it is invisible to every duration read and no other way of noticing it
+  exists. Its numbers come from the same reachability read the capacity
+  snapshot answers its schedule panel from (see
+  ``capacity-snapshot.rst``), so a schedule is never *reachable* in one screen
+  and an incident in another. Its summary names the measured p95, the interval
+  the row fires on, the dropped fires and, when the attempts of the window
+  allow it, the share of fires the lock refused.
 - a verdict which names a ``BackgroundProcess`` publishes through
   ``publish_watchdog_verdict``, so its dedup key is
   ``<code>|<resource model>|<pk>`` and a slow harvest of one service is that
@@ -208,6 +219,13 @@ terminal transition. Resolution is evidence-side, not time-side:
   which includes the honest case of the samples running out: a verdict
   whose evidence cannot be re-made is not evidence;
 - ``coverage`` resolves when the telemetry reads complete again;
+- ``schedule_overrun`` (#1827) resolves when the same beat row reads reachable
+  again - the operator widened the interval or the run got cheaper - or when
+  its row is gone from the live schedules. The reading which publishes it runs
+  with the detector switched off, so its recovery runs there too: widening the
+  interval must not require ``MRMAP_TASK_PERFORMANCE`` to be on before the
+  incident closes. A fire whose reachability read itself failed resolves
+  nothing of the family - an unread schedule is not a reachable one;
 - every condition resolves when its evidence ages out of the window
   (``TASK_PERFORMANCE_STALE_AFTER_HOURS``) so a fixed problem cannot leave
   an incident standing forever;

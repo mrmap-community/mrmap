@@ -251,14 +251,18 @@ class ReachabilityReadTests(TestCase):
     @override_settings(**UNCAPPED)
     def test_too_few_samples_answer_unknown_not_fast(self):
         # a schedule which only just started being measured is not a schedule
-        # whose cadence was proven - and definitely not a reachable one
+        # whose cadence was proven: the raw reading travels with the answer,
+        # but the verdict is unknown and the detector must not act on it
         beat()
         seed_run(4, active=43.0)
         entry = self.sample(self.reachability())
         self.assertEqual(entry["verdict"], "unknown")
         self.assertEqual(entry["samples"], 4)
         self.assertEqual(entry["min_samples"], 5)
-        self.assertIsNone(entry["overrun_ratio"])
+        self.assertGreater(entry["overrun_ratio"], 1.0)
+        self.assertEqual(evaluate_reachability(
+            timezone.now() - timedelta(hours=6), timezone.now(),
+            timezone.now()), [])
 
     @override_settings(**UNCAPPED)
     def test_nothing_measured_answers_unknown_never_reachable(self):
@@ -313,6 +317,16 @@ class ReachabilityDetectorTests(TestCase):
                 getattr(control, name).return_value = None
             return evaluate_task_performance()
 
+    def published_code(self, summary):
+        """The published lines naming this schedule's code, if any.
+
+        A line of the summary is the incident's dedup key plus its state, so
+        the code is its prefix; matching the whole line would tie this test to
+        the dedup format of #1319.
+        """
+        return [line for line in summary["published"]
+                if line.startswith(self.code())]
+
     @override_settings(**UNCAPPED)
     def test_unreachable_schedule_publishes_the_overrun_incident(self):
         beat()
@@ -338,7 +352,7 @@ class ReachabilityDetectorTests(TestCase):
         seed_run(6, active=43.0)
         seed_skipped(6)
         summary = self.fire()
-        self.assertIn(self.code(), summary["published"])
+        self.assertEqual(len(self.published_code(summary)), 1)
         incident = OperationalIncident.objects.get(code=self.code())
         self.assertEqual(incident.status, IncidentStatusEnum.ACTIVE.value)
         self.assertEqual(incident.details["periodic_name"], BEAT)
@@ -365,7 +379,7 @@ class ReachabilityDetectorTests(TestCase):
         seed_run(6, active=43.0)
         summary = self.fire()
         self.assertEqual(summary["status"], "disabled")
-        self.assertIn(self.code(), summary["published"])
+        self.assertEqual(len(self.published_code(summary)), 1)
         self.assertEqual(OperationalIncident.objects.filter(
             code=self.code()).count(), 1)
 
@@ -377,6 +391,44 @@ class ReachabilityDetectorTests(TestCase):
         self.assertEqual(evaluate_reachability(
             timezone.now() - timedelta(hours=6), timezone.now(),
             timezone.now()), [])
+
+    @override_settings(**UNCAPPED, TASK_PERFORMANCE_ENABLED=False)
+    def test_detection_off_still_closes_a_recovered_cadence_incident(self):
+        # the reading which published the incident runs with the detector off,
+        # so its recovery has to run there too: an operator who widened the
+        # interval must not have to switch the detector back on to close it
+        rows = beat()
+        seed_run(6, active=43.0)
+        self.fire()
+        self.assertEqual(OperationalIncident.objects.filter(
+            code=self.code(),
+            status=IncidentStatusEnum.ACTIVE.value).count(), 1)
+        rows.interval = interval(every=120)
+        rows.save()
+        summary = self.fire()
+        self.assertEqual(summary["status"], "disabled")
+        self.assertGreaterEqual(summary["resolved"], 1)
+        self.assertEqual(OperationalIncident.objects.filter(
+            code=self.code(),
+            status=IncidentStatusEnum.ACTIVE.value).count(), 0)
+
+    @override_settings(**UNCAPPED)
+    def test_an_unreadable_cadence_reading_resolves_nothing(self):
+        # blindness is not recovery: while the reachability read itself fails,
+        # a standing incident of the family stays exactly where it is
+        beat()
+        seed_run(6, active=43.0)
+        self.fire()
+        self.assertEqual(OperationalIncident.objects.filter(
+            code=self.code(),
+            status=IncidentStatusEnum.ACTIVE.value).count(), 1)
+        with patch("system.capacity_demand.schedule_reachability",
+                   side_effect=RuntimeError("collector down")):
+            summary = self.fire()
+        self.assertEqual(summary["resolved"], 0)
+        self.assertEqual(OperationalIncident.objects.filter(
+            code=self.code(),
+            status=IncidentStatusEnum.ACTIVE.value).count(), 1)
 
 
 class CapacitySnapshotReachabilityTests(TestCase):

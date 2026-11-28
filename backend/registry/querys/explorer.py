@@ -245,13 +245,12 @@ def harvest_counts_requested(request, resource: str,
     Returns:
         dict: the counters to answer, keyed as the attributes are named
     """
-    fields = [field.strip() for field in request.GET.get(
-        f'fields[{resource}]', '').split(',') if field.strip()]
-    if not fields:
-        # only the detail of a resource answers the attributes nobody named
+    fields = request.GET.get(f'fields[{resource}]')
+    if fields is None:
+        # no sparse fieldset for the resource: only the detail answers the
+        # attributes nobody named, as `answers_allowed_actions()` of #738 does
         return dict.fromkeys(HARVEST_COUNT_ATTRIBUTES, not list_view)
-    asked = {name for attribute in HARVEST_COUNT_ATTRIBUTES
-             for name in (attribute, to_camel(attribute)) if name in fields}
+    asked = {name.strip() for name in fields.split(',') if name.strip()}
     if not asked:
         return dict.fromkeys(HARVEST_COUNT_ATTRIBUTES, False)
     # the total is the sum of the two partial counters, so a request which names
@@ -278,15 +277,24 @@ class ServiceExplorerMixin:
         return ('extent' in fields,
                 'element_count' in fields or 'elementCount' in fields)
 
+    def _harvest_counts_of(self, model, page) -> dict:
+        """Which counters of the harvesting the request wants from the page.
+
+        ``list_view`` asks whether the response answers a list of catalogues: the
+        nested list of the catalogues behind a metadata record is not a catalogue
+        list of its own, even though the outer view answers a list.
+        """
+        return harvest_counts_requested(
+            self.request, model.__name__,
+            list_view=getattr(self, 'action', None) == 'list'
+            and any(isinstance(service, CatalogueService) for service in page))
+
     def with_service_aggregates(self, services, model):
         extent, element_count = self._explorer_requested(model)
         return service_aggregates(
             services, model=model, extent=extent, element_count=element_count,
-            harvest_counts=(
-                harvest_counts_requested(
-                    self.request, model.__name__,
-                    list_view=getattr(self, 'action', None) == 'list')
-                if model is CatalogueService else None))
+            harvest_counts=(self._harvest_counts_of(model, services)
+                            if model is CatalogueService else None))
 
     def paginate_queryset(self, queryset, *args, **kwargs):
         page = super().paginate_queryset(queryset, *args, **kwargs)

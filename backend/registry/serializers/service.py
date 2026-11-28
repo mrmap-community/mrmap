@@ -1308,11 +1308,15 @@ class CatalogueServiceSerializer(
         asks nothing of them the most expensive variant of the route (#1826).
         """
         view = self.context.get('view')
-        if view is None:
+        request = self.context.get('request') or getattr(view, 'request', None)
+        if request is None:
             return False
+        # the counters belong to a catalogue; a nested serialization of a
+        # catalogue behind a record is not a list of catalogues
         return any(harvest_counts_requested(
-            view.request, self.Meta.model.__name__,
-            list_view=getattr(view, 'action', None) == 'list').values())
+            request, self.Meta.model.__name__,
+            list_view=getattr(view, 'action', None) == 'list'
+            and self.Meta.model is CatalogueService).values())
 
     def to_representation(self, instance):
         result = super().to_representation(instance)

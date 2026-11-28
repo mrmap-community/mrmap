@@ -171,8 +171,13 @@ def service_aggregates(services, model=None, extent=True, element_count=True,
     # the same rows, so they share one grouped read over both kinds of record
     per_kind = (catalogue_record_counts([service.pk for service in services])
                 if catalogue and (element_count or requested) else {})
-    if extent or (element_count and not catalogue):
-        extents, counts = _aggregates_map(services, model, extent, element_count)
+    # the number of the records of a catalogue comes from
+    # `catalogue_record_counts()`, never from the statement of its coverage: the
+    # coverage aggregation reads geometries and must stay free of the count,
+    # which is pinned by the tests of #1031
+    coverage_count = element_count and not catalogue
+    if extent or coverage_count:
+        extents, counts = _aggregates_map(services, model, extent, coverage_count)
     else:
         extents, counts = {}, {}
     for service in services:

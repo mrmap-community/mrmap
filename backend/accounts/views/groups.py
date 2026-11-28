@@ -1,8 +1,12 @@
 from accounts.filters.groups import OrganizationFilterSet
 from accounts.models.groups import Organization
+from accounts.models.users import User
+from accounts.permissions import may_see_groups_of
 from accounts.serializers.groups import GroupSerializer, OrganizationSerializer
 from django.contrib.auth.models import Group
+from django.core.exceptions import PermissionDenied
 from django.db.models import F
+from django.utils.translation import gettext_lazy as _
 from extras.viewsets import NestedModelViewSet
 from rest_framework.permissions import DjangoObjectPermissions
 from rest_framework_json_api.views import ModelViewSet
@@ -27,8 +31,21 @@ class GroupViewSetMixin:
     def get_queryset(self):
         queryset = super(GroupViewSetMixin, self).get_queryset()
         if "parent_lookup_user" in self.kwargs:
-            queryset = queryset.filter(
-                user__id=self.kwargs["parent_lookup_user"])
+            # whose groups are asked decides the answer, with the very
+            # authorities of the roles route beside it: the group of a role
+            # *is* the statement that this person holds that role, which
+            # #727's Q3 puts behind the organization (#1807)
+            target = User.objects.filter(
+                pk=self.kwargs["parent_lookup_user"]).first()
+            if target is None:
+                raise PermissionDenied(_(
+                    "The groups of another user are only visible to a "
+                    "colleague of an organization they belong to."))
+            if not may_see_groups_of(self.request.user, target):
+                raise PermissionDenied(_(
+                    "The groups of another user are only visible to a "
+                    "colleague of an organization they belong to."))
+            queryset = queryset.filter(user__id=target.pk)
         return queryset
 
 

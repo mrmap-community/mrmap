@@ -246,6 +246,17 @@ see: the resource endpoints of `backend/registry/views/service.py` query
   (`accounts/filters/groups.py`), which uses `accept_global_perms=False` and so ignores a
   global permission.
 
+The two resources which answer *people* are the documented exception, because a row of them is
+a person and not a service: `GET /api/accounts/users` and `GET /api/accounts/groups` answer an
+authenticated caller only the accounts and the groups of the organizations it belongs to or
+administers, and of those accounts only what a picker needs (`username`,
+`stringRepresentation`). `email`, `isStaff`, `isSuperuser`, `lastLogin`, `dateJoined`,
+`settings` and the confirmation flags travel with `accounts.view_user`, and the members of a
+group with `auth.view_group` — the catalogue of #727 decides both, and it names
+`accounts.view_user` for `platform_admin` and `support` and `auth.view_group` for nobody out of
+the box. See `backend/accounts/permissions.py` for the rule and
+`backend/tests/django/accounts/test_account_read_scope.py` for its answers.
+
 The per-user view of a single object travels in the payload instead:
 `extras.serializers.ObjectPermissionCheckerSerializer` answers `allowedActions`, the actions
 the requesting user may take on that object as one answer of the permission facade

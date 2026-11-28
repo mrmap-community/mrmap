@@ -1,5 +1,7 @@
 from accounts.models.roles import Role
 from accounts.models.users import User
+from accounts.permissions import (account_fields, may_see_groups_of,
+                                  may_see_roles_of)
 from accounts.serializers.groups import GroupSerializer
 from accounts.serializers.roles import RoleSerializer
 from django.contrib.auth import password_validation
@@ -7,7 +9,8 @@ from django.contrib.auth.models import Group
 from django.utils.translation import gettext_lazy as _
 from extras.serializers import (StringRepresentationSerializer,
                                 SystemInfoSerializerMixin)
-from rest_framework.relations import HyperlinkedIdentityField, PrimaryKeyRelatedField
+from rest_framework.relations import (HyperlinkedIdentityField,
+                                      PrimaryKeyRelatedField)
 from rest_framework_json_api.relations import (ResourceRelatedField,
                                                SerializerMethodResourceRelatedField)
 from rest_framework_json_api.serializers import (ModelSerializer, Serializer)
@@ -22,13 +25,18 @@ class UserSerializer(
         view_name='accounts:user-detail',
     )
 
-    groups = ResourceRelatedField(
+    # which groups a person is in states which roles they hold, so the
+    # relation is answered with the same authorities as the roles below and
+    # not with the reach of the session (#1807)
+    groups = SerializerMethodResourceRelatedField(
         label=_("groups"),
         help_text=_("groups where this user is member of"),
+        model=Group,
+        method_name="get_groups",
         many=True,
+        read_only=True,
         related_link_view_name='accounts:user-groups-list',
         related_link_url_kwarg='parent_lookup_user',
-        queryset=Group.objects
     )
 
     # the roles this user holds (#736): who-am-i answers them, so a client
@@ -56,8 +64,63 @@ class UserSerializer(
         model = User
         exclude = ("password", )
 
+    def _request(self):
+        return self.context.get("request")
+
+    def get_groups(self, user):
+        request = self._request()
+        if request is not None and not may_see_groups_of(request.user, user):
+            return Group.objects.none()
+        return user.groups.all()
+
     def get_roles(self, user):
+        # which roles a person holds is the statement of #727's Q3, which
+        # ``/users/{id}/roles`` answers with these very authorities (#1807)
+        request = self._request()
+        if request is not None and not may_see_roles_of(request.user, user):
+            return Role.objects.none()
         return Role.objects.filter(memberships__user=user).distinct()
+
+    #: the keys which survive the field filter because their own answer is
+    #: guarded: ``url`` and ``id`` are the resource identifier a relation needs,
+    #: ``groups`` and ``roles`` are answered by :meth:`get_groups` and
+    #: :meth:`get_roles`. Everything else - above all ``userPermissions``, the
+    #: direct grants #741 moved to ``/api/accounts/effective-permissions`` -
+    #: belongs to the field surface below.
+    RELATIONSHIP_FIELDS = ("url", "id", "groups", "roles")
+
+    def to_representation(self, instance):
+        """Answer of a person only what the caller may read (#1807).
+
+        The guard of the viewset decides *whether* a row is answered; this is
+        the half which decides *what of it*, so the address of a person, the
+        fact that they are a superuser and the time of their last login cannot
+        travel with a session: they are answered to the reader named by
+        :func:`accounts.permissions.account_fields` and to nobody else. The
+        guard alone would be enough for the two routes of the users endpoint -
+        this is what holds the same line on the answers of every *other*
+        resource which embeds a person: ``createdBy`` and ``lastModifiedBy``
+        of #738, ``historyUser`` of the changelogs of #741, the members of an
+        organization.
+        """
+        request = self._request()
+        if request is None:
+            # no caller to judge: the answer is produced by a process which is
+            # trusted to be able to read the model in the first place - a
+            # management command, a mail template, the schema run. The guard
+            # protects an *answer to a request*, and it fails closed for the
+            # anonymous user of one, not by accident for a caller-less call
+            return super().to_representation(instance)
+        answered = super().to_representation(instance)
+        allowed = account_fields(
+            getattr(request, "user", None), instance, request)
+        if allowed is None:
+            return answered
+        # the keys of this answer are still the names of python; the renderer
+        # is what turns them into the names of the api
+        allowed = set(allowed) | set(self.RELATIONSHIP_FIELDS)
+        return {name: value for name, value in answered.items()
+                if name in allowed}
 
 
 class OrganizationMemberAddSerializer(Serializer):

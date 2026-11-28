@@ -37,9 +37,12 @@ HARVESTED_THROUGH = 'harvested_through'
 HARVEST_COUNT_ATTRIBUTES = ('harvested_dataset_count', 'harvested_service_count',
                             'harvested_total_count')
 
+#: the kinds of record a harvesting pulls into the registry, in the order of
+#: the two partial counters which answer their number
+HARVEST_KINDS = ('dataset', 'service')
+
 #: the counter of each kind of record a harvesting pulls into the registry
-HARVEST_COUNT_OF_KIND = (('harvested_dataset_count', 'dataset'),
-                         ('harvested_service_count', 'service'))
+HARVEST_COUNT_OF_KIND = tuple(zip(HARVEST_COUNT_ATTRIBUTES[:2], HARVEST_KINDS))
 
 
 def service_elements(model):
@@ -50,7 +53,7 @@ def service_elements(model):
     return FeatureType.objects.all(), 'bbox_lat_lon'
 
 
-def catalogue_record_counts(ids) -> dict:
+def catalogue_record_counts(ids, kinds=None) -> dict:
     """Count the records which a harvesting pulled for each given catalogue.
 
     The records of a catalogue reach it over the many to many relation of the
@@ -66,6 +69,8 @@ def catalogue_record_counts(ids) -> dict:
 
     Args:
         ids: the identifiers of the catalogues to count records for
+        kinds (dict): which kinds to read, as `harvest_kinds_to_read()` answers
+            them; every kind is read when omitted
 
     Returns:
         dict: the number of records per kind and catalogue, a kind being
@@ -79,7 +84,8 @@ def catalogue_record_counts(ids) -> dict:
             .values(HARVESTED_THROUGH)
             .annotate(count=Count('pk'))
             .values_list(HARVESTED_THROUGH, 'count'))
-        for model, kind in zip(CATALOGUE_RECORD_MODELS, ('dataset', 'service'))}
+        for model, kind in zip(CATALOGUE_RECORD_MODELS, HARVEST_KINDS)
+        if kinds is None or kinds.get(kind)}
 
 
 def _merge(rows, extents, counts, service_key):
@@ -166,11 +172,15 @@ def service_aggregates(services, model=None, extent=True, element_count=True,
     model = model or services[0].__class__
     harvest_counts = harvest_counts or {}
     catalogue = model is CatalogueService
-    requested = [name for name in HARVEST_COUNT_ATTRIBUTES if harvest_counts.get(name)]
+    # the element count of a catalogue is the number of all its records, so it
+    # needs both kinds; a counter of the harvesting needs only its own kind
+    needed = harvest_kinds_to_read(harvest_counts) if catalogue else {}
+    kinds = {kind: element_count or needed.get(kind, False)
+             for kind in HARVEST_KINDS}
     # the element count of a catalogue and the counters of its harvesting count
     # the same rows, so they share one grouped read over both kinds of record
-    per_kind = (catalogue_record_counts([service.pk for service in services])
-                if catalogue and (element_count or requested) else {})
+    per_kind = (catalogue_record_counts([service.pk for service in services], kinds)
+                if catalogue and any(kinds.values()) else {})
     # the number of the records of a catalogue comes from
     # `catalogue_record_counts()`, never from the statement of its coverage: the
     # coverage aggregation reads geometries and must stay free of the count,
@@ -187,14 +197,13 @@ def service_aggregates(services, model=None, extent=True, element_count=True,
             service.element_count = (
                 sum(kind.get(service.pk, 0) for kind in per_kind.values())
                 if catalogue else counts.get(service.pk, 0))
-        if requested:
-            for name, kind in HARVEST_COUNT_OF_KIND:
-                number = per_kind.get(kind, {}).get(service.pk, 0)
-                if harvest_counts.get(name):
-                    setattr(service, name, number)
+        if any(harvest_counts.values()):
             if harvest_counts.get('harvested_total_count'):
                 service.harvested_total_count = sum(
                     kind.get(service.pk, 0) for kind in per_kind.values())
+            for name, kind in HARVEST_COUNT_OF_KIND:
+                if harvest_counts.get(name):
+                    setattr(service, name, per_kind.get(kind, {}).get(service.pk, 0))
     return services
 
 
@@ -251,14 +260,23 @@ def harvest_counts_requested(request, resource: str,
         # attributes nobody named, as `answers_allowed_actions()` of #738 does
         return dict.fromkeys(HARVEST_COUNT_ATTRIBUTES, not list_view)
     asked = {name.strip() for name in fields.split(',') if name.strip()}
-    if not asked:
-        return dict.fromkeys(HARVEST_COUNT_ATTRIBUTES, False)
-    # the total is the sum of the two partial counters, so a request which names
-    # the total reads both kinds of record, whether or not it names them
-    total = bool(asked & {'harvested_total_count', to_camel('harvested_total_count')})
     return {
-        attribute: total or bool(asked & {attribute, to_camel(attribute)})
+        attribute: bool(asked & {attribute, to_camel(attribute)})
         for attribute in HARVEST_COUNT_ATTRIBUTES}
+
+
+def harvest_kinds_to_read(requested: dict) -> dict:
+    """Whether a kind of record must be read to answer the requested counters.
+
+    ``harvested_total_count`` is the sum of the two partial counters, so a
+    request which names the total reads both kinds of record even when it names
+    neither of them; a request which names only a partial counter reads only its
+    kind.
+    """
+    total = requested.get('harvested_total_count')
+    return {
+        kind: total or bool(requested.get(name))
+        for name, kind in HARVEST_COUNT_OF_KIND}
 
 
 class ServiceExplorerMixin:

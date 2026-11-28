@@ -607,7 +607,7 @@ class CatalogueServiceHarvestCountQueryPerformance(QueryMeasurementMixin, TestCa
             self.assertEqual(
                 attributes[name],
                 model.objects.filter(
-                    harvested_through_id=self.CSW_ONE).count())
+                    harvested_through=self.CSW_ONE).count())
         self.assertEqual(
             attributes['harvestedTotalCount'],
             attributes['harvestedDatasetCount'] + attributes['harvestedServiceCount'])
@@ -624,9 +624,15 @@ class CatalogueServiceHarvestCountQueryPerformance(QueryMeasurementMixin, TestCa
         """The detail card of a catalogue shows its published records (#1826)."""
         _status, body, _queries = self.request(
             f'/api/registry/csw/{self.CSW_ONE}', user='user')
-        self.assertEqual(body['data']['attributes']['harvestedTotalCount'],
-                         DatasetMetadataRecord.objects.filter(
-                             harvested_through_id=self.CSW_ONE).count())
+        attributes = body['data']['attributes']
+        datasets = DatasetMetadataRecord.objects.filter(
+            harvested_through=self.CSW_ONE).count()
+        services = ServiceMetadataRecord.objects.filter(
+            harvested_through=self.CSW_ONE).count()
+        for name, expected in (('harvestedDatasetCount', datasets),
+                               ('harvestedServiceCount', services),
+                               ('harvestedTotalCount', datasets + services)):
+            self.assertEqual(attributes[name], expected, name)
         # and the list which names one of them answers exactly that one
         _status, body, _queries = self.request(
             '/api/registry/csw', user='user',

@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SystemStatusProvider } from "../../../context/SystemStatusContext";
 import CriticalAlerts from "./CriticalAlerts";
 
+// #1805: the read is gated on the access table of #836, so the specs run as a
+// caller which may read the status by default and name the refused one below
+const access = vi.hoisted(() => ({ canAccess: true, isPending: false }));
+
 vi.mock("react-admin", async () => ({
   ...(await vi.importActual<typeof import("react-admin")>("react-admin")),
   // the context of the system status reads its one record through this hook,
@@ -13,6 +17,7 @@ vi.mock("react-admin", async () => ({
   useGetOne: vi.fn(),
   // the provider only asks for the status with a session (#833)
   useAuthState: () => ({ authenticated: true }),
+  useCanAccess: () => ({ canAccess: access.canAccess, isPending: access.isPending }),
   useTranslate: () => (key: string) => key,
   useCreatePath:
     () =>
@@ -59,6 +64,8 @@ const renderCard = () =>
   );
 
 beforeEach(() => {
+  access.canAccess = true;
+  access.isPending = false;
   vi.mocked(useGetOne).mockReset();
   answered({ data: observation(), isPending: false });
 });
@@ -89,6 +96,31 @@ describe("CriticalAlerts", () => {
     // no card and no redirect: the card is an administrator view and the
     // caller stays on the dashboard (#1804 coordinates the access bugs)
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("asks nothing of a caller the access check refuses and keeps the dashboard", () => {
+    // #1805: the status endpoint is IsAdminUser, so the deployment answers
+    // every persona but an administrator with a 403. The card must not be the
+    // reason the app pays for it: the access table refuses the read, and the
+    // dashboard renders without the card and without a redirect.
+    access.canAccess = false;
+    const { container } = renderCard();
+    expect(container).toBeEmptyDOMElement();
+    expect(vi.mocked(useGetOne).mock.calls[0][2]).toMatchObject({
+      enabled: false,
+    });
+  });
+
+  it("keeps the dashboard while the access check of the read still runs", () => {
+    // a check which has not answered is not a refusal either way: no read is
+    // fired yet, and no card claims the deployment is healthy
+    access.isPending = true;
+    answered({ isPending: true });
+    const { container } = renderCard();
+    expect(container).toBeEmptyDOMElement();
+    expect(vi.mocked(useGetOne).mock.calls[0][2]).toMatchObject({
+      enabled: false,
+    });
   });
 
   it("answers a component which is down with an error and names it", () => {

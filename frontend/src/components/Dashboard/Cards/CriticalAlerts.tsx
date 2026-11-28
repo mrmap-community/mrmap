@@ -3,6 +3,7 @@ import { Link, useCreatePath, useTranslate } from "react-admin";
 import { Alert, Chip, Stack, Typography } from "@mui/material";
 
 import {
+  hasObservation,
   systemComponents,
   useSystemStatus,
 } from "../../../context/SystemStatusContext";
@@ -75,7 +76,7 @@ const CriticalAlerts = () => {
   }
 
   const rows = CRITICAL_STATES.flatMap((state) => {
-    const names = data
+    const names = hasObservation(data)
       ? systemComponents.filter(
           (name) => data.components[name]?.status === state,
         )

@@ -113,7 +113,7 @@ const useOrganizationScopeState = (): OrganizationScope => {
   );
   const definitionIds = useMemo(
     () => (roleRows ?? [])
-      .map(row => (row.role_definition as { id?: string } | undefined)?.id)
+      .map(row => (row.roleDefinition as { id?: string } | undefined)?.id)
       .filter((id): id is string => typeof id === "string"),
     [roleRows]
   );
@@ -124,7 +124,7 @@ const useOrganizationScopeState = (): OrganizationScope => {
   );
   const roles = useMemo<OrganizationRole[]>(() =>
     (roleRows ?? []).map(row => {
-      const definitionId = (row.role_definition as { id?: string } | undefined)?.id ?? "";
+      const definitionId = (row.roleDefinition as { id?: string } | undefined)?.id ?? "";
       const definition = (definitions ?? []).find(candidate => String(candidate.id) === definitionId);
       return {
         id: String(row.id),

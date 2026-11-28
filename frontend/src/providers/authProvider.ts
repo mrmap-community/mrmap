@@ -7,6 +7,7 @@ import {
   canAccessFromSnapshot,
   permissionSnapshotFromWhoAmI,
   resolveAdministrationFromRoles,
+  roleDefinitionIdsOf,
   type PermissionSnapshot,
 } from './permissions';
 
@@ -91,6 +92,11 @@ const fetchJsonApi = async (url: string): Promise<unknown> => {
  * resolution asks nothing the caller may not read anyway. An unanswered step
  * degrades to the unresolved snapshot: without slugs only the superuser flag
  * grants administration, and the backend keeps enforcing every record.
+ *
+ * The URLs are written without the trailing slash (#1803): the accounts router
+ * is a `NestedDefaultRouter(trailing_slash=False)` (`accounts/urls.py`), which
+ * answers `/api/accounts/roles` and refuses `/api/accounts/roles/` - the same
+ * shape `dataProvider.ts` already builds its `filter[id.in]` reads in.
  */
 const resolveRoles = async (
   base: PermissionSnapshot,
@@ -99,16 +105,17 @@ const resolveRoles = async (
   if (roleIds.length === 0) {
     return base
   }
-  const rolesUrl = `${API_BASE_URL}/api/accounts/roles/?filter[id.in]=${encodeURIComponent(roleIds.join(','))}`
+  const rolesUrl = `${API_BASE_URL}/api/accounts/roles?filter[id.in]=${encodeURIComponent(roleIds.join(','))}`
   const rolesBody = await fetchJsonApi(rolesUrl)
-  const roleData = (rolesBody as {
-    data?: { relationships?: { role_definition?: { data?: { id?: string } } } }[]
-  } | undefined)?.data
-  const definitionIds = (roleData ?? [])
-    .map(role => role.relationships?.role_definition?.data?.id)
-    .filter((id): id is string => typeof id === 'string')
-  const definitionsUrl = `${API_BASE_URL}/api/accounts/roledefinitions/?filter[id.in]=${encodeURIComponent(definitionIds.join(','))}`
-  const definitionsBody = await fetchJsonApi(definitionsUrl)
+  const definitionIds = roleDefinitionIdsOf(rolesBody)
+  // without a single definition id the second read can only ask an empty
+  // `in` filter, which the API answers 400 - the snapshot is what the first
+  // read supports, so the request is left out instead of being fired (#1803)
+  const definitionsBody = definitionIds.length === 0
+    ? undefined
+    : await fetchJsonApi(
+      `${API_BASE_URL}/api/accounts/roledefinitions?filter[id.in]=${encodeURIComponent(definitionIds.join(','))}`
+    )
   const resolved = resolveAdministrationFromRoles(rolesBody, definitionsBody)
   return {
     ...base,

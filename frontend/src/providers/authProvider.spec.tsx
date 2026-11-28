@@ -620,9 +620,21 @@ describe('route access through react-admin', () => {
  * same cached snapshot - after a self-revocation invalidates it, a fresh one.
  */
 describe('role slug resolution of #736 behind the snapshot', () => {
-  const ROLES_URL = 'https://mrmap.test/api/accounts/roles/?filter[id.in]=11%2C13';
+  // the accounts router answers without the trailing slash (#1803):
+  // `NestedDefaultRouter(trailing_slash=False)` in accounts/urls.py
+  const ROLES_URL = 'https://mrmap.test/api/accounts/roles?filter[id.in]=11%2C13';
   const DEFINITIONS_URL =
+    'https://mrmap.test/api/accounts/roledefinitions?filter[id.in]=3%2C5';
+  // what the same read looks like when the frontend asks it with the slash the
+  // router does not accept, and with the snake_case name the camelize setting
+  // of settings.py does not answer - both are what left every non-superuser on
+  // /access-denied (#1803)
+  const TRAILING_SLASH_ROLES_URL =
+    'https://mrmap.test/api/accounts/roles/?filter[id.in]=11%2C13';
+  const TRAILING_SLASH_DEFINITIONS_URL =
     'https://mrmap.test/api/accounts/roledefinitions/?filter[id.in]=3%2C5';
+  const EMPTY_DEFINITIONS_URL =
+    'https://mrmap.test/api/accounts/roledefinitions?filter[id.in]=';
 
   const WHO_AM_I = {
     data: {
@@ -639,7 +651,7 @@ describe('role slug resolution of #736 behind the snapshot', () => {
         id: '11',
         attributes: { isActive: true },
         relationships: {
-          role_definition: { data: { type: 'RoleDefinition', id: '3' } },
+          roleDefinition: { data: { type: 'RoleDefinition', id: '3' } },
           organization: { data: { type: 'Organization', id: '7' } },
         },
       },
@@ -648,7 +660,7 @@ describe('role slug resolution of #736 behind the snapshot', () => {
         id: '13',
         attributes: { isActive: true },
         relationships: {
-          role_definition: { data: { type: 'RoleDefinition', id: '5' } },
+          roleDefinition: { data: { type: 'RoleDefinition', id: '5' } },
           organization: { data: null },
         },
       },
@@ -662,14 +674,15 @@ describe('role slug resolution of #736 behind the snapshot', () => {
   };
 
   /** Routes the three reads; a refused step answers the given status. */
-  const mockRoles = (rolesStatus = 200, definitionsStatus = 200) => {
+  const mockRoles = (rolesStatus = 200, definitionsStatus = 200,
+    roleRows: unknown = ROLE_ROWS) => {
     const fetchMock = vi.fn(async (request: Request) => {
       if (request.url === WHO_AM_I_URL) {
         return new Response(JSON.stringify(WHO_AM_I), { status: 200 });
       }
       if (request.url === ROLES_URL) {
         return rolesStatus === 200
-          ? new Response(JSON.stringify(ROLE_ROWS), { status: 200 })
+          ? new Response(JSON.stringify(roleRows), { status: 200 })
           : new Response(null, { status: rolesStatus });
       }
       if (request.url === DEFINITIONS_URL) {
@@ -687,6 +700,9 @@ describe('role slug resolution of #736 behind the snapshot', () => {
       whoAmIs: hits(WHO_AM_I_URL),
       roleReads: hits(ROLES_URL),
       definitionReads: hits(DEFINITIONS_URL),
+      trailingSlashRoleReads: hits(TRAILING_SLASH_ROLES_URL),
+      trailingSlashDefinitionReads: hits(TRAILING_SLASH_DEFINITIONS_URL),
+      emptyDefinitionReads: hits(EMPTY_DEFINITIONS_URL),
     };
   };
 
@@ -714,6 +730,9 @@ describe('role slug resolution of #736 behind the snapshot', () => {
     expect(backend.whoAmIs()).toHaveLength(1);
     expect(backend.roleReads()).toHaveLength(1);
     expect(backend.definitionReads()).toHaveLength(1);
+    // neither read asks the trailing-slash form the accounts router refuses (#1803)
+    expect(backend.trailingSlashRoleReads()).toHaveLength(0);
+    expect(backend.trailingSlashDefinitionReads()).toHaveLength(0);
     const [[roleRequest]] = backend.roleReads();
     // the session cookie authenticates these reads as well
     expect((roleRequest as Request).credentials).toBe('include');
@@ -728,6 +747,27 @@ describe('role slug resolution of #736 behind the snapshot', () => {
     await getPermissionSnapshot();
     expect(backend.whoAmIs()).toHaveLength(1);
     expect(backend.roleReads()).toHaveLength(1);
+  });
+
+  it('asks nothing for definitions when no role row names one - no empty filter', async () => {
+    // the shape the resolution degrades to when the first read answers rows
+    // without a definition link: the second read can only ask `filter[id.in]=`
+    // and must be left out instead (#1803)
+    const backend = mockRoles(200, 200, {
+      data: [
+        { id: '11', attributes: { isActive: true }, relationships: {} },
+      ],
+    });
+    const provider = sessionAuthProvider();
+
+    expect(await canAccessUser(provider)).toBe(false);
+
+    expect(backend.roleReads()).toHaveLength(1);
+    expect(backend.definitionReads()).toHaveLength(0);
+    expect(backend.emptyDefinitionReads()).toHaveLength(0);
+    expect(await getPermissionSnapshot()).toEqual({
+      roles: [], administeredOrganizationIds: [], isSuperuser: false,
+    });
   });
 
   it('denies administration when the role read is refused - only the flag is left', async () => {

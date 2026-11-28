@@ -46,7 +46,9 @@ from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
                                     alerts_requested, answer_page_alerts,
                                     defer_alert_annotations,
                                     has_alert_annotations)
-from registry.querys.service import LayerPrefetch
+from registry.querys.service import (LayerPrefetch,
+                                     answer_page_inherited_attributes,
+                                     inherited_attributes_are_a_condition)
 from registry.querys.explorer import ServiceExplorerMixin, catalogue_records
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
@@ -516,12 +518,76 @@ class LayerViewSetMixin(
     ordering_fields = ["id", "title", "abstract",
                        "hits", "scale_max", "scale_min", "date_stamp", "mptt_lft", "mptt_rgt", "mptt_depth"]
 
+    def derives_inherited_attributes(self) -> bool:
+        """Whether the statement of this request answers the derivation itself.
+
+        A request narrows or orders its rows by an inherited attribute when it
+        asks a condition about one of them, which only the statement of the
+        request can answer; see
+        ``registry.querys.service.inherited_attributes_are_a_condition``.
+
+        Returns:
+            bool: True if the derivation stays inside the statement
+        """
+        if getattr(self, 'swagger_fake_view', False):
+            # drf-spectacular builds a throw-away view to read the schema; it
+            # has no request to decide a read shape from and it inspects the
+            # annotated queryset, so the derivation stays where it was
+            return True
+        return inherited_attributes_are_a_condition(
+            getattr(self, 'request', None), self.filterset_class)
+
+    def reads_inherited_attributes_per_page(self) -> bool:
+        """Whether the list of this viewset is read without the derivation.
+
+        Only the flat resource list: the nested endpoint of a service already
+        answers the derivation for the layers of that service alone, which is
+        the read #1315 established for it and pins with its statement shape.
+        The statement of the flat list selects every layer the request filters
+        keep - in the reported case every layer of the deployment - which is
+        why a 25-row page paid the whole-registry derivation (#1825).
+
+        Returns:
+            bool: True if the page answers the derivation for its rows
+        """
+        return (self.action == 'list'
+                and not self.derives_inherited_attributes()
+                and not isinstance(self, NestedModelViewSet))
+
     def get_queryset(self, *args, **kwargs):
         # we need to call the speficic queryset method here on runtime.
         # If the queryset is defined on class level, the query is pregenerated on appserver startup, and no request ist present.
         qs = super().get_queryset(*args, **kwargs)
-        qs = qs.with_inherited_attributes_cte()
+        # A CTE answers one row for every layer its statement selects, so the
+        # statement of the flat list derived the effective values of all
+        # 141,240 layers of the deployment to show the 25 of its page (#1825).
+        # Such a list is read without the derivation, which
+        # `paginate_queryset` answers for the rows of the page; everything else
+        # - a detail answer, the nested list, or a request which filters or
+        # sorts the derivation - keeps it inside its statement, where the
+        # answer always came from.
+        if not self.reads_inherited_attributes_per_page():
+            qs = qs.with_inherited_attributes_cte(
+                None if getattr(self, 'swagger_fake_view', False)
+                else self.request)
         return qs
+
+    def paginate_queryset(self, queryset, *args, **kwargs):
+        """Answer the inherited attributes for the rows of the page alone.
+
+        The counterpart of reading the flat list without the derivation: one
+        statement over the identifiers of the rows of the page, bounded by the
+        page size instead of by the layer table. The values are the ones the
+        statement of the list used to answer - the scope of a CTE decides for
+        how many layers it answers, never which value a layer gets (#1315) -
+        and they land on the rows the page already holds, so the serializers
+        answer what they always answer.
+        """
+        page = super().paginate_queryset(queryset, *args, **kwargs)
+        if page and self.reads_inherited_attributes_per_page():
+            answer_page_inherited_attributes(
+                page, self.request, self.filterset_class)
+        return page
 
 
 class LayerViewSet(

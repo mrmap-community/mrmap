@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.gis.db.models import PolygonField
 from django.contrib.gis.geos.polygon import Polygon
 from django.contrib.postgres.aggregates import JSONBAgg
@@ -5,7 +7,7 @@ from django.db.models import (BooleanField, F, FloatField, OuterRef, Prefetch,
                               Q, QuerySet, Subquery, Value)
 from django.db.models.functions import Coalesce, JSONObject
 from django_cte import with_cte
-from extras.utils import get_sparse_fields
+from extras.utils import get_sparse_fields, undo_format_field_name
 from registry.expressions.layer_ctes import (AncestorsHeritageAggregatedCTE,
                                              AncestorsHeritageCTE,
                                              LayerSecurityInformationCTE)
@@ -14,6 +16,189 @@ from registry.models.metadata import (DatasetMetadataRecord, Keyword,
 
 
 LEFT_JOIN = "LEFT JOIN"
+
+#: the attributes which :meth:`LayerQuerySet.with_inherited_attributes_cte`
+#: answers per layer and which no column of a layer row carries itself
+HERITAGE_CTE_FIELDS = (
+    "is_queryable_inherited",
+    "is_cascaded_inherited",
+    "is_opaque_inherited",
+    "scale_min_inherited",
+    "scale_max_inherited",
+    "bbox_lat_lon_inherited",
+)
+AGGREGATED_CTE_FIELDS = (
+    "reference_systems_inherited",
+    "time_extents_inherited",
+    "styles_inherited",
+)
+SECURITY_CTE_FIELDS = (
+    "is_secured",
+    "is_spatial_secured",
+)
+INHERITED_ATTRIBUTES = (
+    HERITAGE_CTE_FIELDS + AGGREGATED_CTE_FIELDS + SECURITY_CTE_FIELDS)
+
+
+def wanted_inherited_attributes(request=None) -> tuple:
+    """The inherited attributes which a request wants answered.
+
+    The rule is the one the CTEs themselves follow in
+    :meth:`LayerQuerySet.build_cte_and_kwargs`: a sparse fieldset of the layer
+    resource which names none of them answers none of them, and a request
+    which names nothing of a resource gets all of them.
+
+    Args:
+        request: the request which is answered, optional
+
+    Returns:
+        tuple: the names to annotate, empty if the request wants none
+    """
+    layer_fields = get_sparse_fields(request).get("Layer", [])
+    if not layer_fields:
+        return INHERITED_ATTRIBUTES
+    return tuple(
+        field for field in INHERITED_ATTRIBUTES
+        if any(field.startswith(prefix) for prefix in layer_fields))
+
+
+#: a ``filter[...]`` query parameter of the json:api style
+FILTER_PARAMETER = re.compile(r"^filter\[(?P<name>[^\]]+)\]$")
+
+
+def _orm_name(name: str) -> str:
+    """The name of the ORM behind the name a json:api request writes.
+
+    The json:api backend turns a dotted relationship path into the ``__``
+    notation of the ORM and undoes the field name format of the api before a
+    filterset or an ordering filter is asked for the name.
+
+    Args:
+        name (str): the name as the api writes it
+
+    Returns:
+        str: the name as the database is asked with it
+    """
+    return undo_format_field_name(name.replace('.', '__'))
+
+
+def reads_inherited_attributes(field_name: str) -> bool:
+    """Whether a field path is answered by the derivation of the CTEs.
+
+    Args:
+        field_name (str): the field path a condition is asked with, which may
+            carry a lookup suffix
+
+    Returns:
+        bool: True if the path names one of the annotated attributes, or a
+            lookup of one of them
+    """
+    return (field_name in INHERITED_ATTRIBUTES
+            or field_name.rsplit('__', 1)[0] in INHERITED_ATTRIBUTES)
+
+
+def filters_on_inherited_attributes(filterset_class) -> frozenset:
+    """The names of the filters which read the derivation of the CTEs.
+
+    A filterset names a filter by its own key and points it at an annotation
+    with ``field_name``, so the key of ``filter[...]`` of a request has to be
+    looked up in the filterset to know whether it asks the database about an
+    inherited attribute: ``bbox_lat_lon__contains`` of ``LayerFilterSet``
+    filters on ``bbox_lat_lon_inherited``.
+
+    Args:
+        filterset_class: the filterset of the endpoint, may be ``None``
+
+    Returns:
+        frozenset: the filter names which read the derivation
+    """
+    base_filters = getattr(filterset_class, 'base_filters', None) or {}
+    return frozenset(
+        name for name, declared in base_filters.items()
+        if reads_inherited_attributes(
+            getattr(declared, 'field_name', None) or name))
+
+
+def inherited_attributes_are_a_condition(request, filterset_class=None) -> bool:
+    """Whether a request asks the database *about* the inherited attributes.
+
+    A request which only *shows* the inherited attributes needs them for the
+    rows it shows, which :func:`answer_page_inherited_attributes` answers for
+    its page. A request which *narrows or orders its rows by* one of them
+    needs them inside its own statement, because the condition decides the
+    rows before any page exists and can only be asked of rows the statement
+    already selects: the bbox filters of ``LayerFilterSet`` read the annotation
+    of a CTE, and a sort would read it the same way. Such a request keeps the
+    derivation in its statement - the condition is the meaning of the request,
+    and it is asked once over the whole filtered set rather than per row, as
+    ``filter[has_alert]`` already does (#1424).
+
+    Args:
+        request: the request which is answered
+        filterset_class: the filterset of the endpoint, optional
+
+    Returns:
+        bool: True if the statement of the request has to answer the
+            derivation itself
+    """
+    if request is None or not hasattr(request, 'GET'):
+        return False
+    derivation_filters = filters_on_inherited_attributes(filterset_class)
+    if any(_orm_name(FILTER_PARAMETER.match(key).group('name'))
+           in derivation_filters
+           for key in request.GET if FILTER_PARAMETER.match(key)):
+        return True
+    return any(
+        reads_inherited_attributes(_orm_name(term.strip().lstrip('-')))
+        for term in str(request.GET.get('sort', '')).split(',') if term.strip())
+
+
+def answer_page_inherited_attributes(layers, request=None,
+                                     filterset_class=None):
+    """Answer the inherited attributes on the rows of a page read without them.
+
+    The counterpart of reading a list without the derivation: a CTE answers one
+    row for every layer the statement selects, and the statement of a page
+    selects every layer its filters keep - not only the rows it shows - so the
+    25-row page of the flat list derived the effective values of all 141,240
+    layers of the deployment to show 25 of them (#1825). Here the same CTEs
+    answer the attributes of exactly the layers of the page - one statement
+    over their identifiers, bounded by the page size instead of by the layer
+    table - and the answers land on the rows the page already holds, so the
+    serializers read the very attributes they always read.
+
+    The read plan is the one ``registry/querys/alerts.py`` established for the
+    alerts of a service (#1424); the values are the ones #1315 defines: the
+    scope of a CTE only decides for how many layers it answers, never which
+    value a layer gets, because the ancestry of a layer is looked up in every
+    layer of the registry.
+
+    A no-op for a page whose statement answered the derivation itself (a
+    request whose filter or sort names one of the attributes) and for a page
+    which shows nothing of it (a sparse fieldset which names none), so that no
+    request pays the derivation twice and none pays it for nothing.
+
+    Args:
+        layers (list): the layers of a page, read without their derivation
+        request: the request which is answered, for its sparse fieldsets
+        filterset_class: the filterset of the endpoint, to tell a filter which
+            reads the derivation apart from one which does not
+    """
+    if not layers or inherited_attributes_are_a_condition(
+            request, filterset_class):
+        return
+    answered = wanted_inherited_attributes(request)
+    if not answered:
+        return
+    answers = {
+        row.pk: row
+        for row in type(layers[0])._default_manager.filter(
+            pk__in=[layer.pk for layer in layers]
+        ).with_inherited_attributes_cte(request)}
+    for layer in layers:
+        answer = answers[layer.pk]
+        for name in answered:
+            setattr(layer, name, getattr(answer, name, None))
 
 
 class LayerQuerySet(QuerySet):

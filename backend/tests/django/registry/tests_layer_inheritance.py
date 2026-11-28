@@ -44,7 +44,7 @@ from django.test import TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils.timezone import now
 from mptt2.models import Tree
-from rest_framework.test import APIClient
+from rest_framework.test import APIRequestFactory, APIClient
 
 from registry.enums.service import HttpMethodEnum, OGCOperationEnum
 from registry.filters.service import LayerFilterSet
@@ -53,6 +53,7 @@ from registry.models.metadata import (MimeType, ReferenceSystem, Style,
 from registry.models.security import AllowedWebMapServiceOperation
 from registry.models.service import (Layer, WebMapService,
                                      WebMapServiceOperationUrl)
+from registry.querys.service import inherited_attributes_are_a_condition
 from tests.django.registry.tests_query_performance import QueryMeasurementMixin
 
 JSONAPI = 'application/vnd.api+json'
@@ -517,6 +518,546 @@ class InheritedLayerValuesTest(LayerTreeMixin, TestCase):
                 self.assertEqual(
                     set(filtered.values_list('identifier', flat=True)),
                     expected)
+
+
+class FlatLayerListTest(LayerTreeMixin, QueryMeasurementMixin, TestCase):
+    """The flat list of layers: the answer and the work a page of it costs.
+
+    ``GET /api/registry/layers?page[size]=25`` answered the derivation of the
+    inherited attributes for **every layer its filters keep**, which without a
+    service filter is every layer of the deployment: 6.6-9.3 s for a 25-row page
+    of 141,240 layers, while the nested endpoint of #1315 answers the very
+    attributes of the very layers in 338 ms. A CTE answers one row per layer its
+    statement selects, and the statement of a page selects the whole filtered
+    set before the pagination cuts the page off - so the page paid for the table
+    and not for itself, whatever its size.
+
+    Such a list is read without the derivation now, which one statement over the
+    identifiers of its rows answers afterwards
+    (:func:`registry.querys.service.answer_page_inherited_attributes`).
+    Everything else keeps the derivation inside its statement: a detail, the
+    nested list of a service, and a request which asks the database *about* one
+    of the attributes, because a condition decides the rows before any page
+    exists.
+
+    The tests keep the two properties apart which #1315 keeps apart:
+
+    * the *values* - a page answers what the unscoped whole-registry shape
+      answers and what the nested endpoint answers for the same layers, which is
+      the gate the AC of #1825 name ("the fix may not change answers, only their
+      cost");
+    * the *shape* - the derivation of a page may be bounded only by the rows of
+      that page. The number of statements says nothing about the work inside one
+      (the regression of #1315 asked 10 statements before and after its fix), so
+      the read shape is pinned as text, the way ``LayersEndpointTest`` pins it
+      for the nested endpoint.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.path = '/api/registry/layers'
+
+    #: the semi-join with which a CTE of the page answer restricts itself to the
+    #: identifiers the page read; the alias of the subselect is chosen by the
+    #: compiler and differs between statements, so the pattern does not name it
+    PAGE_MARKER = re.compile(
+        r'IN \(SELECT \w+\."id" AS "pk" FROM "registry_layer" \w+'
+        r' WHERE \w+\."id" IN \(([^)]*)\)')
+
+    def derivations(self, queries):
+        """The statements of a request which compute the inheritance."""
+        return [query['sql'] for query in queries
+                if '"ancestors" AS (' in query['sql']]
+
+    def page_ids_of(self, statement):
+        """The layer identifiers a page derivation names in its scope."""
+        named = set()
+        for identifiers in self.PAGE_MARKER.findall(statement):
+            named.update(re.findall(r"'([0-9a-f]{32})'", identifiers))
+        return named
+
+    def ids_of_rows(self, body):
+        return {row['id'].replace('-', '') for row in body['data']}
+
+    def answered_values(self, body):
+        """The answered rows, keyed by title, attributes and relations alike.
+
+        The inherited attributes are answered as attributes of the resource, the
+        inherited aggregates as related resources; both belong to the answer the
+        two endpoints have to agree on.
+        """
+        answered = {}
+        for row in body['data']:
+            attributes = row['attributes']
+            relationships = row.get('relationships') or {}
+            values = {
+                attribute: attributes.get(attribute)
+                for attribute in ('isQueryable', 'isCascaded', 'isOpaque',
+                                  'scaleMin', 'scaleMax', 'bboxLatLon',
+                                  'isSecured', 'isSpatialSecured')}
+            for relation in ('referenceSystems', 'timeExtents', 'styles'):
+                related = (relationships.get(relation) or {}).get('data')
+                values[relation] = sorted(
+                    resource['id'] for resource in (related or []))
+            answered[row['attributes']['title']] = values
+        return answered
+
+    def oracle(self):
+        """The values of the unscoped shape, the oracle #1315 compares against.
+
+        ``Layer.objects.with_inherited_attributes_cte()`` without a filter is the
+        shape before #1315: it derives the effective values of every layer of the
+        registry. It is the reference because it is beyond doubt - it just is not
+        affordable as the read of a page.
+        """
+        return {
+            (layer.service_id, layer.identifier): (
+                layer.is_queryable_inherited, layer.is_cascaded_inherited,
+                layer.is_opaque_inherited, layer.scale_min_inherited,
+                layer.scale_max_inherited,
+                list(layer.bbox_lat_lon_inherited.extent)
+                if layer.bbox_lat_lon_inherited else None,
+                layer.is_secured, layer.is_spatial_secured)
+            for layer in Layer.objects.with_inherited_attributes_cte()}
+
+    def test_the_statement_of_the_page_is_bounded_by_the_page(self):
+        """The regression of #1825 is pinned as text: no whole-registry CTE.
+
+        Exactly one statement of a page request derives the inheritance, all
+        three CTEs of that statement restrict themselves to the layers of the
+        page, and the identifiers they name are exactly the rows the page shows.
+        The last assertion is what makes the first two worth having: a statement
+        whose CTEs carry no restriction at all - the read shape of the 6.6 s -
+        matches none of the markers, so "the markers are there" alone would pass
+        a regression which answers the registry again.
+        """
+        status, body, queries = self.request(
+            self.path, user='user', **{'page[size]': 5})
+        self.assertEqual(200, status)
+        derivations = self.derivations(queries.captured_queries)
+        self.assertEqual(
+            len(derivations), 1,
+            msg='a page of the flat list asked the derivation '
+                f'{len(derivations)} times, expected it once outside the '
+                f'statement of the page: '
+                f'{[sql[:120] for sql in derivations]}')
+        for cte in ('"ancestors" AS (', '"aggregated_ancestors" AS (',
+                    '"layer_security_information" AS ('):
+            self.assertIn(cte, derivations[0])
+        found = self.PAGE_MARKER.findall(derivations[0])
+        self.assertEqual(
+            len(found), 3,
+            msg='the derivation of a page did not restrict all three CTEs to '
+                'the layers of the page: ' + derivations[0][:400])
+        self.assertEqual(
+            self.page_ids_of(derivations[0]), self.ids_of_rows(body),
+            'the derivation of the page answers layers other than the ones '
+            'the page shows')
+
+    def test_a_page_is_counted_over_the_rows_and_not_the_derivation(self):
+        """The pagination count of the page carries no derivation.
+
+        The issue measured the count of the page as its own 237 ms of the
+        request, against 29 ms for a bare ``count(*)``: while the statement of
+        the list carried the CTEs, the count had to answer them too, because it
+        counts over the very queryset. It counts the rows of the resource now.
+        """
+        status, _body, queries = self.request(
+            self.path, user='user', **{'page[size]': 25})
+        self.assertEqual(200, status)
+        counts = [query['sql'] for query in queries.captured_queries
+                  if 'count(*)' in query['sql'].lower()]
+        self.assertTrue(counts, 'the paginated answer did not count its rows')
+        for statement in counts:
+            self.assertNotIn(
+                'ancestors', statement,
+                msg='the count of the page answers the inheritance: '
+                    + statement[:300])
+
+    def test_a_single_row_page_derives_a_single_row(self):
+        """The work is proportional to the page and not to the table.
+
+        The page size was irrelevant to the reported request - 25 and 100 rows
+        cost the same 6.6 s - because both derived all 141,240 layers. The
+        statement of a page may not answer more layers than it shows, so a
+        one-row page names exactly one identifier and a ten-row page ten.
+        """
+        for size in (1, 10):
+            with self.subTest(page_size=size):
+                status, body, queries = self.request(
+                    self.path, user='user', **{'page[size]': size})
+                self.assertEqual(200, status)
+                derivations = self.derivations(queries.captured_queries)
+                self.assertEqual(len(derivations), 1)
+                self.assertEqual(
+                    self.page_ids_of(derivations[0]), self.ids_of_rows(body))
+                self.assertEqual(len(self.page_ids_of(derivations[0])), size)
+
+    def test_more_layers_in_the_registry_answer_the_same_page(self):
+        """Layers of other services may not make this answer work more.
+
+        The numbers belong to the hardware, the read shape does not: after 2,000
+        layers of another service were stored, the statement of the page still
+        names the identifiers of its own rows and nothing else, and the request
+        still asks the same number of statements. This is the property the
+        reported registry of 141,240 layers broke.
+        """
+        _status, _body, before = self.request(
+            self.path, user='user', **{'page[size]': 4})
+        self.grow(self.other, self.FILLER_LAYERS)
+        status, body, after = self.request(
+            self.path, user='user', **{'page[size]': 4})
+        self.assertEqual(200, status)
+        self.assertEqual(
+            len(after.captured_queries), len(before.captured_queries),
+            msg=f'the flat list asked {len(before.captured_queries)} '
+                f'statements before and {len(after.captured_queries)} after '
+                f'{self.FILLER_LAYERS} layers of another service existed')
+        derivations = self.derivations(after.captured_queries)
+        self.assertEqual(len(derivations), 1)
+        self.assertEqual(self.page_ids_of(derivations[0]),
+                         self.ids_of_rows(body))
+        self.assertEqual(len(self.page_ids_of(derivations[0])), 4)
+
+    def test_a_page_answers_what_the_unscoped_shape_answers(self):
+        """The fix may change the cost of an answer and not the answer.
+
+        Every attribute the derivation computes is compared against the unscoped
+        whole-registry shape for every layer of two pages - a small one and one
+        big enough to hold the whole fixture. The fixture answers with trees
+        which have depth and branches, an override in the middle of a branch, a
+        parent without an own value, a layer secured by a rule of its service and
+        a second service whose tree is numbered exactly like the measured one -
+        the traps #1315 names, and the gate the AC of this issue name.
+        """
+        oracle = self.oracle()
+        self.assertTrue(oracle)
+        for size in (7, 100):
+            with self.subTest(page_size=size):
+                status, body, _queries = self.request(
+                    self.path, user='user', **{'page[size]': size})
+                self.assertEqual(200, status, body)
+                self.assertTrue(body['data'], 'the page answered nothing')
+                for row in body['data']:
+                    layer = Layer.objects.get(pk=row['id'])
+                    attributes = row['attributes']
+                    self.assertEqual(
+                        oracle[(layer.service_id, layer.identifier)],
+                        (attributes['isQueryable'], attributes['isCascaded'],
+                         attributes['isOpaque'], attributes['scaleMin'],
+                         attributes['scaleMax'],
+                         (attributes['bboxLatLon'] or {}).get('bbox'),
+                         attributes['isSecured'],
+                         attributes['isSpatialSecured']),
+                        msg=f'the flat list answered {layer.identifier} '
+                            'differently than the unscoped shape')
+
+    def test_the_list_and_the_nested_endpoint_answer_the_same_layer(self):
+        """The two endpoints of the issue must not disagree.
+
+        The issue reports a difference in *cost* between the flat list and the
+        nested endpoint; an endpoint which answered something else than the other
+        would simply be fast and wrong. The same layers are asked of both - the
+        list through its service filter, the nested route through its url - and
+        their answers must be equal, attribute by attribute.
+        """
+        status, flat, _queries = self.request(
+            self.path, user='user',
+            **{'page[size]': 100, 'filter[service]': str(self.measured.pk)})
+        self.assertEqual(200, status)
+        self.assertTrue(flat['data'])
+        nested_status, nested, _nested = self.request(
+            f'/api/registry/wms/{self.measured.pk}/layers', user='user',
+            **{'page[size]': 100})
+        self.assertEqual(200, nested_status)
+        self.assertEqual(self.answered_values(flat),
+                         self.answered_values(nested))
+        # and the values themselves, so that both endpoints going wrong together
+        # does not pass the comparison unnoticed
+        answered = self.answered_values(flat)
+        self.assertEqual(answered['a']['isQueryable'], True)
+        self.assertEqual(answered['a']['scaleMin'], 10)
+        self.assertEqual(answered['a1']['scaleMin'], None)
+        self.assertEqual(answered['a1']['isQueryable'], False)
+        self.assertEqual(answered['b']['isSecured'], True)
+        self.assertEqual(answered['b']['isSpatialSecured'], True)
+        self.assertEqual(answered['a1']['isSecured'], False)
+        self.assertEqual(answered['b1']['scaleMax'], 500000)
+        self.assertEqual(answered['b1']['bboxLatLon']['bbox'],
+                         [3.0, 3.0, 4.0, 4.0])
+        self.assertEqual(answered['root']['bboxLatLon']['bbox'],
+                         [1.0, 1.0, 2.0, 2.0])
+        # the deep chain: the level which states a scale of its own answers it
+        self.assertEqual(answered['deep-3']['scaleMin'], 3)
+        # and the bbox of the root of the chain carries down its levels
+        self.assertEqual(answered['deep-7']['bboxLatLon']['bbox'],
+                         [7.0, 7.0, 8.0, 8.0])
+        # the inherited aggregates are answered as related resources
+        self.assertEqual(answered['a1']['referenceSystems'],
+                         [str(self.reference_system.pk)])
+        self.assertEqual(answered['a1']['timeExtents'],
+                         [str(self.time_extent.pk)])
+        self.assertEqual(answered['a1']['styles'], [str(self.style.pk)])
+        self.assertEqual(answered['a2']['referenceSystems'], [])
+
+    def test_the_aggregated_attributes_are_answered_for_the_page(self):
+        """The aggregated CTE is page-bounded like the other two.
+
+        The reference systems, the time extents and the styles of a layer are
+        inherited too, and ``aggregated_ancestors`` is the CTE whose
+        ``GroupAggregate rows=140078 loops=3`` the plan of the issue shows - the
+        most expensive of the three. Only the layer of the fixture which owns
+        them answers them, and no other layer of the page does.
+        """
+        status, body, _queries = self.request(
+            self.path, user='user', **{'page[size]': 100})
+        self.assertEqual(200, status)
+        answered = {
+            row['id']: {
+                relation: sorted(resource['id'] for resource in
+                                 (row.get('relationships') or {})
+                                 .get(relation, {}).get('data', []) or [])
+                for relation in ('referenceSystems', 'timeExtents', 'styles')}
+            for row in body['data']}
+        self.assertEqual(len(answered), Layer.objects.count())
+        own = lambda layer: answered[str(Layer.objects.get(identifier=layer).pk)]  # noqa: E731
+        self.assertEqual(
+            own('a1'),
+            {'referenceSystems': [str(self.reference_system.pk)],
+             'timeExtents': [str(self.time_extent.pk)],
+             'styles': [str(self.style.pk)]})
+        # a layer which owns nothing and whose ancestors own nothing answers
+        # nothing - the sibling and the child of the layer which owns them have
+        # no claim on them, which is the join of #1315 and no row of the page
+        # may answer them for another layer
+        self.assertEqual(own('a2'), {'referenceSystems': [],
+                                     'timeExtents': [], 'styles': []})
+        self.assertEqual(own('a21'), {'referenceSystems': [],
+                                      'timeExtents': [], 'styles': []})
+        self.assertEqual(own('root'), {'referenceSystems': [],
+                                       'timeExtents': [], 'styles': []})
+
+    def test_a_sparse_fieldset_of_the_list_reads_no_derivation_at_all(self):
+        """A page which shows nothing of the derivation pays for nothing.
+
+        The rule the CTE builder of #1315 already follows - a sparse fieldset of
+        the layer resource which names none of the inherited attributes answers
+        none of them - now also decides whether the page is answered at all, so
+        neither the statement of the list nor the answer of the page carries a
+        CTE. A list which names none of them is no longer the most expensive
+        variant of the route.
+        """
+        status, body, queries = self.request(
+            self.path, user='user', **{'fields[Layer]': 'title'})
+        self.assertEqual(200, status)
+        self.assertTrue(body['data'])
+        self.assertEqual(self.derivations(queries.captured_queries), [])
+        self.assertIn('title', body['data'][0]['attributes'])
+        self.assertNotIn('isQueryable', body['data'][0]['attributes'])
+        self.assertNotIn('bboxLatLon', body['data'][0]['attributes'])
+
+    def test_a_sparse_fieldset_which_names_one_attribute_answers_one(self):
+        """A page which names part of the derivation pays for that part only.
+
+        The statement is the shape of the answer: naming a single flag must not
+        build the aggregated CTE with its JSONB aggregations, so the three-CTE
+        statement of the issue becomes the one-CTE statement of one flag, for the
+        rows of the page and for nothing else.
+        """
+        status, body, queries = self.request(
+            self.path, user='user', **{'fields[Layer]': 'isQueryable',
+                                       'page[size]': 4})
+        self.assertEqual(200, status)
+        self.assertTrue(body['data'])
+        derivations = self.derivations(queries.captured_queries)
+        self.assertEqual(len(derivations), 1)
+        self.assertIn('"ancestors" AS (', derivations[0])
+        self.assertNotIn('"aggregated_ancestors" AS (', derivations[0])
+        self.assertNotIn('"layer_security_information" AS (', derivations[0])
+        self.assertEqual(self.page_ids_of(derivations[0]),
+                         self.ids_of_rows(body))
+        for row in body['data']:
+            self.assertIn('isQueryable', row['attributes'])
+            self.assertNotIn('isSecured', row['attributes'])
+
+    def test_a_filter_on_the_derivation_keeps_it_inside_the_statement(self):
+        """A condition on an inherited attribute stays inside the statement.
+
+        A filter decides the rows before any page exists, so it can only be
+        asked of the statement itself: the bbox filters of ``LayerFilterSet``
+        point at the annotation of a CTE. Such a request keeps the derivation
+        where the answer always came from - the condition is the meaning of the
+        request - and the answer of the filtered rows keeps the effective values
+        the unscoped shape always answered for them.
+
+        The scoping of *that* statement is the business of #1315 and is not
+        touched here: the flat list asked its CTEs over the whole registry
+        before this change and does so afterwards, which is why the statement of
+        a page is answered separately and not the statement of a condition.
+
+        Both spellings of the parameter are asked, because a filterset names its
+        filter by its own key and a json:api client names the field of the
+        resource: ``filter[bbox_lat_lon__covers]`` and the same filter under the
+        name of the geometry it reads.
+        """
+        bounds = Polygon(((1.2, 1.2), (1.2, 1.8), (1.8, 1.8), (1.8, 1.2),
+                          (1.2, 1.2)), srid=4326)
+        expected = {'root', 'a', 'a1', 'a2', 'a21', 'b'}
+        for parameter in ('filter[bbox_lat_lon__covers]',
+                          'filter[bbox_lat_lon.covers]'):
+            with self.subTest(parameter=parameter):
+                status, body, queries = self.request(
+                    self.path, user='user',
+                    **{parameter: bounds.wkt,
+                       'filter[service]': str(self.measured.pk),
+                       'page[size]': 100})
+                self.assertEqual(200, status, body)
+                self.assertEqual(
+                    {row['attributes']['title'] for row in body['data']},
+                    expected,
+                    'the bbox filter of the flat list no longer answers the '
+                    'layers whose effective bbox covers the geometry')
+                derivations = self.derivations(queries.captured_queries)
+                self.assertTrue(
+                    derivations,
+                    'the filtered list was answered without the derivation - '
+                    'no page of it is decided before the filter ran, so the '
+                    'condition cannot be answered for a page')
+                # and the rows it does answer carry the effective values, which
+                # is what the annotation of the CTE is worth
+                self.assertEqual(
+                    {row['attributes']['title']: row['attributes']['bboxLatLon']
+                     ['bbox'] for row in body['data']},
+                    {title: [1.0, 1.0, 2.0, 2.0] for title in expected})
+
+    def test_a_condition_on_the_derivation_is_recognised(self):
+        """The read of a page is decided by what the request asks of it.
+
+        ``inherited_attributes_are_a_condition`` is the decision itself, and it
+        cannot be asked through the api alone: no ordering field of this endpoint
+        names an annotation of a CTE today, so a sort which did is rejected by the
+        ordering filter before the viewset is ever reached (``ordering_fields``
+        holds no annotation). It is asked directly here, because the day one does
+        name an annotation, the statement of the request has to answer the
+        derivation itself - ordering the rows of a page by a value the page has
+        not computed would order them by nothing.
+        """
+        bounds = Polygon(((1.2, 1.2), (1.2, 1.8), (1.8, 1.8), (1.8, 1.2),
+                          (1.2, 1.2)), srid=4326)
+        for params, expected in (
+                # showing the attributes is no condition, the page answers them
+                ({'page[size]': 25}, False),
+                ({'sort': 'title'}, False),
+                ({'sort': '-title,mpttLft'}, False),
+                ({'filter[title.icontains]': 'root'}, False),
+                ({'filter[isActive]': 'true'}, False),
+                # narrowing or ordering the rows by one of them is
+                ({'filter[bbox_lat_lon__covers]': bounds.wkt}, True),
+                ({'filter[bbox_lat_lon__intersects]': bounds.wkt}, True),
+                ({'filter[bbox_lat_lon__contains]': bounds.wkt}, True),
+                ({'filter[bbox_lat_lon__equals]': bounds.wkt}, True),
+                ({'sort': 'scale_min_inherited'}, True),
+                ({'sort': '-bbox_lat_lon_inherited'}, True)):
+            with self.subTest(**params):
+                request = APIRequestFactory().get(self.path, params)
+                self.assertEqual(
+                    expected,
+                    inherited_attributes_are_a_condition(
+                        request, LayerFilterSet),
+                    msg=f'{params} was misclassified for the read of a page')
+
+    def test_sorting_the_list_by_a_column_keeps_the_derivation_out(self):
+        """``&sort=title`` may not turn a fast list into a 9 s list.
+
+        The AC name it: the reported request cost 9.3 s with a sort and 6.6 s
+        without, because the sort changed nothing about what the CTEs derived -
+        the whole registry either way. Every ordering field of this endpoint names
+        a column of the layer row, so the statement of the page stays a plain read
+        of the page in the order of that column, and the derivation stays bounded
+        by the rows the page shows.
+        """
+        status, body, queries = self.request(
+            self.path, user='user', **{'sort': 'title', 'page[size]': 6})
+        self.assertEqual(200, status, body)
+        titles = [row['attributes']['title'] for row in body['data']]
+        self.assertEqual(len(titles), 6)
+        self.assertEqual(titles, sorted(titles))
+        derivations = self.derivations(queries.captured_queries)
+        self.assertEqual(
+            len(derivations), 1,
+            msg=f'a sorted page asked the derivation {len(derivations)} '
+                'times, expected it once for its own rows')
+        self.assertEqual(self.page_ids_of(derivations[0]),
+                         self.ids_of_rows(body))
+        answered = self.answered_values(body)
+        self.assertEqual(answered['a']['scaleMin'], 10)
+        self.assertEqual(answered['a1']['scaleMin'], None)
+
+    def test_sorting_by_a_scale_column_answers_the_inherited_scale(self):
+        """Sorting by the own column while showing the inherited one agrees.
+
+        ``sort=scale_min`` orders the rows by the column they carry, whereas the
+        answer shows ``scaleMin`` of the derivation: both are right, and neither
+        may make the other expensive. The five cheapest own values of the fixture
+        are three times 1, then the 3 of the deep chain, then the 10 of ``a``; the
+        answer of those rows is the value of their ancestry, not the value which
+        was sorted by.
+        """
+        status, body, queries = self.request(
+            self.path, user='user', **{'sort': 'scale_min', 'page[size]': 5})
+        self.assertEqual(200, status, body)
+        self.assertEqual(
+            [row['attributes']['scaleMin'] for row in body['data']],
+            [1, 1, 1, 3, 10])
+        self.assertEqual(len(self.derivations(queries.captured_queries)), 1)
+
+    def test_a_detail_answer_keeps_the_derivation_in_its_statement(self):
+        """Only the list is read without the derivation.
+
+        The detail of a layer answers all of its attributes and asked one
+        statement with all three CTEs before this change; that is the read #1315
+        established and it stays untouched, which is what makes the list the only
+        response whose shape changed.
+        """
+        layer = Layer.objects.get(identifier='a1')
+        status, body, queries = self.request(
+            f'/api/registry/layers/{layer.pk}', user='user')
+        self.assertEqual(200, status)
+        derivations = self.derivations(queries.captured_queries)
+        self.assertEqual(len(derivations), 1)
+        for cte in ('"ancestors" AS (', '"aggregated_ancestors" AS (',
+                    '"layer_security_information" AS ('):
+            self.assertIn(cte, derivations[0])
+        self.assertEqual(
+            body['data']['attributes']['bboxLatLon']['bbox'],
+            [1.0, 1.0, 2.0, 2.0])
+        self.assertEqual(
+            sorted(resource['id'] for resource in
+                   body['data']['relationships']['styles']['data']),
+            [str(self.style.pk)])
+
+    def test_the_nested_endpoint_is_unchanged(self):
+        """The endpoint of #1315 keeps the read which #1315 gave it.
+
+        The nested list answered the derivation for the layers of one service
+        inside its own statement, which is the 338 ms of the issue. It is pinned
+        here as well - although ``LayersEndpointTest`` pins the same - so that a
+        future "optimisation" cannot quietly move the work of that endpoint into a
+        second statement and make the comparison of the two endpoints meaningless.
+        """
+        status, body, queries = self.request(
+            f'/api/registry/wms/{self.measured.pk}/layers', user='user',
+            **{'page[size]': 100})
+        self.assertEqual(200, status)
+        derivations = self.derivations(queries.captured_queries)
+        self.assertTrue(derivations)
+        for statement in derivations:
+            self.assertEqual(
+                len(LayersEndpointTest.SCOPE_MARKER.findall(statement)), 3)
+        self.assertEqual(
+            {row['attributes']['title'] for row in body['data']},
+            set(self.measured.layers.values_list('title', flat=True)))
 
 
 class LayersEndpointTest(LayerTreeMixin, QueryMeasurementMixin, TestCase):

@@ -3,6 +3,7 @@ from django_filters import BooleanFilter
 from django_filters.filterset import FilterSet
 from registry.models.service import (CatalogueService, FeatureType, Layer,
                                      WebFeatureService, WebMapService)
+from registry.querys.alerts import stored_has_alert
 from rest_framework_gis.filters import GeometryFilter
 from rest_framework_gis.filterset import GeoFilterSet
 
@@ -25,6 +26,24 @@ class ServiceSpatialFilterSet(FilterSet):
         elements, field = service_elements(queryset.model)
         return queryset.filter(pk__in=elements.filter(**{f'{field}__{lookup}': value}).values('service'))
 
+    def filter_has_alert(self, queryset, name, value):
+        """Narrow the services to the attention their alert rows answer (#1824).
+
+        Asked as an *attribute*, `has_alert` is answered by the annotations of
+        `registry/querys/alerts.py`, which read the runs and jobs of the
+        service; #1424 bounded that read to the rows of a page. Asked as a
+        *condition* an annotation is a different thing: the database derives it
+        for every row the statement reads, so the paginator's `COUNT(*)`
+        derives the attention of the whole service table - which is what the
+        alert tiles of a service list pay for a single row. The refresh of the
+        alert rows stores the same decision per service already, so the
+        condition asks those rows - see `stored_has_alert()`.
+        """
+        if value is None:
+            return queryset
+        alerted = stored_has_alert(queryset.model)
+        return queryset.filter(alerted if value else ~alerted)
+
 
 class WebMapServiceFilterSet(ServiceSpatialFilterSet):
     is_update_candidate = BooleanFilter(
@@ -35,7 +54,11 @@ class WebMapServiceFilterSet(ServiceSpatialFilterSet):
     # adds to a query which asks for them, see registry/querys/alerts.py. Only
     # the schedules a service did not keep are not filterable here, because they
     # are answered by python.
-    has_alert = BooleanFilter(field_name="has_alert")
+    # asked as a condition, the attribute is answered by the stored rows of the
+    # alerts instead of by its annotations, which the database would derive
+    # over every service of the table - see
+    # `ServiceSpatialFilterSet.filter_has_alert` (#1824)
+    has_alert = BooleanFilter(method="filter_has_alert")
     monitoring_failed = BooleanFilter(field_name="monitoring_failed")
     update_review_required = BooleanFilter(
         field_name="update_review_required")
@@ -125,7 +148,11 @@ class WebFeatureServiceFilterSet(ServiceSpatialFilterSet):
     )
 
     # the alerts of a service, see WebMapServiceFilterSet
-    has_alert = BooleanFilter(field_name="has_alert")
+    # asked as a condition, the attribute is answered by the stored rows of the
+    # alerts instead of by its annotations, which the database would derive
+    # over every service of the table - see
+    # `ServiceSpatialFilterSet.filter_has_alert` (#1824)
+    has_alert = BooleanFilter(method="filter_has_alert")
     monitoring_failed = BooleanFilter(field_name="monitoring_failed")
     update_review_required = BooleanFilter(
         field_name="update_review_required")
@@ -184,7 +211,11 @@ class CatalogueServiceFilterSet(ServiceSpatialFilterSet):
     # the alerts of a service, see WebMapServiceFilterSet. A catalogue is the
     # only kind of service whose records are pulled by a harvesting job, so it
     # answers the state of that job in addition.
-    has_alert = BooleanFilter(field_name="has_alert")
+    # asked as a condition, the attribute is answered by the stored rows of the
+    # alerts instead of by its annotations, which the database would derive
+    # over every service of the table - see
+    # `ServiceSpatialFilterSet.filter_has_alert` (#1824)
+    has_alert = BooleanFilter(method="filter_has_alert")
     monitoring_failed = BooleanFilter(field_name="monitoring_failed")
     update_review_required = BooleanFilter(
         field_name="update_review_required")

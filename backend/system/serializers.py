@@ -128,6 +128,9 @@ class CapacitySnapshotSerializer(Serializer):
     other_workload = JSONField(required=False)
     demand = JSONField(required=False)
     costs = JSONField(required=False)
+    # the schedule-side answer of #1827 (measured p95 vs the interval of the
+    # row which dispatched it, plus the dropped fires of the same window)
+    reachability = JSONField(required=False)
     build = JSONField(required=False)
     limitations = JSONField(required=False)
 

@@ -121,6 +121,38 @@ are the stable contract.
     against the live one knows whether the answer is still about *these*
     definitions.
 
+``reachability``
+    the schedule-side answer of #1827, and the section which asks the
+    question the demand side cannot: a beat schedule whose runs need longer
+    than the interval its own row fires on never meets its own cadence. The
+    fires are still dispatched — beat honours the interval — but the
+    ``SingletonTask`` lock of #837 refuses every second one, and a refused
+    fire contributes no occurrence to any demand count. One entry per
+    short-interval enabled row (``interval_seconds`` at most
+    ``TASK_PERFORMANCE_REACHABILITY_MAX_INTERVAL_SECONDS``):
+
+    ``interval_seconds``
+        what the ``PeriodicTask`` row says, converted from whatever
+        ``IntervalSchedule``/``CrontabSchedule`` it points at;
+    ``samples`` / ``active_p95`` / ``overrun_ratio``
+        the measured completed duration of the attempts *that row*
+        dispatched (``periodic_name``), and the p95 over its interval. No
+        samples, or fewer than ``CAPACITY_REACHABILITY_MIN_SAMPLES``, answers
+        ``verdict: "unknown"`` with both at ``null`` — absence of a
+        measurement is never an answer of "reachable";
+    ``fires`` / ``dropped_fires`` / ``skipped_share``
+        the attempt rows of the same window for that row, of which the ones
+        whose fire the lock refused (``outcome: "skipped"``, #1827), and
+        their share;
+    ``verdict``
+        ``reachable``, ``tight`` (it fits with less than
+        ``CAPACITY_REACHABILITY_HEADROOM`` to spare) or ``unreachable`` —
+        ``unreachable`` also adds the ``schedule_interval_unreachable`` gap.
+
+    The same read backs the ``schedule_overrun`` incident of the #1390
+    detector, so a schedule is never reachable in one screen and an incident
+    in the other.
+
 The occurrence walk
 ===================
 
@@ -194,6 +226,12 @@ The gaps vocabulary
 ``nonperiodic_arrival_rate_unobserved``
     permanent today: no source observes non-periodic arrivals forward, so
     drain estimates stay null.
+``schedule_interval_unreachable``
+    a beat schedule whose measured p95 costs more than the interval its own
+    row fires on (#1827): the singleton lock drops the fires between two
+    runs, so the deployment's rows are current at half the cadence its
+    settings name. Named per schedule in ``reachability``; the #1390
+    detector publishes the same reading as an incident.
 
 Settings
 ========
@@ -223,6 +261,12 @@ Settings
 ``CAPACITY_RHO_ADVISORY_THRESHOLD``                                                                  the advisory line
                                                                                                      that travels with
                                                                                                      rho (0.7)
+``CAPACITY_REACHABILITY_HEADROOM`` / ``..._MIN_SAMPLES`` / ``..._WINDOW_MINUTES``                    the margin, the
+                                                                                                     sample floor and
+                                                                                                     the window of the
+                                                                                                     reachability panel
+                                                                                                     of #1827 (1.1 / 5
+                                                                                                     / 360)
 ===================================================================================================  =================
 
 What may not be claimed
@@ -237,6 +281,10 @@ What may not be claimed
   exactly that;
 * queue depth is a count at the build moment, not a rate; nothing here
   answers "how long will this backlog take to drain".
+* a schedule the reachability panel calls ``unknown`` is not a reachable
+  schedule — it is an unanswered one; and a ``reachable`` verdict is about
+  the measured window, not a guarantee for the next one, since the duration
+  moves with the size of the catalogue.
 
 Upstream finding (not fixed here)
 =================================

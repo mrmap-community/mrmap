@@ -88,6 +88,10 @@ GAP_SCHEDULES_TRUNCATED = "schedules_truncated"
 GAP_SCHEDULE_UNREADABLE = "schedule_definition_unreadable"
 GAP_MEASUREMENT_WINDOW_EMPTY = "no_measured_samples_in_window"
 GAP_ARRIVAL_RATE_UNOBSERVED = "nonperiodic_arrival_rate_unobserved"
+#: a beat schedule whose measured p95 costs more than the interval it fires on
+#: (#1827): its dispatches are being dropped by the singleton lock, so the
+#: cadence the deployment configured is not the cadence its rows are current
+GAP_SCHEDULE_UNREACHABLE = "schedule_interval_unreachable"
 
 #: every gap entry a build may answer - the documented vocabulary of the
 #: endpoint's fail-closed states
@@ -97,7 +101,8 @@ GAPS = (
     GAP_WORKER_ROUTING_UNKNOWN, GAP_ZERO_CONSUMER_QUEUE,
     GAP_COST_INCOMPLETE, GAP_WALK_BUDGET_EXHAUSTED,
     GAP_SCHEDULES_TRUNCATED, GAP_SCHEDULE_UNREADABLE,
-    GAP_MEASUREMENT_WINDOW_EMPTY, GAP_ARRIVAL_RATE_UNOBSERVED)
+    GAP_MEASUREMENT_WINDOW_EMPTY, GAP_ARRIVAL_RATE_UNOBSERVED,
+    GAP_SCHEDULE_UNREACHABLE)
 
 #: stated instead of measured, as the issue asks: rho below the threshold is
 #: a reason to look, not a theorem of safety
@@ -338,6 +343,17 @@ def build_capacity_snapshot(at=None, horizon_days=None):
     costs = capacity_demand.measured_costs(since=since, until=at)
     demand = capacity_demand.periodic_demand(
         at, horizon_days=horizon_days, costs=costs, task_routes=routes)
+    # the reachability panel of #1827: every short-interval beat schedule
+    # beside the p95 of the runs ITS row dispatched and the fires the singleton
+    # lock dropped in the same window. This is where an operator learns that a
+    # cadence the deployment configured is not being met at all - the question
+    # the demand side above cannot ask, because a dropped fire contributes no
+    # occurrence to any expected-dispatch count.
+    reachability = capacity_demand.schedule_reachability(
+        since=at - timedelta(
+            minutes=int(_setting("CAPACITY_REACHABILITY_WINDOW_MINUTES",
+                                 6 * 60))),
+        until=at)
 
     topology = capacity_topology.observe_topology()
     messages = observe_message_backlog()
@@ -348,6 +364,9 @@ def build_capacity_snapshot(at=None, horizon_days=None):
     gaps = set()
     if not messages.get("available"):
         gaps.add(GAP_MESSAGE_BACKLOG_UNOBSERVED)
+    if any(entry["verdict"] == "unreachable"
+           for entry in reachability["schedules"].values()):
+        gaps.add(GAP_SCHEDULE_UNREACHABLE)
 
     pools = _pools(topology, gaps)
     fleet_slots = _fleet_slot_seconds(pools, horizon_seconds)
@@ -417,6 +436,11 @@ def build_capacity_snapshot(at=None, horizon_days=None):
         },
         "demand": demand,
         "costs": costs,
+        # the schedule-side answer of #1827: per short-interval beat row its
+        # own measured p95, its interval and the share of its fires the
+        # singleton lock dropped. "reachable" is only ever answered from a
+        # measurement, never from the interval alone.
+        "reachability": reachability,
         "build": {
             "cost_seconds": (timezone.now() - started).total_seconds(),
             "occurrences_counted": demand["totals"]["occurrences"],

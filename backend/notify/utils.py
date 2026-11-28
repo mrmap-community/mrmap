@@ -130,8 +130,20 @@ def invalidate_service_alerts():
     The refetch reads the stored rows of the alerts (#1030), so the publish is
     followed by the refresh which answers it. The refresh is a singleton task,
     so the fires which a burst of invalidations enqueues collapse into the
-    refreshes which really run, and one which finds another running is
-    skipped - its state is answered by the next beat fire at the latest.
+    refreshes which really run.
+
+    What an operator waits after repairing a service (#1827): the countdown of
+    ``ALERT_REFRESH_COUNTDOWN_SECONDS``, plus the queue wait of the fire, plus
+    one run of the rewrite - which is the honest bound, because a fire which
+    finds another running is skipped and its state is answered by the next fire
+    which actually runs, not by the next beat fire. When a run outlives the
+    interval of the beat row (the size-dependent case of #1827), the beat fires
+    skip each other too and the wait doubles to one interval plus one run
+    duration. The refresh row's interval is a setting now and adapts to what the
+    task measured on the deployment (``registry.apps
+    .create_service_alert_refresh_task``), which keeps the doubled case rare;
+    the dropped share per schedule is answered by the capacity snapshot and
+    reported as an incident by the detector of #1390.
 
     The enqueue is a hand over to a worker, never a call of the refresh: an
     app which runs its tasks eagerly executes the whole rewrite of the table

@@ -10,9 +10,17 @@ from django.utils.translation import gettext_lazy as _
 #: tests look the row up by it
 SERVICE_ALERT_REFRESH_TASK_NAME = "refresh the rows of the service alerts"
 
-#: the seconds between two refreshes of the alert rows - the interval the
-#: header poll of the alerts relied on for schedules becoming overdue, which
-#: the refresh takes over from the read of the alerts (#1030)
+#: the cadence a deployment which says nothing gets, in seconds. Read through
+#: ``settings.SERVICE_ALERT_REFRESH_SECONDS`` at the moment the row is
+#: created, so a deployment moves it with ``MRMAP_SERVICE_ALERT_REFRESH_SECONDS``
+#: like every other tunable of this app (#1827).
+#:
+#: On a rig of the size the documentation treats as normal - tens of thousands
+#: of services, ~76k alert rows - one rewrite needs 20.4-27.1 s, so this
+#: shipped value was a cadence the deployment could never meet and every
+#: second fire was thrown away by the singleton lock. A fresh row therefore
+#: additionally adapts to what the task measured on this deployment (see
+#: ``create_service_alert_refresh_task``).
 SERVICE_ALERT_REFRESH_SECONDS = 20
 
 #: the name the watchdog of the harvesting imports has in the schedule of beat;
@@ -98,20 +106,102 @@ def create_service_alert_refresh_task(sender, **kwargs):
     because this task rewrites them on the interval of the schedule which the
     header poll used to rely on. Keyed by its name: a deployment which
     re-scheduled the row over the api keeps what it chose.
+
+    Two things keep that cadence reachable at this size (#1827), and both
+    apply to a FRESH row only - an existing row stays the operator's:
+
+    *   the interval comes from ``SERVICE_ALERT_REFRESH_SECONDS``, which
+        ``MRMAP_SERVICE_ALERT_REFRESH_SECONDS`` sets. It used to be the
+        hardcoded 20 s of ``SERVICE_ALERT_REFRESH_SECONDS`` alone, a cadence
+        which a deployment of ~35k services and ~76k alert rows cannot meet:
+        one rewrite measured 20.4-27.1 s there, so every second fire met the
+        singleton lock and the rows were current every ~40 s while the
+        deployment believed its own setting.
+    *   the row additionally adapts to what the task already measured on THIS
+        deployment: with samples of the refresh in the attempt table of
+        #1330, the interval is raised to their p95 times
+        ``SERVICE_ALERT_REFRESH_HEADROOM``, bounded by
+        ``SERVICE_ALERT_REFRESH_MAX_INTERVAL_SECONDS``. Raised, never
+        shortened - a deployment which asked for a slower refresh keeps it -
+        and switchable off with ``MRMAP_SERVICE_ALERT_REFRESH_ADAPTIVE=off``.
+        A migrate on a deployment which never ran the task (no samples yet)
+        is unaffected, so a fresh install still gets the shipped cadence.
+
+    The measurement which adapts the row is read through the reachability read
+    of #1827, so the interval, the capacity snapshot panel and the #1390
+    incident all rest on the same measured p95.
     """
     from django_celery_beat.models import IntervalSchedule, PeriodicTask
 
+    logger = logging.getLogger(__name__)
+    interval = max(1, int(getattr(
+        settings, "SERVICE_ALERT_REFRESH_SECONDS",
+        SERVICE_ALERT_REFRESH_SECONDS)))
+    interval = _reachable_refresh_interval(interval)
+
     schedule, _ = IntervalSchedule.objects.get_or_create(
-        every=SERVICE_ALERT_REFRESH_SECONDS,
+        every=interval,
         period=IntervalSchedule.SECONDS)
 
-    PeriodicTask.objects.get_or_create(
+    row, created = PeriodicTask.objects.get_or_create(
         name=SERVICE_ALERT_REFRESH_TASK_NAME,
         defaults={
             "interval": schedule,
             "task": "registry.tasks.alerts.refresh_service_alerts",
         }
     )
+    if created and interval != max(1, int(getattr(
+            settings, "SERVICE_ALERT_REFRESH_SECONDS",
+            SERVICE_ALERT_REFRESH_SECONDS))):
+        # only ever reachable through the adaptive step, and worth a line:
+        # the deployment's rows are current at a cadence its own setting does
+        # not name, and an operator must not have to discover that in a log
+        logger.info(
+            "Service alerts (#1827): the refresh of the alert rows fires "
+            "every %s s instead of the configured %s s, because a measured "
+            "run of the refresh needs that long on this deployment. Set "
+            "MRMAP_SERVICE_ALERT_REFRESH_SECONDS (or the schedule row) to "
+            "choose otherwise.", interval, getattr(
+                settings, "SERVICE_ALERT_REFRESH_SECONDS",
+                SERVICE_ALERT_REFRESH_SECONDS))
+    return row
+
+
+def _reachable_refresh_interval(configured):
+    """The refresh interval which the measured duration of the task allows.
+
+    Returns ``configured`` unchanged when the adaptive step is switched off,
+    when nothing has been measured yet, or when the measurement is not past
+    the configured cadence - which is the ordinary case of a small deployment
+    and the reason a shipped 20 s stays shipped there. Never returns a shorter
+    interval than the configured one: this is a floor under the cadence, not a
+    scheduler.
+    """
+    if not getattr(settings, "SERVICE_ALERT_REFRESH_ADAPTIVE", True):
+        return configured
+    logger = logging.getLogger(__name__)
+    try:
+        from system.capacity_measures import measured_p95_of_periodic_task
+    except ImportError:  # pragma: no cover - system is a hard dependency
+        return configured
+    try:
+        measured = measured_p95_of_periodic_task(
+            SERVICE_ALERT_REFRESH_TASK_NAME,
+            "registry.tasks.alerts.refresh_service_alerts")
+    except Exception as error:
+        # a migrate must never fail because the attempt table could not be
+        # read; the shipped cadence is the answer and the detector reports
+        # the same condition later on
+        logger.info("Service alerts (#1827): the refresh interval could not "
+                    "be adapted from the measured duration: %s", error)
+        return configured
+    if measured is None:
+        return configured
+    headroom = float(getattr(settings, "SERVICE_ALERT_REFRESH_HEADROOM", 1.5))
+    bound = int(getattr(
+        settings, "SERVICE_ALERT_REFRESH_MAX_INTERVAL_SECONDS", 300))
+    wanted = int(-(-measured * headroom // 1))          # round up
+    return max(configured, min(wanted, max(configured, bound)))
 
 
 def create_import_watch_task(sender, **kwargs):

@@ -24,6 +24,13 @@ class AttemptOutcome(models.TextChoices):
     FAILURE = "failure", "Failure"
     RETRY = "retry", "Retry"
     REVOKED = "revoked", "Revoked"
+    #: a fire of a ``SingletonTask`` which found the lock taken and therefore
+    #: never ran its body (#1827). Terminal, because the fire is over - but
+    #: without a measured duration: nothing executed, so there is nothing to
+    #: put into a duration distribution. ``active_seconds`` stays NULL and
+    #: every aggregate which reads durations through ``_terminal_q()`` skips
+    #: it by construction; the count of such rows IS the answer.
+    SKIPPED = "skipped", "Skipped"
 
 
 #: every outcome which closes an attempt; the empty outcome is deliberately

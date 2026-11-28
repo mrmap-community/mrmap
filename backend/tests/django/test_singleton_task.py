@@ -144,6 +144,69 @@ class SingletonTaskTest(TestCase):
         self.assertIn('another instance is running', '\n'.join(told.output),
                       'the skip is not told')
 
+    def test_a_skipped_fire_announces_itself(self):
+        """the dropped fire is announced, so telemetry can count it (#1827):
+
+        a skip which only ever writes one INFO line is invisible to every
+        duration read of the deployment - the fire measured nothing - so the
+        share of dropped fires of a schedule would be unanswerable. The
+        receiver of #1330 records the announcement as its own attempt outcome;
+        what is asked here is the seam itself, and that the announcement costs
+        the skipped fire nothing even when a receiver raises.
+        """
+        from extras.tasks import task_skipped
+
+        task = self.slow_task('singleton.test.announced')
+        first, _ = self.fire_in_thread(task)
+        self.assertTrue(task.started.wait(TIMEOUT), 'the first run never started')
+
+        announced = []
+
+        def record(sender, task_id=None, attempt_no=None, **kwargs):
+            announced.append((sender, task_id, attempt_no))
+
+        def fire_dropped(fire_id):
+            """One fire which must be refused, under a known fire id."""
+            task.push_request(id=fire_id)
+            try:
+                return task()
+            finally:
+                task.pop_request()
+
+        task_skipped.connect(record, weak=False)
+        self.addCleanup(task_skipped.disconnect, record)
+        try:
+            with self.assertLogs(settings.ROOT_LOGGER, level='INFO'):
+                second = fire_dropped('dropped-fire')
+            self.assertIn('skipped', second)
+            self.assertEqual(len(announced), 1,
+                             'the dropped fire was not announced once')
+            sender, task_id, _ = announced[0]
+            # the celery task object of a non-current app is a proxy, so the
+            # run announces itself through the instance behind it and identity
+            # is not the question here - naming the locked schedule is
+            self.assertIsInstance(sender, SingletonTask,
+                                  'the announcement names no task')
+            self.assertEqual(sender.name, task.name,
+                             'the announcement names the wrong task')
+            self.assertEqual(task_id, 'dropped-fire',
+                             'the announcement names no fire')
+
+            # a receiver which raises must not cost the fire which is
+            # answering the skip
+            def broken(sender, **kwargs):
+                raise RuntimeError('a diagnostic never breaks a fire')
+
+            task_skipped.connect(broken, weak=False)
+            try:
+                with self.assertLogs(settings.ROOT_LOGGER, level='INFO'):
+                    self.assertIn('skipped', fire_dropped('still-skipped'))
+            finally:
+                task_skipped.disconnect(broken)
+        finally:
+            task.release.set()
+            first.join(TIMEOUT)
+
     def test_a_run_leaves_the_lock_to_the_fire_which_comes_after_it(self):
         """the lock belongs to one run and not to the task: a finished run may
         not hold the next fire off"""

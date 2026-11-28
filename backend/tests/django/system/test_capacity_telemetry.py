@@ -563,6 +563,84 @@ class CollectionGateTests(SignalSeamTestsMixin, TestCase):
 
 
 @ENABLED
+class SkippedFireTests(SignalSeamTestsMixin, TestCase):
+    """The dropped fire of a singleton task is an observation of its own.
+
+    A fire the lock refused executed nothing, so it measured nothing: it must
+    reach the database as a count and never as a duration, because "the fire
+    is over" and "the attempt executed" are different statements (#1827).
+    """
+
+    def setUp(self):
+        reset_collector()
+        self.addCleanup(reset_collector)
+        CeleryTaskAttempt.objects.all().delete()
+
+    def skip(self, task):
+        from extras.tasks import task_skipped
+        task_skipped.send_robust(
+            sender=task, task_id=task.request.get("id"),
+            attempt_no=task.request.get("retries", 0))
+
+    def test_a_dropped_fire_is_one_row_with_no_duration(self):
+        # the real lifecycle of a refused fire: celery fires prerun, the body
+        # answers "skipped" without running, and celery reports that answer as
+        # an ordinary return - success and postrun arrive AFTER the skip
+        task = make_task(make_request(periodic_name="refresh alerts"))
+        self.prerun(task)
+        self.skip(task)
+        self.succeed(task)
+        self.postrun(task)
+        flush_attempts()
+        rows = CeleryTaskAttempt.objects.filter(
+            outcome=AttemptOutcome.SKIPPED.value)
+        self.assertEqual(rows.count(), 1)
+        row = rows.get()
+        self.assertEqual(row.periodic_name, "refresh alerts")
+        self.assertIsNone(row.active_seconds)
+        self.assertIsNone(row.finished_at)
+        self.assertIsNone(row.wait_seconds)
+
+    def test_a_dropped_fire_of_an_already_flushed_attempt_is_still_recorded(self):
+        # the fire's own row may have left the buffer with an earlier batch;
+        # losing the skip would lose the only trace the fire ever left
+        task = make_task(make_request(periodic_name="refresh alerts"))
+        flush_attempts()
+        self.skip(task)
+        flush_attempts()
+        self.assertEqual(CeleryTaskAttempt.objects.filter(
+            outcome=AttemptOutcome.SKIPPED.value).count(), 1)
+
+    def test_a_skip_of_an_unknown_fire_is_not_recorded_at_all(self):
+        # without a task uuid there is no identity to key a row by, and an
+        # invented one would be an observation which never happened
+        task = make_task(make_request())
+        self.skip(FakeTask(task.name, Context({"id": None, "task": task.name})))
+        flush_attempts()
+        self.assertEqual(CeleryTaskAttempt.objects.count(), 0)
+
+    def test_the_gate_of_every_other_collector_applies_here_too(self):
+        with override_settings(CAPACITY_TELEMETRY_ENABLED=False):
+            task = make_task(make_request())
+            self.skip(task)
+            flush_attempts()
+        self.assertEqual(CeleryTaskAttempt.objects.count(), 0)
+
+    def test_a_broken_write_costs_the_skipped_fire_nothing(self):
+        task = make_task(make_request())
+        self.prerun(task)
+        with patch.object(telemetry, "_enforce_buffer_limit",
+                          side_effect=RuntimeError("the database is gone")):
+            self.skip(task)
+        self.succeed(task)
+        self.postrun(task)
+        summary = flush_attempts()
+        self.assertEqual(summary["error"], None)
+        self.assertEqual(CeleryTaskAttempt.objects.filter(
+            outcome=AttemptOutcome.SKIPPED.value).count(), 1)
+
+
+@ENABLED
 class PrivacyBoundaryTests(TestCase):
     """No argument, url or payload can ever ride a sample row (#1330)."""
 

@@ -35,6 +35,8 @@ from registry.models.update import WebMapServiceUpdateSetting
 from registry.ows_lib.client.exceptions import InitialError
 from registry.ows_lib.wms.wms import WebMapServiceClient
 from registry.querys.alerts import SERVICE_KIND_OF
+from registry.querys.explorer import (HARVEST_COUNT_ATTRIBUTES,
+                                      harvest_counts_requested)
 from registry.serializers.metadata import (KeywordSerializer,
                                            MetadataContactSerializer,
                                            MimeTypeSerializer,
@@ -1174,6 +1176,11 @@ class CatalogueServiceSerializer(
     url = HyperlinkedIdentityField(
         view_name="registry:csw-detail",
     )
+    # the counters of the harvesting are not answered by the statement of the
+    # page but by the read of it, which hands them to the instances it selected
+    # (`registry.querys.explorer.ServiceExplorerMixin`). Like `extent` and
+    # `element_count` of `ExplorerAttributesSerializer` they belong to a
+    # representation only when the request asked for them (#1826)
     harvested_dataset_count = IntegerField(read_only=True)
     harvested_service_count = IntegerField(read_only=True)
     harvested_total_count = IntegerField(read_only=True)
@@ -1287,6 +1294,37 @@ class CatalogueServiceSerializer(
     def get_harvest_job(self, instance):
         return self.alert_record(
             HarvestingJob, getattr(instance, 'harvest_job', None))
+
+    def harvest_counts_answered(self) -> dict:
+        """Which counters of the harvesting belong to this representation.
+
+        The values are answered by the read of the page and not by its statement
+        (`registry.querys.explorer.answer_harvest_counts`), which hands them to
+        the instances it selected and remembers what it answered. The read is the
+        only place which decides, so a representation never renders a counter
+        whose value was never read: the opt-in rule of
+        `ExplorerAttributesSerializer` for ``extent`` and ``element_count``,
+        applied to the counters whose cost made a list which asks nothing of them
+        the most expensive variant of the route (#1826).
+        """
+        view = self.context.get('view')
+        answered = getattr(view, 'harvest_counts_answered', None)
+        if callable(answered):
+            return answered(self.Meta.model)
+        request = self.context.get('request') or getattr(view, 'request', None)
+        if request is None:
+            return {}
+        return harvest_counts_requested(
+            request, self.Meta.model.__name__,
+            list_view=getattr(view, 'action', None) == 'list')
+
+    def to_representation(self, instance):
+        result = super().to_representation(instance)
+        answered = self.harvest_counts_answered()
+        for name in HARVEST_COUNT_ATTRIBUTES:
+            if not answered.get(name):
+                result.pop(name, None)
+        return result
 
 
 class CatalogueServiceOperationUrlSerializer(SystemInfoSerializerMixin, ModelSerializer):

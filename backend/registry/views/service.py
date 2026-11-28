@@ -1,5 +1,5 @@
 from camel_converter import to_camel
-from django.db.models import Count, Exists, F, OuterRef, Prefetch, Subquery
+from django.db.models import Exists, F, OuterRef, Prefetch, Subquery
 from django.db.models import Value as V
 from django.db.models.functions import Coalesce
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema, extend_schema_view
@@ -28,8 +28,7 @@ from registry.models.harvest import HarvestingJob, PeriodicHarvestingJob
 from registry.models.metadata import (DatasetMetadataRecord,
                                       FeatureTypeRemoteMetadata, Keyword,
                                       Language, MetadataRelation, MimeType,
-                                      ReferenceSystem, ServiceMetadataRecord,
-                                      Style, TimeExtent)
+                                      ReferenceSystem, Style, TimeExtent)
 from registry.models.monitoring import (CatalogueServiceMonitoringSetting,
                                         WebFeatureServiceMonitoringSetting,
                                         WebMapServiceMonitoringSetting)
@@ -47,7 +46,7 @@ from registry.querys.alerts import (SERVICE_KIND_OF, alert_records,
                                     defer_alert_annotations,
                                     has_alert_annotations)
 from registry.querys.service import LayerPrefetch
-from registry.querys.explorer import ServiceExplorerMixin, catalogue_records
+from registry.querys.explorer import ServiceExplorerMixin
 from registry.serializers.service import (
     CatalogueServiceCreateSerializer, CatalogueServiceOperationUrlSerializer,
     CatalogueServiceSerializer, FeatureTypeSerializer, LayerSerializer,
@@ -1041,24 +1040,21 @@ class CatalogueServiceViewSetMixin(
         return qs
 
     def with_harvesting_stats(self, qs):
-        harvested_total_count_needed = self.check_sparse_fields_contains(
-            "harvestedTotalCount")
-        harvested_dataset_count_needed = self.check_sparse_fields_contains(
-            "harvestedDatasetCount") or harvested_total_count_needed
-        harvested_service_count_needed = self.check_sparse_fields_contains(
-            "harvestedServiceCount") or harvested_total_count_needed
+        """Keep the counters of the harvesting out of the statement of the page.
 
-        for needed, field, model in (
-            (harvested_dataset_count_needed, "harvested_dataset_count", DatasetMetadataRecord),
-            (harvested_service_count_needed, "harvested_service_count", ServiceMetadataRecord),
-        ):
-            if needed:
-                count = catalogue_records(model).annotate(
-                    count=Count("pk", distinct=True)).values("count")
-                qs = qs.annotate(**{field: Coalesce(Subquery(count), 0)})
-        if harvested_total_count_needed:
-            qs = qs.annotate(harvested_total_count=(
-                F("harvested_dataset_count") + F("harvested_service_count")))
+        Three correlated ``COUNT(DISTINCT ...)`` over the join tables of the
+        harvesting answered the records of a catalogue once per row the page
+        read, so the cost of a page grew with the harvest volume of the rows it
+        happened to show: one catalogue of 273,509 relations cost half a second
+        on its own and the twelve of a page cost 1.35 s, while the same page
+        without those attributes answered in 21 ms (#1826).
+
+        The counters are answered for the rows of the page afterwards by
+        `registry.querys.explorer.answer_harvest_counts` - one grouped statement
+        per kind of record over the identifiers of the page - and only to a
+        request which asks for them at all, by the rule of
+        `harvest_counts_requested`.
+        """
         return qs
 
     def get_queryset(self, *args, **kwargs):

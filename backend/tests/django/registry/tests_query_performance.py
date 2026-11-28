@@ -520,6 +520,129 @@ class CatalogueServiceQueryPerformance(QueryMeasurementMixin, TestCase):
             '- the camel name of createdAt must reach the python gate')
 
 
+class CatalogueServiceHarvestCountQueryPerformance(QueryMeasurementMixin, TestCase):
+    """The counters of the harvesting must not be answered per row.
+
+    ``CSW1`` of the fixture holds two harvested dataset records, which is the
+    shape of the reported deployment in miniature: there one catalogue held
+    273,509 harvest relations and the correlated ``COUNT(DISTINCT ...)`` of the
+    page query answered them once per row of the page, so 12 catalogues cost
+    1.35 s while the same page without those attributes cost 21 ms (#1826).
+    """
+
+    fixtures = ["test_users.json", "test_keywords.json", "test_crs.json",
+                "test_csw.json", "test_datasetmetadata.json"]
+
+    CSW_ONE = '9cc4889d-0cd4-4c3b-8975-58de6d30db41'
+
+    #: the join tables of the relation which connects a record to its catalogue
+    HARVEST_JOIN_TABLES = ('registry_datasetmetadatarecord_harvested_through',
+                           'registry_servicemetadatarecord_harvested_through')
+
+    def attributes_of(self, body, service_id):
+        return next(row['attributes'] for row in body['data']
+                    if row['id'] == service_id)
+
+    def harvest_statements(self, queries):
+        """The statements of an answer which read the join tables of a harvesting."""
+        return [q['sql'] for q in queries
+                if any(table in q['sql'] for table in self.HARVEST_JOIN_TABLES)]
+
+    def test_the_list_which_asks_nothing_reads_no_harvest_relations(self):
+        """The default list is not the most expensive variant of the route.
+
+        A list which names neither the counters nor the coverage shows nothing
+        of them, so it may not read the rows behind them at all (#1826).
+        """
+        _status, _body, queries = self.request('/api/registry/csw', user='user')
+        self.assertEqual(self.harvest_statements(queries), [],
+                         msg='the unasked list reads the harvest relations')
+
+    def test_the_page_carries_no_correlated_count_over_the_harvest_relations(self):
+        """The acceptance criterion of #1826: no per-row ``COUNT(DISTINCT ...)``.
+
+        Measured with the field list the shipped catalogue admin sends, which
+        asks for ``elementCount`` but for none of the counters.
+        """
+        _status, _body, queries = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]': ','.join([
+                'id', 'title', 'abstract', 'stringRepresentation', 'hits',
+                'dateStamp', 'createdAt', 'lastModifiedAt', 'hasAlert',
+                'monitoringFailed', 'monitoringFailedAt', 'updateReviewRequired',
+                'updateReviewRequiredAt', 'updateFailed', 'updateFailedAt',
+                'harvestAborted', 'harvestIncomplete', 'harvestFailedAt',
+                'elementCount', 'runningHarvestingJob', 'isHarvestable',
+                'periodicHarvestingJobs'])})
+        statements = self.harvest_statements(queries)
+        self.assertTrue(statements, 'the element count of the page read nothing')
+        for sql in statements:
+            self.assertNotIn(
+                'COUNT(DISTINCT', sql.upper(),
+                msg=f'the page answers a correlated distinct count per row: '
+                    f'{sql[:400]}')
+            self.assertNotIn(
+                'registry_catalogueservice"."id"', sql,
+                msg=f'an aggregate of the harvest relations is correlated to a '
+                    f'catalogue row instead of grouped over the page: {sql[:400]}')
+        # one grouped statement per kind of record, bounded by the ids of the page
+        self.assertLessEqual(len(statements), 2, statements)
+        for sql in statements:
+            self.assertIn('GROUP BY', sql.upper(), sql[:400])
+        self.assertQueriesIndependentOfRows(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]': 'id,title,elementCount'})
+
+    def test_the_counters_are_answered_by_grouped_statements_and_keep_their_values(self):
+        """Only the cost changes: the values are the records of the catalogue."""
+        fields = {'fields[CatalogueService]':
+                  'id,title,harvestedDatasetCount,harvestedServiceCount,'
+                  'harvestedTotalCount'}
+        status, body, queries = self.request(
+            '/api/registry/csw', user='user', **fields)
+        self.assertEqual(status, 200)
+        attributes = self.attributes_of(body, self.CSW_ONE)
+        for name, model in (('harvestedDatasetCount', DatasetMetadataRecord),
+                            ('harvestedServiceCount', ServiceMetadataRecord)):
+            self.assertEqual(
+                attributes[name],
+                model.objects.filter(
+                    harvested_through=self.CSW_ONE).count())
+        self.assertEqual(
+            attributes['harvestedTotalCount'],
+            attributes['harvestedDatasetCount'] + attributes['harvestedServiceCount'])
+        self.assertGreater(attributes['harvestedTotalCount'], 0,
+                           'the fixture holds no harvested record to count')
+        statements = self.harvest_statements(queries)
+        self.assertEqual(len(statements), 2, statements)
+        for sql in statements:
+            self.assertIn('GROUP BY', sql.upper(), sql[:400])
+            self.assertNotIn('COUNT(DISTINCT', sql.upper(), sql[:400])
+        self.assertQueriesIndependentOfRows('/api/registry/csw', user='user', **fields)
+
+    def test_the_detail_answers_the_counters_which_the_list_leaves_out(self):
+        """The detail card of a catalogue shows its published records (#1826)."""
+        _status, body, _queries = self.request(
+            f'/api/registry/csw/{self.CSW_ONE}', user='user')
+        attributes = body['data']['attributes']
+        datasets = DatasetMetadataRecord.objects.filter(
+            harvested_through=self.CSW_ONE).count()
+        services = ServiceMetadataRecord.objects.filter(
+            harvested_through=self.CSW_ONE).count()
+        for name, expected in (('harvestedDatasetCount', datasets),
+                               ('harvestedServiceCount', services),
+                               ('harvestedTotalCount', datasets + services)):
+            self.assertEqual(attributes[name], expected, name)
+        # and the list which names one of them answers exactly that one
+        _status, body, _queries = self.request(
+            '/api/registry/csw', user='user',
+            **{'fields[CatalogueService]': 'id,title,harvestedDatasetCount'})
+        attributes = self.attributes_of(body, self.CSW_ONE)
+        self.assertIn('harvestedDatasetCount', attributes)
+        self.assertNotIn('harvestedServiceCount', attributes)
+        self.assertNotIn('harvestedTotalCount', attributes)
+
+
 class HarvestingQueryPerformance(QueryMeasurementMixin, TestCase):
     """The harvesting jobs know the service and the schedule they belong to."""
 

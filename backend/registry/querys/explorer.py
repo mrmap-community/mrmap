@@ -289,12 +289,25 @@ class ServiceExplorerMixin:
             list_view=getattr(self, 'action', None) == 'list'
             and any(isinstance(service, CatalogueService) for service in page))
 
+    def harvest_counts_answered(self, model) -> dict:
+        """The counters this view answered for rows of ``model``.
+
+        The read of the page is the only place which decides, and the serializer
+        renders exactly what it decided: a representation which answered a
+        counter whose value was never read would read an attribute the instance
+        does not carry.
+        """
+        return getattr(self, '_harvest_counts_answered', {}).get(model, {})
+
     def with_service_aggregates(self, services, model):
         extent, element_count = self._explorer_requested(model)
+        requested = (self._harvest_counts_of(model, services)
+                     if model is CatalogueService else {})
+        self._harvest_counts_answered = {
+            **getattr(self, '_harvest_counts_answered', {}), model: requested}
         return service_aggregates(
             services, model=model, extent=extent, element_count=element_count,
-            harvest_counts=(self._harvest_counts_of(model, services)
-                            if model is CatalogueService else None))
+            harvest_counts=requested)
 
     def paginate_queryset(self, queryset, *args, **kwargs):
         page = super().paginate_queryset(queryset, *args, **kwargs)

@@ -1295,33 +1295,34 @@ class CatalogueServiceSerializer(
         return self.alert_record(
             HarvestingJob, getattr(instance, 'harvest_job', None))
 
-    def answers_harvest_counts(self) -> bool:
-        """Whether the counters of the harvesting belong to this representation.
+    def harvest_counts_answered(self) -> dict:
+        """Which counters of the harvesting belong to this representation.
 
         The values are answered by the read of the page and not by its statement
         (`registry.querys.explorer.answer_harvest_counts`), which hands them to
-        the instances it selected. Whether the request asked for them is decided
-        by one function on both sides - `harvest_counts_requested` - so the rows
-        which were given the values are exactly the rows which answer them: the
-        opt-in rule of `ExplorerAttributesSerializer` for ``extent`` and
-        ``element_count``, applied to the counters whose cost made a list which
-        asks nothing of them the most expensive variant of the route (#1826).
+        the instances it selected and remembers what it answered. The read is the
+        only place which decides, so a representation never renders a counter
+        whose value was never read: the opt-in rule of
+        `ExplorerAttributesSerializer` for ``extent`` and ``element_count``,
+        applied to the counters whose cost made a list which asks nothing of them
+        the most expensive variant of the route (#1826).
         """
         view = self.context.get('view')
+        answered = getattr(view, 'harvest_counts_answered', None)
+        if callable(answered):
+            return answered(self.Meta.model)
         request = self.context.get('request') or getattr(view, 'request', None)
         if request is None:
-            return False
-        # the counters belong to a catalogue; a nested serialization of a
-        # catalogue behind a record is not a list of catalogues
-        return any(harvest_counts_requested(
+            return {}
+        return harvest_counts_requested(
             request, self.Meta.model.__name__,
-            list_view=getattr(view, 'action', None) == 'list'
-            and self.Meta.model is CatalogueService).values())
+            list_view=getattr(view, 'action', None) == 'list')
 
     def to_representation(self, instance):
         result = super().to_representation(instance)
-        if not self.answers_harvest_counts():
-            for name in HARVEST_COUNT_ATTRIBUTES:
+        answered = self.harvest_counts_answered()
+        for name in HARVEST_COUNT_ATTRIBUTES:
+            if not answered.get(name):
                 result.pop(name, None)
         return result
 

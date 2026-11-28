@@ -276,13 +276,52 @@ class FilteredListTests(VisibilityDataMixin, TestCase):
         self.assertIn("accounts_role", joined)
 
 
-class PublishWriteTests(VisibilityDataMixin, TestCase):
-    """The PATCH across the public axis, gated on the publish permission."""
+class PublishWriteClientMixin:
+    """The client and the reads of a test which writes the public axis.
+
+    Shared by the two publish classes: what they differ about is who holds
+    which role, not how a ``PATCH`` of ``visibility`` is carried or how the
+    decided state and the ``allowedActions`` hint are read back.
+    """
 
     def setUp(self):
         super().setUp()
         self.client = APIClient()
         self.client.credentials(HTTP_ACCEPT=JSONAPI)
+
+    def patch(self, user, attributes, service=None):
+        service = service or self.target
+        self.client.force_authenticate(user)
+        return self.client.patch(
+            reverse("registry:wms-detail", args=[service.pk]),
+            {
+                "data": {
+                    "type": "WebMapService",
+                    "id": str(service.pk),
+                    "attributes": attributes,
+                }
+            },
+            format="vnd.api+json")
+
+    def visibility_now(self, service=None):
+        return WebMapService.objects.filter(
+            pk=(service or self.target).pk).with_visibility().values_list(
+                "visibility", flat=True).get()
+
+    def allowed_actions(self, user, service=None):
+        self.client.force_authenticate(user)
+        response = self.client.get(
+            reverse("registry:wms-detail", args=[(service or self.target).pk]),
+            {"fields[WebMapService]": "id,allowed_actions"})
+        self.assertEqual(response.status_code, 200, response.content)
+        return response.json()["data"]["attributes"]["allowedActions"]
+
+
+class PublishWriteTests(PublishWriteClientMixin, VisibilityDataMixin, TestCase):
+    """The PATCH across the public axis, gated on the publish permission."""
+
+    def setUp(self):
+        super().setUp()
         # the target belongs to org_a: the editors and publishers below are
         # org_a's, so the permission check which decides the PATCH is the
         # publish axis and not the change axis of a foreign organization
@@ -300,22 +339,7 @@ class PublishWriteTests(VisibilityDataMixin, TestCase):
             username="publish-root", password="x")
 
     def patch(self, user, value):
-        self.client.force_authenticate(user)
-        return self.client.patch(
-            reverse("registry:wms-detail", args=[self.target.pk]),
-            {
-                "data": {
-                    "type": "WebMapService",
-                    "id": str(self.target.pk),
-                    "attributes": {"visibility": value},
-                }
-            },
-            format="vnd.api+json")
-
-    def visibility_now(self):
-        return WebMapService.objects.filter(
-            pk=self.target.pk).with_visibility().values_list(
-                "visibility", flat=True).get()
+        return super().patch(user, {"visibility": value})
 
     def test_the_publisher_makes_it_public_and_the_answer_says_it(self):
         response = self.patch(self.publisher, "public")
@@ -374,7 +398,8 @@ class PublishWriteTests(VisibilityDataMixin, TestCase):
         self.assertEqual(self.visibility_now(), Visibility.PUBLIC.value)
 
 
-class PublishWithThePublisherRoleAloneTests(VisibilityDataMixin, TestCase):
+class PublishWithThePublisherRoleAloneTests(
+        PublishWriteClientMixin, VisibilityDataMixin, TestCase):
     """The publisher role alone reaches the publish decision (#1808).
 
     The visibility write has two gates: the endpoint's - which DRF answers
@@ -390,39 +415,11 @@ class PublishWithThePublisherRoleAloneTests(VisibilityDataMixin, TestCase):
 
     def setUp(self):
         super().setUp()
-        self.client = APIClient()
-        self.client.credentials(HTTP_ACCEPT=JSONAPI)
         self.target = self.create_wms("Publisher Only Service", self.org_a)
         self.publisher = self.member_of(
             "solo-publisher-a", self.org_a, "resource_publisher")
         self.admin = self.member_of(
             "orgadmin-a", self.org_a, "organization_admin")
-
-    def patch(self, user, attributes):
-        self.client.force_authenticate(user)
-        return self.client.patch(
-            reverse("registry:wms-detail", args=[self.target.pk]),
-            {
-                "data": {
-                    "type": "WebMapService",
-                    "id": str(self.target.pk),
-                    "attributes": attributes,
-                }
-            },
-            format="vnd.api+json")
-
-    def visibility_now(self, service=None):
-        return WebMapService.objects.filter(
-            pk=(service or self.target).pk).with_visibility().values_list(
-                "visibility", flat=True).get()
-
-    def allowed_actions(self, user, service=None):
-        self.client.force_authenticate(user)
-        response = self.client.get(
-            reverse("registry:wms-detail", args=[(service or self.target).pk]),
-            {"fields[WebMapService]": "id,allowed_actions"})
-        self.assertEqual(response.status_code, 200, response.content)
-        return response.json()["data"]["attributes"]["allowedActions"]
 
     def test_the_publisher_role_alone_publishes(self):
         """The role the handbook names performs the write it exists for."""

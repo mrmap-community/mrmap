@@ -474,6 +474,29 @@ def _anonymous_viewer_group_ids():
         is_active=True).values("group_id")
 
 
+def _anonymous_group_grants(through_model, app_label, model_name, codename=None):
+    """The query of the anonymous viewer role group's grants over one model.
+
+    Args:
+        through_model: the guardian through-model of the resource's model,
+            dedicated or generic
+        app_label, model_name: the model whose grants are asked
+        codename: narrow to one permission; ``None`` asks *any* grant of the
+            model, which is the cheap predecessor of the per-object question
+    """
+    grants = through_model.objects.filter(
+        group_id__in=_anonymous_viewer_group_ids(),
+        permission__content_type__app_label=app_label,
+        permission__content_type__model=model_name)
+    if codename is not None:
+        grants = grants.filter(permission__codename=codename)
+    if through_model.objects.is_generic():
+        grants = grants.filter(
+            content_type__app_label=app_label,
+            content_type__model=model_name)
+    return grants
+
+
 def _anonymous_holds_any_grant(app_label, obj, through_model, checker) -> bool:
     """Whether the anonymous viewer holds any grant over ``obj``'s model.
 
@@ -488,15 +511,8 @@ def _anonymous_holds_any_grant(app_label, obj, through_model, checker) -> bool:
     key = ("public_any", app_label, obj._meta.model_name)
     if memo is not None and key in memo:
         return memo[key]
-    grants = through_model.objects.filter(
-        group_id__in=_anonymous_viewer_group_ids(),
-        permission__content_type__app_label=app_label,
-        permission__content_type__model=obj._meta.model_name)
-    if through_model.objects.is_generic():
-        grants = grants.filter(
-            content_type__app_label=app_label,
-            content_type__model=obj._meta.model_name)
-    result = grants.exists()
+    result = _anonymous_group_grants(
+        through_model, app_label, obj._meta.model_name).exists()
     if memo is not None:
         memo[key] = result
     return result
@@ -538,15 +554,10 @@ def authorized_public_object_grant(user, perm, obj, checker=None) -> bool:
     # for this model at all - every database until somebody publishes - the
     # per-object EXISTS is not paid for (#739's rollout by construction)
     if _anonymous_holds_any_grant(app_label, obj, through_model, checker):
-        grants = through_model.objects.filter(
-            group_id__in=_anonymous_viewer_group_ids(),
-            permission__codename=codename,
-            permission__content_type__app_label=app_label)
+        grants = _anonymous_group_grants(
+            through_model, app_label, obj._meta.model_name, codename)
         if through_model.objects.is_generic():
-            grants = grants.filter(
-                content_type__app_label=app_label,
-                content_type__model=obj._meta.model_name,
-                object_pk=str(obj.pk))
+            grants = grants.filter(object_pk=str(obj.pk))
         else:
             grants = grants.filter(content_object_id=obj.pk)
         result = grants.exists()

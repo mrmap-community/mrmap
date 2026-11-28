@@ -12,6 +12,13 @@ logger: Logger = settings.ROOT_LOGGER
 
 WMS_RUN_MODEL = "registry.webmapservicemonitoringrun"
 
+#: the phase a run which had nothing to check reports itself with. The step
+#: count of such a run is 0, which the background activity reads as "does not
+#: know its steps" - so the phase is the only answer why the run has no probe
+#: results at all, and it names the reason the way `fail_process` names a
+#: failure (#1806)
+NOTHING_TO_CHECK_PHASE = "Completed without checks: the setting has no probes"
+
 
 @shared_task(bind=True)
 def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwargs):
@@ -43,7 +50,16 @@ def run_probe_check(self, probe_model, run_model, probe_pk, run_pk, *args, **kwa
 
 
 @shared_task(bind=True)
-def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kwargs):
+def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL,
+               *args, **kwargs):
+    """Report a monitoring run as ended.
+
+    Args:
+        _group_result: the return value of the group of probe checks which
+            precedes this task in the chain
+        run_pk (int): primary key of the run to end
+        run_model (str): label of the monitoring run model of the run
+    """
     run = apps.get_model(run_model).objects.get(pk=run_pk)
     run.date_done = timezone.now()
     # only date_done changes here; a narrower update_fields keeps the terminal
@@ -52,6 +68,36 @@ def finish_run(self, _group_result, run_pk, run_model=WMS_RUN_MODEL, *args, **kw
     run.report_process(ProcessStatusEnum.COMPLETED)
     invalidate_service_alerts()
     return run.pk
+
+
+def complete_run_without_checks(run):
+    """End a run whose setting has no probe, right here.
+
+    A setting is created together with its service and its probes are a
+    resource of their own, so every monitoring starts out without a single
+    probe. Such a run has nothing to check, and dispatching it as the chain of
+    an empty group and the finishing task never reaches that task at all:
+    celery applies the second step of a chain with the return value of the
+    first, which an empty group does not deliver, so applying `finish_run`
+    raised a `TypeError`. The run and its process were already created by then
+    and no task was left to close them, so the process stayed as running with
+    "Running 0 checks" while the api answered a setting which ran on schedule
+    and checked nothing (#1806). Completing the run directly answers the truth
+    instead: a run which had nothing to check is a completed run.
+
+    Args:
+        run (MonitoringRun): the run which has no probe to run
+    """
+    logger.info(
+        "Monitoring run %s of setting %s has no probes; it completes without "
+        "any check.", run.pk, run.setting_id)
+    # the running report is what plans the steps and writes the phase; the
+    # completion which follows keeps both, as in the normal path
+    run.report_process(
+        ProcessStatusEnum.RUNNING,
+        phase=NOTHING_TO_CHECK_PHASE,
+        total_steps=0)
+    finish_run(None, run_pk=run.pk, run_model=run._meta.label_lower)
 
 
 def start_run(run, probes, task):
@@ -74,6 +120,9 @@ def start_run(run, probes, task):
             run_pk=run.pk)
         for probe in probes
     ]
+    if not tasks:
+        complete_run_without_checks(run)
+        return run.pk
     run.report_process(
         ProcessStatusEnum.RUNNING,
         phase=f"Running {len(tasks)} checks",

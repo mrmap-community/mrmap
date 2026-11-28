@@ -16,13 +16,26 @@ const RESOURCE_COLORS = {
 } as const;
 
 /**
+ * The four inventory kinds the donut of #1820 counts and neither the inventory
+ * line (#1817) nor the stacked bars (#1820) draw: the theme has no palette slot
+ * left for them beside the three of #1818, so each keeps one distinct Material
+ * hue, far enough from the three palette colors to tell the arcs apart.
+ */
+const INVENTORY_COLORS: Record<string, string> = {
+  WebMapService: "#6a1b9a",
+  Layer: "#455a64",
+  WebFeatureService: "#00838f",
+  FeatureType: "#c2185b",
+};
+
+/**
  * The color of one resource.
  *
  * A resource without an entry is drawn neutral on purpose: two of them would
- * otherwise share a palette color unnoticed. #1820 adds the entries of the
- * resources its own charts draw.
+ * otherwise share a palette color unnoticed.
  */
 export const dashboardResourceColor = (theme: Theme, resource: string): string => {
   const color = RESOURCE_COLORS[resource as keyof typeof RESOURCE_COLORS];
-  return color ? theme.palette[color].main : theme.palette.grey[500];
+  if (color) return theme.palette[color].main;
+  return INVENTORY_COLORS[resource] ?? theme.palette.grey[500];
 };

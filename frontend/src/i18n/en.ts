@@ -954,7 +954,6 @@ const en = lodashMerge(
         title: "Changes to services and metadata",
         yAxis: "Number of changes",
         scope: "Additions, updates and deletions counted per day for each resource — audit events, never distinct objects. Only resources with verified dashboard history are drawn.",
-        period: "Period",
         days: "Last %{days} days",
         coverage: "History coverage",
         complete: "Complete for the selected period",
@@ -971,6 +970,49 @@ const en = lodashMerge(
       criticalAlerts: {
         down: "%{smart_count} component of the deployment is down |||| %{smart_count} components of the deployment are down",
         degraded: "%{smart_count} component of the deployment is degraded |||| %{smart_count} components of the deployment are degraded",
+      },
+      // the single header of the dashboard (#1820): the screen answers one
+      // period and one refresh, so no two cards of it can name two windows
+      header: {
+        title: "Dashboard",
+        description: "The inventory of this deployment, its changes and the work which waits — counted over everything you are allowed to see.",
+        period: "Period",
+        refresh: "Refresh",
+        refreshed: "Last refreshed %{moment}",
+      },
+      // the stock a resource counted on each day of the window (#1820): the
+      // counterpart of the activity chart, which counts events instead — an
+      // invented stock is the one answer this card must never give
+      inventory: {
+        title: "Resource inventory over time",
+        yAxis: "Number of registered resources",
+        scope: "The inventory each resource counted on the days of the selected period — registered resources, neither audit events nor distinct real-world objects. Only resources whose stock can be proved are drawn.",
+        coverage: "Inventory coverage",
+        verified: "Verified stock, counts %{count} today",
+        unverified: "Stock cannot be proved for this period, so it is not drawn",
+        unavailable: "%{resources} cannot answer its stock right now and is not drawn.",
+        empty: "No registered resources of the verified kinds in this period.",
+      },
+      // the stacked daily changes (#1820): the same verified event totals as
+      // the activity chart, stacked instead of drawn as separate lines
+      changes: {
+        title: "Daily changes by resource",
+        yAxis: "Number of events",
+        scope: "Additions, updates and deletions of the verified resources, stacked per day — the same audit events as the activity chart, over the last %{days} days.",
+        total: "%{events} events over %{days} days",
+      },
+      // the distribution of the registered inventory (#1820): the denominator
+      // is always the sum of the counts which were answered, never the whole
+      // deployment, and the list beside the circle answers the exact numbers
+      distribution: {
+        title: "Resource distribution",
+        scope: "Share of the registered resources of each kind today — registered resources, not distinct real-world objects.",
+        denominator: "%{total} registered resource of %{resources} kind counted |||| %{total} registered resources of %{resources} kinds counted",
+        other: "Other",
+        empty: "This deployment registers no resources yet.",
+        unavailable: "%{resources} cannot answer its count right now and is missing from the denominator.",
+        explain: "Show the exact shares of %{resources} kinds",
+        group: "Group the shares below %{threshold}%",
       },
       kpi: {
         delta: "Change %{delta}",

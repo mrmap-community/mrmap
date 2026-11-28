@@ -299,6 +299,19 @@ A `PATCH` may move a resource across the public axis only:
 - `"restricted"` is refused (400): it is the shape of the *absence* of grants,
   and shaping it deliberately is #740, not this endpoint.
 
+Because the catalogue grants those two rights to two roles — `resource_editor`
+the `change_` of the model, `resource_publisher` the publish capability — a
+request which speaks about nothing but `visibility` is not gated on the
+`change_` of the model. `registry.views.visibility.VisibilityWritePermissions`,
+carried by the WMS and WFS viewsets, asks the action's own capability for
+exactly that request, the way `ServiceSharePermissions` always asked
+`share_resource` for the share route; any other unsafe request, a mixed
+`PATCH` besides the visibility among its attributes included, keeps the
+viewset's own `change_` gate and therefore needs both axes, as the serializer
+decides it. The two answers cannot drift apart, and neither may move without
+the other: the pair is pinned in
+`tests/django/registry/tests_permission_visibility.py`.
+
 ### The rollout switch
 
 Whether a *list* is narrowed to what the caller may view is a deployment
@@ -482,6 +495,7 @@ Every name above, with the file it comes from.
 | `ObjectPermissionBackend`, `GUARDIAN_RAISE_403` | `backend/MrMap/settings.py` |
 | `DEFAULT_PERMISSION_CLASSES` (the floor a view without a declared class falls back to) | `backend/MrMap/settings.py` |
 | `DjangoObjectPermissionsOrAnonReadOnly` | `backend/extras/permissions.py` |
+| `VisibilityWritePermissions` (the route gate of the visibility-only `PATCH`) | `backend/registry/views/visibility.py` |
 | `ObjectPermissionCheckerViewSetMixin` | `backend/extras/viewsets.py` |
 | `ObjectPermissionCheckerSerializer` (`allowedActions`) | `backend/extras/serializers.py` |
 | `CanChangeRelatedResource`, `CanRetryRegistrationReference` | `backend/notify/permissions.py` |
